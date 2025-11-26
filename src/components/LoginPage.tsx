@@ -7,7 +7,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { DatabaseService } from '../services/DatabaseService'
 import { toast } from 'sonner'
 import { User, Table } from '../services/types'
-import { QrCode, User as UserIcon, LockKey, Storefront } from '@phosphor-icons/react'
+import { QrCode, Users, LockKey, Storefront } from '@phosphor-icons/react'
 
 interface Props {
   onLogin: (user: User, table?: Table) => void
@@ -24,8 +24,7 @@ export default function LoginPage({ onLogin }: Props) {
   // Table Login State
   const [tablePin, setTablePin] = useState('')
 
-  const handleAdminLogin = async (e: React.FormEvent) => {
-    e.preventDefault()
+  const handleAdminLogin = async () => {
     setIsLoading(true)
 
     try {
@@ -67,21 +66,6 @@ export default function LoginPage({ onLogin }: Props) {
     setIsLoading(true)
 
     try {
-      // Fetch all tables (inefficient but works for now, better to have an API to find table by PIN)
-      // Since we don't have a direct "get table by pin" method exposed yet in DatabaseService generic getTables,
-      // we'll fetch all tables from all restaurants? No, that's bad.
-      // But we don't know the restaurant ID here.
-      // Ideally, the customer scans a QR code which has the restaurant ID and table ID.
-      // If entering a PIN manually, it must be unique globally or we need restaurant ID.
-      // For this demo, let's assume we fetch all tables and find the matching PIN.
-      // Note: DatabaseService.getTables requires restaurantId. 
-      // We need a way to find a table by PIN globally or ask for Restaurant ID first.
-
-      // WORKAROUND: Fetch all restaurants, then fetch tables for each? Too slow.
-      // Let's assume for the demo we just try to find the table in the first available restaurant or similar.
-      // actually, the user said "fix login".
-
-      // Let's try to get the first restaurant for demo purposes if no restaurant is selected.
       const restaurants = await DatabaseService.getRestaurants()
       if (restaurants.length === 0) {
         toast.error('Nessun ristorante disponibile')
@@ -125,6 +109,56 @@ export default function LoginPage({ onLogin }: Props) {
   }
 
   return (
+    <div className="min-h-screen flex items-center justify-center bg-subtle-gradient p-4">
+      <div className="w-full max-w-md space-y-8">
+
+        <Tabs value={activeTab} onValueChange={(v) => setActiveTab(v as 'admin' | 'table')} className="w-full">
+          <TabsList className="grid w-full grid-cols-2 mb-8">
+            <TabsTrigger value="table" className="flex items-center gap-2">
+              <QrCode size={18} />
+              <span>Cliente</span>
+            </TabsTrigger>
+            <TabsTrigger value="admin" className="flex items-center gap-2">
+              <Storefront size={18} />
+              <span>Ristorante</span>
+            </TabsTrigger>
+          </TabsList>
+
+          <TabsContent value="table" className="space-y-4">
+            <div className="text-center mb-8">
+              <div className="w-16 h-16 glass rounded-2xl flex items-center justify-center mx-auto mb-4 shadow-professional border border-primary/20">
+                <QrCode weight="bold" size={32} className="text-primary" />
+              </div>
+              <h1 className="text-3xl font-bold text-foreground mb-2">Benvenuto</h1>
+              <p className="text-muted-foreground">Scansiona il QR code o inserisci il PIN</p>
+            </div>
+
+            <Card className="glass-card border-0 shadow-professional-lg">
+              <CardContent className="pt-6">
+                <form onSubmit={handleTableLogin} className="space-y-4">
+                  <div className="space-y-2">
+                    <Label htmlFor="pin" className="text-center block text-lg">PIN Tavolo</Label>
+                    <div className="flex justify-center">
+                      <Input
+                        id="pin"
+                        value={tablePin}
+                        onChange={(e) => setTablePin(e.target.value)}
+                        placeholder="1234"
+                        className="text-center text-2xl tracking-[1em] font-mono h-14 w-48 bg-black/20 border-white/10 focus:border-primary/50 focus:ring-primary/20"
+                        maxLength={4}
+                      />
+                    </div>
+                  </div>
+                  <Button
+                    type="submit"
+                    className="w-full bg-primary text-primary-foreground hover:bg-primary/90 h-11 font-bold shadow-gold mt-4"
+                    disabled={isLoading || tablePin.length < 4}
+                  >
+                    {isLoading ? 'Verifica in corso...' : 'Accedi al Tavolo'}
+                  </Button>
+                </form>
+
+                <div className="mt-8 pt-6 border-t border-white/10">
                   <p className="text-sm text-muted-foreground mb-3">
                     Come funziona:
                   </p>
@@ -142,62 +176,61 @@ export default function LoginPage({ onLogin }: Props) {
                       <span>Ordina direttamente dal tuo dispositivo</span>
                     </div>
                   </div>
-                </div >
-              </CardContent >
-            </Card >
-          </>
-        ) : (
-    <>
-      <div className="text-center mb-8">
-        <div className="w-16 h-16 glass rounded-2xl flex items-center justify-center mx-auto mb-4 shadow-professional border border-primary/20">
-          <Users weight="bold" size={32} className="text-primary" />
-        </div>
-        <h1 className="text-3xl font-bold text-foreground mb-2">Ristorante</h1>
-        <p className="text-muted-foreground">Portale di gestione</p>
-      </div>
+                </div>
+              </CardContent>
+            </Card>
+          </TabsContent>
 
-      <Card className="glass-card border-0 shadow-professional-lg">
-        <CardHeader>
-          <CardTitle className="text-xl text-center">Accesso Staff</CardTitle>
-          <CardDescription className="text-center">
-            Area riservata al personale
-          </CardDescription>
-        </CardHeader>
-        <CardContent className="space-y-4">
-          <div className="space-y-2">
-            <Label htmlFor="username">Nome Utente</Label>
-            <Input
-              id="username"
-              value={username}
-              onChange={(e) => setUsername(e.target.value)}
-              placeholder="Nome utente"
-              className="bg-black/20 border-white/10 focus:border-primary/50 focus:ring-primary/20"
-            />
-          </div>
-          <div className="space-y-2">
-            <Label htmlFor="password">Password</Label>
-            <Input
-              id="password"
-              type="password"
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              placeholder="Password"
-              className="bg-black/20 border-white/10 focus:border-primary/50 focus:ring-primary/20"
-            />
-          </div>
-          <Button
-            onClick={handleLogin}
-            disabled={loading || !username || !password}
-            className="w-full bg-primary text-primary-foreground hover:bg-primary/90 h-11 font-bold shadow-gold mt-2"
-          >
-            {loading ? 'Accesso in corso...' : 'Accedi'}
-          </Button>
-        </CardContent>
-      </Card>
-    </>
-  )
-}
-      </div >
-    </div >
+          <TabsContent value="admin" className="space-y-4">
+            <div className="text-center mb-8">
+              <div className="w-16 h-16 glass rounded-2xl flex items-center justify-center mx-auto mb-4 shadow-professional border border-primary/20">
+                <Users weight="bold" size={32} className="text-primary" />
+              </div>
+              <h1 className="text-3xl font-bold text-foreground mb-2">Ristorante</h1>
+              <p className="text-muted-foreground">Portale di gestione</p>
+            </div>
+
+            <Card className="glass-card border-0 shadow-professional-lg">
+              <CardHeader>
+                <CardTitle className="text-xl text-center">Accesso Staff</CardTitle>
+                <CardDescription className="text-center">
+                  Area riservata al personale
+                </CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                <div className="space-y-2">
+                  <Label htmlFor="username">Nome Utente</Label>
+                  <Input
+                    id="username"
+                    value={username}
+                    onChange={(e) => setUsername(e.target.value)}
+                    placeholder="Nome utente"
+                    className="bg-black/20 border-white/10 focus:border-primary/50 focus:ring-primary/20"
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="password">Password</Label>
+                  <Input
+                    id="password"
+                    type="password"
+                    value={password}
+                    onChange={(e) => setPassword(e.target.value)}
+                    placeholder="Password"
+                    className="bg-black/20 border-white/10 focus:border-primary/50 focus:ring-primary/20"
+                  />
+                </div>
+                <Button
+                  onClick={handleAdminLogin}
+                  disabled={isLoading || !username || !password}
+                  className="w-full bg-primary text-primary-foreground hover:bg-primary/90 h-11 font-bold shadow-gold mt-2"
+                >
+                  {isLoading ? 'Accesso in corso...' : 'Accedi'}
+                </Button>
+              </CardContent>
+            </Card>
+          </TabsContent>
+        </Tabs>
+      </div>
+    </div>
   )
 }
