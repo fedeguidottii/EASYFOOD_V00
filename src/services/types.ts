@@ -7,6 +7,7 @@ export type OrderItemStatus = 'PENDING' | 'IN_PREPARATION' | 'READY' | 'SERVED'
 export interface User {
     id: string
     email: string
+    username?: string
     name?: string
     password_hash?: string
     role: UserRole

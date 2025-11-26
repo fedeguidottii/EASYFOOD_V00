@@ -29,6 +29,7 @@ drop table if exists public.reservations cascade;
 create table public.users (
   id uuid primary key default uuid_generate_v4(),
   email text unique not null,
+  username text unique,
   name text,
   password_hash text,
   role text not null check (role in ('ADMIN', 'OWNER', 'STAFF', 'CUSTOMER')),

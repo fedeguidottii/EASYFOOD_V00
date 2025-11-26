@@ -23,6 +23,7 @@ export function DataInitializer() {
                     const adminUser: User = {
                         id: adminUserId,
                         email: 'admin@example.com',
+                        username: 'admin',
                         name: 'Admin',
                         password_hash: 'admin123',
                         role: 'ADMIN',

@@ -63,11 +63,9 @@ export default function LoginPage({ onLogin, onTableAccess, customerMode = false
   const handleLogin = async () => {
     setLoading(true)
 
-    // Check against email and password_hash
-    // Note: In production, password hashing should be done securely (e.g. bcrypt) on the server.
-    // Here we are doing a simple comparison for the demo.
+    // Check username first, then fall back to email or name
     const foundUser = (users || []).find(u =>
-      (u.email === username || u.name === username) && u.password_hash === password
+      (u.username === username || u.email === username || u.name === username) && u.password_hash === password
     )
 
     if (foundUser) {
