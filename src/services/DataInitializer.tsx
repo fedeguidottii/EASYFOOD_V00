@@ -17,10 +17,25 @@ export function DataInitializer() {
                 if (existingAdmin) {
                     console.log('Admin user already exists, updating credentials...')
                     adminUserId = existingAdmin.id
+
+                    const updates: Partial<User> = {}
+                    let needsUpdate = false
+
                     // Force update password to ensure login works
                     if (existingAdmin.password_hash !== 'admin123') {
-                        await DatabaseService.updateUser({ ...existingAdmin, password_hash: 'admin123' })
-                        console.log('Admin password updated to default')
+                        updates.password_hash = 'admin123'
+                        needsUpdate = true
+                    }
+
+                    // Force update name to 'Admin' so username login works
+                    if (existingAdmin.name !== 'Admin') {
+                        updates.name = 'Admin'
+                        needsUpdate = true
+                    }
+
+                    if (needsUpdate) {
+                        await DatabaseService.updateUser({ ...existingAdmin, ...updates })
+                        console.log('Admin credentials/name updated to default')
                     }
                 } else {
                     console.log('Creating admin user...')
