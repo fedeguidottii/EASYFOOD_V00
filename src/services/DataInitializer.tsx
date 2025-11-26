@@ -1,121 +1,93 @@
 import { useEffect } from 'react'
 import { DatabaseService } from './DatabaseService'
-import { User, Restaurant, Category, Dish, Table } from './types' // Aggiornato import tipi
 
 export function DataInitializer() {
     useEffect(() => {
         const initializeData = async () => {
             try {
-                // Check if data exists
+                // Controlla se esistono già utenti per evitare duplicati
                 const users = await DatabaseService.getUsers()
-                if (users && users.length > 0) return // Data already exists
+                if (users && users.length > 0) return
 
-                console.log('Initializing sample data...')
+                console.log('Avvio inizializzazione dati corretta...')
 
-                // Generiamo UUID validi
+                // 1. Generazione ID validi (UUID)
+                const adminId = crypto.randomUUID()
                 const restaurantId = crypto.randomUUID()
                 const categoryId = crypto.randomUUID()
-                const tableId = crypto.randomUUID()
-                const adminId = crypto.randomUUID()
                 const dishId = crypto.randomUUID()
+                const tableId = crypto.randomUUID()
 
-                // 1. Create Restaurant
-                // NOTA: Assicurati che i nomi delle proprietà (keys) coincidano con le colonne del DB su Supabase (snake_case)
-                const restaurant: any = { // Uso any per flessibilità nell'insert se i tipi TypeScript non sono allineati
-                    id: restaurantId,
-                    name: 'Il Mio Ristorante',
-                    contact: 'info@ilmioristorante.it',
-                    hours: '12:00 - 23:00',
-                    is_active: true, // snake_case
-                    cover_charge_per_person: 2.50, // snake_case probabile
-                    // Se all_you_can_eat è un campo JSONB, ok passarlo come oggetto, altrimenti servono colonne separate
-                    all_you_can_eat: { enabled: false, pricePerPerson: 25.00, maxOrders: 3 },
+                // 2. Creazione Utente Admin
+                // NOTA: La password è salvata in password_hash per questo esempio
+                const adminUser: any = {
+                    id: adminId,
+                    email: 'admin@easyfood.it',
+                    name: 'admin',          // Questo serve per il login come "username"
+                    password_hash: 'admin123', // Questo serve per il login come "password"
+                    role: 'ADMIN',          // Deve essere MAIUSCOLO come da DB
                     created_at: new Date().toISOString()
                 }
 
-                try {
-                    await DatabaseService.createRestaurant(restaurant)
-                    console.log('Restaurant created')
-                } catch (e) {
-                    console.error('Error creating restaurant', e)
-                    return; // Stop if restaurant fails
+                await DatabaseService.createUser(adminUser)
+                console.log('Utente admin creato')
+
+                // 3. Creazione Ristorante
+                const restaurant: any = {
+                    id: restaurantId,
+                    name: 'Il Mio Ristorante',
+                    owner_id: adminId,      // Collega il ristorante all'admin
+                    address: 'Via Roma 1',
+                    created_at: new Date().toISOString()
                 }
 
-                // 2. Create Admin User linked to Restaurant
-                const adminUser: any = {
-                    id: adminId,
-                    username: 'admin',
-                    password: 'admin123',
-                    role: 'admin',
-                    restaurant_id: restaurantId // snake_case cruciale per la Foreign Key
-                }
+                await DatabaseService.createRestaurant(restaurant)
+                console.log('Ristorante creato')
 
-                try {
-                    await DatabaseService.createUser(adminUser)
-                    console.log('Admin user created')
-                } catch (e) {
-                    console.error('Error creating admin user', e)
-                }
-
-                // 3. Create Menu Category
+                // 4. Creazione Categoria
                 const category: any = {
                     id: categoryId,
                     name: 'Antipasti',
-                    is_active: true, // snake_case
                     restaurant_id: restaurantId, // snake_case
-                    order: 1
+                    "order": 1,
+                    created_at: new Date().toISOString()
                 }
 
-                try {
-                    // CORRETTO: createCategory invece di createMenuCategory
-                    await DatabaseService.createCategory(category)
-                    console.log('Category created')
-                } catch (e) {
-                    console.error('Error creating category', e)
-                }
+                await DatabaseService.createCategory(category)
+                console.log('Categoria creata')
 
-                // 4. Create Menu Item (Dish)
+                // 5. Creazione Piatto
                 const dish: any = {
                     id: dishId,
                     name: 'Bruschetta Classica',
-                    description: 'Pane tostato con pomodoro fresco, basilico e olio EVO',
+                    description: 'Pane tostato con pomodoro',
                     price: 6.00,
-                    category_id: categoryId, // snake_case
-                    // categoryName: solitamente non si salva nel DB, è in relazione
-                    is_active: true, // snake_case
-                    restaurant_id: restaurantId, // snake_case
-                    image: 'https://images.unsplash.com/photo-1572695157363-bc31c5d53162?auto=format&fit=crop&w=800&q=80'
+                    vat_rate: 10,
+                    category_id: categoryId,    // snake_case
+                    restaurant_id: restaurantId,// snake_case
+                    is_active: true,
+                    created_at: new Date().toISOString()
                 }
 
-                try {
-                    // CORRETTO: createDish invece di createMenuItem
-                    await DatabaseService.createDish(dish)
-                    console.log('Menu item created')
-                } catch (e) {
-                    console.error('Error creating menu item', e)
-                }
+                await DatabaseService.createDish(dish)
+                console.log('Piatto creato')
 
-                // 5. Create Table
+                // 6. Creazione Tavolo
                 const table: any = {
                     id: tableId,
-                    name: 'Tavolo 1',
-                    is_active: true, // snake_case
-                    pin: '1234',
-                    qr_code: `${window.location.origin}?table=${tableId}`, // snake_case probabile
+                    number: 'Tavolo 1',
                     restaurant_id: restaurantId, // snake_case
-                    status: 'available'
+                    token: crypto.randomUUID(),
+                    created_at: new Date().toISOString()
                 }
 
-                try {
-                    await DatabaseService.createTable(table)
-                    console.log('Table created')
-                } catch (e) {
-                    console.error('Error creating table', e)
-                }
+                await DatabaseService.createTable(table)
+                console.log('Tavolo creato')
 
-                console.log('Data initialization complete')
+                console.log('Inizializzazione completata con successo!')
+                
             } catch (error) {
-                console.error('Error initializing data:', error)
+                console.error('Errore critico inizializzazione:', error)
             }
         }
 
