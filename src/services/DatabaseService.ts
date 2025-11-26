@@ -18,7 +18,10 @@ export const DatabaseService = {
     async getRestaurants() {
         const { data, error } = await supabase.from('restaurants').select('*')
         if (error) throw error
-        return data as Restaurant[]
+        return data.map((r: any) => ({
+            ...r,
+            isActive: r.is_active
+        })) as Restaurant[]
     },
 
     async createRestaurant(restaurant: Partial<Restaurant>) {
@@ -27,9 +30,20 @@ export const DatabaseService = {
     },
 
     async updateRestaurant(restaurant: Partial<Restaurant>) {
+        // Map frontend camelCase to DB snake_case
+        const payload: any = { ...restaurant }
+        if (restaurant.isActive !== undefined) {
+            payload.is_active = restaurant.isActive
+            delete payload.isActive
+        }
+        // Remove frontend-only fields that might cause errors if sent to DB
+        delete payload.hours
+        delete payload.coverChargePerPerson
+        delete payload.allYouCanEat
+
         const { error } = await supabase
             .from('restaurants')
-            .update(restaurant)
+            .update(payload)
             .eq('id', restaurant.id)
         if (error) throw error
     },
