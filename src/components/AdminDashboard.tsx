@@ -169,9 +169,13 @@ export default function AdminDashboard({ user, onLogout }: Props) {
       setLogoFile(null)
       setShowRestaurantDialog(false)
       toast.success('Ristorante creato con successo')
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error creating restaurant:', error)
-      toast.error('Errore durante la creazione.')
+      if (error.code === '23505' || error.status === 409 || error.message?.includes('duplicate key')) {
+        toast.error('Esiste già un utente o un ristorante con questa email.')
+      } else {
+        toast.error('Errore durante la creazione: ' + (error.message || 'Errore sconosciuto'))
+      }
     }
   }
 
