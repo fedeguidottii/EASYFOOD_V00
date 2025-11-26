@@ -115,8 +115,8 @@ export function DataInitializer() {
 
                 // Only reload if we actually created something new (simple heuristic: if we reached here without error)
                 // But to avoid loops, maybe don't reload automatically, or check a flag.
-                // For now, let's remove the reload to be safe and just let the user see the data on next nav.
-                // window.location.reload() 
+                // For now, let's remove the                // Reload removed to prevent infinite loops
+                // 
 
             } catch (error) {
                 console.error('Error initializing data:', error)
