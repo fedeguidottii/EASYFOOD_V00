@@ -26,10 +26,15 @@ export default function LoginPage({ onLogin }: Props) {
       console.log('Fetched users:', users)
 
       // Check for username or email match
-      const user = users.find(u =>
-        (u.name?.toLowerCase() === username.toLowerCase() || u.email?.toLowerCase() === username.toLowerCase()) &&
-        u.password_hash === password
-      )
+      const user = users.find(u => {
+        const nameMatch = u.name?.toLowerCase() === username.toLowerCase()
+        const emailMatch = u.email?.toLowerCase() === username.toLowerCase()
+        const passwordMatch = u.password_hash === password
+
+        console.log(`Checking user ${u.name} (${u.email}):`, { nameMatch, emailMatch, passwordMatch, storedHash: u.password_hash })
+
+        return (nameMatch || emailMatch) && passwordMatch
+      })
 
       if (user) {
         // If user is OWNER, we might want to fetch their restaurant here to ensure it exists
