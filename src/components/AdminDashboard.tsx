@@ -141,6 +141,7 @@ export default function AdminDashboard({ user, onLogout }: Props) {
       email: newRestaurant.email,
       logo_url: finalLogoUrl,
       owner_id: userId,
+      isActive: true, // Set active by default
     }
 
     const restaurantUser: User = {

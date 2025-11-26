@@ -25,7 +25,18 @@ export const DatabaseService = {
     },
 
     async createRestaurant(restaurant: Partial<Restaurant>) {
-        const { error } = await supabase.from('restaurants').insert(restaurant)
+        // Map isActive to is_active for database
+        const payload: any = { ...restaurant }
+        if (restaurant.isActive !== undefined) {
+            payload.is_active = restaurant.isActive
+            delete payload.isActive
+        }
+        // Remove frontend-only fields
+        delete payload.hours
+        delete payload.coverChargePerPerson
+        delete payload.allYouCanEat
+
+        const { error } = await supabase.from('restaurants').insert(payload)
         if (error) throw error
     },
 
