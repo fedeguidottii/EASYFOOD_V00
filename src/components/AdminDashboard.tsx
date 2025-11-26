@@ -415,9 +415,9 @@ export default function AdminDashboard({ user, onLogout }: Props) {
                 const isPasswordVisible = visiblePasswords[restaurant.id]
 
                 return (
-                  <Card key={restaurant.id} className={`overflow-hidden transition-opacity ${!restaurant.isActive ? 'opacity-50' : ''}`}>
+                  <Card key={restaurant.id} className="overflow-hidden">
                     <CardContent className="p-0">
-                      <div className="flex flex-col md:flex-row md:items-center justify-between p-6 gap-4">
+                      <div className={`flex flex-col md:flex-row md:items-center justify-between p-6 gap-4 transition-opacity ${!restaurant.isActive ? 'opacity-30' : ''}`}>
                         <div className="flex items-center gap-4 flex-1">
                           {restaurant.logo_url ? (
                             <img src={restaurant.logo_url} alt={restaurant.name} className="w-16 h-16 rounded-lg object-cover bg-muted border" />
@@ -472,7 +472,7 @@ export default function AdminDashboard({ user, onLogout }: Props) {
                             onClick={() => handleToggleActive(restaurant)}
                             title={restaurant.isActive ? "Disattiva" : "Attiva"}
                           >
-                            <PencilSimple size={16} className={restaurant.isActive ? "text-foreground" : "text-muted-foreground"} />
+                            <Power size={16} className={restaurant.isActive ? "text-green-600" : "text-red-600"} />
                           </Button>
                           <Button
                             variant="outline"
