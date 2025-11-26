@@ -32,14 +32,22 @@ export const DatabaseService = {
     async updateRestaurant(restaurant: Partial<Restaurant>) {
         // Map frontend camelCase to DB snake_case
         const payload: any = { ...restaurant }
+
+        // Handle isActive -> is_active mapping
         if (restaurant.isActive !== undefined) {
             payload.is_active = restaurant.isActive
-            delete payload.isActive
         }
-        // Remove frontend-only fields that might cause errors if sent to DB
+
+        // Remove frontend-only fields
+        delete payload.isActive
         delete payload.hours
         delete payload.coverChargePerPerson
         delete payload.allYouCanEat
+
+        // Remove read-only fields that shouldn't be updated
+        delete payload.id
+        delete payload.created_at
+        delete payload.owner_id // Usually shouldn't change owner via simple update
 
         const { error } = await supabase
             .from('restaurants')

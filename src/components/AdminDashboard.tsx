@@ -23,7 +23,15 @@ interface Props {
 type SortOption = 'name' | 'sales' | 'status'
 
 export default function AdminDashboard({ user, onLogout }: Props) {
-  const [restaurants] = useSupabaseData<Restaurant>('restaurants', [])
+  // useSupabaseData returns raw DB rows, so we need to handle snake_case
+  const [rawRestaurants] = useSupabaseData<any>('restaurants', [])
+
+  const restaurants: Restaurant[] = useMemo(() => {
+    return rawRestaurants.map(r => ({
+      ...r,
+      isActive: r.is_active // Map snake_case to camelCase
+    }))
+  }, [rawRestaurants])
   const [users] = useSupabaseData<User>('users', [])
   const [orders] = useSupabaseData<Order>('orders', [])
   const [activeView, setActiveView] = useState<'restaurants' | 'statistics'>('restaurants')
