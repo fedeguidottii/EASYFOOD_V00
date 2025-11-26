@@ -23,7 +23,7 @@ export function DataInitializer() {
                     const adminUser: User = {
                         id: adminUserId,
                         email: 'admin@example.com',
-                        name: 'admin', // Lowercase for login matching
+                        name: 'Admin', // Revert to Capitalized for consistency with existing data
                         password_hash: 'admin123',
                         role: 'ADMIN',
                         created_at: new Date().toISOString()
