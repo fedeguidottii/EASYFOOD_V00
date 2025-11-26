@@ -61,7 +61,7 @@ function App() {
 
   const handleTableAccess = (tableId: string) => {
     setCurrentTable(tableId)
-    setCurrentUser({ id: 'customer', email: 'customer@example.com', name: 'Customer', role: 'CUSTOMER' })
+    setCurrentUser({ id: 'customer', username: 'Customer', role: 'customer' })
   }
 
   if (!currentUser) {
