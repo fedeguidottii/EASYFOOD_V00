@@ -84,6 +84,7 @@ export default function AdminDashboard({ user, onLogout }: Props) {
     const restaurantUser: User = {
       id: userId,
       name: newRestaurant.username,
+      email: newRestaurant.email, // Use restaurant email for the owner user as well
       password_hash: newRestaurant.password, // Note: using password_hash field
       role: 'OWNER', // Uppercase
       // restaurantId: restaurantId // User doesn't have restaurantId in schema, Restaurant has owner_id. 
