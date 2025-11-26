@@ -83,7 +83,7 @@ export default function AdminDashboard({ user, onLogout }: Props) {
 
     const restaurantUser: User = {
       id: userId,
-      username: newRestaurant.username,
+      name: newRestaurant.username,
       password_hash: newRestaurant.password, // Note: using password_hash field
       role: 'OWNER', // Uppercase
       // restaurantId: restaurantId // User doesn't have restaurantId in schema, Restaurant has owner_id. 
@@ -187,7 +187,7 @@ export default function AdminDashboard({ user, onLogout }: Props) {
               </div>
               <div>
                 <h1 className="text-xl font-bold text-foreground">Amministrazione</h1>
-                <p className="text-sm text-muted-foreground">Ciao, {user.username || user.name}</p>
+                <p className="text-sm text-muted-foreground">Ciao, {user.name}</p>
               </div>
             </div>
             <div className="flex items-center gap-3">
@@ -319,7 +319,7 @@ export default function AdminDashboard({ user, onLogout }: Props) {
                               <p>Tel: <span className="text-foreground">{restaurant.phone}</span></p>
                               {restaurantUser && (
                                 <>
-                                  <p>Username: <span className="text-foreground font-medium">{restaurantUser.username}</span></p>
+                                  <p>Username: <span className="text-foreground font-medium">{restaurantUser.name}</span></p>
                                   <div className="flex items-center gap-2">
                                     <span>Password: </span>
                                     <span className="text-foreground font-medium">
@@ -434,8 +434,8 @@ export default function AdminDashboard({ user, onLogout }: Props) {
                   <div className="space-y-2">
                     <Label className="text-xs text-muted-foreground">Username</Label>
                     <Input
-                      value={editingUser.username || ''}
-                      onChange={(e) => setEditingUser(prev => prev ? ({ ...prev, username: e.target.value }) : null)}
+                      value={editingUser.name || ''}
+                      onChange={(e) => setEditingUser(prev => prev ? ({ ...prev, name: e.target.value }) : null)}
                     />
                   </div>
                   <div className="space-y-2">

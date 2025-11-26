@@ -26,6 +26,38 @@ export const DatabaseService = {
         if (error) throw error
     },
 
+    async updateRestaurant(restaurant: Partial<Restaurant>) {
+        const { error } = await supabase
+            .from('restaurants')
+            .update(restaurant)
+            .eq('id', restaurant.id)
+        if (error) throw error
+    },
+
+    async deleteRestaurant(restaurantId: string) {
+        const { error } = await supabase
+            .from('restaurants')
+            .delete()
+            .eq('id', restaurantId)
+        if (error) throw error
+    },
+
+    async updateUser(user: Partial<User>) {
+        const { error } = await supabase
+            .from('users')
+            .update(user)
+            .eq('id', user.id)
+        if (error) throw error
+    },
+
+    async deleteUser(userId: string) {
+        const { error } = await supabase
+            .from('users')
+            .delete()
+            .eq('id', userId)
+        if (error) throw error
+    },
+
     // Categories
     async getCategories(restaurantId: string) {
         const { data, error } = await supabase
