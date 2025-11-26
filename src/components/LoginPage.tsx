@@ -1,4 +1,3 @@
-```javascript
 import { useState } from 'react'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
@@ -15,8 +14,6 @@ interface Props {
 
 export default function LoginPage({ onLogin }: Props) {
   const [isLoading, setIsLoading] = useState(false)
-
-  // Admin/Restaurant Login State
   const [username, setUsername] = useState('')
   const [password, setPassword] = useState('')
 
@@ -47,7 +44,7 @@ export default function LoginPage({ onLogin }: Props) {
         }
 
         onLogin(user)
-        toast.success(`Benvenuto ${ user.name || 'Utente' } `)
+        toast.success(`Benvenuto ${user.name || 'Utente'}`)
       } else {
         console.warn('Login failed: Invalid credentials')
         toast.error('Credenziali non valide')
@@ -113,4 +110,3 @@ export default function LoginPage({ onLogin }: Props) {
     </div>
   )
 }
-```
