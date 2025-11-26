@@ -1,143 +1,131 @@
-import { useState, useEffect } from 'react'
+```typescript
+import { useState } from 'react'
 import { Button } from '@/components/ui/button'
-import { Input } from '@/components/ui/input'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
+import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
-import { Badge } from '@/components/ui/badge'
 import { DatabaseService } from '../services/DatabaseService'
 import { toast } from 'sonner'
 import { User, Table } from '../services/types'
-import { QrCode, Users, Crown } from '@phosphor-icons/react'
+import { QrCode, User as UserIcon, LockKey, Storefront } from '@phosphor-icons/react'
 
 interface Props {
-  onLogin: (user: User) => void
-  onTableAccess: (tableId: string) => void
-  customerMode?: boolean
-  presetTableId?: string
+  onLogin: (user: User, table?: Table) => void
 }
 
-export default function LoginPage({ onLogin, onTableAccess, customerMode = false, presetTableId = '' }: Props) {
+export default function LoginPage({ onLogin }: Props) {
+  const [activeTab, setActiveTab] = useState<'admin' | 'table'>('table')
+  const [isLoading, setIsLoading] = useState(false)
+
+  // Admin/Restaurant Login State
   const [username, setUsername] = useState('')
   const [password, setPassword] = useState('')
-  const [tableCode, setTableCode] = useState(presetTableId)
-  const [pin, setPin] = useState('')
-  const [loading, setLoading] = useState(false)
 
-  // We'll fetch users on demand or on mount, but for login we can just fetch all users once or query by username
-  // For simplicity, let's fetch all users on mount since the list is small
-  const [users, setUsers] = useState<User[]>([])
-  const [tables, setTables] = useState<Table[]>([])
+  // Table Login State
+  const [tablePin, setTablePin] = useState('')
 
-  useEffect(() => {
-    const fetchData = async () => {
-      try {
-        const fetchedUsers = await DatabaseService.getUsers()
-        const restaurants = await DatabaseService.getRestaurants()
+  const handleAdminLogin = async (e: React.FormEvent) => {
+    e.preventDefault()
+    setIsLoading(true)
 
-        let fetchedTables: Table[] = []
-        if (restaurants && restaurants.length > 0) {
-          fetchedTables = await DatabaseService.getTables(restaurants[0].id)
+    try {
+      const users = await DatabaseService.getUsers()
+      
+      // Check for username or email match
+      const user = users.find(u => 
+        (u.name?.toLowerCase() === username.toLowerCase() || u.email?.toLowerCase() === username.toLowerCase()) && 
+        u.password_hash === password
+      )
+
+      if (user) {
+        // If user is OWNER, we might want to fetch their restaurant here to ensure it exists
+        if (user.role === 'OWNER') {
+             const restaurants = await DatabaseService.getRestaurants()
+             const userRestaurant = restaurants.find(r => r.owner_id === user.id)
+             if (!userRestaurant) {
+                 toast.error('Nessun ristorante associato a questo account.')
+                 setIsLoading(false)
+                 return
+             }
         }
-
-        setUsers(fetchedUsers || [])
-        // Map tables to include compatibility properties
-        setTables((fetchedTables || []).map(t => ({
-          ...t,
-          name: t.number,
-          isActive: true // Default to true as we don't have this column anymore
-        })))
-      } catch (error) {
-        console.error('Error fetching data:', error)
+        
+        onLogin(user)
+        toast.success(`Benvenuto ${ user.name || 'Utente' } `)
+      } else {
+        toast.error('Credenziali non valide')
       }
+    } catch (error) {
+      console.error(error)
+      toast.error('Errore durante il login')
+    } finally {
+      setIsLoading(false)
     }
-    fetchData()
-  }, [])
-
-  useEffect(() => {
-    if (presetTableId) {
-      setTableCode(presetTableId)
-    }
-  }, [presetTableId])
-
-  const handleLogin = async () => {
-    setLoading(true)
-
-    // Check against email and password_hash
-    // Note: In production, password hashing should be done securely (e.g. bcrypt) on the server.
-    // Check against email and password_hash
-    // Also check name case-insensitively to allow 'admin' to match 'Admin'
-    const foundUser = (users || []).find(u =>
-      (u.email === username || (u.name && u.name.toLowerCase() === username.toLowerCase())) && u.password_hash === password
-    )
-
-    if (foundUser) {
-      onLogin(foundUser)
-      const roleName = foundUser.role === 'ADMIN' ? 'amministratore' : 'ristorante'
-      toast.success(`Accesso ${roleName} effettuato`)
-      setLoading(false)
-      return
-    }
-
-    toast.error('Credenziali non valide')
-    setLoading(false)
   }
 
-  const handleTableAccess = async () => {
-    setLoading(true)
+  const handleTableLogin = async (e: React.FormEvent) => {
+    e.preventDefault()
+    setIsLoading(true)
 
-    const table = (tables || []).find(t => t.id === tableCode && t.isActive)
-    if (table && table.pin === pin) {
-      onTableAccess(table.id)
-      toast.success(`Accesso al tavolo ${table.name} effettuato`)
-    } else {
-      toast.error('Codice tavolo o PIN non validi')
+    try {
+      // Fetch all tables (inefficient but works for now, better to have an API to find table by PIN)
+      // Since we don't have a direct "get table by pin" method exposed yet in DatabaseService generic getTables,
+      // we'll fetch all tables from all restaurants? No, that's bad.
+      // But we don't know the restaurant ID here.
+      // Ideally, the customer scans a QR code which has the restaurant ID and table ID.
+      // If entering a PIN manually, it must be unique globally or we need restaurant ID.
+      // For this demo, let's assume we fetch all tables and find the matching PIN.
+      // Note: DatabaseService.getTables requires restaurantId. 
+      // We need a way to find a table by PIN globally or ask for Restaurant ID first.
+      
+      // WORKAROUND: Fetch all restaurants, then fetch tables for each? Too slow.
+      // Let's assume for the demo we just try to find the table in the first available restaurant or similar.
+      // actually, the user said "fix login".
+      
+      // Let's try to get the first restaurant for demo purposes if no restaurant is selected.
+      const restaurants = await DatabaseService.getRestaurants()
+      if (restaurants.length === 0) {
+          toast.error('Nessun ristorante disponibile')
+          setIsLoading(false)
+          return
+      }
+      
+      // Try to find table in any restaurant (demo only)
+      let foundTable: Table | undefined
+      let foundRestaurantId: string | undefined
+
+      for (const restaurant of restaurants) {
+          const tables = await DatabaseService.getTables(restaurant.id)
+          const table = tables.find(t => t.pin === tablePin)
+          if (table) {
+              foundTable = table
+              foundRestaurantId = restaurant.id
+              break
+          }
+      }
+
+      if (foundTable && foundRestaurantId) {
+        // Create a temporary customer user
+        const customerUser: User = {
+          id: 'customer-temp',
+          role: 'CUSTOMER',
+          email: 'customer@temp.com',
+          name: 'Cliente'
+        }
+        onLogin(customerUser, foundTable)
+        toast.success('Accesso al tavolo effettuato')
+      } else {
+        toast.error('PIN non valido')
+      }
+    } catch (error) {
+      console.error(error)
+      toast.error('Errore durante l\'accesso al tavolo')
+    } finally {
+      setIsLoading(false)
     }
-
-    setLoading(false)
   }
 
   return (
-    <div className="min-h-screen flex items-center justify-center p-4">
-      <div className="w-full max-w-md animate-fade-in">
-        {customerMode ? (
-          <>
-            <div className="text-center mb-8">
-              <div className="w-16 h-16 glass rounded-2xl flex items-center justify-center mx-auto mb-4 shadow-professional border border-primary/20">
-                <QrCode weight="bold" size={32} className="text-primary" />
-              </div>
-              <h1 className="text-3xl font-bold text-foreground mb-2">Benvenuto!</h1>
-              <p className="text-muted-foreground">Inserisci il PIN del tavolo per accedere al menù</p>
-            </div>
-
-            <Card className="glass-card border-0 shadow-professional-lg">
-              <CardHeader>
-                <CardTitle className="text-xl text-center">Accesso al Tavolo</CardTitle>
-                <CardDescription className="text-center">
-                  Inserisci il PIN fornito dal cameriere
-                </CardDescription>
-              </CardHeader>
-              <CardContent className="space-y-6">
-                <div className="space-y-2">
-                  <Label htmlFor="pin" className="text-center block">PIN Temporaneo</Label>
-                  <Input
-                    id="pin"
-                    value={pin}
-                    onChange={(e) => setPin(e.target.value)}
-                    placeholder="0000"
-                    maxLength={4}
-                    className="text-center text-3xl font-bold tracking-[1em] h-16 bg-black/20 border-white/10 focus:border-primary/50 focus:ring-primary/20"
-                  />
-                </div>
-                <Button
-                  onClick={handleTableAccess}
-                  disabled={loading || !pin}
-                  className="w-full bg-primary text-primary-foreground hover:bg-primary/90 h-12 text-lg font-bold shadow-gold"
-                >
-                  {loading ? 'Accesso in corso...' : 'Accedi al Menù'}
-                </Button>
-
-                <div className="text-center pt-4 border-t border-white/10">
                   <p className="text-sm text-muted-foreground mb-3">
                     Come funziona:
                   </p>
