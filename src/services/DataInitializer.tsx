@@ -15,15 +15,20 @@ export function DataInitializer() {
                 const existingAdmin = users?.find(u => u.role === 'ADMIN' || u.email === 'admin@example.com')
 
                 if (existingAdmin) {
-                    console.log('Admin user already exists')
+                    console.log('Admin user already exists, updating credentials...')
                     adminUserId = existingAdmin.id
+                    // Force update password to ensure login works
+                    if (existingAdmin.password_hash !== 'admin123') {
+                        await DatabaseService.updateUser({ ...existingAdmin, password_hash: 'admin123' })
+                        console.log('Admin password updated to default')
+                    }
                 } else {
                     console.log('Creating admin user...')
                     adminUserId = uuidv4()
                     const adminUser: User = {
                         id: adminUserId,
                         email: 'admin@example.com',
-                        name: 'Admin', // Revert to Capitalized for consistency with existing data
+                        name: 'Admin',
                         password_hash: 'admin123',
                         role: 'ADMIN',
                         created_at: new Date().toISOString()
@@ -33,11 +38,10 @@ export function DataInitializer() {
                         console.log('Admin user created')
                     } catch (e) {
                         console.error('Error creating admin user', e)
-                        // If create fails (e.g. race condition), try to fetch again
                         const retryUsers = await DatabaseService.getUsers()
                         const retryAdmin = retryUsers?.find(u => u.role === 'ADMIN')
                         if (retryAdmin) adminUserId = retryAdmin.id
-                        else return // Cannot proceed without admin
+                        else return
                     }
                 }
 

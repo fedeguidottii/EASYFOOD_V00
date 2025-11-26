@@ -1,17 +1,13 @@
 import { useState, useEffect } from 'react'
-
 import LoginPage from './components/LoginPage'
 import AdminDashboard from './components/AdminDashboard'
 import RestaurantDashboard from './components/RestaurantDashboard'
 import CustomerMenu from './components/CustomerMenu'
 import { Toaster } from 'sonner'
-import { User } from './services/types'
+import { User, Table } from './services/types'
 import { DataInitializer } from './services/DataInitializer'
-import { ThemeProvider } from './components/theme-provider'
 
 function App() {
-  // We can keep using useState for local session state (persisting the logged in user in browser)
-  // But we should rename the key to avoid confusion with the old DB_KEYS
   const [currentUser, setCurrentUser] = useState<User | null>(() => {
     const saved = localStorage.getItem('session_user')
     return saved ? JSON.parse(saved) : null
@@ -44,36 +40,37 @@ function App() {
 
     if (tableId) {
       setCurrentTable(tableId)
+      // If table ID is present, we might want to auto-login as customer?
+      // For now, let's just set the table ID.
+      // The user said: "ordinare nel menu bisogna accedere solamente scannerizzando il QR code"
+      // So if QR code is scanned, we should probably show the menu directly?
+      // But we need a user session.
+      // Let's create a temp customer user if table is present.
+      const tempUser: User = { id: 'customer-temp', name: 'Cliente', role: 'CUSTOMER', email: 'customer@temp.com' }
+      setCurrentUser(tempUser)
       window.history.replaceState({}, document.title, window.location.pathname)
     }
   }, [])
 
-  const handleLogin = (user: User) => {
+  const handleLogin = (user: User, table?: Table) => {
     setCurrentUser(user)
+    if (table) {
+      setCurrentTable(table.id)
+    }
   }
 
   const handleLogout = () => {
     setCurrentUser(null)
-    setCurrentTable(null) // Also clear table on logout
+    setCurrentTable(null)
     localStorage.removeItem('session_user')
     localStorage.removeItem('session_table')
-  }
-
-  const handleTableAccess = (tableId: string) => {
-    setCurrentTable(tableId)
-    setCurrentUser({ id: 'customer', username: 'Customer', role: 'customer' })
   }
 
   if (!currentUser) {
     return (
       <>
         <DataInitializer />
-        <LoginPage
-          onLogin={handleLogin}
-          onTableAccess={handleTableAccess}
-          customerMode={!!currentTable}
-          presetTableId={currentTable || ''}
-        />
+        <LoginPage onLogin={handleLogin} />
         <Toaster position="top-center" />
       </>
     )
@@ -88,8 +85,8 @@ function App() {
       {(currentUser.role === 'OWNER' || currentUser.role === 'STAFF') && (
         <RestaurantDashboard user={currentUser} onLogout={handleLogout} />
       )}
-      {currentUser.role === 'CUSTOMER' && currentTable && (
-        <CustomerMenu tableId={currentTable} onExit={handleLogout} />
+      {currentUser.role === 'CUSTOMER' && (
+        <CustomerMenu tableId={currentTable || ''} onExit={handleLogout} />
       )}
       <Toaster position="top-center" />
     </>
