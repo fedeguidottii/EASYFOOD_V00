@@ -4,7 +4,8 @@ import { supabase } from '../lib/supabase'
 export function useSupabaseData<T>(
     tableName: string,
     initialData: T[] = [],
-    filter?: { column: string; value: string }
+    filter?: { column: string; value: string },
+    mapper?: (item: any) => T
 ) {
     const [data, setData] = useState<T[]>(initialData)
     const [loading, setLoading] = useState(true)
@@ -25,7 +26,8 @@ export function useSupabaseData<T>(
             }
 
             if (isMounted) {
-                setData(result as T[])
+                const mappedData = mapper ? result.map(mapper) : result as T[]
+                setData(mappedData)
                 setLoading(false)
             }
         }
@@ -45,10 +47,12 @@ export function useSupabaseData<T>(
                 },
                 (payload) => {
                     if (payload.eventType === 'INSERT') {
-                        setData((prev) => [...prev, payload.new as T])
+                        const newItem = mapper ? mapper(payload.new) : payload.new as T
+                        setData((prev) => [...prev, newItem])
                     } else if (payload.eventType === 'UPDATE') {
+                        const updatedItem = mapper ? mapper(payload.new) : payload.new as T
                         setData((prev) =>
-                            prev.map((item: any) => (item.id === payload.new.id ? payload.new : item))
+                            prev.map((item: any) => (item.id === (payload.new as any).id ? updatedItem : item))
                         )
                     } else if (payload.eventType === 'DELETE') {
                         setData((prev) => prev.filter((item: any) => item.id !== payload.old.id))
