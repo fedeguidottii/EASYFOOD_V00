@@ -107,6 +107,22 @@ export const DatabaseService = {
         return data as Order[]
     },
 
+    async getAllOrders() {
+        const { data, error } = await supabase
+            .from('orders')
+            .select('*, items:order_items(*, dish:dishes(*)), restaurant:restaurants(name)')
+        if (error) throw error
+        return data as (Order & { restaurant: { name: string } })[]
+    },
+
+    async getAllTableSessions() {
+        const { data, error } = await supabase
+            .from('table_sessions')
+            .select('*')
+        if (error) throw error
+        return data as TableSession[]
+    },
+
     async createOrder(order: Partial<Order>, items: Partial<OrderItem>[]) {
         // 1. Create Order
         const { data: orderData, error: orderError } = await supabase

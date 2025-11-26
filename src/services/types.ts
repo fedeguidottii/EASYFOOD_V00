@@ -7,7 +7,6 @@ export type OrderItemStatus = 'PENDING' | 'IN_PREPARATION' | 'READY' | 'SERVED'
 export interface User {
     id: string
     email: string
-    username?: string
     name?: string
     password_hash?: string
     role: UserRole
@@ -18,8 +17,20 @@ export interface Restaurant {
     id: string
     name: string
     address?: string
+    phone?: string
+    email?: string
+    logo_url?: string
     owner_id: string
     created_at?: string
+    // Frontend helpers
+    isActive?: boolean
+    hours?: string
+    coverChargePerPerson?: number
+    allYouCanEat?: {
+        enabled: boolean
+        pricePerPerson: number
+        maxOrders: number
+    }
 }
 
 export interface Category {
