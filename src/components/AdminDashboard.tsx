@@ -123,50 +123,54 @@ export default function AdminDashboard({ user, onLogout }: Props) {
       return
     }
 
-    let finalLogoUrl = newRestaurant.logo_url
-    if (logoFile) {
-      const uploadedUrl = await handleLogoUpload(logoFile)
-      if (uploadedUrl) finalLogoUrl = uploadedUrl
-    }
-
-    const restaurantId = uuidv4()
-    const userId = uuidv4()
-
-    const restaurant: Restaurant = {
-      id: restaurantId,
-      name: newRestaurant.name,
-      phone: newRestaurant.phone,
-      email: newRestaurant.email,
-      logo_url: finalLogoUrl,
-      owner_id: userId,
-      isActive: true, // Set active by default
-    }
-
-    const restaurantUser: User = {
-      id: userId,
-      name: newRestaurant.username, // Using name as username
-      email: newRestaurant.email,
-      password_hash: newRestaurant.password,
-      role: 'OWNER',
-    }
+    setIsUploading(true) // Usa questo per mostrare loading sul bottone
 
     try {
-      // Create User first (referenced by Restaurant)
-      await DatabaseService.createUser(restaurantUser)
-      // Then Restaurant
-      await DatabaseService.createRestaurant(restaurant)
+        let finalLogoUrl = newRestaurant.logo_url
+        if (logoFile) {
+            const uploadedUrl = await handleLogoUpload(logoFile)
+            if (uploadedUrl) finalLogoUrl = uploadedUrl
+        }
 
-      setNewRestaurant({ name: '', phone: '', email: '', logo_url: '', username: '', password: '' })
-      setLogoFile(null)
-      setShowRestaurantDialog(false)
-      toast.success('Ristorante creato con successo')
+        const restaurantId = uuidv4()
+        const userId = uuidv4()
+
+        const restaurant: Restaurant = {
+            id: restaurantId,
+            name: newRestaurant.name,
+            phone: newRestaurant.phone,
+            email: newRestaurant.email,
+            logo_url: finalLogoUrl,
+            owner_id: userId,
+            isActive: true,
+        }
+
+        const restaurantUser: User = {
+            id: userId,
+            name: newRestaurant.username,
+            email: newRestaurant.email,
+            password_hash: newRestaurant.password,
+            role: 'OWNER',
+        }
+
+        // Create User first
+        await DatabaseService.createUser(restaurantUser)
+        // Then Restaurant
+        await DatabaseService.createRestaurant(restaurant)
+
+        setNewRestaurant({ name: '', phone: '', email: '', logo_url: '', username: '', password: '' })
+        setLogoFile(null)
+        setShowRestaurantDialog(false)
+        toast.success('Ristorante creato con successo')
     } catch (error: any) {
-      console.error('Error creating restaurant:', error)
-      if (error.code === '23505' || error.status === 409 || error.message?.includes('duplicate key')) {
-        toast.error('Esiste già un utente o un ristorante con questa email.')
-      } else {
-        toast.error('Errore durante la creazione: ' + (error.message || 'Errore sconosciuto'))
-      }
+        console.error('Error creating restaurant:', error)
+        if (error.code === '23505' || error.status === 409 || error.message?.includes('duplicate key')) {
+            toast.error('Esiste già un utente o un ristorante con questa email.')
+        } else {
+            toast.error('Errore durante la creazione: ' + (error.message || 'Errore sconosciuto'))
+        }
+    } finally {
+        setIsUploading(false)
     }
   }
 
@@ -183,42 +187,43 @@ export default function AdminDashboard({ user, onLogout }: Props) {
   }
 
   const handleDeleteRestaurant = async (restaurantId: string) => {
-    if (confirm('Sei sicuro di voler eliminare questo ristorante? Verranno eliminati anche tutti i dati associati (ordini, menu, utente).')) {
+    if (confirm('Sei sicuro? Questa azione è irreversibile e cancellerà TUTTI i dati del ristorante (ordini, menu, statistiche).')) {
       try {
-        // Find associated user to delete manually if cascade doesn't cover backward reference (Restaurant -> User)
-        // Actually, our schema is Restaurant -> User (owner_id). 
-        // If we delete Restaurant, User stays unless we delete it.
-        // But usually we want to delete the User too.
         const restaurant = restaurants?.find(r => r.id === restaurantId)
-
+        
+        // La funzione deleteRestaurant ora gestisce la pulizia a cascata
         await DatabaseService.deleteRestaurant(restaurantId)
 
-        // Try to delete the owner user as well if it exists
+        // Try to delete the owner user separately
         if (restaurant?.owner_id) {
           try {
             await DatabaseService.deleteUser(restaurant.owner_id)
           } catch (e) {
-            console.warn("Could not delete associated user (might be shared or already deleted)", e)
+            console.warn("Could not delete associated user", e)
           }
         }
 
-        toast.success('Ristorante eliminato')
-      } catch (error) {
+        toast.success('Ristorante eliminato definitivamente')
+      } catch (error: any) {
         console.error('Error deleting restaurant:', error)
-        toast.error('Errore durante l\'eliminazione')
+        toast.error('Errore: ' + (error.message || "Impossibile eliminare"))
       }
     }
   }
 
   const handleToggleActive = async (restaurant: Restaurant) => {
     try {
+      // Passiamo SOLO l'ID e il nuovo stato per evitare conflitti con vecchi dati
       await DatabaseService.updateRestaurant({
-        ...restaurant,
+        id: restaurant.id,
         isActive: !restaurant.isActive
       })
-      toast.success(restaurant.isActive ? 'Ristorante disattivato' : 'Ristorante attivato')
+      
+      const nuovoStato = !restaurant.isActive ? 'attivato' : 'disattivato'
+      toast.success(`Ristorante ${nuovoStato} con successo`)
     } catch (error) {
-      toast.error('Errore durante l\'aggiornamento')
+      console.error(error)
+      toast.error('Errore durante l\'aggiornamento dello stato')
     }
   }
 
@@ -234,19 +239,29 @@ export default function AdminDashboard({ user, onLogout }: Props) {
     if (!editingRestaurant) return
 
     try {
+      setIsUploading(true)
       let finalLogoUrl = editingRestaurant.logo_url
       if (editLogoFile) {
         const uploadedUrl = await handleLogoUpload(editLogoFile)
         if (uploadedUrl) finalLogoUrl = uploadedUrl
       }
 
+      // Passiamo solo i campi modificati e sicuri
       await DatabaseService.updateRestaurant({
-        ...editingRestaurant,
-        logo_url: finalLogoUrl
+        id: editingRestaurant.id,
+        name: editingRestaurant.name,
+        phone: editingRestaurant.phone,
+        email: editingRestaurant.email,
+        logo_url: finalLogoUrl,
       })
 
       if (editingUser) {
-        await DatabaseService.updateUser(editingUser)
+        await DatabaseService.updateUser({
+            id: editingUser.id,
+            name: editingUser.name,
+            password_hash: editingUser.password_hash,
+            role: editingUser.role // mantieni il ruolo
+        })
       }
 
       setShowEditDialog(false)
@@ -257,6 +272,8 @@ export default function AdminDashboard({ user, onLogout }: Props) {
     } catch (error) {
       console.error('Error updating:', error)
       toast.error('Errore durante l\'aggiornamento')
+    } finally {
+        setIsUploading(false)
     }
   }
 
@@ -416,7 +433,7 @@ export default function AdminDashboard({ user, onLogout }: Props) {
                 return (
                   <Card key={restaurant.id} className="overflow-hidden">
                     <CardContent className="p-0">
-                      <div className={`flex flex-col md:flex-row md:items-center justify-between p-6 gap-4 transition-opacity ${!restaurant.isActive ? 'opacity-30' : ''}`}>
+                      <div className={`flex flex-col md:flex-row md:items-center justify-between p-6 gap-4 transition-all duration-300 ${!restaurant.isActive ? 'opacity-50 grayscale bg-muted/30' : ''}`}>
                         <div className="flex items-center gap-4 flex-1">
                           {restaurant.logo_url ? (
                             <img src={restaurant.logo_url} alt={restaurant.name} className="w-16 h-16 rounded-lg object-cover bg-muted border" />
@@ -428,8 +445,8 @@ export default function AdminDashboard({ user, onLogout }: Props) {
                           <div className="space-y-2">
                             <div className="flex items-center gap-2">
                               <h3 className="text-lg font-semibold">{restaurant.name}</h3>
-                              <Badge variant={restaurant.isActive ? "default" : "secondary"}>
-                                {restaurant.isActive ? "Attivo" : "Disattivato"}
+                              <Badge variant={restaurant.isActive ? "default" : "destructive"}>
+                                {restaurant.isActive ? "Attivo" : "Disabilitato"}
                               </Badge>
                             </div>
                             <div className="grid grid-cols-1 md:grid-cols-2 gap-x-8 gap-y-1 text-sm text-muted-foreground">
@@ -466,12 +483,14 @@ export default function AdminDashboard({ user, onLogout }: Props) {
                             <Database size={16} />
                           </Button>
                           <Button
-                            variant="outline"
+                            variant={restaurant.isActive ? "outline" : "default"}
                             size="sm"
                             onClick={() => handleToggleActive(restaurant)}
                             title={restaurant.isActive ? "Disattiva" : "Attiva"}
+                            className={restaurant.isActive ? "text-red-600 hover:text-red-700 hover:bg-red-50 border-red-200" : "bg-green-600 hover:bg-green-700"}
                           >
-                            <Power size={16} className={restaurant.isActive ? "text-green-600" : "text-red-600"} />
+                            <Power size={16} weight={restaurant.isActive ? "regular" : "bold"} />
+                            {!restaurant.isActive && <span className="ml-2">Riattiva</span>}
                           </Button>
                           <Button
                             variant="outline"
