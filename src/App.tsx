@@ -61,7 +61,7 @@ function App() {
 
   const handleTableAccess = (tableId: string) => {
     setCurrentTable(tableId)
-    setCurrentUser({ id: 'customer', username: 'Customer', role: 'customer' })
+    setCurrentUser({ id: 'customer', email: 'customer@example.com', name: 'Customer', role: 'CUSTOMER' })
   }
 
   if (!currentUser) {
@@ -82,13 +82,13 @@ function App() {
   return (
     <>
       <DataInitializer />
-      {currentUser.role === 'admin' && (
+      {currentUser.role === 'ADMIN' && (
         <AdminDashboard user={currentUser} onLogout={handleLogout} />
       )}
-      {currentUser.role === 'restaurant' && (
+      {(currentUser.role === 'OWNER' || currentUser.role === 'STAFF') && (
         <RestaurantDashboard user={currentUser} onLogout={handleLogout} />
       )}
-      {currentUser.role === 'customer' && currentTable && (
+      {currentUser.role === 'CUSTOMER' && currentTable && (
         <CustomerMenu tableId={currentTable} onExit={handleLogout} />
       )}
       <Toaster position="top-center" />
