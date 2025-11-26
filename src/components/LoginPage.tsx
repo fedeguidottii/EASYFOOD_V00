@@ -3,13 +3,15 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Label } from '@/components/ui/label'
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
+import { Badge } from '@/components/ui/badge'
 import { DatabaseService } from '../services/DatabaseService'
 import { toast } from 'sonner'
-import { User, Table, Restaurant } from '../services/types'
-import { QrCode, Users } from '@phosphor-icons/react'
+import { User, Table } from '../services/types'
+import { QrCode, Users, Crown } from '@phosphor-icons/react'
 
 interface Props {
-  onLogin: (user: any) => void
+  onLogin: (user: User) => void
   onTableAccess: (tableId: string) => void
   customerMode?: boolean
   presetTableId?: string
@@ -22,22 +24,29 @@ export default function LoginPage({ onLogin, onTableAccess, customerMode = false
   const [pin, setPin] = useState('')
   const [loading, setLoading] = useState(false)
 
+  // We'll fetch users on demand or on mount, but for login we can just fetch all users once or query by username
+  // For simplicity, let's fetch all users on mount since the list is small
   const [users, setUsers] = useState<User[]>([])
   const [tables, setTables] = useState<Table[]>([])
-  const [restaurants, setRestaurants] = useState<Restaurant[]>([])
 
   useEffect(() => {
     const fetchData = async () => {
       try {
         const fetchedUsers = await DatabaseService.getUsers()
-        const fetchedTables = await DatabaseService.getTables('TODO_PASS_ID') // GetTables richiederebbe ID, ma per ora carichiamo tutto se possibile o fixiamo dopo
-        // Fix rapido: carichiamo i ristoranti per trovare il link
-        const fetchedRestaurants = await DatabaseService.getRestaurants()
-        
+        const restaurants = await DatabaseService.getRestaurants()
+
+        let fetchedTables: Table[] = []
+        if (restaurants && restaurants.length > 0) {
+          fetchedTables = await DatabaseService.getTables(restaurants[0].id)
+        }
+
         setUsers(fetchedUsers || [])
-        // Se DatabaseService.getTables richiede un ID, qui potrebbe fallire se non gestito, 
-        // ma per il login admin ci interessano users e restaurants.
-        setRestaurants(fetchedRestaurants || [])
+        // Map tables to include compatibility properties
+        setTables((fetchedTables || []).map(t => ({
+          ...t,
+          name: t.number,
+          isActive: true // Default to true as we don't have this column anymore
+        })))
       } catch (error) {
         console.error('Error fetching data:', error)
       }
@@ -54,31 +63,17 @@ export default function LoginPage({ onLogin, onTableAccess, customerMode = false
   const handleLogin = async () => {
     setLoading(true)
 
-    // 1. Cerca l'utente confrontando 'name' con 'username' inserito e 'password_hash'
-    const foundUser = (users || []).find(u => 
-        (u.name === username || u.email === username) && 
-        (u.password_hash === password)
+    // Check against email and password_hash
+    // Note: In production, password hashing should be done securely (e.g. bcrypt) on the server.
+    // Here we are doing a simple comparison for the demo.
+    const foundUser = (users || []).find(u =>
+      (u.email === username || u.name === username) && u.password_hash === password
     )
 
     if (foundUser) {
-      // 2. Trova il ristorante di cui questo utente è proprietario
-      const userRestaurant = restaurants.find(r => r.owner_id === foundUser.id)
-
-      // 3. Adatta il ruolo per l'App (App si aspetta 'admin' o 'restaurant', DB ha 'ADMIN')
-      let appRole = 'customer'
-      if (foundUser.role === 'ADMIN') appRole = 'admin'
-      if (foundUser.role === 'OWNER') appRole = 'restaurant'
-
-      // 4. Crea oggetto sessione completo
-      const sessionUser = {
-        ...foundUser,
-        role: appRole,
-        // Iniettiamo restaurant_id così la dashboard sa cosa caricare
-        restaurant_id: userRestaurant ? userRestaurant.id : undefined 
-      }
-
-      onLogin(sessionUser)
-      toast.success(`Accesso ${appRole} effettuato`)
+      onLogin(foundUser)
+      const roleName = foundUser.role === 'ADMIN' ? 'amministratore' : 'ristorante'
+      toast.success(`Accesso ${roleName} effettuato`)
       setLoading(false)
       return
     }
@@ -88,10 +83,16 @@ export default function LoginPage({ onLogin, onTableAccess, customerMode = false
   }
 
   const handleTableAccess = async () => {
-    // Nota: questa parte richiede che i tavoli siano stati caricati correttamente
-    // Potrebbe richiedere logica aggiuntiva se getTables vuole un ID ristorante
     setLoading(true)
-    onTableAccess(tableCode) // Bypass semplificato per test
+
+    const table = (tables || []).find(t => t.id === tableCode && t.isActive)
+    if (table && table.pin === pin) {
+      onTableAccess(table.id)
+      toast.success(`Accesso al tavolo ${table.name} effettuato`)
+    } else {
+      toast.error('Codice tavolo o PIN non validi')
+    }
+
     setLoading(false)
   }
 
@@ -99,20 +100,64 @@ export default function LoginPage({ onLogin, onTableAccess, customerMode = false
     <div className="min-h-screen flex items-center justify-center p-4">
       <div className="w-full max-w-md animate-fade-in">
         {customerMode ? (
-          <Card className="glass-card border-0 shadow-professional-lg">
-             <CardHeader>
-                <CardTitle className="text-xl text-center">Accesso Tavolo</CardTitle>
-             </CardHeader>
-             <CardContent className="space-y-6">
-                <Input 
-                    placeholder="PIN Tavolo" 
-                    value={pin} 
-                    onChange={e => setPin(e.target.value)} 
-                    className="text-center text-2xl tracking-widest"
-                />
-                <Button onClick={handleTableAccess} className="w-full font-bold">Accedi</Button>
-             </CardContent>
-          </Card>
+          <>
+            <div className="text-center mb-8">
+              <div className="w-16 h-16 glass rounded-2xl flex items-center justify-center mx-auto mb-4 shadow-professional border border-primary/20">
+                <QrCode weight="bold" size={32} className="text-primary" />
+              </div>
+              <h1 className="text-3xl font-bold text-foreground mb-2">Benvenuto!</h1>
+              <p className="text-muted-foreground">Inserisci il PIN del tavolo per accedere al menù</p>
+            </div>
+
+            <Card className="glass-card border-0 shadow-professional-lg">
+              <CardHeader>
+                <CardTitle className="text-xl text-center">Accesso al Tavolo</CardTitle>
+                <CardDescription className="text-center">
+                  Inserisci il PIN fornito dal cameriere
+                </CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-6">
+                <div className="space-y-2">
+                  <Label htmlFor="pin" className="text-center block">PIN Temporaneo</Label>
+                  <Input
+                    id="pin"
+                    value={pin}
+                    onChange={(e) => setPin(e.target.value)}
+                    placeholder="0000"
+                    maxLength={4}
+                    className="text-center text-3xl font-bold tracking-[1em] h-16 bg-black/20 border-white/10 focus:border-primary/50 focus:ring-primary/20"
+                  />
+                </div>
+                <Button
+                  onClick={handleTableAccess}
+                  disabled={loading || !pin}
+                  className="w-full bg-primary text-primary-foreground hover:bg-primary/90 h-12 text-lg font-bold shadow-gold"
+                >
+                  {loading ? 'Accesso in corso...' : 'Accedi al Menù'}
+                </Button>
+
+                <div className="text-center pt-4 border-t border-white/10">
+                  <p className="text-sm text-muted-foreground mb-3">
+                    Come funziona:
+                  </p>
+                  <div className="text-xs text-muted-foreground space-y-2">
+                    <div className="flex items-center gap-3 bg-white/5 p-2 rounded-lg">
+                      <div className="w-6 h-6 bg-primary/20 rounded-full flex items-center justify-center text-primary font-bold text-xs">1</div>
+                      <span>Scansiona il QR code sul tavolo</span>
+                    </div>
+                    <div className="flex items-center gap-3 bg-white/5 p-2 rounded-lg">
+                      <div className="w-6 h-6 bg-primary/20 rounded-full flex items-center justify-center text-primary font-bold text-xs">2</div>
+                      <span>Inserisci il PIN temporaneo fornito</span>
+                    </div>
+                    <div className="flex items-center gap-3 bg-white/5 p-2 rounded-lg">
+                      <div className="w-6 h-6 bg-primary/20 rounded-full flex items-center justify-center text-primary font-bold text-xs">3</div>
+                      <span>Ordina direttamente dal tuo dispositivo</span>
+                    </div>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+          </>
         ) : (
           <>
             <div className="text-center mb-8">
@@ -120,39 +165,44 @@ export default function LoginPage({ onLogin, onTableAccess, customerMode = false
                 <Users weight="bold" size={32} className="text-primary" />
               </div>
               <h1 className="text-3xl font-bold text-foreground mb-2">Ristorante</h1>
+              <p className="text-muted-foreground">Portale di gestione</p>
             </div>
 
             <Card className="glass-card border-0 shadow-professional-lg">
               <CardHeader>
-                <CardTitle className="text-xl text-center">Login Staff</CardTitle>
-                <CardDescription className="text-center">admin / admin123</CardDescription>
+                <CardTitle className="text-xl text-center">Accesso Staff</CardTitle>
+                <CardDescription className="text-center">
+                  Area riservata al personale
+                </CardDescription>
               </CardHeader>
               <CardContent className="space-y-4">
                 <div className="space-y-2">
-                  <Label>Nome Utente</Label>
+                  <Label htmlFor="username">Nome Utente</Label>
                   <Input
+                    id="username"
                     value={username}
                     onChange={(e) => setUsername(e.target.value)}
-                    placeholder="admin"
-                    className="bg-black/20"
+                    placeholder="Nome utente"
+                    className="bg-black/20 border-white/10 focus:border-primary/50 focus:ring-primary/20"
                   />
                 </div>
                 <div className="space-y-2">
-                  <Label>Password</Label>
+                  <Label htmlFor="password">Password</Label>
                   <Input
+                    id="password"
                     type="password"
                     value={password}
                     onChange={(e) => setPassword(e.target.value)}
-                    placeholder="admin123"
-                    className="bg-black/20"
+                    placeholder="Password"
+                    className="bg-black/20 border-white/10 focus:border-primary/50 focus:ring-primary/20"
                   />
                 </div>
                 <Button
                   onClick={handleLogin}
-                  disabled={loading}
-                  className="w-full font-bold shadow-gold mt-2"
+                  disabled={loading || !username || !password}
+                  className="w-full bg-primary text-primary-foreground hover:bg-primary/90 h-11 font-bold shadow-gold mt-2"
                 >
-                  {loading ? '...' : 'Accedi'}
+                  {loading ? 'Accesso in corso...' : 'Accedi'}
                 </Button>
               </CardContent>
             </Card>

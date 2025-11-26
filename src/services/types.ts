@@ -47,10 +47,13 @@ export interface Table {
     number: string
     restaurant_id: string
     token: string
+    pin?: string
     created_at?: string
-    // Frontend helper properties (computed/joined)
-    status?: 'available' | 'occupied' // Derived from active session
+    // Frontend helper properties
+    status?: 'available' | 'occupied'
     current_session_id?: string
+    isActive?: boolean // For frontend compatibility
+    name?: string // Alias for number
 }
 
 export interface TableSession {

@@ -82,6 +82,7 @@ create table public.tables (
   number text not null, -- e.g. "Tavolo 1"
   restaurant_id uuid references public.restaurants(id),
   token text unique default uuid_generate_v4()::text, -- For QR Code
+  pin text, -- For manual access
   created_at timestamp with time zone default timezone('utc'::text, now()) not null
 );
 
