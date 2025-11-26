@@ -30,24 +30,29 @@ export const DatabaseService = {
     },
 
     async updateRestaurant(restaurant: Partial<Restaurant>) {
-        // Map frontend camelCase to DB snake_case
-        const payload: any = { ...restaurant }
+        // Whitelist allowed fields to avoid 400 errors from unknown/read-only columns
+        const allowedFields = ['name', 'address', 'phone', 'email', 'logo_url', 'is_active', 'owner_id']
 
-        // Handle isActive -> is_active mapping
+        const payload: any = {}
+
+        // Map allowed fields
+        allowedFields.forEach(field => {
+            // Handle direct mapping if property exists in input
+            if (field in restaurant) {
+                payload[field] = (restaurant as any)[field]
+            }
+        })
+
+        // Handle special mapping for isActive -> is_active
         if (restaurant.isActive !== undefined) {
             payload.is_active = restaurant.isActive
         }
 
-        // Remove frontend-only fields
-        delete payload.isActive
-        delete payload.hours
-        delete payload.coverChargePerPerson
-        delete payload.allYouCanEat
+        // Ensure we don't send undefined values if they weren't in the input
+        // (though update usually ignores missing keys, explicit undefined might be an issue if not handled)
 
-        // Remove read-only fields that shouldn't be updated
-        delete payload.id
-        delete payload.created_at
-        delete payload.owner_id // Usually shouldn't change owner via simple update
+        // If is_active is still missing (e.g. not in input and not mapped), don't send it? 
+        // But we want to update it if it's there.
 
         const { error } = await supabase
             .from('restaurants')
