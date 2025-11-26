@@ -1,15 +1,16 @@
-import { useState } from 'react'
+import { useState, useMemo } from 'react'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Badge } from '@/components/ui/badge'
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog'
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { useSupabaseData } from '../hooks/useSupabaseData'
 import { DatabaseService } from '../services/DatabaseService'
 import { toast } from 'sonner'
-import { User, Restaurant } from '../services/types'
-import { Crown, Plus, Buildings, SignOut, Trash, ChartBar, PencilSimple, Power, Eye, EyeSlash, Database } from '@phosphor-icons/react'
+import { User, Restaurant, Order } from '../services/types'
+import { Crown, Plus, Buildings, SignOut, Trash, ChartBar, PencilSimple, Power, Eye, EyeSlash, Database, MagnifyingGlass, SortAscending, UploadSimple } from '@phosphor-icons/react'
 import AdminStatistics from './AdminStatistics'
 import { v4 as uuidv4 } from 'uuid'
 import { populateRestaurantData } from '../services/populateData'
@@ -19,11 +20,19 @@ interface Props {
   onLogout: () => void
 }
 
+type SortOption = 'name' | 'sales' | 'status'
+
 export default function AdminDashboard({ user, onLogout }: Props) {
   const [restaurants] = useSupabaseData<Restaurant>('restaurants', [])
   const [users] = useSupabaseData<User>('users', [])
+  const [orders] = useSupabaseData<Order>('orders', [])
   const [activeView, setActiveView] = useState<'restaurants' | 'statistics'>('restaurants')
 
+  // Search & Sort State
+  const [searchQuery, setSearchQuery] = useState('')
+  const [sortOption, setSortOption] = useState<SortOption>('name')
+
+  // Create State
   const [newRestaurant, setNewRestaurant] = useState({
     name: '',
     phone: '',
@@ -32,12 +41,15 @@ export default function AdminDashboard({ user, onLogout }: Props) {
     username: '',
     password: ''
   })
+  const [logoFile, setLogoFile] = useState<File | null>(null)
+  const [isUploading, setIsUploading] = useState(false)
   const [showRestaurantDialog, setShowRestaurantDialog] = useState(false)
 
   // Edit state
   const [showEditDialog, setShowEditDialog] = useState(false)
   const [editingRestaurant, setEditingRestaurant] = useState<Restaurant | null>(null)
   const [editingUser, setEditingUser] = useState<User | null>(null)
+  const [editLogoFile, setEditLogoFile] = useState<File | null>(null)
 
   // Visibility state for passwords
   const [visiblePasswords, setVisiblePasswords] = useState<Record<string, boolean>>({})
@@ -49,24 +61,78 @@ export default function AdminDashboard({ user, onLogout }: Props) {
     }))
   }
 
+  // Filtered & Sorted Restaurants
+  const processedRestaurants = useMemo(() => {
+    let result = [...(restaurants || [])]
+
+    // 1. Filter by Search
+    if (searchQuery) {
+      const query = searchQuery.toLowerCase()
+      result = result.filter(r =>
+        r.name.toLowerCase().includes(query) ||
+        r.email?.toLowerCase().includes(query) ||
+        r.phone?.includes(query)
+      )
+    }
+
+    // 2. Sort
+    result.sort((a, b) => {
+      switch (sortOption) {
+        case 'name':
+          return a.name.localeCompare(b.name)
+        case 'status':
+          // Active first
+          return (a.isActive === b.isActive) ? 0 : a.isActive ? -1 : 1
+        case 'sales':
+          // Calculate sales for a and b
+          const getSales = (rId: string) => (orders || [])
+            .filter(o => o.restaurant_id === rId && o.status === 'PAID')
+            .reduce((sum, o) => sum + (o.total_amount || 0), 0)
+          return getSales(b.id) - getSales(a.id)
+        default:
+          return 0
+      }
+    })
+
+    return result
+  }, [restaurants, orders, searchQuery, sortOption])
+
+  const handleLogoUpload = async (file: File) => {
+    try {
+      setIsUploading(true)
+      const url = await DatabaseService.uploadLogo(file)
+      return url
+    } catch (error) {
+      console.error('Upload failed:', error)
+      toast.error('Errore caricamento logo')
+      return null
+    } finally {
+      setIsUploading(false)
+    }
+  }
+
   const handleCreateRestaurant = async () => {
     if (!newRestaurant.name || !newRestaurant.phone || !newRestaurant.email || !newRestaurant.username || !newRestaurant.password) {
       toast.error('Compila tutti i campi obbligatori')
       return
     }
 
+    let finalLogoUrl = newRestaurant.logo_url
+    if (logoFile) {
+      const uploadedUrl = await handleLogoUpload(logoFile)
+      if (uploadedUrl) finalLogoUrl = uploadedUrl
+    }
+
     const restaurantId = uuidv4()
+    const userId = uuidv4()
 
     const restaurant: Restaurant = {
       id: restaurantId,
       name: newRestaurant.name,
       phone: newRestaurant.phone,
       email: newRestaurant.email,
-      logo_url: newRestaurant.logo_url,
-      owner_id: uuidv4(), // Placeholder, will be linked via user logic if needed, but schema requires it. 
-      // Actually, we create user separately. We need a valid owner_id if FK exists.
-      // In previous logic we created user separately. 
-      // Let's create user ID first.
+      logo_url: finalLogoUrl,
+      owner_id: userId,
       hours: '09:00-23:00', // Default
       isActive: true,
       coverChargePerPerson: 2.00,
@@ -77,20 +143,12 @@ export default function AdminDashboard({ user, onLogout }: Props) {
       }
     }
 
-    // We need a user ID for the restaurant owner_id FK
-    const userId = uuidv4()
-    restaurant.owner_id = userId
-
     const restaurantUser: User = {
       id: userId,
-      name: newRestaurant.username,
-      email: newRestaurant.email, // Use restaurant email for the owner user as well
-      password_hash: newRestaurant.password, // Note: using password_hash field
-      role: 'OWNER', // Uppercase
-      // restaurantId: restaurantId // User doesn't have restaurantId in schema, Restaurant has owner_id. 
-      // But we might need to link them. The schema says Restaurant -> User (owner_id).
-      // And RestaurantStaff -> User + Restaurant.
-      // For simplicity in this app, we rely on Restaurant.owner_id.
+      name: newRestaurant.username, // Using name as username
+      email: newRestaurant.email,
+      password_hash: newRestaurant.password,
+      role: 'OWNER',
     }
 
     try {
@@ -100,8 +158,9 @@ export default function AdminDashboard({ user, onLogout }: Props) {
       await DatabaseService.createRestaurant(restaurant)
 
       setNewRestaurant({ name: '', phone: '', email: '', logo_url: '', username: '', password: '' })
+      setLogoFile(null)
       setShowRestaurantDialog(false)
-      toast.success('Ristorante e account proprietario creati con successo')
+      toast.success('Ristorante creato con successo')
     } catch (error) {
       console.error('Error creating restaurant:', error)
       toast.error('Errore durante la creazione.')
@@ -121,14 +180,25 @@ export default function AdminDashboard({ user, onLogout }: Props) {
   }
 
   const handleDeleteRestaurant = async (restaurantId: string) => {
-    if (confirm('Sei sicuro di voler eliminare questo ristorante? Questa azione è irreversibile.')) {
+    if (confirm('Sei sicuro di voler eliminare questo ristorante? Verranno eliminati anche tutti i dati associati (ordini, menu, utente).')) {
       try {
-        // We should delete the restaurant. Cascading delete in DB would handle the rest if configured,
-        // but let's try to delete restaurant first. 
-        // Wait, if Restaurant references User (owner_id), we can delete Restaurant.
-        // But if we want to delete the User too, we need to do it after or let cascade handle it.
-        // Let's just delete the restaurant for now.
+        // Find associated user to delete manually if cascade doesn't cover backward reference (Restaurant -> User)
+        // Actually, our schema is Restaurant -> User (owner_id). 
+        // If we delete Restaurant, User stays unless we delete it.
+        // But usually we want to delete the User too.
+        const restaurant = restaurants?.find(r => r.id === restaurantId)
+
         await DatabaseService.deleteRestaurant(restaurantId)
+
+        // Try to delete the owner user as well if it exists
+        if (restaurant?.owner_id) {
+          try {
+            await DatabaseService.deleteUser(restaurant.owner_id)
+          } catch (e) {
+            console.warn("Could not delete associated user (might be shared or already deleted)", e)
+          }
+        }
+
         toast.success('Ristorante eliminato')
       } catch (error) {
         console.error('Error deleting restaurant:', error)
@@ -153,6 +223,7 @@ export default function AdminDashboard({ user, onLogout }: Props) {
     const associatedUser = (users || []).find(u => u.id === restaurant.owner_id)
     setEditingRestaurant(restaurant)
     setEditingUser(associatedUser || null)
+    setEditLogoFile(null)
     setShowEditDialog(true)
   }
 
@@ -160,7 +231,16 @@ export default function AdminDashboard({ user, onLogout }: Props) {
     if (!editingRestaurant) return
 
     try {
-      await DatabaseService.updateRestaurant(editingRestaurant)
+      let finalLogoUrl = editingRestaurant.logo_url
+      if (editLogoFile) {
+        const uploadedUrl = await handleLogoUpload(editLogoFile)
+        if (uploadedUrl) finalLogoUrl = uploadedUrl
+      }
+
+      await DatabaseService.updateRestaurant({
+        ...editingRestaurant,
+        logo_url: finalLogoUrl
+      })
 
       if (editingUser) {
         await DatabaseService.updateUser(editingUser)
@@ -169,6 +249,7 @@ export default function AdminDashboard({ user, onLogout }: Props) {
       setShowEditDialog(false)
       setEditingRestaurant(null)
       setEditingUser(null)
+      setEditLogoFile(null)
       toast.success('Ristorante aggiornato')
     } catch (error) {
       console.error('Error updating:', error)
@@ -223,76 +304,109 @@ export default function AdminDashboard({ user, onLogout }: Props) {
           <AdminStatistics />
         ) : (
           <div className="space-y-6">
-            <div className="flex items-center justify-between">
+            <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
               <div>
                 <h2 className="text-2xl font-bold">Gestione Ristoranti</h2>
                 <p className="text-muted-foreground">Gestisci i ristoranti partner della piattaforma</p>
               </div>
-              <Dialog open={showRestaurantDialog} onOpenChange={setShowRestaurantDialog}>
-                <DialogTrigger asChild>
-                  <Button className="flex items-center gap-2">
-                    <Plus size={16} />
-                    Nuovo Ristorante
-                  </Button>
-                </DialogTrigger>
-                <DialogContent className="max-w-md">
-                  <DialogHeader>
-                    <DialogTitle>Nuovo Ristorante Partner</DialogTitle>
-                    <DialogDescription>
-                      Inserisci i dati del ristorante e le credenziali per il proprietario.
-                    </DialogDescription>
-                  </DialogHeader>
-                  <div className="space-y-4 py-4">
-                    <div className="space-y-2">
-                      <Label>Dati Ristorante</Label>
-                      <Input
-                        placeholder="Nome Ristorante"
-                        value={newRestaurant.name}
-                        onChange={(e) => setNewRestaurant(prev => ({ ...prev, name: e.target.value }))}
-                      />
-                      <Input
-                        placeholder="Telefono"
-                        value={newRestaurant.phone}
-                        onChange={(e) => setNewRestaurant(prev => ({ ...prev, phone: e.target.value }))}
-                      />
-                      <Input
-                        placeholder="Email"
-                        type="email"
-                        value={newRestaurant.email}
-                        onChange={(e) => setNewRestaurant(prev => ({ ...prev, email: e.target.value }))}
-                      />
-                      <Input
-                        placeholder="Logo URL (opzionale)"
-                        value={newRestaurant.logo_url}
-                        onChange={(e) => setNewRestaurant(prev => ({ ...prev, logo_url: e.target.value }))}
-                      />
-                    </div>
 
-                    <div className="space-y-2 pt-2 border-t">
-                      <Label>Credenziali Proprietario</Label>
-                      <Input
-                        placeholder="Username"
-                        value={newRestaurant.username}
-                        onChange={(e) => setNewRestaurant(prev => ({ ...prev, username: e.target.value }))}
-                      />
-                      <Input
-                        placeholder="Password"
-                        type="password"
-                        value={newRestaurant.password}
-                        onChange={(e) => setNewRestaurant(prev => ({ ...prev, password: e.target.value }))}
-                      />
-                    </div>
+              <div className="flex items-center gap-2">
+                {/* Search Bar */}
+                <div className="relative w-full md:w-64">
+                  <MagnifyingGlass className="absolute left-2 top-2.5 h-4 w-4 text-muted-foreground" />
+                  <Input
+                    placeholder="Cerca ristorante..."
+                    className="pl-8"
+                    value={searchQuery}
+                    onChange={(e) => setSearchQuery(e.target.value)}
+                  />
+                </div>
 
-                    <Button onClick={handleCreateRestaurant} className="w-full mt-4">
-                      Crea Ristorante e Account
+                {/* Sort Dropdown */}
+                <Select value={sortOption} onValueChange={(v) => setSortOption(v as SortOption)}>
+                  <SelectTrigger className="w-[180px]">
+                    <SortAscending className="mr-2 h-4 w-4" />
+                    <SelectValue placeholder="Ordina per" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="name">Nome (A-Z)</SelectItem>
+                    <SelectItem value="sales">Fatturato (Alto-Basso)</SelectItem>
+                    <SelectItem value="status">Stato (Attivi prima)</SelectItem>
+                  </SelectContent>
+                </Select>
+
+                <Dialog open={showRestaurantDialog} onOpenChange={setShowRestaurantDialog}>
+                  <DialogTrigger asChild>
+                    <Button className="flex items-center gap-2">
+                      <Plus size={16} />
+                      Nuovo
                     </Button>
-                  </div>
-                </DialogContent>
-              </Dialog>
+                  </DialogTrigger>
+                  <DialogContent className="max-w-md">
+                    <DialogHeader>
+                      <DialogTitle>Nuovo Ristorante Partner</DialogTitle>
+                      <DialogDescription>
+                        Inserisci i dati del ristorante e le credenziali per il proprietario.
+                      </DialogDescription>
+                    </DialogHeader>
+                    <div className="space-y-4 py-4">
+                      <div className="space-y-2">
+                        <Label>Dati Ristorante</Label>
+                        <Input
+                          placeholder="Nome Ristorante"
+                          value={newRestaurant.name}
+                          onChange={(e) => setNewRestaurant(prev => ({ ...prev, name: e.target.value }))}
+                        />
+                        <Input
+                          placeholder="Telefono"
+                          value={newRestaurant.phone}
+                          onChange={(e) => setNewRestaurant(prev => ({ ...prev, phone: e.target.value }))}
+                        />
+                        <Input
+                          placeholder="Email"
+                          type="email"
+                          value={newRestaurant.email}
+                          onChange={(e) => setNewRestaurant(prev => ({ ...prev, email: e.target.value }))}
+                        />
+                        <div className="space-y-1">
+                          <Label>Logo</Label>
+                          <div className="flex items-center gap-2">
+                            <Input
+                              type="file"
+                              accept="image/png, image/jpeg"
+                              onChange={(e) => setLogoFile(e.target.files?.[0] || null)}
+                            />
+                            {isUploading && <UploadSimple className="animate-spin" />}
+                          </div>
+                        </div>
+                      </div>
+
+                      <div className="space-y-2 pt-2 border-t">
+                        <Label>Credenziali Proprietario</Label>
+                        <Input
+                          placeholder="Username"
+                          value={newRestaurant.username}
+                          onChange={(e) => setNewRestaurant(prev => ({ ...prev, username: e.target.value }))}
+                        />
+                        <Input
+                          placeholder="Password"
+                          type="password"
+                          value={newRestaurant.password}
+                          onChange={(e) => setNewRestaurant(prev => ({ ...prev, password: e.target.value }))}
+                        />
+                      </div>
+
+                      <Button onClick={handleCreateRestaurant} className="w-full mt-4" disabled={isUploading}>
+                        {isUploading ? 'Caricamento...' : 'Crea Ristorante e Account'}
+                      </Button>
+                    </div>
+                  </DialogContent>
+                </Dialog>
+              </div>
             </div>
 
             <div className="grid gap-4">
-              {(restaurants || []).map((restaurant) => {
+              {processedRestaurants.map((restaurant) => {
                 const restaurantUser = (users || []).find(u => u.id === restaurant.owner_id)
                 const isPasswordVisible = visiblePasswords[restaurant.id]
 
@@ -302,9 +416,9 @@ export default function AdminDashboard({ user, onLogout }: Props) {
                       <div className="flex flex-col md:flex-row md:items-center justify-between p-6 gap-4">
                         <div className="flex items-center gap-4 flex-1">
                           {restaurant.logo_url ? (
-                            <img src={restaurant.logo_url} alt={restaurant.name} className="w-16 h-16 rounded-lg object-cover bg-muted" />
+                            <img src={restaurant.logo_url} alt={restaurant.name} className="w-16 h-16 rounded-lg object-cover bg-muted border" />
                           ) : (
-                            <div className="w-16 h-16 rounded-lg bg-muted flex items-center justify-center">
+                            <div className="w-16 h-16 rounded-lg bg-muted flex items-center justify-center border">
                               <Buildings size={24} className="text-muted-foreground" />
                             </div>
                           )}
@@ -377,11 +491,11 @@ export default function AdminDashboard({ user, onLogout }: Props) {
                 )
               })}
 
-              {(!restaurants || restaurants.length === 0) && (
+              {processedRestaurants.length === 0 && (
                 <div className="text-center py-12 bg-muted/10 rounded-lg border border-dashed">
                   <Buildings size={48} className="mx-auto text-muted-foreground mb-4" />
-                  <h3 className="text-lg font-medium">Nessun ristorante</h3>
-                  <p className="text-muted-foreground">Inizia aggiungendo il primo ristorante partner.</p>
+                  <h3 className="text-lg font-medium">Nessun ristorante trovato</h3>
+                  <p className="text-muted-foreground">Prova a cambiare i filtri o aggiungi un nuovo ristorante.</p>
                 </div>
               )}
             </div>
@@ -421,12 +535,18 @@ export default function AdminDashboard({ user, onLogout }: Props) {
                   onChange={(e) => setEditingRestaurant(prev => prev ? ({ ...prev, email: e.target.value }) : null)}
                 />
               </div>
-              <div className="space-y-2">
-                <Label>Logo URL</Label>
-                <Input
-                  value={editingRestaurant.logo_url || ''}
-                  onChange={(e) => setEditingRestaurant(prev => prev ? ({ ...prev, logo_url: e.target.value }) : null)}
-                />
+              <div className="space-y-1">
+                <Label>Logo</Label>
+                <div className="flex items-center gap-2">
+                  {editingRestaurant.logo_url && (
+                    <img src={editingRestaurant.logo_url} alt="Logo" className="w-8 h-8 rounded object-cover" />
+                  )}
+                  <Input
+                    type="file"
+                    accept="image/png, image/jpeg"
+                    onChange={(e) => setEditLogoFile(e.target.files?.[0] || null)}
+                  />
+                </div>
               </div>
 
               {editingUser && (
@@ -449,8 +569,8 @@ export default function AdminDashboard({ user, onLogout }: Props) {
                 </div>
               )}
 
-              <Button onClick={handleSaveEdit} className="w-full">
-                Salva Modifiche
+              <Button onClick={handleSaveEdit} className="w-full" disabled={isUploading}>
+                {isUploading ? 'Salvataggio...' : 'Salva Modifiche'}
               </Button>
             </div>
           )}

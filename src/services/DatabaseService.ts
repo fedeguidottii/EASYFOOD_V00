@@ -58,6 +58,25 @@ export const DatabaseService = {
         if (error) throw error
     },
 
+    // Storage
+    async uploadLogo(file: File) {
+        const fileExt = file.name.split('.').pop()
+        const fileName = `${Math.random()}.${fileExt}`
+        const filePath = `${fileName}`
+
+        const { error: uploadError } = await supabase.storage
+            .from('logos')
+            .upload(filePath, file)
+
+        if (uploadError) throw uploadError
+
+        const { data } = supabase.storage
+            .from('logos')
+            .getPublicUrl(filePath)
+
+        return data.publicUrl
+    },
+
     // Categories
     async getCategories(restaurantId: string) {
         const { data, error } = await supabase
