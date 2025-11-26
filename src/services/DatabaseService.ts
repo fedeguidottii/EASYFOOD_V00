@@ -20,18 +20,20 @@ export const DatabaseService = {
         if (error) throw error
         return data.map((r: any) => ({
             ...r,
-            isActive: r.is_active
+            isActive: r.is_active // Mappa is_active (DB) a isActive (Frontend)
         })) as Restaurant[]
     },
 
     async createRestaurant(restaurant: Partial<Restaurant>) {
-        // Map isActive to is_active for database
         const payload: any = { ...restaurant }
+        
+        // Gestione corretta is_active
         if (restaurant.isActive !== undefined) {
             payload.is_active = restaurant.isActive
-            delete payload.isActive
         }
-        // Remove frontend-only fields
+        
+        // Rimuovi campi frontend-only
+        delete payload.isActive
         delete payload.hours
         delete payload.coverChargePerPerson
         delete payload.allYouCanEat
@@ -41,42 +43,60 @@ export const DatabaseService = {
     },
 
     async updateRestaurant(restaurant: Partial<Restaurant>) {
-        // Whitelist allowed fields to avoid 400 errors from unknown/read-only columns
-        const allowedFields = ['name', 'address', 'phone', 'email', 'logo_url', 'is_active', 'owner_id']
-
         const payload: any = {}
+        
+        // Campi permessi per l'aggiornamento
+        const allowedFields = ['name', 'address', 'phone', 'email', 'logo_url', 'owner_id']
 
-        // Map allowed fields
+        // Copia solo i campi presenti nell'oggetto input
         allowedFields.forEach(field => {
-            // Handle direct mapping if property exists in input
             if (field in restaurant) {
                 payload[field] = (restaurant as any)[field]
             }
         })
 
-        // Handle special mapping for isActive -> is_active
+        // Gestione esplicita di isActive -> is_active
+        // Questo ha la priorità assoluta per evitare conflitti
         if (restaurant.isActive !== undefined) {
             payload.is_active = restaurant.isActive
         }
-
-        // Ensure we don't send undefined values if they weren't in the input
-        // (though update usually ignores missing keys, explicit undefined might be an issue if not handled)
-
-        // If is_active is still missing (e.g. not in input and not mapped), don't send it? 
-        // But we want to update it if it's there.
 
         const { error } = await supabase
             .from('restaurants')
             .update(payload)
             .eq('id', restaurant.id)
+        
         if (error) throw error
     },
 
     async deleteRestaurant(restaurantId: string) {
+        // 1. Elimina dipendenze complesse (Order Items)
+        // Prima recuperiamo gli ID degli ordini del ristorante
+        const { data: orders } = await supabase
+            .from('orders')
+            .select('id')
+            .eq('restaurant_id', restaurantId)
+        
+        if (orders && orders.length > 0) {
+            const orderIds = orders.map(o => o.id)
+            // Elimina items collegati a questi ordini
+            await supabase.from('order_items').delete().in('order_id', orderIds)
+        }
+
+        // 2. Elimina Tabelle dipendenti direttamente da restaurant_id
+        await supabase.from('orders').delete().eq('restaurant_id', restaurantId)
+        await supabase.from('table_sessions').delete().eq('restaurant_id', restaurantId)
+        await supabase.from('bookings').delete().eq('restaurant_id', restaurantId)
+        await supabase.from('dishes').delete().eq('restaurant_id', restaurantId)
+        await supabase.from('categories').delete().eq('restaurant_id', restaurantId)
+        await supabase.from('tables').delete().eq('restaurant_id', restaurantId)
+
+        // 3. Infine elimina il ristorante
         const { error } = await supabase
             .from('restaurants')
             .delete()
             .eq('id', restaurantId)
+            
         if (error) throw error
     },
 
@@ -170,7 +190,7 @@ export const DatabaseService = {
             .eq('status', 'OPEN')
             .single()
 
-        if (error && error.code !== 'PGRST116') throw error // PGRST116 is "Row not found"
+        if (error && error.code !== 'PGRST116') throw error
         return data as TableSession | null
     },
 
@@ -190,7 +210,7 @@ export const DatabaseService = {
             .from('orders')
             .select('*, items:order_items(*, dish:dishes(*))')
             .eq('restaurant_id', restaurantId)
-            .neq('status', 'PAID') // Filter active orders
+            .neq('status', 'PAID')
             .neq('status', 'CANCELLED')
         if (error) throw error
         return data as Order[]
@@ -213,7 +233,6 @@ export const DatabaseService = {
     },
 
     async createOrder(order: Partial<Order>, items: Partial<OrderItem>[]) {
-        // 1. Create Order
         const { data: orderData, error: orderError } = await supabase
             .from('orders')
             .insert(order)
@@ -223,7 +242,6 @@ export const DatabaseService = {
         if (orderError) throw orderError
         if (!orderData) throw new Error('Failed to create order')
 
-        // 2. Create Order Items
         const itemsWithOrderId = items.map(item => ({
             ...item,
             order_id: orderData.id
