@@ -152,7 +152,13 @@ const RestaurantDashboard = ({ user, onLogout }: RestaurantDashboardProps) => {
   const { updateOrderItemStatus, updateOrderStatus } = useRestaurantLogic(restaurantId)
 
   const generatePin = () => Math.floor(1000 + Math.random() * 9000).toString()
-  const generateQrCode = (tableId: string) => `${window.location.origin}?table=${tableId}`
+
+  const generateQrCode = (tableId: string) => {
+    const session = sessions?.find(s => s.table_id === tableId && s.status === 'OPEN')
+    const pin = session?.session_pin || ''
+    // Direct link to menu with table ID and PIN (skip login)
+    return `${window.location.origin}/menu?table=${tableId}&pin=${pin}`
+  }
 
   const handleCreateTable = () => {
     if (!newTableName.trim()) {
