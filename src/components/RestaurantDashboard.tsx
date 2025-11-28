@@ -1343,7 +1343,13 @@ const RestaurantDashboard = ({ user, onLogout }: RestaurantDashboardProps) => {
                 Tutte
               </Button>
             </div>
-            <ReservationsManager restaurantId={restaurantId} dateFilter={reservationsDateFilter} />
+            <ReservationsManager
+              user={user}
+              restaurantId={restaurantId}
+              tables={restaurantTables}
+              bookings={restaurantBookings}
+              dateFilter={reservationsDateFilter}
+            />
           </TabsContent>
 
           {/* Analytics Tab */}
