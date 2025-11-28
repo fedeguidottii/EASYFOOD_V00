@@ -193,18 +193,9 @@ export default function AdminDashboard({ user, onLogout }: Props) {
           setRestaurants(prev => prev.filter(r => r.id !== restaurantId))
         }
 
-        const restaurant = restaurants?.find(r => r.id === restaurantId)
         await DatabaseService.deleteRestaurant(restaurantId)
 
-        if (restaurant?.owner_id) {
-          try {
-            await DatabaseService.deleteUser(restaurant.owner_id)
-          } catch (e) {
-            // Suppress 409 error for user deletion as it's likely a constraint issue 
-            // and the main goal (deleting restaurant) is achieved.
-            console.warn("Could not delete associated user (likely linked to other data)", e)
-          }
-        }
+        // Note: The service now handles deleting the associated user internally
 
         toast.success('Ristorante eliminato')
         await refreshRestaurants()
@@ -212,6 +203,21 @@ export default function AdminDashboard({ user, onLogout }: Props) {
         console.error('Error deleting restaurant:', error)
         toast.error('Errore: ' + (error.message || "Impossibile eliminare"))
         await refreshRestaurants() // Revert state on error
+      }
+    }
+  }
+
+  const handleResetDatabase = async () => {
+    if (confirm('ATTENZIONE: Stai per cancellare TUTTI i dati (Ristoranti, Ordini, Utenti eccetto Admin). Sei sicuro?')) {
+      if (confirm('Sei DAVVERO sicuro? Questa azione non può essere annullata.')) {
+        try {
+          await DatabaseService.nukeDatabase()
+          toast.success('Database resettato con successo')
+          window.location.reload() // Force reload to clear all state
+        } catch (error: any) {
+          console.error('Error resetting database:', error)
+          toast.error('Errore durante il reset: ' + error.message)
+        }
       }
     }
   }
@@ -335,6 +341,15 @@ export default function AdminDashboard({ user, onLogout }: Props) {
                 Statistiche
               </Button>
               <div className="h-6 w-px bg-border mx-2" />
+              <Button
+                variant="destructive"
+                onClick={handleResetDatabase}
+                className="flex items-center gap-2 bg-red-600 hover:bg-red-700"
+                title="CANCELLA TUTTO IL DATABASE"
+              >
+                <Trash size={16} />
+                Reset DB
+              </Button>
               <Button variant="outline" onClick={onLogout} className="flex items-center gap-2">
                 <SignOut size={16} />
                 Esci
