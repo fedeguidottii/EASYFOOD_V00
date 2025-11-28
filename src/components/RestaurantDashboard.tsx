@@ -1260,18 +1260,6 @@ const RestaurantDashboard = ({ user, onLogout }: RestaurantDashboardProps) => {
                                   <Button
                                     variant="ghost"
                                     size="icon"
-                                    className={`h-8 w-8 ${dish.is_ayce ? 'text-orange-500 bg-orange-50' : 'text-muted-foreground'}`}
-                                    onClick={() => {
-                                      const updated = { ...dish, is_ayce: !dish.is_ayce, excludeFromAllYouCanEat: !!dish.is_ayce }
-                                      DatabaseService.updateDish(updated)
-                                    }}
-                                    title={dish.is_ayce ? "Incluso in AYCE" : "Escluso da AYCE"}
-                                  >
-                                    <ForkKnife size={14} weight={dish.is_ayce ? "fill" : "regular"} />
-                                  </Button>
-                                  <Button
-                                    variant="ghost"
-                                    size="icon"
                                     className={`h-8 w-8 ${!dish.is_active ? 'text-muted-foreground' : 'text-green-600'}`}
                                     onClick={() => handleToggleDish(dish.id)}
                                   >
