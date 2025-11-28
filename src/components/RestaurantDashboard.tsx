@@ -74,7 +74,7 @@ const RestaurantDashboard = ({ user, onLogout }: RestaurantDashboardProps) => {
   const [orders] = useSupabaseData<Order>('orders', [], { column: 'restaurant_id', value: restaurantId })
   const [bookings, , refreshBookings] = useSupabaseData<Booking>('bookings', [], { column: 'restaurant_id', value: restaurantId })
   const [categories] = useSupabaseData<Category>('categories', [], { column: 'restaurant_id', value: restaurantId })
-  const [sessions] = useSupabaseData<TableSession>('table_sessions', [], { column: 'restaurant_id', value: restaurantId })
+  const [sessions, , refreshSessions] = useSupabaseData<TableSession>('table_sessions', [], { column: 'restaurant_id', value: restaurantId })
 
   // Helper to get table ID from order
   const getTableIdFromOrder = (order: Order) => {
@@ -313,6 +313,7 @@ const RestaurantDashboard = ({ user, onLogout }: RestaurantDashboardProps) => {
       setCustomerCount('')
       setSelectedTable({ ...tableToUpdate })
       setCurrentSessionPin(session.session_pin || '')
+      refreshSessions() // Ensure sessions are updated
       setShowQrDialog(true)
     } catch (err) {
       console.error('Error activating table:', err)
@@ -1097,6 +1098,7 @@ const RestaurantDashboard = ({ user, onLogout }: RestaurantDashboardProps) => {
                                 size="sm"
                                 onClick={() => {
                                   setSelectedTableForActions(table)
+                                  refreshSessions() // Refresh to ensure PIN is available
                                   setShowTableQrDialog(true)
                                 }}
                               >
