@@ -149,6 +149,23 @@ const RestaurantDashboard = ({ user, onLogout }: RestaurantDashboardProps) => {
   const restaurantBookings = bookings || []
   const restaurantCategories = categories || []
 
+  // Sidebar hover auto-expand
+  useEffect(() => {
+    const sidebar = document.getElementById('sidebar')
+    if (!sidebar) return
+
+    const handleMouseEnter = () => setSidebarExpanded(true)
+    const handleMouseLeave = () => setSidebarExpanded(false)
+
+    sidebar.addEventListener('mouseenter', handleMouseEnter)
+    sidebar.addEventListener('mouseleave', handleMouseLeave)
+
+    return () => {
+      sidebar.removeEventListener('mouseenter', handleMouseEnter)
+      sidebar.removeEventListener('mouseleave', handleMouseLeave)
+    }
+  }, [])
+
   const { updateOrderItemStatus, updateOrderStatus } = useRestaurantLogic(restaurantId)
 
   const generatePin = () => Math.floor(1000 + Math.random() * 9000).toString()
@@ -548,10 +565,14 @@ const RestaurantDashboard = ({ user, onLogout }: RestaurantDashboardProps) => {
           } glass border-r border-border/20 flex flex-col fixed h-full z-50 transition-all duration-300 ease-in-out`}
       >
         <div className="p-6 border-b border-border/10 flex items-center justify-center">
-          <h1 className={`font-bold text-primary transition-all duration-300 ${sidebarExpanded ? 'text-2xl' : 'text-sm'
-            }`}>
-            {sidebarExpanded ? 'EASYFOOD' : 'EF'}
-          </h1>
+          {sidebarExpanded ? (
+            <div className="text-center">
+              <h1 className="font-bold text-xl text-primary">{currentRestaurant?.name || 'EASYFOOD'}</h1>
+              <p className="text-xs text-muted-foreground mt-1">Dashboard</p>
+            </div>
+          ) : (
+            <ChefHat size={24} className="text-primary" weight="duotone" />
+          )}
         </div>
 
         <nav className="flex-1 p-4 space-y-2">
