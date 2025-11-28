@@ -1,9 +1,8 @@
 import { useState } from 'react'
-
 import { DatabaseService } from '../services/DatabaseService'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogDescription } from '@/components/ui/dialog'
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
@@ -11,19 +10,19 @@ import { Badge } from '@/components/ui/badge'
 import { Separator } from '@/components/ui/separator'
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover'
 import { toast } from 'sonner'
-import { Calendar, Clock, Users, PencilSimple, Trash, Plus, Phone, User as UserIcon, CalendarBlank, Funnel } from '@phosphor-icons/react'
-import type { User, Reservation, Table } from '../services/types'
+import { Calendar, Clock, Users, PencilSimple, Trash, Phone, User as UserIcon, CalendarBlank } from '@phosphor-icons/react'
+import type { User, Booking, Table } from '../services/types'
 import TimelineReservations from './TimelineReservations'
 
 interface ReservationsManagerProps {
   user: User
+  restaurantId: string
   tables: Table[]
-  reservations: Reservation[]
-  setReservations?: (reservations: Reservation[]) => void // Optional or deprecated
+  bookings: Booking[]
 }
 
-export default function ReservationsManager({ user, tables, reservations }: ReservationsManagerProps) {
-  const [selectedReservation, setSelectedReservation] = useState<Reservation | null>(null)
+export default function ReservationsManager({ user, restaurantId, tables, bookings }: ReservationsManagerProps) {
+  const [selectedBooking, setSelectedBooking] = useState<Booking | null>(null)
   const [showEditDialog, setShowEditDialog] = useState(false)
   const [showDeleteDialog, setShowDeleteDialog] = useState(false)
   const [showHistoryDialog, setShowHistoryDialog] = useState(false)
@@ -39,93 +38,97 @@ export default function ReservationsManager({ user, tables, reservations }: Rese
 
   // Form states for editing
   const [editForm, setEditForm] = useState({
-    customerName: '',
-    customerPhone: '',
+    name: '',
+    phone: '',
     tableId: '',
     date: '',
     time: '',
     guests: 1
   })
 
-  // Get reservation history (completed reservations)
-  // Get reservation history (completed reservations)
-  // For now, we filter completed reservations from the main list or assume history is fetched elsewhere
-  const reservationHistory: Reservation[] = [] // Placeholder if not passed as prop
+  // Filter bookings for this restaurant
+  const restaurantBookings = bookings.filter(b => b.restaurant_id === restaurantId)
+  const restaurantTables = tables.filter(t => t.restaurant_id === restaurantId)
 
-  const restaurantTables = tables.filter(table => table.restaurantId === user.restaurantId)
-  const restaurantReservations = reservations.filter(reservation => reservation.restaurantId === user.restaurantId)
-  const restaurantReservationHistory = reservationHistory?.filter(res => res.restaurantId === user.restaurantId) || []
+  // Separate active and history (completed) bookings
+  // Assuming 'completed' status or past date means history
+  const now = new Date()
+  const activeBookings = restaurantBookings.filter(b => {
+    const bookingDate = new Date(b.date_time)
+    return bookingDate >= now && b.status !== 'COMPLETED' && b.status !== 'CANCELLED'
+  })
+
+  const historyBookings = restaurantBookings.filter(b => {
+    const bookingDate = new Date(b.date_time)
+    return bookingDate < now || b.status === 'COMPLETED' || b.status === 'CANCELLED'
+  })
 
   // Initialize edit form when reservation is selected
-  const handleEditReservation = (reservation: Reservation) => {
-    setSelectedReservation(reservation)
+  const handleEditBooking = (booking: Booking) => {
+    setSelectedBooking(booking)
+    const [date, time] = booking.date_time.split('T')
     setEditForm({
-      customerName: reservation.customerName,
-      customerPhone: reservation.customerPhone,
-      tableId: reservation.tableId,
-      date: reservation.date,
-      time: reservation.time,
-      guests: reservation.guests
+      name: booking.name,
+      phone: booking.phone || '',
+      tableId: booking.table_id || '',
+      date: date,
+      time: time.substring(0, 5),
+      guests: booking.guests
     })
     setShowEditDialog(true)
   }
 
   // Save edited reservation
   const handleSaveEdit = () => {
-    if (!selectedReservation) return
+    if (!selectedBooking) return
 
-    if (!editForm.customerName.trim() || !editForm.customerPhone.trim() || !editForm.tableId || !editForm.date || !editForm.time) {
+    if (!editForm.name.trim() || !editForm.tableId || !editForm.date || !editForm.time) {
       toast.error('Compila tutti i campi obbligatori')
       return
     }
 
-    const updatedReservation: Reservation = {
-      ...selectedReservation,
-      customerName: editForm.customerName.trim(),
-      customerPhone: editForm.customerPhone.trim(),
-      tableId: editForm.tableId,
-      date: editForm.date,
-      time: editForm.time,
+    const dateTime = `${editForm.date}T${editForm.time}:00`
+
+    const updatedBooking: Partial<Booking> = {
+      id: selectedBooking.id,
+      name: editForm.name.trim(),
+      phone: editForm.phone.trim(),
+      table_id: editForm.tableId,
+      date_time: dateTime,
       guests: editForm.guests
     }
 
-    DatabaseService.updateReservation(updatedReservation)
+    DatabaseService.updateBooking(updatedBooking)
       .then(() => {
         setShowEditDialog(false)
-        setSelectedReservation(null)
+        setSelectedBooking(null)
         toast.success('Prenotazione modificata con successo')
       })
   }
 
   // Delete reservation
-  const handleDeleteReservation = () => {
-    if (!selectedReservation) return
+  const handleDeleteBooking = () => {
+    if (!selectedBooking) return
 
-    DatabaseService.deleteReservation(selectedReservation.id)
+    DatabaseService.deleteBooking(selectedBooking.id)
       .then(() => {
         setShowDeleteDialog(false)
-        setSelectedReservation(null)
+        setSelectedBooking(null)
         toast.success('Prenotazione eliminata')
       })
   }
 
   // Complete reservation (move to history)
-  const handleCompleteReservation = (reservation: Reservation) => {
-    // For now, we just delete it from active reservations. 
-    // Ideally we should have a 'status' field and update it to 'completed'.
-    // If we want to keep history, we should update status.
-    // Let's assume we update status to 'completed' if the schema supports it, 
-    // or delete it if we only track active ones in this view.
-    // The current schema has 'status'.
-
-    DatabaseService.updateReservation({ ...reservation, status: 'completed' })
+  const handleCompleteBooking = (booking: Booking) => {
+    DatabaseService.updateBooking({ id: booking.id, status: 'COMPLETED' })
       .then(() => toast.success('Prenotazione completata'))
   }
 
   // Get table name
-  const getTableName = (tableId: string) => {
+  const getTableName = (tableId?: string) => {
+    if (!tableId) return 'Nessun tavolo'
     const table = restaurantTables.find(t => t.id === tableId)
-    return table?.name || 'Tavolo non trovato'
+    return table?.number ? `Tavolo ${table.number}` : 'Tavolo non trovato'
   }
 
   // Format date for display
@@ -188,55 +191,24 @@ export default function ReservationsManager({ user, tables, reservations }: Rese
   // Get history date filters
   const getHistoryDateFilters = () => {
     const filters: Array<{ value: string; label: string }> = []
-
-    // Today
-    filters.push({
-      value: 'today',
-      label: 'Oggi'
-    })
-
-    // Yesterday
-    filters.push({
-      value: 'yesterday',
-      label: 'Ieri'
-    })
-
-    // Day before yesterday
-    filters.push({
-      value: 'dayBeforeYesterday',
-      label: 'Ieri l\'altro'
-    })
-
-    // Last week
-    filters.push({
-      value: 'lastWeek',
-      label: 'Ultima settimana'
-    })
-
-    // Last month
-    filters.push({
-      value: 'lastMonth',
-      label: 'Ultimo mese'
-    })
-
-    // Custom
-    filters.push({
-      value: 'custom',
-      label: 'Personalizzato'
-    })
-
+    filters.push({ value: 'today', label: 'Oggi' })
+    filters.push({ value: 'yesterday', label: 'Ieri' })
+    filters.push({ value: 'dayBeforeYesterday', label: 'Ieri l\'altro' })
+    filters.push({ value: 'lastWeek', label: 'Ultima settimana' })
+    filters.push({ value: 'lastMonth', label: 'Ultimo mese' })
+    filters.push({ value: 'custom', label: 'Personalizzato' })
     return filters
   }
 
   // Filter future reservations
-  const getFilteredFutureReservations = () => {
-    let filtered = restaurantReservations
+  const getFilteredActiveBookings = () => {
+    let filtered = activeBookings
 
     if (futureFilter !== 'all') {
       if (futureFilter === 'custom' && customFutureDate) {
-        filtered = filtered.filter(res => res.date === customFutureDate)
+        filtered = filtered.filter(res => res.date_time.startsWith(customFutureDate))
       } else {
-        filtered = filtered.filter(res => res.date === futureFilter)
+        filtered = filtered.filter(res => res.date_time.startsWith(futureFilter))
       }
     }
 
@@ -244,33 +216,33 @@ export default function ReservationsManager({ user, tables, reservations }: Rese
   }
 
   // Filter history reservations
-  const getFilteredHistoryReservations = () => {
-    let filtered = restaurantReservationHistory
+  const getFilteredHistoryBookings = () => {
+    let filtered = historyBookings
     const today = new Date()
 
     if (historyFilter !== 'all') {
       switch (historyFilter) {
         case 'today':
           const todayStr = today.toISOString().split('T')[0]
-          filtered = filtered.filter(res => res.date === todayStr)
+          filtered = filtered.filter(res => res.date_time.startsWith(todayStr))
           break
         case 'yesterday':
           const yesterday = new Date(today)
           yesterday.setDate(yesterday.getDate() - 1)
           const yesterdayStr = yesterday.toISOString().split('T')[0]
-          filtered = filtered.filter(res => res.date === yesterdayStr)
+          filtered = filtered.filter(res => res.date_time.startsWith(yesterdayStr))
           break
         case 'dayBeforeYesterday':
           const dayBefore = new Date(today)
           dayBefore.setDate(dayBefore.getDate() - 2)
           const dayBeforeStr = dayBefore.toISOString().split('T')[0]
-          filtered = filtered.filter(res => res.date === dayBeforeStr)
+          filtered = filtered.filter(res => res.date_time.startsWith(dayBeforeStr))
           break
         case 'lastWeek':
           const weekAgo = new Date(today)
           weekAgo.setDate(weekAgo.getDate() - 7)
           filtered = filtered.filter(res => {
-            const resDate = new Date(res.date)
+            const resDate = new Date(res.date_time)
             return resDate >= weekAgo && resDate <= today
           })
           break
@@ -278,7 +250,7 @@ export default function ReservationsManager({ user, tables, reservations }: Rese
           const monthAgo = new Date(today)
           monthAgo.setMonth(monthAgo.getMonth() - 1)
           filtered = filtered.filter(res => {
-            const resDate = new Date(res.date)
+            const resDate = new Date(res.date_time)
             return resDate >= monthAgo && resDate <= today
           })
           break
@@ -286,8 +258,10 @@ export default function ReservationsManager({ user, tables, reservations }: Rese
           if (customHistoryStartDate && customHistoryEndDate) {
             const startDate = new Date(customHistoryStartDate)
             const endDate = new Date(customHistoryEndDate)
+            // Adjust end date to include the full day
+            endDate.setHours(23, 59, 59, 999)
             filtered = filtered.filter(res => {
-              const resDate = new Date(res.date)
+              const resDate = new Date(res.date_time)
               return resDate >= startDate && resDate <= endDate
             })
           }
@@ -300,15 +274,8 @@ export default function ReservationsManager({ user, tables, reservations }: Rese
 
   const futureDateSuggestions = getFutureDateSuggestions()
   const historyDateFilters = getHistoryDateFilters()
-  const filteredFutureReservations = getFilteredFutureReservations()
-  const filteredHistoryReservations = getFilteredHistoryReservations()
-
-  // Check if reservation is past
-  const isPast = (dateStr: string, timeStr: string) => {
-    const now = new Date()
-    const reservationDate = new Date(`${dateStr}T${timeStr}`)
-    return reservationDate < now
-  }
+  const filteredActiveBookings = getFilteredActiveBookings()
+  const filteredHistoryBookings = getFilteredHistoryBookings()
 
   return (
     <div className="space-y-6">
@@ -329,8 +296,9 @@ export default function ReservationsManager({ user, tables, reservations }: Rese
         {/* Timeline Component */}
         <TimelineReservations
           user={user}
+          restaurantId={restaurantId}
           tables={tables}
-          reservations={reservations}
+          bookings={bookings}
         />
       </div>
 
@@ -380,7 +348,7 @@ export default function ReservationsManager({ user, tables, reservations }: Rese
           </div>
         </div>
 
-        {filteredFutureReservations.length === 0 ? (
+        {filteredActiveBookings.length === 0 ? (
           <Card className="shadow-professional">
             <CardContent className="text-center py-8">
               <Calendar size={48} className="mx-auto text-muted-foreground mb-4" />
@@ -391,32 +359,27 @@ export default function ReservationsManager({ user, tables, reservations }: Rese
           </Card>
         ) : (
           <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-            {filteredFutureReservations
-              .sort((a, b) => {
-                const dateA = new Date(`${a.date}T${a.time}`)
-                const dateB = new Date(`${b.date}T${b.time}`)
-                return dateA.getTime() - dateB.getTime()
-              })
-              .map(reservation => {
-                const past = isPast(reservation.date, reservation.time)
-                const today = isToday(reservation.date)
+            {filteredActiveBookings
+              .sort((a, b) => new Date(a.date_time).getTime() - new Date(b.date_time).getTime())
+              .map(booking => {
+                const dateStr = booking.date_time.split('T')[0]
+                const timeStr = booking.date_time.split('T')[1].substring(0, 5)
+                const today = isToday(dateStr)
 
                 return (
                   <Card
-                    key={reservation.id}
-                    className={`shadow-professional hover:shadow-professional-lg transition-all duration-300 cursor-pointer ${past ? 'opacity-60' : ''
-                      } ${today ? 'border-l-4 border-l-primary' : ''}`}
-                    onClick={() => handleEditReservation(reservation)}
+                    key={booking.id}
+                    className={`shadow-professional hover:shadow-professional-lg transition-all duration-300 cursor-pointer ${today ? 'border-l-4 border-l-primary' : ''}`}
+                    onClick={() => handleEditBooking(booking)}
                   >
                     <CardHeader className="pb-3">
                       <div className="flex items-center justify-between">
                         <CardTitle className="text-lg flex items-center gap-2">
                           <UserIcon size={18} />
-                          {reservation.customerName}
+                          {booking.name}
                         </CardTitle>
                         <div className="flex gap-1">
                           {today && <Badge variant="default">Oggi</Badge>}
-                          {past && <Badge variant="secondary">Passata</Badge>}
                         </div>
                       </div>
                     </CardHeader>
@@ -424,22 +387,22 @@ export default function ReservationsManager({ user, tables, reservations }: Rese
                       <div className="space-y-2">
                         <div className="flex items-center gap-2 text-sm">
                           <Phone size={16} className="text-muted-foreground" />
-                          <span>{reservation.customerPhone}</span>
+                          <span>{booking.phone}</span>
                         </div>
                         <div className="flex items-center gap-2 text-sm">
                           <Calendar size={16} className="text-muted-foreground" />
-                          <span>{formatDate(reservation.date)}</span>
+                          <span>{formatDate(dateStr)}</span>
                         </div>
                         <div className="flex items-center gap-2 text-sm">
                           <Clock size={16} className="text-muted-foreground" />
-                          <span>{reservation.time}</span>
+                          <span>{timeStr}</span>
                         </div>
                         <div className="flex items-center gap-2 text-sm">
                           <Users size={16} className="text-muted-foreground" />
-                          <span>{reservation.guests} {reservation.guests === 1 ? 'persona' : 'persone'}</span>
+                          <span>{booking.guests} {booking.guests === 1 ? 'persona' : 'persone'}</span>
                         </div>
                         <div className="text-sm font-medium text-primary">
-                          {getTableName(reservation.tableId)}
+                          {getTableName(booking.table_id)}
                         </div>
                       </div>
 
@@ -451,32 +414,30 @@ export default function ReservationsManager({ user, tables, reservations }: Rese
                           size="sm"
                           onClick={(e) => {
                             e.stopPropagation()
-                            handleEditReservation(reservation)
+                            handleEditBooking(booking)
                           }}
                           className="flex-1"
                         >
                           <PencilSimple size={14} className="mr-1" />
                           Modifica
                         </Button>
-                        {!past && (
-                          <Button
-                            variant="default"
-                            size="sm"
-                            onClick={(e) => {
-                              e.stopPropagation()
-                              handleCompleteReservation(reservation)
-                            }}
-                            className="bg-green-600 hover:bg-green-700"
-                          >
-                            Completata
-                          </Button>
-                        )}
+                        <Button
+                          variant="default"
+                          size="sm"
+                          onClick={(e) => {
+                            e.stopPropagation()
+                            handleCompleteBooking(booking)
+                          }}
+                          className="bg-green-600 hover:bg-green-700"
+                        >
+                          Completata
+                        </Button>
                         <Button
                           variant="outline"
                           size="sm"
                           onClick={(e) => {
                             e.stopPropagation()
-                            setSelectedReservation(reservation)
+                            setSelectedBooking(booking)
                             setShowDeleteDialog(true)
                           }}
                           className="text-destructive hover:bg-destructive/10"
@@ -508,8 +469,8 @@ export default function ReservationsManager({ user, tables, reservations }: Rese
                 <Label htmlFor="edit-customer-name">Nome Cliente *</Label>
                 <Input
                   id="edit-customer-name"
-                  value={editForm.customerName}
-                  onChange={(e) => setEditForm(prev => ({ ...prev, customerName: e.target.value }))}
+                  value={editForm.name}
+                  onChange={(e) => setEditForm(prev => ({ ...prev, name: e.target.value }))}
                   placeholder="Nome e cognome"
                 />
               </div>
@@ -517,8 +478,8 @@ export default function ReservationsManager({ user, tables, reservations }: Rese
                 <Label htmlFor="edit-customer-phone">Telefono *</Label>
                 <Input
                   id="edit-customer-phone"
-                  value={editForm.customerPhone}
-                  onChange={(e) => setEditForm(prev => ({ ...prev, customerPhone: e.target.value }))}
+                  value={editForm.phone}
+                  onChange={(e) => setEditForm(prev => ({ ...prev, phone: e.target.value }))}
                   placeholder="+39 333 123 4567"
                 />
               </div>
@@ -568,7 +529,7 @@ export default function ReservationsManager({ user, tables, reservations }: Rese
                 <SelectContent>
                   {restaurantTables.map(table => (
                     <SelectItem key={table.id} value={table.id}>
-                      {table.name}
+                      {table.number}
                     </SelectItem>
                   ))}
                 </SelectContent>
@@ -602,12 +563,12 @@ export default function ReservationsManager({ user, tables, reservations }: Rese
               Sei sicuro di voler eliminare questa prenotazione? Questa azione non può essere annullata.
             </DialogDescription>
           </DialogHeader>
-          {selectedReservation && (
+          {selectedBooking && (
             <div className="bg-muted/30 p-4 rounded-lg">
-              <p><strong>Cliente:</strong> {selectedReservation.customerName}</p>
-              <p><strong>Data:</strong> {formatDate(selectedReservation.date)}</p>
-              <p><strong>Orario:</strong> {selectedReservation.time}</p>
-              <p><strong>Tavolo:</strong> {getTableName(selectedReservation.tableId)}</p>
+              <p><strong>Cliente:</strong> {selectedBooking.name}</p>
+              <p><strong>Data:</strong> {formatDate(selectedBooking.date_time.split('T')[0])}</p>
+              <p><strong>Orario:</strong> {selectedBooking.date_time.split('T')[1].substring(0, 5)}</p>
+              <p><strong>Tavolo:</strong> {getTableName(selectedBooking.table_id)}</p>
             </div>
           )}
           <div className="flex gap-3 justify-end pt-4">
@@ -619,7 +580,7 @@ export default function ReservationsManager({ user, tables, reservations }: Rese
             </Button>
             <Button
               variant="destructive"
-              onClick={handleDeleteReservation}
+              onClick={handleDeleteBooking}
             >
               Elimina Prenotazione
             </Button>
@@ -688,36 +649,34 @@ export default function ReservationsManager({ user, tables, reservations }: Rese
           </div>
 
           <div className="max-h-96 overflow-y-auto">
-            {filteredHistoryReservations.length === 0 ? (
+            {filteredHistoryBookings.length === 0 ? (
               <p className="text-center text-muted-foreground py-8">
                 {historyFilter === 'all' ? 'Nessuna prenotazione nello storico' : 'Nessuna prenotazione per il periodo selezionato'}
               </p>
             ) : (
               <div className="space-y-3">
-                {filteredHistoryReservations
-                  .sort((a, b) => {
-                    const dateA = new Date(`${a.date}T${a.time}`)
-                    const dateB = new Date(`${b.date}T${b.time}`)
-                    return dateB.getTime() - dateA.getTime()
-                  })
-                  .map(reservation => (
-                    <Card key={reservation.id} className="border-l-4 border-l-green-400">
+                {filteredHistoryBookings
+                  .sort((a, b) => new Date(b.date_time).getTime() - new Date(a.date_time).getTime())
+                  .map(booking => (
+                    <Card key={booking.id} className="border-l-4 border-l-green-400">
                       <CardContent className="p-4">
                         <div className="grid gap-2 md:grid-cols-2 lg:grid-cols-4">
                           <div>
-                            <p className="font-semibold">{reservation.customerName}</p>
-                            <p className="text-sm text-muted-foreground">{reservation.customerPhone}</p>
+                            <p className="font-semibold">{booking.name}</p>
+                            <p className="text-sm text-muted-foreground">{booking.phone}</p>
                           </div>
                           <div>
-                            <p className="text-sm">{formatDate(reservation.date)}</p>
-                            <p className="text-sm text-muted-foreground">{reservation.time}</p>
+                            <p className="text-sm">{formatDate(booking.date_time.split('T')[0])}</p>
+                            <p className="text-sm text-muted-foreground">{booking.date_time.split('T')[1].substring(0, 5)}</p>
                           </div>
                           <div>
-                            <p className="text-sm">{getTableName(reservation.tableId)}</p>
-                            <p className="text-sm text-muted-foreground">{reservation.guests} ospiti</p>
+                            <p className="text-sm">{getTableName(booking.table_id)}</p>
+                            <p className="text-sm text-muted-foreground">{booking.guests} ospiti</p>
                           </div>
                           <div className="flex items-center">
-                            <Badge variant="default" className="bg-green-600">Completata</Badge>
+                            <Badge variant="default" className="bg-green-600">
+                              {booking.status === 'COMPLETED' ? 'Completata' : 'Cancellata'}
+                            </Badge>
                           </div>
                         </div>
                       </CardContent>

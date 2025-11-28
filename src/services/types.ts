@@ -31,6 +31,13 @@ export interface Restaurant {
         pricePerPerson: number
         maxOrders: number
     }
+    // Mapped from DB
+    all_you_can_eat?: {
+        enabled: boolean
+        pricePerPerson: number
+        maxOrders: number
+    }
+    cover_charge_per_person?: number
 }
 
 export interface Category {
@@ -53,6 +60,8 @@ export interface Dish {
     image_url?: string
     created_at?: string
     excludeFromAllYouCanEat?: boolean
+    // Mapped from DB
+    exclude_from_all_you_can_eat?: boolean
 }
 
 export interface Table {
@@ -108,6 +117,7 @@ export interface OrderItem {
 export interface Booking {
     id: string
     restaurant_id: string
+    table_id?: string
     name: string
     email?: string
     phone?: string

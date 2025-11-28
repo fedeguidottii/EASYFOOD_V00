@@ -7,15 +7,14 @@ import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover'
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, BarChart, Bar, PieChart, Pie, Cell, Area, AreaChart } from 'recharts'
-import { Calendar, TrendUp, CurrencyEur, Users, ShoppingBag, Clock, ChartLine, CalendarBlank } from '@phosphor-icons/react'
-import type { Order, OrderHistory, MenuItem, MenuCategory } from '../services/types'
+import { TrendUp, CurrencyEur, Users, ShoppingBag, Clock, ChartLine, CalendarBlank } from '@phosphor-icons/react'
+import type { Order, Dish, Category } from '../services/types'
 
 interface AnalyticsChartsProps {
   orders: Order[]
   completedOrders: Order[]
-  orderHistory: OrderHistory[]
-  menuItems: MenuItem[]
-  categories: MenuCategory[]
+  dishes: Dish[]
+  categories: Category[]
 }
 
 type DateFilter = 'today' | 'yesterday' | 'week' | '2weeks' | 'month' | '3months' | 'custom'
@@ -45,7 +44,7 @@ interface HourlyData {
   revenue: number
 }
 
-export default function AnalyticsCharts({ orders, completedOrders, orderHistory, menuItems, categories }: AnalyticsChartsProps) {
+export default function AnalyticsCharts({ orders, completedOrders, dishes, categories }: AnalyticsChartsProps) {
   const [dateFilter, setDateFilter] = useState<DateFilter>('week')
   const [customStartDate, setCustomStartDate] = useState('')
   const [customEndDate, setCustomEndDate] = useState('')
@@ -98,73 +97,23 @@ export default function AnalyticsCharts({ orders, completedOrders, orderHistory,
   const dateRange = getDateRange(dateFilter)
   const { start, end } = dateRange
 
-  // Generate sample data for better analytics
-  const generateSampleData = () => {
-    const sampleOrderHistory: OrderHistory[] = []
-    const now = Date.now()
-    const threMonthsAgo = now - (90 * 24 * 60 * 60 * 1000)
+  // Combine all orders for analysis (completed + active if needed, but usually analytics is on completed)
+  // But the original code combined them.
+  // Let's use completedOrders for revenue and trends, and orders for "Active Orders" KPI.
+  // Actually, original code combined `completedOrders` and `orderHistory` (which was empty).
+  // Here we just have `completedOrders`.
 
-    // Generate 100 sample orders over the last 3 months
-    for (let i = 0; i < 100; i++) {
-      const randomTime = threMonthsAgo + Math.random() * (now - threMonthsAgo)
-      const randomItems = Math.floor(Math.random() * 4) + 1 // 1-4 items
-      const items: Array<{
-        menuItemId: string
-        name: string
-        quantity: number
-        price: number
-        notes?: string
-      }> = []
-      let total = 0
-
-      for (let j = 0; j < randomItems; j++) {
-        const randomMenuItem = menuItems[Math.floor(Math.random() * menuItems.length)]
-        const quantity = Math.floor(Math.random() * 3) + 1
-        items.push({
-          menuItemId: randomMenuItem.id,
-          name: randomMenuItem.name,
-          quantity,
-          price: randomMenuItem.price
-        })
-        total += randomMenuItem.price * quantity
-      }
-
-      sampleOrderHistory.push({
-        id: `sample-${i}`,
-        tableId: `table-${Math.floor(Math.random() * 5) + 1}`,
-        tableName: `Tavolo ${Math.floor(Math.random() * 5) + 1}`,
-        restaurantId: 'restaurant-1',
-        items,
-        total,
-        timestamp: randomTime,
-        paidAt: randomTime + (Math.random() * 30 * 60 * 1000), // 0-30 minutes later
-        customerCount: Math.floor(Math.random() * 6) + 1
-      })
-    }
-
-    return sampleOrderHistory
-  }
-
-  const sampleData = useMemo(() => generateSampleData(), [menuItems])
-  const allOrderHistory = [...orderHistory, ...sampleData]
-
-  // Filter data based on date range
-  const filteredCompletedOrders = completedOrders.filter(order =>
-    order.timestamp >= start && order.timestamp <= end
-  )
-
-  const filteredOrderHistory = allOrderHistory.filter(order =>
-    order.paidAt >= start && order.paidAt <= end
-  )
-
-  const allFilteredOrders = [...filteredCompletedOrders, ...filteredOrderHistory]
+  const allFilteredOrders = completedOrders.filter(order => {
+    const orderTime = new Date(order.created_at).getTime()
+    return orderTime >= start && orderTime <= end
+  })
 
   // Analytics calculations
   const analytics = useMemo(() => {
     const totalOrders = allFilteredOrders.length
-    const totalRevenue = allFilteredOrders.reduce((sum, order) => sum + order.total, 0)
+    const totalRevenue = allFilteredOrders.reduce((sum, order) => sum + (order.total_amount || 0), 0)
     const averageOrderValue = totalOrders > 0 ? totalRevenue / totalOrders : 0
-    const activeOrders = orders.length
+    const activeOrdersCount = orders.length
 
     // Daily data for charts
     const dailyData: DailyData[] = []
@@ -174,7 +123,7 @@ export default function AnalyticsCharts({ orders, completedOrders, orderHistory,
       const dayStart = start + (i * 24 * 60 * 60 * 1000)
       const dayEnd = dayStart + (24 * 60 * 60 * 1000)
       const dayOrders = allFilteredOrders.filter(order => {
-        const orderTime = 'paidAt' in order ? order.paidAt : order.timestamp
+        const orderTime = new Date(order.created_at).getTime()
         return orderTime >= dayStart && orderTime < dayEnd
       })
 
@@ -182,8 +131,8 @@ export default function AnalyticsCharts({ orders, completedOrders, orderHistory,
       dailyData.push({
         date: date.toLocaleDateString('it-IT', { month: 'short', day: 'numeric' }),
         orders: dayOrders.length,
-        revenue: dayOrders.reduce((sum, order) => sum + order.total, 0),
-        averageValue: dayOrders.length > 0 ? dayOrders.reduce((sum, order) => sum + order.total, 0) / dayOrders.length : 0
+        revenue: dayOrders.reduce((sum, order) => sum + (order.total_amount || 0), 0),
+        averageValue: dayOrders.length > 0 ? dayOrders.reduce((sum, order) => sum + (order.total_amount || 0), 0) / dayOrders.length : 0
       })
     }
 
@@ -197,14 +146,14 @@ export default function AnalyticsCharts({ orders, completedOrders, orderHistory,
         hourEnd.setHours(hour, 59, 59, 999)
 
         const hourOrders = allFilteredOrders.filter(order => {
-          const orderTime = 'paidAt' in order ? order.paidAt : order.timestamp
+          const orderTime = new Date(order.created_at).getTime()
           return orderTime >= hourStart.getTime() && orderTime <= hourEnd.getTime()
         })
 
         hourlyData.push({
           hour: `${hour}:00`,
           orders: hourOrders.length,
-          revenue: hourOrders.reduce((sum, order) => sum + order.total, 0)
+          revenue: hourOrders.reduce((sum, order) => sum + (order.total_amount || 0), 0)
         })
       }
     }
@@ -212,17 +161,16 @@ export default function AnalyticsCharts({ orders, completedOrders, orderHistory,
     // Category analysis
     const categoryStats = categories.map(category => {
       const categoryOrders = allFilteredOrders.flatMap(order =>
-        order.items.filter(item => {
-          const menuItem = menuItems.find(m => m.id === item.menuItemId)
-          return menuItem?.categoryName === category.name
+        (order.items || []).filter(item => {
+          const dish = dishes.find(d => d.id === item.dish_id)
+          return dish?.category_id === category.id
         })
       )
 
       const totalQuantity = categoryOrders.reduce((sum, item) => sum + item.quantity, 0)
       const totalRevenue = categoryOrders.reduce((sum, item) => {
-        const itemPrice = 'price' in item ? item.price :
-          menuItems.find(m => m.id === item.menuItemId)?.price || 0
-        return sum + itemPrice * item.quantity
+        const dish = dishes.find(d => d.id === item.dish_id)
+        return sum + (dish?.price || 0) * item.quantity
       }, 0)
 
       return {
@@ -234,19 +182,23 @@ export default function AnalyticsCharts({ orders, completedOrders, orderHistory,
     }).filter(cat => cat.quantity > 0)
 
     // Most ordered dishes (filtered by selected categories)
-    const dishStats = menuItems
-      .filter(dish => selectedCategories.includes(dish.categoryName))
+    const dishStats = dishes
+      .filter(dish => {
+        const category = categories.find(c => c.id === dish.category_id)
+        return category && selectedCategories.includes(category.name)
+      })
       .map(dish => {
         const dishOrders = allFilteredOrders.flatMap(order =>
-          order.items.filter(item => item.menuItemId === dish.id)
+          (order.items || []).filter(item => item.dish_id === dish.id)
         )
 
         const totalQuantity = dishOrders.reduce((sum, item) => sum + item.quantity, 0)
         const totalRevenue = totalQuantity * dish.price
+        const category = categories.find(c => c.id === dish.category_id)
 
         return {
           name: dish.name,
-          category: dish.categoryName,
+          category: category?.name || 'Unknown',
           quantity: totalQuantity,
           revenue: totalRevenue
         }
@@ -258,13 +210,13 @@ export default function AnalyticsCharts({ orders, completedOrders, orderHistory,
       totalOrders,
       totalRevenue,
       averageOrderValue,
-      activeOrders,
+      activeOrders: activeOrdersCount,
       dailyData,
       hourlyData,
       categoryStats,
       dishStats
     }
-  }, [allFilteredOrders, orders, categories, menuItems, dateFilter, start, end, selectedCategories])
+  }, [allFilteredOrders, orders, categories, dishes, dateFilter, start, end, selectedCategories])
 
   return (
     <div className="space-y-6">

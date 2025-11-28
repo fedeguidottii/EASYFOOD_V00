@@ -1,5 +1,4 @@
 import { useState, useEffect, useRef } from 'react'
-
 import { Card, CardContent } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog'
@@ -7,15 +6,16 @@ import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Badge } from '@/components/ui/badge'
 import { toast } from 'sonner'
-import { Clock, X, Plus } from '@phosphor-icons/react'
-import type { Table, Reservation, User } from '../services/types'
-
+import { X } from '@phosphor-icons/react'
+import type { Table, Booking, User } from '../services/types'
 import { DatabaseService } from '../services/DatabaseService'
+import { v4 as uuidv4 } from 'uuid'
 
 interface TimelineReservationsProps {
   user: User
+  restaurantId: string
   tables: Table[]
-  reservations: Reservation[]
+  bookings: Booking[]
 }
 
 interface TimeSlot {
@@ -25,25 +25,24 @@ interface TimeSlot {
 }
 
 interface ReservationBlock {
-  reservation: Reservation
+  booking: Booking
   startMinutes: number
   duration: number
   table: Table
 }
 
-const TimelineReservations = ({ user, tables, reservations }: TimelineReservationsProps) => {
+const TimelineReservations = ({ user, restaurantId, tables, bookings }: TimelineReservationsProps) => {
   const [selectedDate, setSelectedDate] = useState(new Date().toISOString().split('T')[0])
   const [showReservationDialog, setShowReservationDialog] = useState(false)
   const [newReservation, setNewReservation] = useState({
-    customerName: '',
-    customerPhone: '',
+    name: '',
+    phone: '',
     tableId: '',
     time: '',
     guests: 1,
     duration: 120 // Default 2 hours
   })
   const [selectedTimeSlot, setSelectedTimeSlot] = useState<{ tableId: string, time: string } | null>(null)
-  const [draggedReservation, setDraggedReservation] = useState<Reservation | null>(null)
   const timelineRef = useRef<HTMLDivElement>(null)
 
   // Generate time slots from 10:00 to 24:00 (every 30 minutes)
@@ -59,10 +58,14 @@ const TimelineReservations = ({ user, tables, reservations }: TimelineReservatio
     }
   }
 
-  const restaurantTables = tables?.filter(table => table.restaurantId === user.restaurantId && table.isActive) || []
-  const dayReservations = reservations?.filter(res =>
-    res.restaurantId === user.restaurantId && res.date === selectedDate
-  ) || []
+  // Filter tables and bookings
+  const restaurantTables = tables?.filter(table => table.restaurant_id === restaurantId) || []
+
+  const dayBookings = bookings?.filter(res => {
+    if (!res.date_time) return false
+    const date = res.date_time.split('T')[0]
+    return date === selectedDate
+  }) || []
 
   // Convert time to minutes from start of day
   const timeToMinutes = (time: string) => {
@@ -99,10 +102,11 @@ const TimelineReservations = ({ user, tables, reservations }: TimelineReservatio
     const startMinutes = timeToMinutes(startTime)
     const endMinutes = startMinutes + duration
 
-    return dayReservations.some(res => {
-      if (res.tableId !== tableId || res.id === excludeId) return false
+    return dayBookings.some(res => {
+      if (res.table_id !== tableId || res.id === excludeId) return false
 
-      const resStartMinutes = timeToMinutes(res.time)
+      const resTime = res.date_time.split('T')[1].substring(0, 5)
+      const resStartMinutes = timeToMinutes(resTime)
       const resEndMinutes = resStartMinutes + 120 // Default 2 hours
 
       return (startMinutes < resEndMinutes && endMinutes > resStartMinutes)
@@ -142,7 +146,7 @@ const TimelineReservations = ({ user, tables, reservations }: TimelineReservatio
 
   // Create reservation
   const handleCreateReservation = () => {
-    if (!newReservation.customerName || !newReservation.customerPhone || !newReservation.tableId || !newReservation.time) {
+    if (!newReservation.name || !newReservation.phone || !newReservation.tableId || !newReservation.time) {
       toast.error('Compila tutti i campi obbligatori')
       return
     }
@@ -152,22 +156,23 @@ const TimelineReservations = ({ user, tables, reservations }: TimelineReservatio
       return
     }
 
-    const reservation: Reservation = {
-      id: Date.now().toString(),
-      customerName: newReservation.customerName,
-      customerPhone: newReservation.customerPhone,
-      tableId: newReservation.tableId,
-      date: selectedDate,
-      time: newReservation.time,
+    const dateTime = `${selectedDate}T${newReservation.time}:00`
+
+    const reservation: Partial<Booking> = {
+      restaurant_id: restaurantId,
+      table_id: newReservation.tableId,
+      name: newReservation.name,
+      phone: newReservation.phone,
+      date_time: dateTime,
       guests: newReservation.guests,
-      restaurantId: user.restaurantId!
+      status: 'CONFIRMED'
     }
 
-    DatabaseService.createReservation(reservation)
+    DatabaseService.createBooking(reservation)
       .then(() => {
         setNewReservation({
-          customerName: '',
-          customerPhone: '',
+          name: '',
+          phone: '',
           tableId: '',
           time: '',
           guests: 1,
@@ -181,21 +186,23 @@ const TimelineReservations = ({ user, tables, reservations }: TimelineReservatio
 
   // Delete reservation
   const handleDeleteReservation = (reservationId: string) => {
-    DatabaseService.deleteReservation(reservationId)
+    DatabaseService.deleteBooking(reservationId)
       .then(() => toast.success('Prenotazione eliminata'))
   }
 
   // Get reservation blocks for rendering
   const getReservationBlocks = (): ReservationBlock[] => {
-    return dayReservations
-      .map(reservation => {
-        const table = restaurantTables.find(t => t.id === reservation.tableId)
+    return dayBookings
+      .map(booking => {
+        const table = restaurantTables.find(t => t.id === booking.table_id)
         if (!table) return null // Skip if table not found
-        const startMinutes = timeToMinutes(reservation.time)
+
+        const time = booking.date_time.split('T')[1].substring(0, 5)
+        const startMinutes = timeToMinutes(time)
         const duration = 120 // Default 2 hours
 
         return {
-          reservation,
+          booking,
           startMinutes,
           duration,
           table
@@ -235,7 +242,7 @@ const TimelineReservations = ({ user, tables, reservations }: TimelineReservatio
           />
         </div>
         <Badge variant="secondary" className="text-sm">
-          {dayReservations.length} prenotazioni
+          {dayBookings.length} prenotazioni
         </Badge>
       </div>
 
@@ -269,7 +276,7 @@ const TimelineReservations = ({ user, tables, reservations }: TimelineReservatio
               <div key={table.id} className="relative">
                 {/* Table Name */}
                 <div className="absolute left-0 top-0 w-32 h-16 flex items-center px-4 font-medium text-foreground bg-muted/30 border-b border-border/20">
-                  {table.name}
+                  {table.number}
                 </div>
 
                 {/* Timeline Row */}
@@ -292,17 +299,17 @@ const TimelineReservations = ({ user, tables, reservations }: TimelineReservatio
                     .filter(block => block.table.id === table.id)
                     .map((block) => (
                       <div
-                        key={block.reservation.id}
+                        key={block.booking.id}
                         className="absolute top-1 bottom-1 bg-primary/80 rounded-md border border-primary flex items-center px-2 cursor-pointer hover:bg-primary/90 transition-colors group"
                         style={getBlockStyle(block)}
-                        title={`${block.reservation.customerName} - ${block.reservation.guests} persone`}
+                        title={`${block.booking.name} - ${block.booking.guests} persone`}
                       >
                         <div className="flex-1 min-w-0">
                           <div className="text-xs font-medium text-primary-foreground truncate">
-                            {block.reservation.customerName}
+                            {block.booking.name}
                           </div>
                           <div className="text-xs text-primary-foreground/80">
-                            {block.reservation.guests} pers.
+                            {block.booking.guests} pers.
                           </div>
                         </div>
                         <Button
@@ -311,7 +318,7 @@ const TimelineReservations = ({ user, tables, reservations }: TimelineReservatio
                           className="h-4 w-4 p-0 opacity-0 group-hover:opacity-100 text-primary-foreground hover:bg-white/20"
                           onClick={(e) => {
                             e.stopPropagation()
-                            handleDeleteReservation(block.reservation.id)
+                            handleDeleteReservation(block.booking.id)
                           }}
                         >
                           <X size={12} />
@@ -324,8 +331,6 @@ const TimelineReservations = ({ user, tables, reservations }: TimelineReservatio
           </div>
         </CardContent>
       </Card>
-
-
 
       {/* Reservation Dialog */}
       <Dialog open={showReservationDialog} onOpenChange={setShowReservationDialog}>
@@ -341,8 +346,8 @@ const TimelineReservations = ({ user, tables, reservations }: TimelineReservatio
               <Label htmlFor="customerName">Nome Cliente *</Label>
               <Input
                 id="customerName"
-                value={newReservation.customerName}
-                onChange={(e) => setNewReservation(prev => ({ ...prev, customerName: e.target.value }))}
+                value={newReservation.name}
+                onChange={(e) => setNewReservation(prev => ({ ...prev, name: e.target.value }))}
                 placeholder="Nome e cognome"
               />
             </div>
@@ -350,8 +355,8 @@ const TimelineReservations = ({ user, tables, reservations }: TimelineReservatio
               <Label htmlFor="customerPhone">Telefono *</Label>
               <Input
                 id="customerPhone"
-                value={newReservation.customerPhone}
-                onChange={(e) => setNewReservation(prev => ({ ...prev, customerPhone: e.target.value }))}
+                value={newReservation.phone}
+                onChange={(e) => setNewReservation(prev => ({ ...prev, phone: e.target.value }))}
                 placeholder="Numero di telefono"
               />
             </div>
@@ -365,7 +370,7 @@ const TimelineReservations = ({ user, tables, reservations }: TimelineReservatio
               >
                 <option value="">Seleziona tavolo</option>
                 {restaurantTables.map(table => (
-                  <option key={table.id} value={table.id}>{table.name}</option>
+                  <option key={table.id} value={table.id}>{table.number}</option>
                 ))}
               </select>
             </div>
@@ -394,8 +399,8 @@ const TimelineReservations = ({ user, tables, reservations }: TimelineReservatio
                 onClick={() => {
                   setShowReservationDialog(false)
                   setNewReservation({
-                    customerName: '',
-                    customerPhone: '',
+                    name: '',
+                    phone: '',
                     tableId: '',
                     time: '',
                     guests: 1,

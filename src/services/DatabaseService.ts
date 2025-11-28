@@ -20,7 +20,9 @@ export const DatabaseService = {
         if (error) throw error
         return data.map((r: any) => ({
             ...r,
-            isActive: r.is_active // Mappa is_active (DB) a isActive (Frontend)
+            isActive: r.is_active, // Mappa is_active (DB) a isActive (Frontend)
+            allYouCanEat: r.all_you_can_eat,
+            coverChargePerPerson: r.cover_charge_per_person
         })) as Restaurant[]
     },
 
@@ -30,6 +32,12 @@ export const DatabaseService = {
         // Gestione corretta is_active
         if (restaurant.isActive !== undefined) {
             payload.is_active = restaurant.isActive
+        }
+        if (restaurant.allYouCanEat !== undefined) {
+            payload.all_you_can_eat = restaurant.allYouCanEat
+        }
+        if (restaurant.coverChargePerPerson !== undefined) {
+            payload.cover_charge_per_person = restaurant.coverChargePerPerson
         }
 
         // Rimuovi campi frontend-only
@@ -58,6 +66,12 @@ export const DatabaseService = {
         // Gestione esplicita di isActive -> is_active
         if (restaurant.isActive !== undefined) {
             payload.is_active = restaurant.isActive
+        }
+        if (restaurant.allYouCanEat !== undefined) {
+            payload.all_you_can_eat = restaurant.allYouCanEat
+        }
+        if (restaurant.coverChargePerPerson !== undefined) {
+            payload.cover_charge_per_person = restaurant.coverChargePerPerson
         }
 
         const { error } = await supabase
@@ -218,6 +232,14 @@ export const DatabaseService = {
         if (error) throw error
     },
 
+    async updateCategory(category: Partial<Category>) {
+        const { error } = await supabase
+            .from('categories')
+            .update(category)
+            .eq('id', category.id)
+        if (error) throw error
+    },
+
     // Dishes
     async getDishes(restaurantId: string) {
         const { data, error } = await supabase
@@ -225,11 +247,34 @@ export const DatabaseService = {
             .select('*')
             .eq('restaurant_id', restaurantId)
         if (error) throw error
-        return data as Dish[]
+        return data.map((d: any) => ({
+            ...d,
+            excludeFromAllYouCanEat: d.exclude_from_all_you_can_eat
+        })) as Dish[]
     },
 
     async createDish(dish: Partial<Dish>) {
-        const { error } = await supabase.from('dishes').insert(dish)
+        const payload: any = { ...dish }
+        if (dish.excludeFromAllYouCanEat !== undefined) {
+            payload.exclude_from_all_you_can_eat = dish.excludeFromAllYouCanEat
+        }
+        delete payload.excludeFromAllYouCanEat
+
+        const { error } = await supabase.from('dishes').insert(payload)
+        if (error) throw error
+    },
+
+    async updateDish(dish: Partial<Dish>) {
+        const payload: any = { ...dish }
+        if (dish.excludeFromAllYouCanEat !== undefined) {
+            payload.exclude_from_all_you_can_eat = dish.excludeFromAllYouCanEat
+        }
+        delete payload.excludeFromAllYouCanEat
+
+        const { error } = await supabase
+            .from('dishes')
+            .update(payload)
+            .eq('id', dish.id)
         if (error) throw error
     },
 
@@ -371,5 +416,26 @@ export const DatabaseService = {
             .eq('restaurant_id', restaurantId)
         if (error) throw error
         return data as Booking[]
+    },
+
+    async createBooking(booking: Partial<Booking>) {
+        const { error } = await supabase.from('bookings').insert(booking)
+        if (error) throw error
+    },
+
+    async updateBooking(booking: Partial<Booking>) {
+        const { error } = await supabase
+            .from('bookings')
+            .update(booking)
+            .eq('id', booking.id)
+        if (error) throw error
+    },
+
+    async deleteBooking(bookingId: string) {
+        const { error } = await supabase
+            .from('bookings')
+            .delete()
+            .eq('id', bookingId)
+        if (error) throw error
     }
 }

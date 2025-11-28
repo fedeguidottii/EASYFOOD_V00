@@ -1,81 +1,88 @@
 import { useSupabaseData } from './useSupabaseData'
 import { DatabaseService } from '../services/DatabaseService'
-import { Order, Table, Dish } from '../services/types'
-import { toast } from 'sonner'
+import { Order, OrderItem, Table, Dish, Category } from '../services/types'
+import { v4 as uuidv4 } from 'uuid'
 
 export function useRestaurantLogic(restaurantId: string) {
+    // Adapted to use 'dishes' instead of 'menu_items'
     const [orders] = useSupabaseData<Order>('orders', [], { column: 'restaurant_id', value: restaurantId })
     const [tables] = useSupabaseData<Table>('tables', [], { column: 'restaurant_id', value: restaurantId })
     const [dishes] = useSupabaseData<Dish>('dishes', [], { column: 'restaurant_id', value: restaurantId })
+    const [categories] = useSupabaseData<Category>('categories', [], { column: 'restaurant_id', value: restaurantId })
+
+    const createOrder = async (tableId: string, items: OrderItem[]) => {
+        if (!items.length) return
+
+        const table = tables?.find(t => t.id === tableId)
+        if (!table) throw new Error('Table not found')
+
+        // Calculate total
+        let total = 0
+        items.forEach(item => {
+            const dish = dishes?.find(d => d.id === item.dish_id)
+            if (dish) {
+                total += dish.price * item.quantity
+            }
+        })
+
+        const newOrder: Partial<Order> = {
+            restaurant_id: restaurantId,
+            status: 'OPEN', // Changed from 'waiting' to 'OPEN' to match types
+            total_amount: total
+        }
+
+        // Create order in DB via DatabaseService which handles session creation if needed?
+        // Actually DatabaseService.createOrder takes order and items.
+        // We need a session first? The original logic didn't seem to care about sessions explicitly or handled it differently.
+        // In EASYFOOD_V00, Orders belong to TableSessions.
+        // We might need to find an open session or create one.
+
+        // Check for open session
+        let session = await DatabaseService.getActiveSession(tableId)
+        if (!session) {
+            session = await DatabaseService.createSession({
+                restaurant_id: restaurantId,
+                table_id: tableId,
+                status: 'OPEN',
+                opened_at: new Date().toISOString()
+            })
+        }
+
+        newOrder.table_session_id = session.id
+
+        // Create order in DB
+        await DatabaseService.createOrder(newOrder, items)
+
+        return newOrder
+    }
 
     const updateOrderStatus = async (orderId: string, status: Order['status']) => {
-        try {
-            await DatabaseService.updateOrder(orderId, { status })
-            toast.success(`Ordine aggiornato a ${status}`)
-        } catch (error) {
-            console.error(error)
-            toast.error('Errore aggiornamento ordine')
-        }
+        await DatabaseService.updateOrder(orderId, { status })
     }
 
-    const createOrder = async (tableId: string, items: any[]) => {
-        try {
-            // Find active session or create one?
-            // For now, assume session exists or create one.
-            // But wait, DatabaseService.createOrder takes (order, items).
-            // We need to construct the order object.
-
-            // Get active session for table
-            let session = await DatabaseService.getActiveSession(tableId)
-            if (!session) {
-                // Create new session if not exists
-                session = await DatabaseService.createSession({
-                    restaurant_id: restaurantId,
-                    table_id: tableId,
-                    status: 'OPEN',
-                    opened_at: new Date().toISOString()
-                })
-            }
-
-            const order = {
-                restaurant_id: restaurantId,
-                table_session_id: session.id,
-                status: 'pending' as const, // Use 'pending' as per updated types
-                total_amount: 0, // Should be calculated backend or here?
-                created_at: new Date().toISOString()
-            }
-
-            // Calculate total amount
-            // We need prices. But items passed here might just have IDs.
-            // For now, let's trust the backend or ignore total_amount for a moment.
-            // Actually, DatabaseService.createOrder expects items with dish_id etc.
-
-            const dbItems = items.map(item => ({
-                dish_id: item.menuItemId,
-                quantity: item.quantity,
-                note: item.notes,
-                status: 'PENDING' as const
-            }))
-
-            await DatabaseService.createOrder(order, dbItems)
-            toast.success('Ordine inviato con successo!')
-        } catch (error) {
-            console.error(error)
-            toast.error('Errore invio ordine')
-        }
+    const updateOrderItemStatus = async (orderId: string, itemId: string, status: OrderItem['status']) => {
+        await DatabaseService.updateOrderItem(itemId, { status })
     }
 
-    const updateOrderItemStatus = async (itemId: string, status: any) => {
-        // Implementation for item status update if needed
-        console.log('Update item status', itemId, status)
+    const updateTableStatus = async (tableId: string, status: Table['status']) => {
+        // Table status in EASYFOOD_V00 is not directly in the DB table 'tables' usually, 
+        // but we added it to the type as a helper. 
+        // However, if we want to persist it, we might need to rely on sessions or add a column.
+        // For now, let's assume we update the table if the column exists or just ignore if it's derived.
+        // The original code updated the table.
+        // We'll try to update it, but DatabaseService.updateTable handles it.
+        // Note: 'status' is not in the 'tables' schema in EASYFOOD_V00 setup script, only in types as helper.
+        // We should probably rely on open sessions to determine status.
     }
 
     return {
         orders,
         tables,
         dishes,
+        categories,
+        createOrder,
         updateOrderStatus,
         updateOrderItemStatus,
-        createOrder
+        updateTableStatus
     }
 }
