@@ -61,7 +61,10 @@ export interface Dish {
     created_at?: string
     excludeFromAllYouCanEat?: boolean
     // Mapped from DB
+    // Mapped from DB
     exclude_from_all_you_can_eat?: boolean
+    is_ayce?: boolean
+    allergens?: string[]
 }
 
 export interface Table {
@@ -88,6 +91,7 @@ export interface TableSession {
     status: SessionStatus
     opened_at: string
     closed_at?: string
+    session_pin?: string
 }
 
 export interface Order {
@@ -100,6 +104,7 @@ export interface Order {
     closed_at?: string
     // Frontend helper
     items?: OrderItem[]
+    table_id?: string // Helper
 }
 
 export interface OrderItem {
@@ -125,5 +130,14 @@ export interface Booking {
     guests: number
     notes?: string
     status: string
+    created_at?: string
+}
+
+export interface CartItem {
+    id: string
+    session_id: string
+    dish_id: string
+    quantity: number
+    notes?: string
     created_at?: string
 }

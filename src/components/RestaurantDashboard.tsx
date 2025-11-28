@@ -30,7 +30,7 @@ interface RestaurantDashboardProps {
 
 const RestaurantDashboard = ({ user, onLogout }: RestaurantDashboardProps) => {
   const [activeSection, setActiveSection] = useState('orders')
-  const [sidebarExpanded, setSidebarExpanded] = useState(false)
+  const [sidebarExpanded, setSidebarExpanded] = useState(true)
   const [activeTab, setActiveTab] = useState('orders')
 
   // We need to determine the restaurant ID. 
@@ -62,7 +62,8 @@ const RestaurantDashboard = ({ user, onLogout }: RestaurantDashboardProps) => {
     description: '',
     price: '',
     categoryId: '',
-    image: ''
+    image: '',
+    is_ayce: false
   })
   const [newCategory, setNewCategory] = useState('')
   const [draggedCategory, setDraggedCategory] = useState<Category | null>(null)
@@ -80,7 +81,8 @@ const RestaurantDashboard = ({ user, onLogout }: RestaurantDashboardProps) => {
     description: '',
     price: '',
     categoryId: '',
-    image: ''
+    image: '',
+    is_ayce: false
   })
   const [orderViewMode, setOrderViewMode] = useState<'table' | 'dish'>('table')
   const [showCompletedOrders, setShowCompletedOrders] = useState(false)
@@ -242,12 +244,13 @@ const RestaurantDashboard = ({ user, onLogout }: RestaurantDashboardProps) => {
       category_id: newDish.categoryId,
       image_url: newDish.image,
       is_active: true,
-      excludeFromAllYouCanEat: false
+      is_ayce: newDish.is_ayce,
+      excludeFromAllYouCanEat: !newDish.is_ayce // Legacy support
     }
 
     DatabaseService.createDish(newItem)
       .then(() => {
-        setNewDish({ name: '', description: '', price: '', categoryId: '', image: '' })
+        setNewDish({ name: '', description: '', price: '', categoryId: '', image: '', is_ayce: false })
         setIsAddItemDialogOpen(false)
         toast.success('Piatto aggiunto al menu')
       })
@@ -284,7 +287,8 @@ const RestaurantDashboard = ({ user, onLogout }: RestaurantDashboardProps) => {
       description: item.description || '',
       price: item.price.toString(),
       categoryId: item.category_id,
-      image: item.image_url || ''
+      image: item.image_url || '',
+      is_ayce: item.is_ayce || false
     })
   }
 
@@ -300,20 +304,22 @@ const RestaurantDashboard = ({ user, onLogout }: RestaurantDashboardProps) => {
       description: editDishData.description.trim(),
       price: parseFloat(editDishData.price),
       category_id: editDishData.categoryId,
-      image_url: editDishData.image || undefined
+      image_url: editDishData.image,
+      is_ayce: editDishData.is_ayce,
+      excludeFromAllYouCanEat: !editDishData.is_ayce // Legacy
     }
 
     DatabaseService.updateDish(updatedItem)
       .then(() => {
         setEditingDish(null)
-        setEditDishData({ name: '', description: '', price: '', categoryId: '', image: '' })
+        setEditDishData({ name: '', description: '', price: '', categoryId: '', image: '', is_ayce: false })
         toast.success('Piatto modificato')
       })
   }
 
   const handleCancelDishEdit = () => {
     setEditingDish(null)
-    setEditDishData({ name: '', description: '', price: '', categoryId: '', image: '' })
+    setEditDishData({ name: '', description: '', price: '', categoryId: '', image: '', is_ayce: false })
   }
 
   const handleToggleAllYouCanEatExclusion = (dishId: string) => {
@@ -429,33 +435,33 @@ const RestaurantDashboard = ({ user, onLogout }: RestaurantDashboardProps) => {
     return 'text-red-600 bg-red-50 border-red-200'
   }
 
-  // Handle sidebar auto-expand on hover
-  useEffect(() => {
-    let timeoutId: NodeJS.Timeout
-
-    const handleMouseEnter = () => {
-      timeoutId = setTimeout(() => {
-        setSidebarExpanded(true)
-      }, 500)
-    }
-
-    const handleMouseLeave = () => {
-      clearTimeout(timeoutId)
-      setSidebarExpanded(false)
-    }
-
-    const sidebar = document.getElementById('sidebar')
-    if (sidebar) {
-      sidebar.addEventListener('mouseenter', handleMouseEnter)
-      sidebar.addEventListener('mouseleave', handleMouseLeave)
-
-      return () => {
-        sidebar.removeEventListener('mouseenter', handleMouseEnter)
-        sidebar.removeEventListener('mouseleave', handleMouseLeave)
-        clearTimeout(timeoutId)
-      }
-    }
-  }, [])
+  // Handle sidebar auto-expand on hover - REMOVED to keep it expanded or manual toggle
+  // useEffect(() => {
+  //   let timeoutId: NodeJS.Timeout
+  //
+  //   const handleMouseEnter = () => {
+  //     timeoutId = setTimeout(() => {
+  //       setSidebarExpanded(true)
+  //     }, 500)
+  //   }
+  //
+  //   const handleMouseLeave = () => {
+  //     clearTimeout(timeoutId)
+  //     setSidebarExpanded(false)
+  //   }
+  //
+  //   const sidebar = document.getElementById('sidebar')
+  //   if (sidebar) {
+  //     sidebar.addEventListener('mouseenter', handleMouseEnter)
+  //     sidebar.addEventListener('mouseleave', handleMouseLeave)
+  //
+  //     return () => {
+  //       sidebar.removeEventListener('mouseenter', handleMouseEnter)
+  //       sidebar.removeEventListener('mouseleave', handleMouseLeave)
+  //       clearTimeout(timeoutId)
+  //     }
+  //   }
+  // }, [])
 
   // Auto-switch tabs based on activeSection
   useEffect(() => {
@@ -803,7 +809,7 @@ const RestaurantDashboard = ({ user, onLogout }: RestaurantDashboardProps) => {
               </div>
             </div>
 
-            <div className="grid gap-4 grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5">
+            <div className="grid gap-6 grid-cols-[repeat(auto-fill,minmax(220px,1fr))]">
               {restaurantTables.map(table => {
                 const isActive = table.status === 'occupied'
                 const activeOrder = restaurantOrders.find(o => getTableIdFromOrder(o) === table.id)
@@ -917,6 +923,16 @@ const RestaurantDashboard = ({ user, onLogout }: RestaurantDashboardProps) => {
                           </Select>
                         </div>
                       </div>
+                      <div className="flex items-center space-x-2 pt-4">
+                        <input
+                          type="checkbox"
+                          id="is_ayce"
+                          className="h-4 w-4 rounded border-gray-300 text-primary focus:ring-primary"
+                          checked={newDish.is_ayce}
+                          onChange={(e) => setNewDish({ ...newDish, is_ayce: e.target.checked })}
+                        />
+                        <Label htmlFor="is_ayce">Incluso in All You Can Eat</Label>
+                      </div>
                       <Button onClick={handleCreateDish} className="w-full">Salva Piatto</Button>
                     </div>
                   </DialogContent>
@@ -1015,11 +1031,14 @@ const RestaurantDashboard = ({ user, onLogout }: RestaurantDashboardProps) => {
                                   <Button
                                     variant="ghost"
                                     size="icon"
-                                    className={`h-8 w-8 ${currentRestaurant?.allYouCanEat?.enabled && !dish.excludeFromAllYouCanEat && dish.is_active ? 'text-orange-500 bg-orange-50' : 'text-muted-foreground'}`}
-                                    onClick={() => handleToggleAllYouCanEatExclusion(dish.id)}
-                                    title={dish.excludeFromAllYouCanEat ? "Includi in AYCE" : "Escludi da AYCE"}
+                                    className={`h-8 w-8 ${dish.is_ayce ? 'text-orange-500 bg-orange-50' : 'text-muted-foreground'}`}
+                                    onClick={() => {
+                                      const updated = { ...dish, is_ayce: !dish.is_ayce, excludeFromAllYouCanEat: !!dish.is_ayce }
+                                      DatabaseService.updateDish(updated)
+                                    }}
+                                    title={dish.is_ayce ? "Incluso in AYCE" : "Escluso da AYCE"}
                                   >
-                                    <ForkKnife size={14} />
+                                    <ForkKnife size={14} weight={dish.is_ayce ? "fill" : "regular"} />
                                   </Button>
                                   <Button
                                     variant="ghost"
@@ -1095,6 +1114,84 @@ const RestaurantDashboard = ({ user, onLogout }: RestaurantDashboardProps) => {
                     <p className="text-sm text-muted-foreground">Attiva o disattiva il tema scuro</p>
                   </div>
                   <ModeToggle />
+                </div>
+              </CardContent>
+            </Card>
+
+            <Card>
+              <CardHeader>
+                <CardTitle>All You Can Eat</CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                <div className="flex items-center justify-between">
+                  <div className="space-y-1">
+                    <Label>Abilita Modalità AYCE</Label>
+                    <p className="text-sm text-muted-foreground">Attiva il menu fisso per il ristorante</p>
+                  </div>
+                  <input
+                    type="checkbox"
+                    className="h-5 w-5 rounded border-gray-300 text-primary focus:ring-primary"
+                    checked={currentRestaurant?.all_you_can_eat?.enabled || false}
+                    onChange={(e) => {
+                      const updatedSettings = {
+                        ...currentRestaurant?.all_you_can_eat,
+                        enabled: e.target.checked
+                      }
+                      DatabaseService.updateRestaurant(restaurantId, { all_you_can_eat: updatedSettings })
+                        .then(() => toast.success('Impostazioni aggiornate'))
+                    }}
+                  />
+                </div>
+                {currentRestaurant?.all_you_can_eat?.enabled && (
+                  <div className="grid grid-cols-2 gap-4 pt-4">
+                    <div className="space-y-2">
+                      <Label>Prezzo a Persona (€)</Label>
+                      <Input
+                        type="number"
+                        value={currentRestaurant?.all_you_can_eat?.pricePerPerson || 0}
+                        onChange={(e) => {
+                          const updatedSettings = {
+                            ...currentRestaurant?.all_you_can_eat,
+                            pricePerPerson: parseFloat(e.target.value)
+                          }
+                          DatabaseService.updateRestaurant(restaurantId, { all_you_can_eat: updatedSettings })
+                        }}
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <Label>Limite Round</Label>
+                      <Input
+                        type="number"
+                        value={currentRestaurant?.all_you_can_eat?.maxOrders || 5}
+                        onChange={(e) => {
+                          const updatedSettings = {
+                            ...currentRestaurant?.all_you_can_eat,
+                            maxOrders: parseInt(e.target.value)
+                          }
+                          DatabaseService.updateRestaurant(restaurantId, { all_you_can_eat: updatedSettings })
+                        }}
+                      />
+                    </div>
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+
+            <Card>
+              <CardHeader>
+                <CardTitle>Coperto</CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                <div className="space-y-2">
+                  <Label>Costo Coperto a Persona (€)</Label>
+                  <Input
+                    type="number"
+                    value={currentRestaurant?.cover_charge_per_person || 0}
+                    onChange={(e) => {
+                      DatabaseService.updateRestaurant(restaurantId, { cover_charge_per_person: parseFloat(e.target.value) })
+                    }}
+                  />
+                  <p className="text-sm text-muted-foreground">Questo importo verrà aggiunto automaticamente al totale per ogni coperto.</p>
                 </div>
               </CardContent>
             </Card>
@@ -1235,11 +1332,22 @@ const RestaurantDashboard = ({ user, onLogout }: RestaurantDashboardProps) => {
                 </Select>
               </div>
             </div>
+            <div className="flex items-center space-x-2 pt-4">
+              <input
+                type="checkbox"
+                id="edit_is_ayce"
+                className="h-4 w-4 rounded border-gray-300 text-primary focus:ring-primary"
+                checked={editDishData.is_ayce}
+                onChange={(e) => setEditDishData({ ...editDishData, is_ayce: e.target.checked })}
+              />
+              <Label htmlFor="edit_is_ayce">Incluso in All You Can Eat</Label>
+            </div>
             <Button onClick={handleSaveDish} className="w-full">Salva Modifiche</Button>
           </div>
         </DialogContent>
       </Dialog>
-    </div>
+
+    </div >
   )
 }
 
