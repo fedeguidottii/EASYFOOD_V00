@@ -24,7 +24,7 @@ type SortOption = 'name' | 'sales' | 'status'
 
 export default function AdminDashboard({ user, onLogout }: Props) {
   // Map is_active to isActive for all restaurant data
-  const [restaurants] = useSupabaseData<Restaurant>(
+  const [restaurants, , refreshRestaurants, setRestaurants] = useSupabaseData<Restaurant>(
     'restaurants',
     [],
     undefined,
@@ -160,6 +160,7 @@ export default function AdminDashboard({ user, onLogout }: Props) {
       setLogoFile(null)
       setShowRestaurantDialog(false)
       toast.success('Ristorante creato con successo')
+      await refreshRestaurants()
     } catch (error: any) {
       console.error('Error creating restaurant:', error)
       if (error.code === '23505' || error.status === 409 || error.message?.includes('duplicate key')) {
@@ -187,38 +188,54 @@ export default function AdminDashboard({ user, onLogout }: Props) {
   const handleDeleteRestaurant = async (restaurantId: string) => {
     if (confirm('Sei sicuro? Questa azione è irreversibile e cancellerà TUTTI i dati del ristorante.')) {
       try {
-        const restaurant = restaurants?.find(r => r.id === restaurantId)
+        // Optimistic update: remove immediately from UI
+        if (setRestaurants) {
+          setRestaurants(prev => prev.filter(r => r.id !== restaurantId))
+        }
 
+        const restaurant = restaurants?.find(r => r.id === restaurantId)
         await DatabaseService.deleteRestaurant(restaurantId)
 
         if (restaurant?.owner_id) {
           try {
             await DatabaseService.deleteUser(restaurant.owner_id)
           } catch (e) {
-            console.warn("Could not delete associated user", e)
+            // Suppress 409 error for user deletion as it's likely a constraint issue 
+            // and the main goal (deleting restaurant) is achieved.
+            console.warn("Could not delete associated user (likely linked to other data)", e)
           }
         }
 
-        toast.success('Ristorante eliminato definitivamente')
+        toast.success('Ristorante eliminato')
+        await refreshRestaurants()
       } catch (error: any) {
         console.error('Error deleting restaurant:', error)
         toast.error('Errore: ' + (error.message || "Impossibile eliminare"))
+        await refreshRestaurants() // Revert state on error
       }
     }
   }
 
   const handleToggleActive = async (restaurant: Restaurant) => {
     try {
+      // Optimistic Update
+      if (setRestaurants) {
+        setRestaurants(prev => prev.map(r =>
+          r.id === restaurant.id ? { ...r, isActive: !r.isActive } : r
+        ))
+      }
+
       await DatabaseService.updateRestaurant({
         id: restaurant.id,
         isActive: !restaurant.isActive
       })
 
-      const nuovoStato = !restaurant.isActive ? 'attivato' : 'disattivato'
-      toast.success(`Ristorante ${nuovoStato} con successo`)
+      // Removed the toast as requested ("non deve saltare fuori la scritta grossa")
+      // The visual feedback (transparency) is enough.
     } catch (error) {
       console.error(error)
       toast.error('Errore durante l\'aggiornamento dello stato')
+      await refreshRestaurants() // Revert on error
     }
   }
 
@@ -241,11 +258,23 @@ export default function AdminDashboard({ user, onLogout }: Props) {
         if (uploadedUrl) finalLogoUrl = uploadedUrl
       }
 
+      const updatedRestaurant = {
+        ...editingRestaurant,
+        logo_url: finalLogoUrl
+      }
+
+      // Optimistic Update
+      if (setRestaurants) {
+        setRestaurants(prev => prev.map(r =>
+          r.id === updatedRestaurant.id ? updatedRestaurant : r
+        ))
+      }
+
       await DatabaseService.updateRestaurant({
-        id: editingRestaurant.id,
-        name: editingRestaurant.name,
-        phone: editingRestaurant.phone,
-        email: editingRestaurant.email,
+        id: updatedRestaurant.id,
+        name: updatedRestaurant.name,
+        phone: updatedRestaurant.phone,
+        email: updatedRestaurant.email,
         logo_url: finalLogoUrl,
       })
 
@@ -263,9 +292,11 @@ export default function AdminDashboard({ user, onLogout }: Props) {
       setEditingUser(null)
       setEditLogoFile(null)
       toast.success('Ristorante aggiornato')
+      await refreshRestaurants() // Sync with DB to be sure
     } catch (error) {
       console.error('Error updating:', error)
       toast.error('Errore durante l\'aggiornamento')
+      await refreshRestaurants() // Revert on error
     } finally {
       setIsUploading(false)
     }

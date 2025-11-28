@@ -70,5 +70,5 @@ export function useSupabaseData<T>(
         }
     }, [tableName, filter?.column, filter?.value, fetchData])
 
-    return [data, loading, fetchData] as const
+    return [data, loading, fetchData, setData] as const
 }
