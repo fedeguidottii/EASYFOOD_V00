@@ -8,6 +8,7 @@ import { Textarea } from '@/components/ui/textarea'
 import { Label } from '@/components/ui/label'
 import { useSupabaseData } from '../hooks/useSupabaseData'
 import { DatabaseService } from '../services/DatabaseService'
+import { supabase } from '../lib/supabase'
 import { toast } from 'sonner'
 import { Table, Dish, Order, Category, Restaurant } from '../services/types'
 import { useRestaurantLogic } from '../hooks/useRestaurantLogic'
@@ -48,7 +49,8 @@ export default function CustomerMenu({ tableId, onExit }: Props) {
   // Use restaurant-specific key for orders
   const { createOrder } = useRestaurantLogic(table?.restaurant_id || '')
 
-  const [cart, setCart] = useState<CartItem[]>([])
+  const [activeSession, setActiveSession] = useState<any>(null)
+  const [cartItems, setCartItems] = useState<any[]>([])
   const [showCart, setShowCart] = useState(false)
   const [showPinDialog, setShowPinDialog] = useState(false)
   const [enteredPin, setEnteredPin] = useState('')
@@ -75,8 +77,8 @@ export default function CustomerMenu({ tableId, onExit }: Props) {
   // Calculate different totals for display
   const cartCalculations = {
     // Items that are charged normally (excluded from AYCE or AYCE disabled)
-    regularTotal: cart.reduce((total, cartItem) => {
-      const dish = restaurantDishes.find(d => d.id === cartItem.menuItemId)
+    regularTotal: cartItems.reduce((total, cartItem) => {
+      const dish = restaurantDishes.find(d => d.id === cartItem.dish_id)
       // Assuming no AYCE exclusion logic for now as it's not in Dish type
       if (dish && (!restaurant?.allYouCanEat?.enabled)) {
         return total + dish.price * cartItem.quantity
@@ -101,8 +103,8 @@ export default function CustomerMenu({ tableId, onExit }: Props) {
       : 0,
 
     // Free items (included in AYCE)
-    freeItems: cart.filter(cartItem => {
-      const dish = restaurantDishes.find(d => d.id === cartItem.menuItemId)
+    freeItems: cartItems.filter(cartItem => {
+      const dish = restaurantDishes.find(d => d.id === cartItem.dish_id)
       return dish && restaurant?.allYouCanEat?.enabled
     })
   }
@@ -110,61 +112,77 @@ export default function CustomerMenu({ tableId, onExit }: Props) {
   // Legacy cart total for compatibility
   const cartTotal = cartCalculations.regularTotal
 
-  // Check PIN on mount
+  // Check PIN on mount and fetch session
   useEffect(() => {
-    if (table && !isPinVerified) {
-      setShowPinDialog(true)
+    if (tableId) {
+      DatabaseService.getActiveSession(tableId).then(session => {
+        if (session) {
+          setActiveSession(session)
+          if (!isPinVerified) setShowPinDialog(true)
+
+          // Subscribe to cart items
+          DatabaseService.getCartItems(session.id).then(setCartItems)
+
+          const channel = supabase
+            .channel('cart_updates')
+            .on('postgres_changes', { event: '*', schema: 'public', table: 'cart_items', filter: `session_id=eq.${session.id}` }, () => {
+              DatabaseService.getCartItems(session.id).then(setCartItems)
+            })
+            .subscribe()
+
+          return () => {
+            supabase.removeChannel(channel)
+          }
+        }
+      })
     }
-  }, [table, isPinVerified])
+  }, [tableId, isPinVerified])
 
   const handlePinVerification = () => {
-    if (table && enteredPin === table.pin) {
+    if (activeSession && enteredPin === activeSession.session_pin) {
       setIsPinVerified(true)
       setShowPinDialog(false)
-      toast.success(`Benvenuto al ${table.name}!`)
+      toast.success(`Benvenuto al ${table?.name || 'Tavolo'}!`)
     } else {
       toast.error('PIN non corretto')
     }
   }
 
-  const addToCart = (menuItemId: string) => {
-    if (!isPinVerified) {
+  const addToCart = async (menuItemId: string) => {
+    if (!isPinVerified || !activeSession) {
       setShowPinDialog(true)
       return
     }
-    setCart(current => {
-      return [...current, { menuItemId, quantity: 1, instanceId: `${menuItemId}-${Date.now()}` }]
+    await DatabaseService.addToCart({
+      session_id: activeSession.id,
+      dish_id: menuItemId,
+      quantity: 1
     })
+    toast.success('Aggiunto al carrello condiviso')
   }
 
-  const removeFromCart = (instanceId: string) => {
-    setCart(current => current.filter(item => item.instanceId !== instanceId))
+  const removeFromCart = async (itemId: string) => {
+    await DatabaseService.removeFromCart(itemId)
   }
 
-  const updateQuantity = (instanceId: string, delta: number) => {
-    setCart(current =>
-      current.map(item => {
-        if (item.instanceId === instanceId) {
-          const newQuantity = item.quantity + delta
-          return newQuantity > 0 ? { ...item, quantity: newQuantity } : item
-        }
-        return item
-      }).filter(item => item.quantity > 0)
-    )
+  const updateQuantity = async (itemId: string, delta: number) => {
+    const item = cartItems.find(i => i.id === itemId)
+    if (item) {
+      const newQuantity = item.quantity + delta
+      if (newQuantity > 0) {
+        await DatabaseService.updateCartItem(itemId, { quantity: newQuantity })
+      } else {
+        await DatabaseService.removeFromCart(itemId)
+      }
+    }
   }
 
-  const updateItemNotes = (instanceId: string, notes: string) => {
-    setCart(current =>
-      current.map(item =>
-        item.instanceId === instanceId
-          ? { ...item, notes }
-          : item
-      )
-    )
+  const updateItemNotes = async (itemId: string, notes: string) => {
+    await DatabaseService.updateCartItem(itemId, { notes })
   }
 
   const handlePlaceOrder = () => {
-    if (cart.length === 0) {
+    if (cartItems.length === 0) {
       toast.error('Il carrello è vuoto')
       return
     }
@@ -189,8 +207,8 @@ export default function CustomerMenu({ tableId, onExit }: Props) {
     }
 
     // Calculate regular items
-    cart.forEach(cartItem => {
-      const dish = restaurantDishes.find(d => d.id === cartItem.menuItemId)
+    cartItems.forEach(cartItem => {
+      const dish = restaurantDishes.find(d => d.id === cartItem.dish_id)
       if (dish) {
         if (!restaurant?.allYouCanEat?.enabled || dish.excludeFromAllYouCanEat) {
           regularTotal += dish.price * cartItem.quantity
@@ -198,28 +216,36 @@ export default function CustomerMenu({ tableId, onExit }: Props) {
       }
     })
 
-    const orderItems = cart.map((item) => {
+    // Create order items from cart
+    const orderItems = cartItems.map((item) => {
       return {
-        dish_id: item.menuItemId,
+        dish_id: item.dish_id,
         quantity: item.quantity,
         note: item.notes,
       }
     })
 
-    createOrder(tableId, orderItems)
+    createOrder(activeSession.table_id, orderItems)
+      .then(async () => {
+        await DatabaseService.clearCart(activeSession.id)
+        setCartItems([])
+        setShowCart(false)
+        toast.success('Ordine inviato in cucina!')
+      })
+      .catch((error) => {
+        console.error('Error creating order:', error)
+        toast.error('Errore durante l\'invio dell\'ordine')
+      })
 
     // Decrease remaining orders for all-you-can-eat
     if (restaurant?.allYouCanEat?.enabled && table?.remainingOrders !== undefined && table.id) {
       DatabaseService.updateTable(table.id, { remainingOrders: (table.remainingOrders || 0) - 1 })
     }
-
-    setCart([])
-    setShowCart(false)
-    // Toast is handled in createOrder
   }
 
   const getItemQuantityInCart = (menuItemId: string) => {
-    return cart.filter(item => item.menuItemId === menuItemId).reduce((sum, item) => sum + item.quantity, 0)
+    const item = cartItems.find(i => i.dish_id === menuItemId)
+    return item ? item.quantity : 0
   }
 
   if (!table) {
@@ -308,21 +334,6 @@ export default function CustomerMenu({ tableId, onExit }: Props) {
               <p className="text-sm text-muted-foreground">Menu Digitale</p>
             </div>
             <div className="flex items-center gap-3">
-              {cart.length > 0 && (
-                <Button
-                  onClick={() => setShowCart(true)}
-                  className="bg-primary hover:bg-primary/90 shadow-gold relative"
-                >
-                  <ShoppingCart size={16} className="mr-2" />
-                  Carrello
-                  <Badge
-                    variant="secondary"
-                    className="ml-2 bg-white text-primary absolute -top-2 -right-2 h-6 w-6 rounded-full p-0 flex items-center justify-center"
-                  >
-                    {cart.reduce((sum, item) => sum + item.quantity, 0)}
-                  </Badge>
-                </Button>
-              )}
               <Button
                 variant="outline"
                 onClick={onExit}
@@ -431,6 +442,21 @@ export default function CustomerMenu({ tableId, onExit }: Props) {
         )}
       </main>
 
+      {/* Fixed Cart Button */}
+      <Button
+        className="fixed bottom-6 right-6 h-14 w-14 rounded-full shadow-lg z-50"
+        onClick={() => setShowCart(true)}
+      >
+        <div className="relative">
+          <ShoppingCart size={24} weight="fill" />
+          {cartItems.length > 0 && (
+            <Badge className="absolute -top-3 -right-3 h-5 w-5 flex items-center justify-center p-0 rounded-full bg-red-500 hover:bg-red-600">
+              {cartItems.reduce((acc, item) => acc + item.quantity, 0)}
+            </Badge>
+          )}
+        </div>
+      </Button>
+
       {/* Cart Dialog */}
       <Dialog open={showCart} onOpenChange={setShowCart}>
         <DialogContent className="max-w-md shadow-liquid-lg bg-order-card">
@@ -440,136 +466,122 @@ export default function CustomerMenu({ tableId, onExit }: Props) {
               Controlla i piatti selezionati prima di inviare l'ordine
             </DialogDescription>
           </DialogHeader>
-          <div className="space-y-4">
-            {cart.length === 0 ? (
-              <p className="text-center text-muted-foreground py-8">
+          <div className="flex-1 overflow-y-auto p-4 space-y-4">
+            {cartItems.length === 0 ? (
+              <div className="text-center text-muted-foreground py-8">
                 Il carrello è vuoto
-              </p>
+              </div>
             ) : (
-              <>
-                <div className="space-y-3 max-h-96 overflow-y-auto">
-                  {cart.map((cartItem) => {
-                    const dish = restaurantDishes.find(d => d.id === cartItem.menuItemId)
-                    if (!dish) return null
+              cartItems.map(item => {
+                const dish = restaurantDishes.find(d => d.id === item.dish_id)
+                if (!dish) return null
 
-                    return (
-                      <div key={cartItem.instanceId} className="p-3 bg-liquid-gradient rounded-lg border-liquid shadow-liquid">
-                        <div className="flex justify-between items-start mb-2">
-                          <div className="flex-1">
-                            <h4 className="font-bold text-base">{dish.name}</h4>
-                            <div className="flex items-center gap-2 mt-1">
-                              <Button
-                                size="sm"
-                                variant="outline"
-                                onClick={() => updateQuantity(cartItem.instanceId!, -1)}
-                                className="h-7 w-7 p-0 rounded-full"
-                              >
-                                <Minus size={12} />
-                              </Button>
-                              <span className="w-8 text-center font-bold text-primary">{cartItem.quantity}</span>
-                              <Button
-                                size="sm"
-                                variant="outline"
-                                onClick={() => updateQuantity(cartItem.instanceId!, 1)}
-                                className="h-7 w-7 p-0 rounded-full"
-                              >
-                                <Plus size={12} />
-                              </Button>
-                              <span className="text-sm text-muted-foreground ml-2">
-                                {restaurant?.allYouCanEat?.enabled && !dish.excludeFromAllYouCanEat
-                                  ? 'Incluso'
-                                  : `€${(dish.price * cartItem.quantity).toFixed(2)}`
-                                }
-                              </span>
-                            </div>
-                          </div>
+                return (
+                  <div key={item.id} className="flex gap-4 bg-muted/30 p-3 rounded-lg">
+                    {dish.image_url && (
+                      <img
+                        src={dish.image_url}
+                        alt={dish.name}
+                        className="w-16 h-16 rounded-md object-cover"
+                      />
+                    )}
+                    <div className="flex-1">
+                      <div className="flex justify-between items-start">
+                        <h4 className="font-bold">{dish.name}</h4>
+                        <span className="font-medium">€{(dish.price * item.quantity).toFixed(2)}</span>
+                      </div>
+                      <div className="flex items-center gap-3 mt-2">
+                        <div className="flex items-center gap-2 bg-background rounded-md border">
                           <Button
-                            size="sm"
                             variant="ghost"
-                            onClick={() => removeFromCart(cartItem.instanceId!)}
-                            className="h-8 w-8 p-0 text-destructive hover:bg-destructive/10"
+                            size="icon"
+                            className="h-7 w-7"
+                            onClick={() => updateQuantity(item.id, -1)}
                           >
-                            <X size={16} />
+                            <Minus size={12} />
+                          </Button>
+                          <span className="text-sm font-medium w-4 text-center">{item.quantity}</span>
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            className="h-7 w-7"
+                            onClick={() => updateQuantity(item.id, 1)}
+                          >
+                            <Plus size={12} />
                           </Button>
                         </div>
-                        <Textarea
-                          placeholder="Note speciali per questo piatto..."
-                          value={cartItem.notes || ''}
-                          onChange={(e) => updateItemNotes(cartItem.instanceId!, e.target.value)}
-                          className="h-16 text-sm shadow-liquid"
-                        />
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          className="h-7 w-7 text-destructive ml-auto"
+                          onClick={() => removeFromCart(item.id)}
+                        >
+                          <X size={14} />
+                        </Button>
                       </div>
-                    )
-                  })}
-                </div>
-                <div className="border-t pt-4">
-                  <div className="space-y-2 mb-4">
-                    {/* All You Can Eat Summary */}
-                    {restaurant?.allYouCanEat?.enabled && cartCalculations.freeItems.length > 0 && (
-                      <div className="bg-green-50 p-3 rounded-lg">
-                        <div className="text-sm font-medium text-green-800 mb-1">All You Can Eat</div>
-                        {cartCalculations.freeItems.map(cartItem => {
-                          const dish = restaurantDishes.find(d => d.id === cartItem.menuItemId)
-                          return dish ? (
-                            <div key={cartItem.menuItemId} className="text-sm text-green-700">
-                              {cartItem.quantity}x {dish.name} - Incluso
-                            </div>
-                          ) : null
-                        })}
-                      </div>
-                    )}
-
-                    {/* Regular items */}
-                    {cartCalculations.regularTotal > 0 && (
-                      <div className="flex justify-between text-sm">
-                        <span>Piatti:</span>
-                        <span>€{cartCalculations.regularTotal.toFixed(2)}</span>
-                      </div>
-                    )}
-
-                    {/* Cover charge */}
-                    {cartCalculations.coverCharge > 0 && (
-                      <div className="flex justify-between text-sm">
-                        <span>Coperto ({table?.customerCount} persone):</span>
-                        <span>€{cartCalculations.coverCharge.toFixed(2)}</span>
-                      </div>
-                    )}
-
-                    {/* All You Can Eat charge (shown only on first order or if no orders placed yet) */}
-                    {cartCalculations.allYouCanEatCharge > 0 && (
-                      <div className="flex justify-between text-sm">
-                        <span>All You Can Eat ({table?.customerCount} persone):</span>
-                        <span>€{cartCalculations.allYouCanEatCharge.toFixed(2)}</span>
-                      </div>
-                    )}
-
-                    {restaurant?.allYouCanEat?.enabled && table?.remainingOrders !== undefined && (
-                      <div className="text-sm text-center p-2 bg-blue-50 rounded">
-                        Ordini rimasti: {table.remainingOrders}
-                      </div>
-                    )}
+                      <Input
+                        placeholder="Note per la cucina..."
+                        className="mt-2 h-8 text-xs bg-background"
+                        value={item.notes || ''}
+                        onChange={(e) => updateItemNotes(item.id, e.target.value)}
+                      />
+                    </div>
                   </div>
-
-                  <div className="flex justify-between items-center mb-4">
-                    <span className="font-bold text-xl">Totale:</span>
-                    <span className="font-bold text-primary text-2xl">
-                      €{(cartCalculations.regularTotal + cartCalculations.coverCharge + cartCalculations.allYouCanEatCharge).toFixed(2)}
-                    </span>
-                  </div>
-                  <Button
-                    onClick={handlePlaceOrder}
-                    className="w-full bg-green-500 hover:bg-green-600 text-white font-bold text-lg py-3 shadow-liquid-lg"
-                    disabled={restaurant?.allYouCanEat?.enabled && table?.remainingOrders !== undefined && table.remainingOrders !== null && table.remainingOrders <= 0}
-                  >
-                    <Check size={20} className="mr-2" />
-                    {restaurant?.allYouCanEat?.enabled && table?.remainingOrders !== undefined && table.remainingOrders !== null && table.remainingOrders <= 0
-                      ? 'Limite ordini raggiunto'
-                      : 'Invia Ordine'
-                    }
-                  </Button>
-                </div>
-              </>
+                )
+              })
             )}
+          </div>
+
+          <div className="border-t pt-4">
+            <div className="space-y-2 mb-4">
+              {/* Regular items */}
+              {cartCalculations.regularTotal > 0 && (
+                <div className="flex justify-between text-sm">
+                  <span>Piatti:</span>
+                  <span>€{cartCalculations.regularTotal.toFixed(2)}</span>
+                </div>
+              )}
+
+              {/* Cover charge */}
+              {cartCalculations.coverCharge > 0 && (
+                <div className="flex justify-between text-sm">
+                  <span>Coperto ({table?.customerCount} persone):</span>
+                  <span>€{cartCalculations.coverCharge.toFixed(2)}</span>
+                </div>
+              )}
+
+              {/* All You Can Eat charge */}
+              {cartCalculations.allYouCanEatCharge > 0 && (
+                <div className="flex justify-between text-sm">
+                  <span>All You Can Eat ({table?.customerCount} persone):</span>
+                  <span>€{cartCalculations.allYouCanEatCharge.toFixed(2)}</span>
+                </div>
+              )}
+
+              {restaurant?.allYouCanEat?.enabled && table?.remainingOrders !== undefined && (
+                <div className="text-sm text-center p-2 bg-blue-50 rounded">
+                  Ordini rimasti: {table.remainingOrders}
+                </div>
+              )}
+            </div>
+
+            <div className="flex justify-between items-center mb-4">
+              <span className="font-bold text-xl">Totale:</span>
+              <span className="font-bold text-primary text-2xl">
+                €{(cartCalculations.regularTotal + cartCalculations.coverCharge + cartCalculations.allYouCanEatCharge).toFixed(2)}
+              </span>
+            </div>
+            <Button
+              onClick={handlePlaceOrder}
+              className="w-full bg-green-500 hover:bg-green-600 text-white font-bold text-lg py-3 shadow-liquid-lg"
+              disabled={restaurant?.allYouCanEat?.enabled && table?.remainingOrders !== undefined && table.remainingOrders !== null && table.remainingOrders <= 0}
+            >
+              <Check size={20} className="mr-2" />
+              {restaurant?.allYouCanEat?.enabled && table?.remainingOrders !== undefined && table.remainingOrders !== null && table.remainingOrders <= 0
+                ? 'Limite ordini raggiunto'
+                : 'Invia Ordine'
+              }
+            </Button>
           </div>
         </DialogContent>
       </Dialog>

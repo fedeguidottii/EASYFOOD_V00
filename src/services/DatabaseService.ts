@@ -445,5 +445,58 @@ export const DatabaseService = {
             .delete()
             .eq('id', bookingId)
         if (error) throw error
+    },
+
+    // Cart (Realtime)
+    async getCartItems(sessionId: string) {
+        const { data, error } = await supabase
+            .from('cart_items')
+            .select('*')
+            .eq('session_id', sessionId)
+        if (error) throw error
+        return data as any[] // Using any for now to avoid type issues, ideally CartItem
+    },
+
+    async addToCart(item: { session_id: string, dish_id: string, quantity: number, notes?: string }) {
+        // Check if item exists
+        const { data: existing } = await supabase
+            .from('cart_items')
+            .select('*')
+            .eq('session_id', item.session_id)
+            .eq('dish_id', item.dish_id)
+            .single()
+
+        if (existing) {
+            // Update quantity
+            return this.updateCartItem(existing.id, { quantity: existing.quantity + item.quantity })
+        } else {
+            // Insert new
+            const { error } = await supabase.from('cart_items').insert(item)
+            if (error) throw error
+        }
+    },
+
+    async updateCartItem(itemId: string, updates: { quantity?: number, notes?: string }) {
+        const { error } = await supabase
+            .from('cart_items')
+            .update(updates)
+            .eq('id', itemId)
+        if (error) throw error
+    },
+
+    async removeFromCart(itemId: string) {
+        const { error } = await supabase
+            .from('cart_items')
+            .delete()
+            .eq('id', itemId)
+        if (error) throw error
+    },
+
+    async clearCart(sessionId: string) {
+        const { error } = await supabase
+            .from('cart_items')
+            .delete()
+            .eq('session_id', sessionId)
+        if (error) throw error
     }
 }

@@ -16,8 +16,17 @@ CREATE TABLE IF NOT EXISTS cart_items (
     updated_at timestamptz DEFAULT now()
 );
 
--- Enable Realtime for cart_items
-ALTER PUBLICATION supabase_realtime ADD TABLE cart_items;
+-- Enable Realtime for cart_items (only if not already added)
+DO $$
+BEGIN
+    IF NOT EXISTS (
+        SELECT 1 FROM pg_publication_tables 
+        WHERE pubname = 'supabase_realtime' 
+        AND tablename = 'cart_items'
+    ) THEN
+        ALTER PUBLICATION supabase_realtime ADD TABLE cart_items;
+    END IF;
+END $$;
 
 -- Ensure restaurants has settings (jsonb is flexible, but let's be sure)
 -- Already handled in v2 but reinforcing

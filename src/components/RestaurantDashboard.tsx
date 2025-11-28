@@ -57,13 +57,22 @@ const RestaurantDashboard = ({ user, onLogout }: RestaurantDashboardProps) => {
   }
 
   const [newTableName, setNewTableName] = useState('')
-  const [newDish, setNewDish] = useState({
+  const [newDish, setNewDish] = useState<{
+    name: string
+    description: string
+    price: string
+    categoryId: string
+    image: string
+    is_ayce: boolean
+    allergens?: string[]
+  }>({
     name: '',
     description: '',
     price: '',
     categoryId: '',
     image: '',
-    is_ayce: false
+    is_ayce: false,
+    allergens: []
   })
   const [newCategory, setNewCategory] = useState('')
   const [draggedCategory, setDraggedCategory] = useState<Category | null>(null)
@@ -76,13 +85,22 @@ const RestaurantDashboard = ({ user, onLogout }: RestaurantDashboardProps) => {
   const [editingTable, setEditingTable] = useState<Table | null>(null)
   const [editTableName, setEditTableName] = useState('')
   const [editingDish, setEditingDish] = useState<Dish | null>(null)
-  const [editDishData, setEditDishData] = useState({
+  const [editDishData, setEditDishData] = useState<{
+    name: string
+    description: string
+    price: string
+    categoryId: string
+    image: string
+    is_ayce: boolean
+    allergens?: string[]
+  }>({
     name: '',
     description: '',
     price: '',
     categoryId: '',
     image: '',
-    is_ayce: false
+    is_ayce: false,
+    allergens: []
   })
   const [orderViewMode, setOrderViewMode] = useState<'table' | 'dish'>('table')
   const [showCompletedOrders, setShowCompletedOrders] = useState(false)
@@ -93,6 +111,11 @@ const RestaurantDashboard = ({ user, onLogout }: RestaurantDashboardProps) => {
   const [selectedCategoryFilter, setSelectedCategoryFilter] = useState<string>('all')
   const [orderSortMode, setOrderSortMode] = useState<'oldest' | 'newest'>('oldest')
   const [isAddItemDialogOpen, setIsAddItemDialogOpen] = useState(false)
+  const [currentSessionPin, setCurrentSessionPin] = useState<string>('')
+  const [allergenInput, setAllergenInput] = useState('')
+  const [showTableQrDialog, setShowTableQrDialog] = useState(false)
+  const [showTableBillDialog, setShowTableBillDialog] = useState(false)
+  const [selectedTableForActions, setSelectedTableForActions] = useState<Table | null>(null)
 
   const restaurantDishes = dishes || []
   const restaurantTables = tables || []
@@ -176,17 +199,19 @@ const RestaurantDashboard = ({ user, onLogout }: RestaurantDashboardProps) => {
     DatabaseService.updateTable(updatedTable.id, updatedTable)
       .then(async () => {
         // Create session
-        await DatabaseService.createSession({
+        const session = await DatabaseService.createSession({
           restaurant_id: restaurantId,
           table_id: tableId,
           status: 'OPEN',
-          opened_at: new Date().toISOString()
+          opened_at: new Date().toISOString(),
+          session_pin: generatePin()
         })
 
         toast.success(`Tavolo attivato per ${customerCount} persone`)
         setCustomerCount('')
         if (updatedTable) {
           setSelectedTable({ ...updatedTable })
+          setCurrentSessionPin(session.session_pin || '')
           setShowQrDialog(true)
         }
       })
@@ -245,12 +270,14 @@ const RestaurantDashboard = ({ user, onLogout }: RestaurantDashboardProps) => {
       image_url: newDish.image,
       is_active: true,
       is_ayce: newDish.is_ayce,
-      excludeFromAllYouCanEat: !newDish.is_ayce // Legacy support
+      excludeFromAllYouCanEat: !newDish.is_ayce,
+      allergens: newDish.allergens || []
     }
 
     DatabaseService.createDish(newItem)
       .then(() => {
-        setNewDish({ name: '', description: '', price: '', categoryId: '', image: '', is_ayce: false })
+        setNewDish({ name: '', description: '', price: '', categoryId: '', image: '', is_ayce: false, allergens: [] })
+        setAllergenInput('')
         setIsAddItemDialogOpen(false)
         toast.success('Piatto aggiunto al menu')
       })
@@ -288,8 +315,10 @@ const RestaurantDashboard = ({ user, onLogout }: RestaurantDashboardProps) => {
       price: item.price.toString(),
       categoryId: item.category_id,
       image: item.image_url || '',
-      is_ayce: item.is_ayce || false
+      is_ayce: item.is_ayce || false,
+      allergens: item.allergens || []
     })
+    setAllergenInput(item.allergens?.join(', ') || '')
   }
 
   const handleSaveDish = () => {
@@ -306,13 +335,15 @@ const RestaurantDashboard = ({ user, onLogout }: RestaurantDashboardProps) => {
       category_id: editDishData.categoryId,
       image_url: editDishData.image,
       is_ayce: editDishData.is_ayce,
-      excludeFromAllYouCanEat: !editDishData.is_ayce // Legacy
+      excludeFromAllYouCanEat: !editDishData.is_ayce,
+      allergens: editDishData.allergens || []
     }
 
     DatabaseService.updateDish(updatedItem)
       .then(() => {
         setEditingDish(null)
-        setEditDishData({ name: '', description: '', price: '', categoryId: '', image: '', is_ayce: false })
+        setEditDishData({ name: '', description: '', price: '', categoryId: '', image: '', is_ayce: false, allergens: [] })
+        setAllergenInput('')
         toast.success('Piatto modificato')
       })
   }
@@ -841,15 +872,53 @@ const RestaurantDashboard = ({ user, onLogout }: RestaurantDashboardProps) => {
                         </Button>
                       </div>
 
-                      <div className="mt-4 w-full">
-                        <Button
-                          variant={isActive ? "destructive" : "default"}
-                          size="sm"
-                          className="w-full"
-                          onClick={() => handleToggleTable(table.id)}
-                        >
-                          {isActive ? 'Libera' : 'Attiva'}
-                        </Button>
+                      <div className="mt-4 w-full space-y-2">
+                        {isActive ? (
+                          <>
+                            <div className="grid grid-cols-2 gap-2">
+                              <Button
+                                variant="outline"
+                                size="sm"
+                                onClick={() => {
+                                  setSelectedTableForActions(table)
+                                  setShowTableQrDialog(true)
+                                }}
+                              >
+                                <QrCode size={14} className="mr-1" />
+                                QR/PIN
+                              </Button>
+                              <Button
+                                variant="outline"
+                                size="sm"
+                                onClick={() => {
+                                  setSelectedTableForActions(table)
+                                  setShowTableBillDialog(true)
+                                }}
+                              >
+                                <Receipt size={14} className="mr-1" />
+                                Conto
+                              </Button>
+                            </div>
+                            <Button
+                              variant="destructive"
+                              size="sm"
+                              className="w-full"
+                              onClick={() => handleToggleTable(table.id)}
+                            >
+                              <Check size={14} className="mr-1" />
+                              Segna Pagato
+                            </Button>
+                          </>
+                        ) : (
+                          <Button
+                            variant="default"
+                            size="sm"
+                            className="w-full"
+                            onClick={() => handleToggleTable(table.id)}
+                          >
+                            Attiva
+                          </Button>
+                        )}
                       </div>
                     </CardContent>
                   </Card>
@@ -922,6 +991,38 @@ const RestaurantDashboard = ({ user, onLogout }: RestaurantDashboardProps) => {
                             </SelectContent>
                           </Select>
                         </div>
+                      </div>
+                      <div className="space-y-2">
+                        <Label>Allergeni (separati da virgola)</Label>
+                        <Input
+                          placeholder="Es: glutine, lattosio, noci"
+                          value={allergenInput}
+                          onChange={(e) => setAllergenInput(e.target.value)}
+                          onKeyDown={(e) => {
+                            if (e.key === 'Enter' && allergenInput.trim()) {
+                              e.preventDefault()
+                              const allergens = allergenInput.split(',').map(a => a.trim()).filter(Boolean)
+                              setNewDish({ ...newDish, allergens: [...(newDish.allergens || []), ...allergens] })
+                              setAllergenInput('')
+                            }
+                          }}
+                        />
+                        {newDish.allergens && newDish.allergens.length > 0 && (
+                          <div className="flex flex-wrap gap-1 mt-2">
+                            {newDish.allergens.map((allergen, idx) => (
+                              <Badge key={idx} variant="secondary" className="text-xs">
+                                {allergen}
+                                <button
+                                  type="button"
+                                  onClick={() => setNewDish({ ...newDish, allergens: newDish.allergens!.filter((_, i) => i !== idx) })}
+                                  className="ml-1 hover:text-destructive"
+                                >
+                                  ×
+                                </button>
+                              </Badge>
+                            ))}
+                          </div>
+                        )}
                       </div>
                       <div className="flex items-center space-x-2 pt-4">
                         <input
@@ -1011,12 +1112,35 @@ const RestaurantDashboard = ({ user, onLogout }: RestaurantDashboardProps) => {
                               </div>
                             )}
                             <div className="p-4">
-                              <div className="flex justify-between items-start mb-2">
+                              <div className="space-y-3">
                                 <div>
-                                  <h4 className="font-bold text-lg">{dish.name}</h4>
-                                  <p className="text-sm text-muted-foreground line-clamp-2">{dish.description}</p>
+                                  <div className="flex items-start justify-between gap-2">
+                                    <h4 className="font-bold text-lg">{dish.name}</h4>
+                                    {!dish.image_url && <span className="font-bold text-primary text-lg">€{dish.price.toFixed(2)}</span>}
+                                  </div>
+                                  <p className="text-sm text-muted-foreground mt-1">{dish.description}</p>
                                 </div>
-                                {!dish.image_url && <span className="font-bold text-primary">€{dish.price.toFixed(2)}</span>}
+
+                                <div className="flex flex-wrap gap-2">
+                                  <Badge variant="outline" className="text-xs">
+                                    {category.name}
+                                  </Badge>
+                                  {dish.is_ayce && (
+                                    <Badge className="bg-orange-500 hover:bg-orange-600 text-xs">
+                                      🍽️ AYCE
+                                    </Badge>
+                                  )}
+                                </div>
+
+                                {dish.allergens && dish.allergens.length > 0 && (
+                                  <div className="flex flex-wrap gap-1">
+                                    {dish.allergens.map((allergen, idx) => (
+                                      <Badge key={idx} variant="secondary" className="text-xs bg-red-100 text-red-700">
+                                        ⚠️ {allergen}
+                                      </Badge>
+                                    ))}
+                                  </div>
+                                )}
                               </div>
                               <div className="flex items-center justify-between mt-4 pt-4 border-t border-border/10">
                                 <div className="flex gap-2">
@@ -1200,7 +1324,7 @@ const RestaurantDashboard = ({ user, onLogout }: RestaurantDashboardProps) => {
       </div>
 
       {/* Table Activation Dialog */}
-      <Dialog open={!!selectedTable && !showQrDialog} onOpenChange={(open) => !open && setSelectedTable(null)}>
+      <Dialog open={!!selectedTable && !showQrDialog} onOpenChange={(open) => { if (!open) setSelectedTable(null) }}>
         <DialogContent>
           <DialogHeader>
             <DialogTitle>Attiva Tavolo {selectedTable?.number}</DialogTitle>
@@ -1230,7 +1354,7 @@ const RestaurantDashboard = ({ user, onLogout }: RestaurantDashboardProps) => {
       </Dialog>
 
       {/* QR Code Dialog */}
-      <Dialog open={showQrDialog} onOpenChange={setShowQrDialog}>
+      <Dialog open={showQrDialog} onOpenChange={(open) => setShowQrDialog(open)}>
         <DialogContent className="sm:max-w-md">
           <DialogHeader>
             <DialogTitle>Tavolo Attivato!</DialogTitle>
@@ -1248,15 +1372,7 @@ const RestaurantDashboard = ({ user, onLogout }: RestaurantDashboardProps) => {
             <div className="text-center">
               <p className="text-sm font-medium">PIN Tavolo</p>
               <p className="text-3xl font-bold tracking-widest font-mono mt-1">
-                {/* We need to get the PIN. In EASYFOOD_V00, PIN is in TableSession? 
-                    Or we just show a random one for now?
-                    The original code generated a PIN and updated the table.
-                    Wait, I updated the table with a PIN in handleActivateTable?
-                    No, I didn't. I should have.
-                    Let's assume for now we don't show PIN or we fetch active session.
-                    For simplicity, I'll just show a placeholder or skip PIN if not implemented.
-                */}
-                ****
+                {currentSessionPin || '****'}
               </p>
             </div>
           </div>
@@ -1267,7 +1383,7 @@ const RestaurantDashboard = ({ user, onLogout }: RestaurantDashboardProps) => {
       </Dialog>
 
       {/* Edit Category Dialog */}
-      <Dialog open={!!editingCategory} onOpenChange={(open) => !open && handleCancelEdit()}>
+      <Dialog open={!!editingCategory} onOpenChange={(open) => { if (!open) handleCancelEdit() }}>
         <DialogContent>
           <DialogHeader>
             <DialogTitle>Modifica Categoria</DialogTitle>
@@ -1286,7 +1402,7 @@ const RestaurantDashboard = ({ user, onLogout }: RestaurantDashboardProps) => {
       </Dialog>
 
       {/* Edit Dish Dialog */}
-      <Dialog open={!!editingDish} onOpenChange={(open) => !open && handleCancelDishEdit()}>
+      <Dialog open={!!editingDish} onOpenChange={(open) => { if (!open) handleCancelDishEdit() }}>
         <DialogContent>
           <DialogHeader>
             <DialogTitle>Modifica Piatto</DialogTitle>
@@ -1344,6 +1460,115 @@ const RestaurantDashboard = ({ user, onLogout }: RestaurantDashboardProps) => {
             </div>
             <Button onClick={handleSaveDish} className="w-full">Salva Modifiche</Button>
           </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* Table QR & PIN Dialog */}
+      <Dialog open={showTableQrDialog} onOpenChange={(open) => setShowTableQrDialog(open)}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>QR Code & PIN - Tavolo {selectedTableForActions?.number}</DialogTitle>
+            <DialogDescription>
+              Mostra questo QR al cliente oppure comunica il PIN
+            </DialogDescription>
+          </DialogHeader>
+          <div className="flex flex-col items-center justify-center p-6 space-y-4">
+            {selectedTableForActions && (
+              <>
+                <QRCodeGenerator
+                  value={generateQrCode(selectedTableForActions.id)}
+                  size={200}
+                />
+                <div className="text-center">
+                  <p className="text-sm font-medium">PIN Tavolo</p>
+                  <p className="text-4xl font-bold tracking-widest font-mono mt-1">
+                    {sessions?.find(s => s.table_id === selectedTableForActions.id && s.status === 'OPEN')?.session_pin || '****'}
+                  </p>
+                </div>
+              </>
+            )}
+          </div>
+          <Button onClick={() => setShowTableQrDialog(false)} className="w-full">
+            Chiudi
+          </Button>
+        </DialogContent>
+      </Dialog>
+
+      {/* Table Bill Dialog */}
+      <Dialog open={showTableBillDialog} onOpenChange={(open) => setShowTableBillDialog(open)}>
+        <DialogContent className="sm:max-w-lg">
+          <DialogHeader>
+            <DialogTitle>Conto - Tavolo {selectedTableForActions?.number}</DialogTitle>
+            <DialogDescription>
+              Riepilogo ordini e totale
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4">
+            {selectedTableForActions && (() => {
+              const tableOrders = restaurantOrders.filter(o => getTableIdFromOrder(o) === selectedTableForActions.id)
+              const completedOrders = restaurantCompletedOrders.filter(o => getTableIdFromOrder(o) === selectedTableForActions.id)
+              const allOrders = [...tableOrders, ...completedOrders]
+
+              let subtotal = 0
+              const coverCharge = currentRestaurant?.cover_charge_per_person || 0
+              const ayceCharge = currentRestaurant?.all_you_can_eat?.enabled ? (currentRestaurant.all_you_can_eat.pricePerPerson || 0) : 0
+
+              return (
+                <>
+                  <div className="max-h-[300px] overflow-y-auto space-y-2">
+                    {allOrders.length === 0 ? (
+                      <p className="text-center text-muted-foreground py-4">Nessun ordine per questo tavolo</p>
+                    ) : (
+                      allOrders.map(order => {
+                        const orderItems = order.items || []
+                        return orderItems.map((item: any) => {
+                          const dish = restaurantDishes.find(d => d.id === item.dish_id)
+                          if (!dish) return null
+
+                          const itemTotal = dish.is_ayce && currentRestaurant?.all_you_can_eat?.enabled ? 0 : dish.price * item.quantity
+                          subtotal += itemTotal
+
+                          return (
+                            <div key={item.id} className="flex justify-between text-sm">
+                              <span>{item.quantity}x {dish?.name}</span>
+                              <span>€{itemTotal.toFixed(2)}</span>
+                            </div>
+                          )
+                        })
+                      })
+                    )}
+                  </div>
+                  <Separator />
+                  <div className="space-y-2">
+                    <div className="flex justify-between text-sm">
+                      <span>Subtotale:</span>
+                      <span>€{subtotal.toFixed(2)}</span>
+                    </div>
+                    {coverCharge > 0 && (
+                      <div className="flex justify-between text-sm">
+                        <span>Coperto:</span>
+                        <span>€{coverCharge.toFixed(2)}</span>
+                      </div>
+                    )}
+                    {ayceCharge > 0 && (
+                      <div className="flex justify-between text-sm">
+                        <span>All You Can Eat:</span>
+                        <span>€{ayceCharge.toFixed(2)}</span>
+                      </div>
+                    )}
+                    <Separator />
+                    <div className="flex justify-between font-bold text-lg">
+                      <span>Totale:</span>
+                      <span>€{(subtotal + coverCharge + ayceCharge).toFixed(2)}</span>
+                    </div>
+                  </div>
+                </>
+              )
+            })()}
+          </div>
+          <Button onClick={() => setShowTableBillDialog(false)} className="w-full">
+            Chiudi
+          </Button>
         </DialogContent>
       </Dialog>
 
