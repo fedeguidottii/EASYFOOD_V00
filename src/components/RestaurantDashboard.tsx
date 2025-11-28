@@ -497,7 +497,7 @@ const RestaurantDashboard = ({ user, onLogout }: RestaurantDashboardProps) => {
 
   const handleCancelDishEdit = () => {
     setEditingDish(null)
-    setEditDishData({ name: '', description: '', price: '', categoryId: '', image: '', is_ayce: false })
+    setEditDishData({ name: '', description: '', price: '', categoryId: '', image: '', is_ayce: false, allergens: [], imageFile: undefined })
   }
 
   const handleToggleAllYouCanEatExclusion = (dishId: string) => {
@@ -1566,13 +1566,22 @@ const RestaurantDashboard = ({ user, onLogout }: RestaurantDashboardProps) => {
                               }`}>
                               <CardContent className="p-4">
                                 <div className="flex items-start justify-between mb-3">
-                                  <div>
-                                    <h3 className="font-bold text-lg">{dish.name}</h3>
-                                    <div className="flex items-center gap-2">
-                                      <Badge className="bg-primary">🍽️ {totalQty}x totali</Badge>
-                                      <Badge variant={isCritical ? 'destructive' : isUrgent ? 'default' : 'secondary'}>
-                                        ⏱️ max {maxElapsed} min
-                                      </Badge>
+                                  <div className="flex gap-3 items-start">
+                                    {dish.image_url && (
+                                      <img
+                                        src={dish.image_url}
+                                        alt={dish.name}
+                                        className="w-16 h-16 rounded-lg object-cover border"
+                                      />
+                                    )}
+                                    <div>
+                                      <h3 className="font-bold text-lg">{dish.name}</h3>
+                                      <div className="flex items-center gap-2">
+                                        <Badge className="bg-primary">🍽️ {totalQty}x totali</Badge>
+                                        <Badge variant={isCritical ? 'destructive' : isUrgent ? 'default' : 'secondary'}>
+                                          ⏱️ max {maxElapsed} min
+                                        </Badge>
+                                      </div>
                                     </div>
                                   </div>
                                   <Button
@@ -1926,29 +1935,40 @@ const RestaurantDashboard = ({ user, onLogout }: RestaurantDashboardProps) => {
             </div>
             <div className="space-y-2">
               <Label>Foto Piatto</Label>
-              <Input
-                type="file"
-                accept="image/*"
-                onChange={(e) => {
-                  const file = e.target.files?.[0]
-                  if (file) {
-                    const reader = new FileReader()
-                    reader.onloadend = () => {
-                      setEditDishData({ ...editDishData, image: reader.result as string, imageFile: file })
+              <div className="space-y-2">
+                <Input
+                  type="file"
+                  accept="image/*"
+                  onChange={(e) => {
+                    const file = e.target.files?.[0]
+                    if (file) {
+                      const reader = new FileReader()
+                      reader.onloadend = () => {
+                        setEditDishData({ ...editDishData, image: reader.result as string, imageFile: file })
+                      }
+                      reader.readAsDataURL(file)
                     }
-                    reader.readAsDataURL(file)
-                  }
-                }}
-              />
-              {editDishData.image && (
-                <div className="mt-2">
-                  <img
-                    src={editDishData.image}
-                    alt="Preview"
-                    className="w-full h-32 object-cover rounded-lg border-2 border-border"
-                  />
-                </div>
-              )}
+                  }}
+                />
+                {editDishData.image && (
+                  <div className="relative group">
+                    <img
+                      src={editDishData.image}
+                      alt="Preview"
+                      className="w-full h-32 object-cover rounded-lg border-2 border-border"
+                    />
+                    <div className="absolute inset-0 bg-black/30 opacity-0 group-hover:opacity-100 transition flex items-center justify-center gap-2">
+                      <Button
+                        variant="secondary"
+                        size="sm"
+                        onClick={() => setEditDishData({ ...editDishData, image: '', imageFile: undefined })}
+                      >
+                        Rimuovi
+                      </Button>
+                    </div>
+                  </div>
+                )}
+              </div>
             </div>
             <div className="space-y-2">
               <Label>Allergeni (separati da virgola)</Label>
