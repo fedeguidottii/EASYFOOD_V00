@@ -51,13 +51,13 @@ export const populateRestaurantData = async (restaurantId: string) => {
 
     // 3. Create Dishes
     const items = [
-        { name: 'Bruschetta', description: 'Pane tostato con pomodoro e basilico', price: 6.00, category: 'Antipasti' },
-        { name: 'Carbonara', description: 'Spaghetti, guanciale, uova, pecorino, pepe', price: 12.00, category: 'Primi' },
-        { name: 'Amatriciana', description: 'Bucatini, guanciale, pomodoro, pecorino', price: 11.00, category: 'Primi' },
-        { name: 'Tagliata di Manzo', description: 'Rucola e grana', price: 18.00, category: 'Secondi' },
-        { name: 'Tiramisù', description: 'Classico', price: 6.00, category: 'Dolci' },
-        { name: 'Acqua Naturale', description: '0.75L', price: 2.50, category: 'Bevande' },
-        { name: 'Coca Cola', description: '33cl', price: 3.00, category: 'Bevande' }
+        { name: 'Bruschetta', description: 'Pane tostato con pomodoro e basilico', price: 6.00, category: 'Antipasti', image_url: 'https://images.unsplash.com/photo-1572695157363-bc3a9745061c?auto=format&fit=crop&w=800&q=80' },
+        { name: 'Carbonara', description: 'Spaghetti, guanciale, uova, pecorino, pepe', price: 12.00, category: 'Primi', image_url: 'https://images.unsplash.com/photo-1612874742237-6526221588e3?auto=format&fit=crop&w=800&q=80' },
+        { name: 'Amatriciana', description: 'Bucatini, guanciale, pomodoro, pecorino', price: 11.00, category: 'Primi', image_url: 'https://images.unsplash.com/photo-1551183053-bf91a1d81141?auto=format&fit=crop&w=800&q=80' },
+        { name: 'Tagliata di Manzo', description: 'Rucola e grana', price: 18.00, category: 'Secondi', image_url: 'https://images.unsplash.com/photo-1546241072-48010ad2862c?auto=format&fit=crop&w=800&q=80' },
+        { name: 'Tiramisù', description: 'Classico', price: 6.00, category: 'Dolci', image_url: 'https://images.unsplash.com/photo-1571877227200-a0d98ea607e9?auto=format&fit=crop&w=800&q=80' },
+        { name: 'Acqua Naturale', description: '0.75L', price: 2.50, category: 'Bevande', image_url: 'https://images.unsplash.com/photo-1564414297459-2b6468cd4d7d?auto=format&fit=crop&w=800&q=80' },
+        { name: 'Coca Cola', description: '33cl', price: 3.00, category: 'Bevande', image_url: 'https://images.unsplash.com/photo-1622483767028-3f66f32aef97?auto=format&fit=crop&w=800&q=80' }
     ]
 
     for (const item of items) {
@@ -72,7 +72,8 @@ export const populateRestaurantData = async (restaurantId: string) => {
             vat_rate: 10,
             category_id: categoryId,
             restaurant_id: restaurantId,
-            is_active: true
+            is_active: true,
+            image_url: item.image_url
         }
         await DatabaseService.createDish(newDish)
     }

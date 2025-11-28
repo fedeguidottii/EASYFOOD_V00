@@ -578,4 +578,21 @@ export const DatabaseService = {
             return false
         }
     }
+    async getSessionOrders(sessionId: string): Promise<Order[]> {
+        const { data, error } = await supabase
+            .from('orders')
+            .select(`
+                *,
+                items:order_items(*)
+            `)
+            .eq('session_id', sessionId)
+            .order('created_at', { ascending: false })
+
+        if (error) {
+            console.error('Error fetching session orders:', error)
+            return []
+        }
+
+        return data || []
+    }
 }

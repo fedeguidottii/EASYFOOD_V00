@@ -21,7 +21,8 @@ import {
   Check,
   Lock,
   Eye,
-  EyeSlash
+  EyeSlash,
+  Clock
 } from '@phosphor-icons/react'
 
 interface Props {
@@ -55,6 +56,7 @@ export default function CustomerMenu({ tableId, onExit }: Props) {
   const [activeSession, setActiveSession] = useState<any>(null)
   const [sessionOrderCount, setSessionOrderCount] = useState(0)
   const [cartItems, setCartItems] = useState<any[]>([])
+  const [sessionOrders, setSessionOrders] = useState<Order[]>([])
   const [showCart, setShowCart] = useState(false)
   const [showPinDialog, setShowPinDialog] = useState(false)
   const [enteredPin, setEnteredPin] = useState('')
@@ -139,8 +141,19 @@ export default function CustomerMenu({ tableId, onExit }: Props) {
             })
             .subscribe()
 
+          // Subscribe to orders
+          DatabaseService.getSessionOrders(session.id).then(setSessionOrders)
+
+          const orderChannel = supabase
+            .channel('order_updates')
+            .on('postgres_changes', { event: '*', schema: 'public', table: 'orders', filter: `session_id=eq.${session.id}` }, () => {
+              DatabaseService.getSessionOrders(session.id).then(setSessionOrders)
+            })
+            .subscribe()
+
           return () => {
             supabase.removeChannel(channel)
+            supabase.removeChannel(orderChannel)
           }
         }
       })
@@ -502,138 +515,156 @@ export default function CustomerMenu({ tableId, onExit }: Props) {
       </Button>
 
       {/* Cart Dialog */}
+      {/* Cart Dialog */}
       <Dialog open={showCart} onOpenChange={setShowCart}>
-        {/* Cart Dialog */}
-        <Dialog open={showCart} onOpenChange={setShowCart}>
-          <DialogContent className="max-w-md bg-background border border-border shadow-xl">
-            <DialogHeader>
-              <DialogTitle className="text-xl">Il Tuo Ordine</DialogTitle>
-              <DialogDescription>
-                Controlla i piatti selezionati prima di inviare l'ordine
-              </DialogDescription>
-            </DialogHeader>
-            <div className="flex-1 overflow-y-auto p-4 space-y-4">
-              {cartItems.length === 0 ? (
-                <div className="text-center text-muted-foreground py-8">
-                  Il carrello è vuoto
-                </div>
-              ) : (
-                cartItems.map(item => {
-                  const dish = restaurantDishes.find(d => d.id === item.dish_id)
-                  if (!dish) return null
+        <DialogContent className="max-w-md bg-background border border-border shadow-xl">
+          <DialogHeader>
+            <DialogTitle className="text-xl">Il Tuo Ordine</DialogTitle>
+            <DialogDescription>
+              Controlla i piatti selezionati prima di inviare l'ordine
+            </DialogDescription>
+          </DialogHeader>
+          <div className="flex-1 overflow-y-auto p-4 space-y-4">
+            {cartItems.length === 0 ? (
+              <div className="text-center text-muted-foreground py-8">
+                Il carrello è vuoto
+              </div>
+            ) : (
+              cartItems.map(item => {
+                const dish = restaurantDishes.find(d => d.id === item.dish_id)
+                if (!dish) return null
 
-                  return (
-                    <div key={item.id} className="flex gap-4 bg-muted/30 p-3 rounded-lg">
-                      {dish.image_url && (
-                        <img
-                          src={dish.image_url}
-                          alt={dish.name}
-                          className="w-16 h-16 rounded-md object-cover"
-                        />
-                      )}
-                      <div className="flex-1">
-                        <div className="flex justify-between items-start">
-                          <h4 className="font-bold">{dish.name}</h4>
-                          <span className="font-medium">€{(dish.price * item.quantity).toFixed(2)}</span>
-                        </div>
-                        <div className="flex items-center gap-3 mt-2">
-                          <div className="flex items-center gap-2 bg-background rounded-md border">
-                            <Button
-                              variant="ghost"
-                              size="icon"
-                              className="h-7 w-7"
-                              onClick={() => updateQuantity(item.id, -1)}
-                            >
-                              <Minus size={12} />
-                            </Button>
-                            <span className="text-sm font-medium w-4 text-center">{item.quantity}</span>
-                            <Button
-                              variant="ghost"
-                              size="icon"
-                              className="h-7 w-7"
-                              onClick={() => updateQuantity(item.id, 1)}
-                            >
-                              <Plus size={12} />
-                            </Button>
-                          </div>
+                return (
+                  <div key={item.id} className="flex gap-4 bg-muted/30 p-3 rounded-lg">
+                    {dish.image_url && (
+                      <img
+                        src={dish.image_url}
+                        alt={dish.name}
+                        className="w-16 h-16 rounded-md object-cover"
+                      />
+                    )}
+                    <div className="flex-1">
+                      <div className="flex justify-between items-start">
+                        <h4 className="font-bold">{dish.name}</h4>
+                        <span className="font-medium">€{(dish.price * item.quantity).toFixed(2)}</span>
+                      </div>
+                      <div className="flex items-center gap-3 mt-2">
+                        <div className="flex items-center gap-2 bg-background rounded-md border">
                           <Button
                             variant="ghost"
                             size="icon"
-                            className="h-7 w-7 text-destructive ml-auto"
-                            onClick={() => removeFromCart(item.id)}
+                            className="h-7 w-7"
+                            onClick={() => updateQuantity(item.id, -1)}
                           >
-                            <X size={14} />
+                            <Minus size={12} />
+                          </Button>
+                          <span className="text-sm font-medium w-4 text-center">{item.quantity}</span>
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            className="h-7 w-7"
+                            onClick={() => updateQuantity(item.id, 1)}
+                          >
+                            <Plus size={12} />
                           </Button>
                         </div>
-                        <Input
-                          placeholder="Note per la cucina..."
-                          className="mt-2 h-8 text-xs bg-background"
-                          value={item.notes || ''}
-                          onChange={(e) => updateItemNotes(item.id, e.target.value)}
-                        />
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          className="h-7 w-7 text-destructive ml-auto"
+                          onClick={() => removeFromCart(item.id)}
+                        >
+                          <X size={14} />
+                        </Button>
                       </div>
+                      <Input
+                        placeholder="Note per la cucina..."
+                        className="mt-2 h-8 text-xs bg-background"
+                        value={item.notes || ''}
+                        onChange={(e) => updateItemNotes(item.id, e.target.value)}
+                      />
                     </div>
-                  )
-                })
+                  </div>
+                )
+              })
+            )}
+          </div>
+
+          <div className="border-t pt-4">
+            <div className="space-y-2 mb-4">
+              {/* Regular items */}
+              {cartCalculations.regularTotal > 0 && (
+                <div className="flex justify-between text-sm">
+                  <span>Piatti:</span>
+                  <span>€{cartCalculations.regularTotal.toFixed(2)}</span>
+                </div>
               )}
+
+              {/* Cover charge */}
+              {cartCalculations.coverCharge > 0 && (
+                <div className="flex justify-between text-sm">
+                  <span>Coperto ({table?.customerCount} persone):</span>
+                  <span>€{cartCalculations.coverCharge.toFixed(2)}</span>
+                </div>
+              )}
+
+              {/* All You Can Eat charge */}
+              {cartCalculations.allYouCanEatCharge > 0 && (
+                <div className="flex justify-between text-sm">
+                  <span>All You Can Eat ({table?.customerCount} persone):</span>
+                  <span>€{cartCalculations.allYouCanEatCharge.toFixed(2)}</span>
+                </div>
+              )}
+
+              <div className="flex justify-between font-bold text-lg mt-2 pt-2 border-t">
+                <span>Totale Stimato:</span>
+                <span>€{(cartCalculations.regularTotal + cartCalculations.coverCharge + cartCalculations.allYouCanEatCharge).toFixed(2)}</span>
+              </div>
             </div>
 
-            <div className="border-t pt-4">
-              <div className="space-y-2 mb-4">
-                {/* Regular items */}
-                {cartCalculations.regularTotal > 0 && (
-                  <div className="flex justify-between text-sm">
-                    <span>Piatti:</span>
-                    <span>€{cartCalculations.regularTotal.toFixed(2)}</span>
-                  </div>
-                )}
+            <Button onClick={handlePlaceOrder} className="w-full font-bold text-lg py-6 shadow-lg">
+              Invia Ordine alla Cucina
+            </Button>
+          </div>
 
-                {/* Cover charge */}
-                {cartCalculations.coverCharge > 0 && (
-                  <div className="flex justify-between text-sm">
-                    <span>Coperto ({table?.customerCount} persone):</span>
-                    <span>€{cartCalculations.coverCharge.toFixed(2)}</span>
+          {/* Sent Orders History */}
+          {sessionOrders.length > 0 && (
+            <div className="mt-6 border-t pt-4">
+              <h3 className="font-bold text-lg mb-3 flex items-center gap-2">
+                <Clock size={20} />
+                Ordini Inviati
+              </h3>
+              <div className="space-y-3 max-h-[200px] overflow-y-auto pr-2">
+                {sessionOrders.map((order, idx) => (
+                  <div key={order.id} className="bg-muted/20 rounded-lg p-3 border border-border/50">
+                    <div className="flex justify-between items-center mb-2">
+                      <span className="font-bold text-sm">Ordine #{sessionOrders.length - idx}</span>
+                      <Badge variant={order.status === 'completed' ? 'default' : 'secondary'} className="text-[10px]">
+                        {order.status === 'completed' ? 'Completato' : 'In preparazione'}
+                      </Badge>
+                    </div>
+                    <div className="space-y-1">
+                      {order.items?.map((item, i) => {
+                        const dish = restaurantDishes.find(d => d.id === item.dish_id)
+                        return (
+                          <div key={i} className="flex justify-between text-xs text-muted-foreground">
+                            <span>{item.quantity}x {dish?.name || 'Piatto'}</span>
+                            <span>{item.status === 'SERVED' ? '✅' : '⏳'}</span>
+                          </div>
+                        )
+                      })}
+                    </div>
                   </div>
-                )}
-
-                {/* All You Can Eat charge */}
-                {cartCalculations.allYouCanEatCharge > 0 && (
-                  <div className="flex justify-between text-sm">
-                    <span>All You Can Eat ({table?.customerCount} persone):</span>
-                    <span>€{cartCalculations.allYouCanEatCharge.toFixed(2)}</span>
-                  </div>
-                )}
-
-                {remainingOrders !== null && (
-                  <div className="text-sm text-center p-2 bg-blue-50 rounded">
-                    Ordini rimasti: {remainingOrders}
-                  </div>
-                )}
+                ))}
               </div>
-
-              <div className="flex justify-between items-center mb-4">
-                <span className="font-bold text-xl">Totale:</span>
-                <span className="font-bold text-primary text-2xl">
-                  €{(cartCalculations.regularTotal + cartCalculations.coverCharge + cartCalculations.allYouCanEatCharge).toFixed(2)}
-                </span>
-              </div>
-              <Button
-                onClick={handlePlaceOrder}
-                className="w-full bg-green-500 hover:bg-green-600 text-white font-bold text-lg py-3 shadow-liquid-lg"
-                disabled={remainingOrders !== null && remainingOrders <= 0}
-              >
-                <Check size={20} className="mr-2" />
-                {remainingOrders !== null && remainingOrders <= 0
-                  ? 'Limite ordini raggiunto'
-                  : 'Invia Ordine'}
-              </Button>
             </div>
-          </DialogContent>
-        </Dialog>
+          )}
+            )}
+        </DialogContent>
       </Dialog>
 
       {/* Add to Cart Dialog */}
-      <Dialog open={showAddDialog} onOpenChange={setShowAddDialog}>
+      < Dialog open={showAddDialog} onOpenChange={setShowAddDialog} >
         <DialogContent className="max-w-sm bg-background">
           <DialogHeader>
             <DialogTitle>Aggiungi al carrello</DialogTitle>
@@ -673,7 +704,7 @@ export default function CustomerMenu({ tableId, onExit }: Props) {
             </Button>
           </div>
         </DialogContent>
-      </Dialog>
-    </div>
+      </Dialog >
+    </div >
   )
 }

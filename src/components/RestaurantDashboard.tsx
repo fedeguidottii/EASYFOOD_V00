@@ -40,7 +40,8 @@ import {
   WarningCircle,
   X,
   CaretDown,
-  CaretUp
+  CaretUp,
+  Tag
 } from '@phosphor-icons/react'
 import type { User, Table, Dish, Order, Restaurant, Booking, Category, OrderItem, TableSession } from '../services/types'
 import TimelineReservations from './TimelineReservations'
@@ -257,6 +258,10 @@ const RestaurantDashboard = ({ user, onLogout }: RestaurantDashboardProps) => {
         // Let's check if we can get setSessions.
         // We have: const [sessions] = useSupabaseData...
         // We need to change it to: const [sessions, , , setSessions] = ...
+
+        // Close session in DB
+        await DatabaseService.closeSession(openSession.id)
+        await DatabaseService.markOrdersPaidForSession(openSession.id)
 
         toast.success('Tavolo liberato')
         refreshSessions() // Update sessions list immediately
@@ -729,8 +734,10 @@ const RestaurantDashboard = ({ user, onLogout }: RestaurantDashboardProps) => {
       {/* Fixed Sidebar */}
       <div
         id="sidebar"
+        onMouseEnter={() => setSidebarExpanded(true)}
+        onMouseLeave={() => setSidebarExpanded(false)}
         className={`${sidebarExpanded ? 'w-64' : 'w-20'
-          } glass border-r border-border/20 flex flex-col fixed h-full z-50 transition-all duration-300 ease-in-out bg-card/80 backdrop-blur-md`}
+          } glass border-r border-border/20 flex flex-col fixed h-full z-50 transition-all duration-300 ease-in-out bg-card/80 backdrop-blur-md shadow-2xl`}
       >
         <div className="p-6 border-b border-border/10 flex items-center justify-center">
           {sidebarExpanded ? (
@@ -933,90 +940,98 @@ const RestaurantDashboard = ({ user, onLogout }: RestaurantDashboardProps) => {
                 <p className="text-xs text-muted-foreground mt-1">Gli ordini appariranno qui non appena arrivano</p>
               </div>
             ) : orderViewMode === 'table' ? (
-              <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
-                {restaurantOrders
-                  .sort((a, b) => orderSortMode === 'oldest' ? new Date(a.created_at).getTime() - new Date(b.created_at).getTime() : new Date(b.created_at).getTime() - new Date(a.created_at).getTime())
-                  .map(order => {
-                    const tableId = getTableIdFromOrder(order)
-                    const table = restaurantTables.find(t => t.id === tableId)
-                    const items = order.items || []
-                    const totalDishes = items.reduce((sum, item) => sum + item.quantity, 0)
-                    const completedDishes = items.reduce((sum, item) => sum + (item.status === 'SERVED' ? item.quantity : 0), 0)
-                    const progressPercent = totalDishes > 0 ? (completedDishes / totalDishes) * 100 : 0
+              <div className="grid gap-6 md:grid-cols-2 xl:grid-cols-3">
+                {/* Group orders by Table */}
+                {restaurantTables
+                  .filter(table => restaurantOrders.some(o => getTableIdFromOrder(o) === table.id))
+                  .map(table => {
+                    const tableOrders = restaurantOrders.filter(o => getTableIdFromOrder(o) === table.id)
+                    const allItems = tableOrders.flatMap(o => o.items || [])
+                    const totalItems = allItems.reduce((sum, item) => sum + item.quantity, 0)
+                    const completedItems = allItems.reduce((sum, item) => sum + (item.status === 'SERVED' ? item.quantity : 0), 0)
+                    const progress = totalItems > 0 ? (completedItems / totalItems) * 100 : 0
+                    const lastOrderTime = tableOrders.sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime())[0]?.created_at
 
                     return (
-                      <div
-                        key={order.id}
-                        className="group bg-card rounded-xl shadow-md border border-border hover:shadow-lg hover:-translate-y-0.5 transition-all duration-200 overflow-hidden"
-                      >
-                        <div className="bg-gradient-to-br from-primary/5 via-accent/5 to-primary/5 p-3.5 border-b border-border/10">
-                          <div className="flex items-center justify-between mb-2.5">
-                            <div className="flex items-center gap-2.5">
-                              <div className="w-10 h-10 rounded-lg bg-gradient-to-br from-primary to-accent flex items-center justify-center text-white font-bold text-base shadow-md group-hover:scale-105 transition-transform duration-200">
-                                {table?.number || '?'}
-                              </div>
-                              <div>
-                                <h3 className="text-base font-bold text-foreground">{table?.number ? `Tavolo ${table.number}` : 'Tavolo'}</h3>
-                                <div className={`flex items-center gap-1.5 text-xs font-bold px-2 py-0.5 rounded-md border ${getTimeColor(order.created_at)}`}>
-                                  <Clock size={12} weight="fill" />
-                                  <span>{getTimeAgo(order.created_at)}</span>
-                                </div>
+                      <Card key={table.id} className="overflow-hidden border-border/50 shadow-md hover:shadow-lg transition-all">
+                        <div className="bg-muted/30 p-4 border-b border-border/10 flex justify-between items-center">
+                          <div className="flex items-center gap-3">
+                            <div className="w-12 h-12 rounded-xl bg-primary text-primary-foreground flex items-center justify-center font-bold text-xl shadow-md">
+                              {table.number}
+                            </div>
+                            <div>
+                              <h3 className="font-bold text-lg">Tavolo {table.number}</h3>
+                              <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                                <Clock size={12} />
+                                <span>Ultimo ordine: {lastOrderTime ? getTimeAgo(lastOrderTime) : 'N/A'} fa</span>
                               </div>
                             </div>
-                            <Button
-                              size="sm"
-                              onClick={() => handleCompleteOrder(order.id)}
-                              className="bg-green-600 hover:bg-green-700 text-white shadow-sm h-8 px-3"
-                            >
-                              <CheckCircle size={14} className="mr-1.5" weight="fill" />
-                              Completa
-                            </Button>
                           </div>
-                          <div className="space-y-1.5">
-                            <div className="flex justify-between text-xs font-medium text-muted-foreground">
-                              <span>Avanzamento</span>
-                              <span>{Math.round(progressPercent)}%</span>
-                            </div>
-                            <Progress value={progressPercent} className="h-1.5" />
+                          <div className="text-right">
+                            <span className="text-2xl font-bold text-primary">{totalItems - completedItems}</span>
+                            <p className="text-[10px] uppercase font-bold text-muted-foreground">In attesa</p>
                           </div>
                         </div>
 
-                        <div className="p-3.5 space-y-3 max-h-[300px] overflow-y-auto">
-                          {items.map((item, index) => {
-                            const dish = dishes?.find(d => d.id === item.dish_id)
-                            return (
-                              <div key={item.id} className="flex items-center justify-between p-3 bg-card rounded-lg border border-border/50 hover:border-primary/30 transition-all">
-                                <div className="flex items-center gap-3">
-                                  <Badge variant="outline" className="w-6 h-6 rounded-md flex items-center justify-center p-0 font-bold bg-background border-primary/20 text-primary">
-                                    {item.quantity}x
-                                  </Badge>
-                                  <div>
-                                    <span className={`text-sm font-medium ${item.status === 'SERVED' ? 'text-muted-foreground line-through decoration-primary/30' : 'text-foreground'}`}>
-                                      {dish?.name || 'Piatto sconosciuto'}
-                                    </span>
-                                    {item.note && (
-                                      <div className="flex items-center gap-1 text-[10px] text-orange-600 font-medium mt-0.5 bg-orange-50 px-1.5 py-0.5 rounded w-fit">
-                                        <WarningCircle size={10} weight="fill" />
-                                        {item.note}
-                                      </div>
-                                    )}
-                                  </div>
-                                </div>
-                                {item.status !== 'SERVED' && (
-                                  <Button
-                                    variant="ghost"
-                                    size="icon"
-                                    className="h-7 w-7 text-muted-foreground hover:text-green-600 hover:bg-green-50 opacity-0 group-hover/item:opacity-100 transition-all"
-                                    onClick={() => handleCompleteDish(order.id, item.id)}
-                                  >
-                                    <Check size={14} weight="bold" />
-                                  </Button>
-                                )}
-                              </div>
-                            )
-                          })}
+                        <div className="px-4 py-2 bg-muted/10 border-b border-border/10">
+                          <div className="flex justify-between text-xs mb-1">
+                            <span>Completamento</span>
+                            <span>{Math.round(progress)}%</span>
+                          </div>
+                          <Progress value={progress} className="h-1.5" />
                         </div>
-                      </div>
+
+                        <div className="p-0 max-h-[350px] overflow-y-auto divide-y divide-border/10">
+                          {tableOrders.map(order => (
+                            <div key={order.id} className="p-4 bg-card/50">
+                              <div className="flex justify-between items-center mb-2">
+                                <Badge variant="outline" className="text-[10px] h-5">
+                                  Ordine {getTimeAgo(order.created_at)}
+                                </Badge>
+                                <Button
+                                  size="sm"
+                                  variant="ghost"
+                                  className="h-6 text-xs text-green-600 hover:text-green-700 hover:bg-green-50"
+                                  onClick={() => handleCompleteOrder(order.id)}
+                                >
+                                  <CheckCircle size={14} className="mr-1" />
+                                  Completa Tutto
+                                </Button>
+                              </div>
+                              <div className="space-y-2">
+                                {order.items?.map((item, idx) => {
+                                  const dish = dishes?.find(d => d.id === item.dish_id)
+                                  return (
+                                    <div key={idx} className="flex justify-between items-center text-sm">
+                                      <div className="flex items-center gap-2">
+                                        <span className="font-bold text-primary w-5 text-center">{item.quantity}x</span>
+                                        <span className={item.status === 'SERVED' ? 'line-through text-muted-foreground' : ''}>
+                                          {dish?.name || 'Piatto sconosciuto'}
+                                        </span>
+                                      </div>
+                                      {item.note && (
+                                        <span className="text-xs text-orange-500 italic max-w-[100px] truncate">
+                                          {item.note}
+                                        </span>
+                                      )}
+                                      {item.status !== 'SERVED' && (
+                                        <Button
+                                          variant="ghost"
+                                          size="icon"
+                                          className="h-6 w-6 text-muted-foreground hover:text-green-600 hover:bg-green-50"
+                                          onClick={() => handleCompleteDish(order.id, item.id)}
+                                        >
+                                          <Check size={12} weight="bold" />
+                                        </Button>
+                                      )}
+                                    </div>
+                                  )
+                                })}
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      </Card>
                     )
                   })}
               </div>
@@ -1063,89 +1078,82 @@ const RestaurantDashboard = ({ user, onLogout }: RestaurantDashboardProps) => {
                 const activeOrder = restaurantOrders.find(o => getTableIdFromOrder(o) === table.id)
 
                 return (
-                  <Card key={table.id} className={`relative overflow-hidden transition-all duration-300 hover:shadow-lg group ${isActive ? 'border-primary shadow-md' : 'border-border/40 hover:border-primary/30'}`}>
-                    <CardContent className="p-4 flex flex-col items-center justify-center min-h-[160px] relative z-10">
-                      <div className={`w-16 h-16 rounded-2xl flex items-center justify-center mb-3 transition-all duration-300 ${isActive
-                        ? 'bg-muted text-foreground border-2 border-primary shadow-lg scale-110'
-                        : 'bg-muted text-foreground group-hover:scale-105'
-                        }`}>
-                        <span className="text-2xl font-bold">{table.number}</span>
+                  <Card key={table.id} className={`relative overflow-hidden transition-all duration-300 hover:shadow-lg border-border/40 hover:border-primary/30 group ${isActive ? 'ring-1 ring-primary/20' : ''}`}>
+                    <CardContent className="p-0 flex flex-col h-full">
+                      {/* Header */}
+                      <div className={`p-4 flex items-center justify-between border-b border-border/10 ${isActive ? 'bg-primary/5' : 'bg-muted/30'}`}>
+                        <span className="text-xl font-bold text-foreground">
+                          {table.number}
+                        </span>
+                        <Badge variant={isActive ? 'default' : 'secondary'} className={`${isActive ? 'bg-green-500 hover:bg-green-600' : ''}`}>
+                          {isActive ? 'Occupato' : 'Libero'}
+                        </Badge>
                       </div>
 
-                      <div className="text-center space-y-1">
-                        <Badge variant={isActive ? 'default' : 'secondary'} className="mb-2">
-                          {isActive ? 'Attivo' : 'Libero'}
-                        </Badge>
-                        {isActive && (
-                          <div className="flex flex-col items-center gap-1">
-                            <p className="text-xs font-medium text-muted-foreground">
-                              {activeOrder ? `${activeOrder.items?.length || 0} piatti` : 'In attesa'}
-                            </p>
-                            {session?.session_pin && (
-                              <div className="flex flex-col items-center mt-1">
-                                <span className="text-[10px] text-muted-foreground uppercase tracking-wider">PIN Tavolo</span>
-                                <Badge variant="outline" className="font-mono text-xl tracking-widest bg-background border-primary text-primary px-3 py-1 shadow-sm">
-                                  {session.session_pin}
-                                </Badge>
-                              </div>
+                      {/* Body */}
+                      <div className="flex-1 p-6 flex flex-col items-center justify-center gap-4">
+                        {isActive ? (
+                          <>
+                            <div className="text-center">
+                              <p className="text-sm text-muted-foreground mb-1">PIN Tavolo</p>
+                              <span className="text-3xl font-mono font-bold tracking-widest text-primary">
+                                {session?.session_pin || '...'}
+                              </span>
+                            </div>
+                            {activeOrder && (
+                              <Badge variant="outline" className="bg-background">
+                                {activeOrder.items?.length || 0} ordini attivi
+                              </Badge>
                             )}
+                          </>
+                        ) : (
+                          <div className="text-center text-muted-foreground">
+                            <MapPin size={32} className="mx-auto mb-2 opacity-20" />
+                            <p className="text-sm">Pronto per clienti</p>
                           </div>
                         )}
                       </div>
 
-                      <div className="absolute top-2 right-2 flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity bg-background/80 backdrop-blur-sm rounded-lg p-1 shadow-sm border border-border/50">
-                        <Button variant="ghost" size="icon" className="h-7 w-7 hover:bg-primary/10 hover:text-primary" onClick={() => handleEditTable(table)}>
-                          <PencilSimple size={14} />
-                        </Button>
-                        <Button variant="ghost" size="icon" className="h-7 w-7 text-destructive hover:bg-destructive/10" onClick={() => handleDeleteTable(table.id)}>
-                          <Trash size={14} />
-                        </Button>
-                      </div>
-
-                      <div className="mt-4 w-full space-y-2">
+                      {/* Actions */}
+                      <div className="p-4 bg-muted/10 border-t border-border/10 grid gap-2">
                         {isActive ? (
                           <>
                             <div className="grid grid-cols-2 gap-2">
-                              <Button
-                                variant="outline"
-                                size="sm"
-                                onClick={() => handleShowTableQr(table)}
-                              >
+                              <Button variant="outline" size="sm" onClick={() => handleShowTableQr(table)}>
                                 <QrCode size={16} className="mr-2" />
-                                QR & PIN
+                                QR
                               </Button>
-                              <Button
-                                variant="outline"
-                                size="sm"
-                                onClick={() => {
-                                  setSelectedTableForActions(table)
-                                  setShowTableBillDialog(true)
-                                }}
-                              >
-                                <Receipt size={14} className="mr-1" />
+                              <Button variant="outline" size="sm" onClick={() => { setSelectedTableForActions(table); setShowTableBillDialog(true); }}>
+                                <Receipt size={16} className="mr-2" />
                                 Conto
                               </Button>
                             </div>
                             <Button
                               variant="destructive"
-                              size="sm"
-                              className="w-full"
+                              className="w-full shadow-sm hover:shadow-md transition-all"
                               onClick={() => handleToggleTable(table.id)}
                             >
-                              <Check size={14} className="mr-1" />
-                              Segna Pagato
+                              Segna Pagato & Libera
                             </Button>
                           </>
                         ) : (
                           <Button
-                            variant="default"
-                            size="sm"
-                            className="w-full"
+                            className="w-full bg-primary hover:bg-primary/90 shadow-sm hover:shadow-md transition-all"
                             onClick={() => handleToggleTable(table.id)}
                           >
-                            Attiva
+                            Attiva Tavolo
                           </Button>
                         )}
+                      </div>
+
+                      {/* Management Actions (Hover) */}
+                      <div className="absolute top-2 right-12 opacity-0 group-hover:opacity-100 transition-opacity flex gap-1">
+                        <Button variant="ghost" size="icon" className="h-8 w-8 hover:bg-background/80" onClick={() => handleEditTable(table)}>
+                          <PencilSimple size={14} />
+                        </Button>
+                        <Button variant="ghost" size="icon" className="h-8 w-8 text-destructive hover:bg-destructive/10" onClick={() => handleDeleteTable(table.id)}>
+                          <Trash size={14} />
+                        </Button>
                       </div>
                     </CardContent>
                   </Card>
@@ -1298,15 +1306,20 @@ const RestaurantDashboard = ({ user, onLogout }: RestaurantDashboardProps) => {
                         />
                         <Button onClick={handleCreateCategory}>Aggiungi</Button>
                       </div>
-                      <div className="space-y-2 max-h-[300px] overflow-y-auto">
+                      <div className="space-y-2 max-h-[300px] overflow-y-auto pr-2">
                         {restaurantCategories.map(cat => (
-                          <div key={cat.id} className="flex items-center justify-between p-2 bg-muted/30 rounded-lg">
-                            <span>{cat.name}</span>
-                            <div className="flex gap-1">
-                              <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => handleEditCategory(cat)}>
+                          <div key={cat.id} className="flex items-center justify-between p-3 bg-card border border-border/40 rounded-xl shadow-sm hover:shadow-md transition-all group">
+                            <div className="flex items-center gap-3">
+                              <div className="w-8 h-8 rounded-lg bg-primary/10 flex items-center justify-center text-primary">
+                                <Tag size={16} weight="duotone" />
+                              </div>
+                              <span className="font-medium">{cat.name}</span>
+                            </div>
+                            <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                              <Button variant="ghost" size="icon" className="h-8 w-8 hover:bg-primary/10 hover:text-primary" onClick={() => handleEditCategory(cat)}>
                                 <PencilSimple size={14} />
                               </Button>
-                              <Button variant="ghost" size="icon" className="h-8 w-8 text-destructive" onClick={() => handleDeleteCategory(cat.id)}>
+                              <Button variant="ghost" size="icon" className="h-8 w-8 text-destructive hover:bg-destructive/10" onClick={() => handleDeleteCategory(cat.id)}>
                                 <Trash size={14} />
                               </Button>
                             </div>
@@ -1326,10 +1339,12 @@ const RestaurantDashboard = ({ user, onLogout }: RestaurantDashboardProps) => {
 
                 return (
                   <div key={category.id} className="space-y-4">
-                    <h3 className="text-lg font-bold flex items-center gap-2">
-                      <div className="w-1 h-6 bg-primary rounded-full"></div>
-                      {category.name}
-                    </h3>
+                    <div className="flex items-center gap-3 pb-2 border-b border-border/10">
+                      <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-primary/20 to-primary/5 flex items-center justify-center text-primary">
+                        <Tag size={20} weight="duotone" />
+                      </div>
+                      <h3 className="text-xl font-bold text-foreground">{category.name}</h3>
+                    </div>
                     <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
                       {categoryDishes.map(dish => (
                         <Card key={dish.id} className={`group hover:shadow-md transition-all ${!dish.is_active ? 'opacity-40' : 'opacity-100'
