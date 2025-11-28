@@ -22,7 +22,8 @@ import {
   Lock,
   Eye,
   EyeSlash,
-  Clock
+  Clock,
+  MagnifyingGlass
 } from '@phosphor-icons/react'
 
 interface Props {
@@ -63,6 +64,7 @@ export default function CustomerMenu({ tableId, onExit }: Props) {
   const [isPinVerified, setIsPinVerified] = useState(false)
   const [showPin, setShowPin] = useState(false)
   const [selectedCategory, setSelectedCategory] = useState<string>('all')
+  const [searchTerm, setSearchTerm] = useState('')
 
   const restaurantDishes = dishes?.filter(d =>
     d.restaurant_id === table?.restaurant_id && d.is_active
@@ -72,13 +74,19 @@ export default function CustomerMenu({ tableId, onExit }: Props) {
     cat.restaurant_id === table?.restaurant_id
   ).sort((a, b) => a.order - b.order) || []
 
-  // Filter items based on selected category
-  const filteredItems = selectedCategory === 'all'
-    ? restaurantDishes
-    : restaurantDishes.filter(item => {
-      const cat = restaurantCategories.find(c => c.id === item.category_id)
-      return cat?.name === selectedCategory
-    })
+  const normalizedSearch = searchTerm.toLowerCase()
+
+  const filteredItems = restaurantDishes.filter(item => {
+    const matchesCategory = selectedCategory === 'all'
+      ? true
+      : restaurantCategories.find(c => c.id === item.category_id)?.name === selectedCategory
+
+    const matchesSearch = !normalizedSearch
+      || item.name.toLowerCase().includes(normalizedSearch)
+      || item.description?.toLowerCase().includes(normalizedSearch)
+
+    return matchesCategory && matchesSearch
+  })
 
   // Calculate different totals for display
   const cartCalculations = {
@@ -300,6 +308,16 @@ export default function CustomerMenu({ tableId, onExit }: Props) {
     return item ? item.quantity : 0
   }
 
+  const getElapsedLabel = (timestamp?: string | null) => {
+    if (!timestamp) return ''
+    const diff = Date.now() - new Date(timestamp).getTime()
+    const mins = Math.floor(diff / 60000)
+    const hours = Math.floor(mins / 60)
+    if (hours > 0) return `${hours}h ${mins % 60}m`
+    if (mins <= 0) return 'Appena inviato'
+    return `${mins} min`
+  }
+
   if (!table) {
     return (
       <div className="min-h-screen bg-background flex items-center justify-center">
@@ -396,31 +414,43 @@ export default function CustomerMenu({ tableId, onExit }: Props) {
             </div>
           </div>
 
-          {/* Category Filters - Scrollable horizontal */}
-          <div className="flex gap-2 overflow-x-auto pb-2 scrollbar-hide">
-            <Button
-              variant={selectedCategory === 'all' ? 'default' : 'outline'}
-              onClick={() => setSelectedCategory('all')}
-              className={`flex-shrink-0 px-4 ${selectedCategory === 'all'
-                ? 'bg-primary text-primary-foreground shadow-gold'
-                : 'hover:bg-secondary'
-                }`}
-            >
-              Tutti
-            </Button>
-            {restaurantCategories.map((cat) => (
+          <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
+            <div className="relative w-full md:max-w-xl">
+              <Input
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+                placeholder="Cerca rapidamente un piatto o un ingrediente..."
+                className="pl-10 h-10 shadow-sm"
+              />
+              <MagnifyingGlass size={18} className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
+            </div>
+
+            {/* Category Filters - Scrollable horizontal */}
+            <div className="flex gap-2 overflow-x-auto pb-2 scrollbar-hide">
               <Button
-                key={cat.id}
-                variant={selectedCategory === cat.name ? 'default' : 'outline'}
-                onClick={() => setSelectedCategory(cat.name)}
-                className={`flex-shrink-0 px-4 whitespace-nowrap ${selectedCategory === cat.name
+                variant={selectedCategory === 'all' ? 'default' : 'outline'}
+                onClick={() => setSelectedCategory('all')}
+                className={`flex-shrink-0 px-4 ${selectedCategory === 'all'
                   ? 'bg-primary text-primary-foreground shadow-gold'
                   : 'hover:bg-secondary'
                   }`}
               >
-                {cat.name}
+                Tutti
               </Button>
-            ))}
+              {restaurantCategories.map((cat) => (
+                <Button
+                  key={cat.id}
+                  variant={selectedCategory === cat.name ? 'default' : 'outline'}
+                  onClick={() => setSelectedCategory(cat.name)}
+                  className={`flex-shrink-0 px-4 whitespace-nowrap ${selectedCategory === cat.name
+                    ? 'bg-primary text-primary-foreground shadow-gold'
+                    : 'hover:bg-secondary'
+                    }`}
+                >
+                  {cat.name}
+                </Button>
+              ))}
+            </div>
           </div>
         </div>
       </div>
@@ -467,6 +497,15 @@ export default function CustomerMenu({ tableId, onExit }: Props) {
                         </span>
                       </div>
                       <p className="text-xs sm:text-sm text-muted-foreground line-clamp-2 mt-1">{item.description}</p>
+                      {item.allergens?.length ? (
+                        <div className="flex flex-wrap gap-1 mt-2">
+                          {item.allergens.map((allergen, idx) => (
+                            <Badge key={idx} variant="outline" className="text-[10px]">
+                              ⚠️ {allergen}
+                            </Badge>
+                          ))}
+                        </div>
+                      ) : null}
                     </div>
 
                     <div className="flex items-center justify-between mt-2">
@@ -521,7 +560,7 @@ export default function CustomerMenu({ tableId, onExit }: Props) {
           <DialogHeader>
             <DialogTitle className="text-xl">Il Tuo Ordine</DialogTitle>
             <DialogDescription>
-              Controlla i piatti selezionati prima di inviare l'ordine
+              Carrello condiviso con tutto il tavolo. Qui vedi ciò che state ordinando adesso e quanto è già partito.
             </DialogDescription>
           </DialogHeader>
           <div className="flex-1 overflow-y-auto p-4 space-y-4">
@@ -640,7 +679,7 @@ export default function CustomerMenu({ tableId, onExit }: Props) {
                     <div className="flex justify-between items-center mb-2">
                       <span className="font-bold text-sm">Ordine #{sessionOrders.length - idx}</span>
                       <Badge variant={order.status === 'completed' ? 'default' : 'secondary'} className="text-[10px]">
-                        {order.status === 'completed' ? 'Completato' : 'In preparazione'}
+                        {order.status === 'completed' ? 'Completato' : 'In preparazione'} • {getElapsedLabel(order.created_at)}
                       </Badge>
                     </div>
                     <div className="space-y-1">
@@ -662,8 +701,8 @@ export default function CustomerMenu({ tableId, onExit }: Props) {
         </DialogContent>
       </Dialog>
 
-      {/* Add to Cart Dialog */}
-      < Dialog open={showAddDialog} onOpenChange={setShowAddDialog} >
+        {/* Add to Cart Dialog */}
+        <Dialog open={showAddDialog} onOpenChange={setShowAddDialog}>
         <DialogContent className="max-w-sm bg-background">
           <DialogHeader>
             <DialogTitle>Aggiungi al carrello</DialogTitle>
@@ -703,7 +742,7 @@ export default function CustomerMenu({ tableId, onExit }: Props) {
             </Button>
           </div>
         </DialogContent>
-      </Dialog >
+        </Dialog>
     </div >
   )
 }
