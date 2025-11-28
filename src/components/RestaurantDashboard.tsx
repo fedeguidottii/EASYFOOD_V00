@@ -869,7 +869,7 @@ const RestaurantDashboard = ({ user, onLogout }: RestaurantDashboardProps) => {
                   <DialogTrigger asChild>
                     <Button className="shadow-gold">
                       <Plus size={16} className="mr-2" />
-                      Nuovo Piatto
+                      Nuovo
                     </Button>
                   </DialogTrigger>
                   <DialogContent>
@@ -977,50 +977,68 @@ const RestaurantDashboard = ({ user, onLogout }: RestaurantDashboardProps) => {
                     <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
                       {categoryDishes.map(dish => (
                         <Card key={dish.id} className="group hover:shadow-md transition-all">
-                          <CardContent className="p-4">
-                            <div className="flex justify-between items-start mb-2">
-                              <div>
-                                <h4 className="font-bold">{dish.name}</h4>
-                                <p className="text-sm text-muted-foreground line-clamp-2">{dish.description}</p>
+                          <CardContent className="p-0">
+                            {dish.image_url && (
+                              <div className="relative h-48 w-full overflow-hidden">
+                                <img
+                                  src={dish.image_url}
+                                  alt={dish.name}
+                                  className="w-full h-full object-cover transition-transform duration-300 group-hover:scale-105"
+                                  onError={(e) => {
+                                    (e.target as HTMLImageElement).style.display = 'none'
+                                  }}
+                                />
+                                <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent" />
+                                <div className="absolute bottom-2 right-2 bg-black/60 backdrop-blur-md px-2 py-1 rounded-md text-white font-bold">
+                                  €{dish.price.toFixed(2)}
+                                </div>
                               </div>
-                              <span className="font-bold text-primary">€{dish.price.toFixed(2)}</span>
-                            </div>
-                            <div className="flex items-center justify-between mt-4 pt-4 border-t border-border/10">
-                              <div className="flex gap-2">
+                            )}
+                            <div className="p-4">
+                              <div className="flex justify-between items-start mb-2">
+                                <div>
+                                  <h4 className="font-bold text-lg">{dish.name}</h4>
+                                  <p className="text-sm text-muted-foreground line-clamp-2">{dish.description}</p>
+                                </div>
+                                {!dish.image_url && <span className="font-bold text-primary">€{dish.price.toFixed(2)}</span>}
+                              </div>
+                              <div className="flex items-center justify-between mt-4 pt-4 border-t border-border/10">
+                                <div className="flex gap-2">
+                                  <Button
+                                    variant="ghost"
+                                    size="icon"
+                                    className="h-8 w-8"
+                                    onClick={() => handleEditDish(dish)}
+                                  >
+                                    <PencilSimple size={14} />
+                                  </Button>
+                                  <Button
+                                    variant="ghost"
+                                    size="icon"
+                                    className={`h-8 w-8 ${currentRestaurant?.allYouCanEat?.enabled && !dish.excludeFromAllYouCanEat && dish.is_active ? 'text-orange-500 bg-orange-50' : 'text-muted-foreground'}`}
+                                    onClick={() => handleToggleAllYouCanEatExclusion(dish.id)}
+                                    title={dish.excludeFromAllYouCanEat ? "Includi in AYCE" : "Escludi da AYCE"}
+                                  >
+                                    <ForkKnife size={14} />
+                                  </Button>
+                                  <Button
+                                    variant="ghost"
+                                    size="icon"
+                                    className={`h-8 w-8 ${!dish.is_active ? 'text-muted-foreground' : 'text-green-600'}`}
+                                    onClick={() => handleToggleDish(dish.id)}
+                                  >
+                                    {dish.is_active ? <Eye size={14} /> : <EyeSlash size={14} />}
+                                  </Button>
+                                </div>
                                 <Button
                                   variant="ghost"
                                   size="icon"
-                                  className="h-8 w-8"
-                                  onClick={() => handleEditDish(dish)}
+                                  className="h-8 w-8 text-destructive hover:bg-destructive/10"
+                                  onClick={() => handleDeleteDish(dish.id)}
                                 >
-                                  <PencilSimple size={14} />
-                                </Button>
-                                <Button
-                                  variant="ghost"
-                                  size="icon"
-                                  className={`h-8 w-8 ${currentRestaurant?.allYouCanEat?.enabled && !dish.excludeFromAllYouCanEat && dish.is_active ? 'text-orange-500 bg-orange-50' : 'text-muted-foreground'}`}
-                                  onClick={() => handleToggleAllYouCanEatExclusion(dish.id)}
-                                  title={dish.excludeFromAllYouCanEat ? "Includi in AYCE" : "Escludi da AYCE"}
-                                >
-                                  <ForkKnife size={14} />
-                                </Button>
-                                <Button
-                                  variant="ghost"
-                                  size="icon"
-                                  className={`h-8 w-8 ${!dish.is_active ? 'text-muted-foreground' : 'text-green-600'}`}
-                                  onClick={() => handleToggleDish(dish.id)}
-                                >
-                                  {dish.is_active ? <Eye size={14} /> : <EyeSlash size={14} />}
+                                  <Trash size={14} />
                                 </Button>
                               </div>
-                              <Button
-                                variant="ghost"
-                                size="icon"
-                                className="h-8 w-8 text-destructive hover:bg-destructive/10"
-                                onClick={() => handleDeleteDish(dish.id)}
-                              >
-                                <Trash size={14} />
-                              </Button>
                             </div>
                           </CardContent>
                         </Card>
