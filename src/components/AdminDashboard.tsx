@@ -10,7 +10,7 @@ import { useSupabaseData } from '../hooks/useSupabaseData'
 import { DatabaseService } from '../services/DatabaseService'
 import { toast } from 'sonner'
 import { User, Restaurant, Order } from '../services/types'
-import { Crown, Plus, Buildings, SignOut, Trash, ChartBar, PencilSimple, Power, Eye, EyeSlash, Database, MagnifyingGlass, SortAscending, UploadSimple } from '@phosphor-icons/react'
+import { Crown, Plus, Buildings, SignOut, Trash, ChartBar, PencilSimple, Eye, EyeSlash, Database, MagnifyingGlass, SortAscending, UploadSimple } from '@phosphor-icons/react'
 import AdminStatistics from './AdminStatistics'
 import { v4 as uuidv4 } from 'uuid'
 import { populateRestaurantData } from '../services/populateData'
@@ -123,7 +123,7 @@ export default function AdminDashboard({ user, onLogout }: Props) {
       return
     }
 
-    setIsUploading(true) // Usa questo per mostrare loading sul bottone
+    setIsUploading(true)
 
     try {
       let finalLogoUrl = newRestaurant.logo_url
@@ -153,9 +153,7 @@ export default function AdminDashboard({ user, onLogout }: Props) {
         role: 'OWNER',
       }
 
-      // Create User first
       await DatabaseService.createUser(restaurantUser)
-      // Then Restaurant
       await DatabaseService.createRestaurant(restaurant)
 
       setNewRestaurant({ name: '', phone: '', email: '', logo_url: '', username: '', password: '' })
@@ -187,14 +185,12 @@ export default function AdminDashboard({ user, onLogout }: Props) {
   }
 
   const handleDeleteRestaurant = async (restaurantId: string) => {
-    if (confirm('Sei sicuro? Questa azione è irreversibile e cancellerà TUTTI i dati del ristorante (ordini, menu, statistiche).')) {
+    if (confirm('Sei sicuro? Questa azione è irreversibile e cancellerà TUTTI i dati del ristorante.')) {
       try {
         const restaurant = restaurants?.find(r => r.id === restaurantId)
 
-        // La funzione deleteRestaurant ora gestisce la pulizia a cascata
         await DatabaseService.deleteRestaurant(restaurantId)
 
-        // Try to delete the owner user separately
         if (restaurant?.owner_id) {
           try {
             await DatabaseService.deleteUser(restaurant.owner_id)
@@ -213,7 +209,6 @@ export default function AdminDashboard({ user, onLogout }: Props) {
 
   const handleToggleActive = async (restaurant: Restaurant) => {
     try {
-      // Passiamo SOLO l'ID e il nuovo stato per evitare conflitti con vecchi dati
       await DatabaseService.updateRestaurant({
         id: restaurant.id,
         isActive: !restaurant.isActive
@@ -246,7 +241,6 @@ export default function AdminDashboard({ user, onLogout }: Props) {
         if (uploadedUrl) finalLogoUrl = uploadedUrl
       }
 
-      // Passiamo solo i campi modificati e sicuri
       await DatabaseService.updateRestaurant({
         id: editingRestaurant.id,
         name: editingRestaurant.name,
@@ -260,7 +254,7 @@ export default function AdminDashboard({ user, onLogout }: Props) {
           id: editingUser.id,
           name: editingUser.name,
           password_hash: editingUser.password_hash,
-          role: editingUser.role // mantieni il ruolo
+          role: editingUser.role
         })
       }
 
@@ -451,9 +445,11 @@ export default function AdminDashboard({ user, onLogout }: Props) {
                           <div className="space-y-1">
                             <div className="flex items-center gap-2">
                               <h3 className="text-base font-bold truncate">{restaurant.name}</h3>
-                              <Badge variant={restaurant.isActive ? "default" : "secondary"} className="text-xs px-2 py-0 h-5">
-                                {restaurant.isActive ? "Attivo" : "Disabilitato"}
-                              </Badge>
+                              {restaurant.isActive && (
+                                <Badge variant="default" className="text-xs px-2 py-0 h-5">
+                                  Attivo
+                                </Badge>
+                              )}
                             </div>
                             <div className="text-xs text-muted-foreground flex items-center gap-3 truncate">
                               <span>{restaurant.email}</span>
@@ -500,7 +496,7 @@ export default function AdminDashboard({ user, onLogout }: Props) {
                             size="icon"
                             className={`h-8 w-8 ${restaurant.isActive ? 'text-muted-foreground hover:text-destructive' : 'text-muted-foreground hover:text-green-600'}`}
                             onClick={() => handleToggleActive(restaurant)}
-                            title={restaurant.isActive ? "Nascondi (Disattiva)" : "Mostra (Attiva)"}
+                            title={restaurant.isActive ? "Disattiva" : "Attiva"}
                           >
                             {restaurant.isActive ? (
                               <Eye size={18} />

@@ -56,7 +56,6 @@ export const DatabaseService = {
         })
 
         // Gestione esplicita di isActive -> is_active
-        // Questo ha la priorità assoluta per evitare conflitti
         if (restaurant.isActive !== undefined) {
             payload.is_active = restaurant.isActive
         }
@@ -78,7 +77,6 @@ export const DatabaseService = {
             .single()
 
         // 1. Elimina dipendenze complesse (Order Items)
-        // Prima recuperiamo gli ID degli ordini del ristorante
         const { data: orders } = await supabase
             .from('orders')
             .select('id')
@@ -86,11 +84,13 @@ export const DatabaseService = {
 
         if (orders && orders.length > 0) {
             const orderIds = orders.map(o => o.id)
-            // Elimina items collegati a questi ordini
             await supabase.from('order_items').delete().in('order_id', orderIds)
         }
 
         // 2. Elimina Tabelle dipendenti direttamente da restaurant_id (Ordine Strict)
+        // IMPORTANTE: Aggiunto restaurant_staff che bloccava l'eliminazione
+        await supabase.from('restaurant_staff').delete().eq('restaurant_id', restaurantId)
+
         await supabase.from('orders').delete().eq('restaurant_id', restaurantId)
         await supabase.from('table_sessions').delete().eq('restaurant_id', restaurantId)
         await supabase.from('bookings').delete().eq('restaurant_id', restaurantId)
@@ -101,8 +101,6 @@ export const DatabaseService = {
         // 3. Elimina logo dallo Storage se esiste
         if (restaurant?.logo_url) {
             try {
-                // Estrai il path del file dall'URL pubblico
-                // Esempio: .../storage/v1/object/public/logos/filename.jpg -> filename.jpg
                 const urlParts = restaurant.logo_url.split('/')
                 const fileName = urlParts[urlParts.length - 1]
 
