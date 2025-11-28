@@ -1097,6 +1097,32 @@ const RestaurantDashboard = ({ user, onLogout }: RestaurantDashboardProps) => {
                         </div>
                       </div>
                       <div className="space-y-2">
+                        <Label>Foto Piatto</Label>
+                        <Input
+                          type="file"
+                          accept="image/*"
+                          onChange={(e) => {
+                            const file = e.target.files?.[0]
+                            if (file) {
+                              const reader = new FileReader()
+                              reader.onloadend = () => {
+                                setNewDish({ ...newDish, image: reader.result as string })
+                              }
+                              reader.readAsDataURL(file)
+                            }
+                          }}
+                        />
+                        {newDish.image && (
+                          <div className="mt-2">
+                            <img
+                              src={newDish.image}
+                              alt="Preview"
+                              className="w-full h-32 object-cover rounded-lg border-2 border-border"
+                            />
+                          </div>
+                        )}
+                      </div>
+                      <div className="space-y-2">
                         <Label>Allergeni (separati da virgola)</Label>
                         <Input
                           placeholder="Es: glutine, lattosio, noci"
