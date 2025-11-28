@@ -4,10 +4,12 @@ values ('logos', 'logos', true)
 on conflict (id) do nothing;
 
 -- 2. Storage Policies (Allow public read, authenticated upload)
+drop policy if exists "Public Access" on storage.objects;
 create policy "Public Access"
   on storage.objects for select
   using ( bucket_id = 'logos' );
 
+drop policy if exists "Authenticated Upload" on storage.objects;
 create policy "Authenticated Upload"
   on storage.objects for insert
   with check ( bucket_id = 'logos' and auth.role() = 'authenticated' );

@@ -13,6 +13,7 @@ import { Badge } from '@/components/ui/badge'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { Separator } from '@/components/ui/separator'
 import { Progress } from '@/components/ui/progress'
+import { Switch } from '@/components/ui/switch'
 import { toast } from 'sonner'
 import QRCodeGenerator from './QRCodeGenerator'
 import {
@@ -201,10 +202,8 @@ const RestaurantDashboard = ({ user, onLogout }: RestaurantDashboardProps) => {
   const generatePin = () => Math.floor(1000 + Math.random() * 9000).toString()
 
   const generateQrCode = (tableId: string) => {
-    const session = sessions?.find(s => s.table_id === tableId && s.status === 'OPEN')
-    const pin = session?.session_pin || ''
-    // Direct link to menu with table ID and PIN (skip login)
-    return `${window.location.origin}/?table=${tableId}&pin=${pin}`
+    // Direct link to menu with table ID
+    return `${window.location.origin}/client/table/${tableId}`
   }
 
   const handleCreateTable = () => {
@@ -252,9 +251,18 @@ const RestaurantDashboard = ({ user, onLogout }: RestaurantDashboardProps) => {
           toast.error('Errore durante la liberazione del tavolo')
         })
     } else {
-      // For activation, we need customer count
-      setSelectedTable(table)
-      // Don't activate immediately, wait for customer count input
+      // Check settings
+      const isAyceEnabled = currentRestaurant?.all_you_can_eat?.enabled
+      const isCopertoEnabled = currentRestaurant?.cover_charge_per_person && currentRestaurant.cover_charge_per_person > 0
+
+      if (!isAyceEnabled && !isCopertoEnabled) {
+        // Activate directly with default 1 person
+        handleActivateTable(tableId, 1)
+      } else {
+        // Show dialog for customer count
+        setSelectedTable(table)
+        setShowTableDialog(true)
+      }
     }
   }
 
@@ -996,12 +1004,26 @@ const RestaurantDashboard = ({ user, onLogout }: RestaurantDashboardProps) => {
 
                       <div className="text-center space-y-1">
                         <Badge variant={isActive ? 'default' : 'secondary'} className="mb-2">
-                          {isActive ? 'Occupato' : 'Libero'}
+                          {isActive ? 'Attivo' : 'Libero'}
                         </Badge>
                         {isActive && (
-                          <p className="text-xs font-medium text-muted-foreground">
-                            {activeOrder ? `${activeOrder.items?.length || 0} piatti` : 'In attesa'}
-                          </p>
+                          <div className="flex flex-col items-center gap-1">
+                            <p className="text-xs font-medium text-muted-foreground">
+                              {activeOrder ? `${activeOrder.items?.length || 0} piatti` : 'In attesa'}
+                            </p>
+                            {/* Find session for this table to show PIN */}
+                            {(() => {
+                              const session = sessions?.find(s => s.table_id === table.id && s.status === 'OPEN')
+                              if (session?.session_pin) {
+                                return (
+                                  <Badge variant="outline" className="font-mono text-xs tracking-widest">
+                                    PIN: {session.session_pin}
+                                  </Badge>
+                                )
+                              }
+                              return null
+                            })()}
+                          </div>
                         )}
                       </div>
 
@@ -1144,7 +1166,7 @@ const RestaurantDashboard = ({ user, onLogout }: RestaurantDashboardProps) => {
                             if (file) {
                               const reader = new FileReader()
                               reader.onloadend = () => {
-                                setNewDish({ ...newDish, image: reader.result as string })
+                                setNewDish({ ...newDish, image: reader.result as string, imageFile: file })
                               }
                               reader.readAsDataURL(file)
                             }
@@ -1163,49 +1185,29 @@ const RestaurantDashboard = ({ user, onLogout }: RestaurantDashboardProps) => {
                       <div className="space-y-2">
                         <Label>Allergeni (separati da virgola)</Label>
                         <Input
-                          placeholder="Es: glutine, lattosio, noci"
                           value={allergenInput}
-                          onChange={(e) => setAllergenInput(e.target.value)}
-                          onKeyDown={(e) => {
-                            if (e.key === 'Enter' && allergenInput.trim()) {
-                              e.preventDefault()
-                              const allergens = allergenInput.split(',').map(a => a.trim()).filter(Boolean)
-                              setNewDish({ ...newDish, allergens: [...(newDish.allergens || []), ...allergens] })
-                              setAllergenInput('')
-                            }
+                          onChange={(e) => {
+                            setAllergenInput(e.target.value)
+                            setNewDish({ ...newDish, allergens: e.target.value.split(',').map(s => s.trim()).filter(Boolean) })
                           }}
+                          placeholder="Glutine, Lattosio, etc."
                         />
-                        {newDish.allergens && newDish.allergens.length > 0 && (
-                          <div className="flex flex-wrap gap-1 mt-2">
-                            {newDish.allergens.map((allergen, idx) => (
-                              <Badge key={idx} variant="secondary" className="text-xs">
-                                {allergen}
-                                <button
-                                  type="button"
-                                  onClick={() => setNewDish({ ...newDish, allergens: newDish.allergens!.filter((_, i) => i !== idx) })}
-                                  className="ml-1 hover:text-destructive"
-                                >
-                                  ×
-                                </button>
-                              </Badge>
-                            ))}
-                          </div>
-                        )}
                       </div>
                       <div className="flex items-center space-x-2 pt-4">
                         <input
                           type="checkbox"
-                          id="is_ayce"
+                          id="new_is_ayce"
                           className="h-4 w-4 rounded border-gray-300 text-primary focus:ring-primary"
                           checked={newDish.is_ayce}
                           onChange={(e) => setNewDish({ ...newDish, is_ayce: e.target.checked })}
                         />
-                        <Label htmlFor="is_ayce">Incluso in All You Can Eat</Label>
+                        <Label htmlFor="new_is_ayce">Incluso in All You Can Eat</Label>
                       </div>
-                      <Button onClick={handleCreateDish} className="w-full">Salva Piatto</Button>
+                      <Button onClick={handleCreateDish} className="w-full">Aggiungi Piatto</Button>
                     </div>
                   </DialogContent>
                 </Dialog>
+
 
                 <Dialog>
                   <DialogTrigger asChild>
@@ -1245,8 +1247,8 @@ const RestaurantDashboard = ({ user, onLogout }: RestaurantDashboardProps) => {
                     </div>
                   </DialogContent>
                 </Dialog>
-              </div>
-            </div>
+              </div >
+            </div >
 
             <div className="space-y-8">
               {restaurantCategories.map(category => {
@@ -1348,12 +1350,12 @@ const RestaurantDashboard = ({ user, onLogout }: RestaurantDashboardProps) => {
                 )
               })}
             </div>
-          </TabsContent>
+          </TabsContent >
 
           {/* Reservations Tab */}
-          <TabsContent value="reservations" className="space-y-6 p-6">
+          < TabsContent value="reservations" className="space-y-6 p-6" >
             {/* Date Filter */}
-            <div className="flex gap-2 mb-4">
+            < div className="flex gap-2 mb-4" >
               <Button
                 variant={reservationsDateFilter === 'today' ? 'default' : 'outline'}
                 onClick={() => setReservationsDateFilter('today')}
@@ -1377,7 +1379,7 @@ const RestaurantDashboard = ({ user, onLogout }: RestaurantDashboardProps) => {
               >
                 Tutte
               </Button>
-            </div>
+            </div >
             <ReservationsManager
               user={user}
               restaurantId={restaurantId}
@@ -1386,20 +1388,20 @@ const RestaurantDashboard = ({ user, onLogout }: RestaurantDashboardProps) => {
               dateFilter={reservationsDateFilter}
               onRefresh={refreshBookings}
             />
-          </TabsContent>
+          </TabsContent >
 
           {/* Analytics Tab */}
-          <TabsContent value="analytics" className="space-y-6">
+          < TabsContent value="analytics" className="space-y-6" >
             <AnalyticsCharts
               orders={restaurantOrders}
               completedOrders={restaurantCompletedOrders}
               dishes={restaurantDishes}
               categories={restaurantCategories}
             />
-          </TabsContent>
+          </TabsContent >
 
           {/* Orders Tab */}
-          <TabsContent value="orders" className="space-y-6">
+          < TabsContent value="orders" className="space-y-6" >
             <div className="flex items-center justify-between mb-6">
               <div className="flex items-center gap-3">
                 <div className="w-11 h-11 rounded-xl bg-gradient-to-br from-primary to-accent flex items-center justify-center text-white shadow-gold">
@@ -1430,227 +1432,229 @@ const RestaurantDashboard = ({ user, onLogout }: RestaurantDashboardProps) => {
               </div>
             </div>
 
-            {!showCompletedOrders ? (
-              <div className="space-y-4">
-                {restaurantOrders.length === 0 ? (
-                  <Card>
-                    <CardContent className="flex flex-col items-center justify-center py-12">
-                      <ChefHat size={48} className="text-muted-foreground mb-3" />
-                      <p className="text-muted-foreground">Nessun ordine attivo</p>
-                    </CardContent>
-                  </Card>
-                ) : (
-                  orderViewMode === 'table' ? (
-                    // View by Table
-                    restaurantOrders.map(order => {
-                      const table = restaurantTables.find(t => t.id === getTableIdFromOrder(order))
-                      const orderTime = new Date(order.created_at || Date.now())
-                      const elapsed = Math.floor((Date.now() - orderTime.getTime()) / 1000 / 60)
-                      const isUrgent = elapsed > 20
-                      const isCritical = elapsed > 30
-
-                      return (
-                        <Card key={order.id} className={`border-l-4 ${isCritical ? 'border-l-red-500 bg-red-50/50' :
-                          isUrgent ? 'border-l-orange-500 bg-orange-50/50' :
-                            'border-l-green-500'
-                          }`}>
-                          <CardContent className="p-4">
-                            <div className="flex items-start justify-between mb-3">
-                              <div className="flex items-center gap-3">
-                                <div className={`w-10 h-10 rounded-lg flex items-center justify-center font-bold ${isCritical ? 'bg-red-500 text-white' :
-                                  isUrgent ? 'bg-orange-500 text-white' :
-                                    'bg-green-500 text-white'
-                                  }`}>
-                                  {table?.number || '?'}
-                                </div>
-                                <div>
-                                  <h3 className="font-bold text-lg">Tavolo {table?.number || '?'}</h3>
-                                  <div className="flex items-center gap-2 text-sm">
-                                    <Badge variant={isCritical ? 'destructive' : isUrgent ? 'default' : 'secondary'}>
-                                      ⏱️ {elapsed} min
-                                    </Badge>
-                                    <span className="text-muted-foreground">{order.items?.length || 0} piatti</span>
-                                  </div>
-                                </div>
-                              </div>
-                              <div className="flex gap-2">
-                                <Button
-                                  size="sm"
-                                  variant="outline"
-                                  className="bg-blue-50 hover:bg-blue-100 text-blue-700 border-blue-200"
-                                  onClick={() => updateOrderStatus(order.id, 'ready')}
-                                >
-                                  <Check size={14} className="mr-1" />
-                                  Pronto
-                                </Button>
-                                <Button
-                                  size="sm"
-                                  className="bg-green-600 hover:bg-green-700"
-                                  onClick={() => updateOrderStatus(order.id, 'completed')}
-                                >
-                                  <CheckCircle size={14} className="mr-1" />
-                                  Completato
-                                </Button>
-                              </div>
-                            </div>
-                            <div className="space-y-2">
-                              {order.items?.map((item: any) => {
-                                const dish = restaurantDishes.find(d => d.id === item.dish_id)
-                                return (
-                                  <div key={item.id} className="flex items-center justify-between p-2 bg-background/50 rounded">
-                                    <div className="flex items-center gap-2">
-                                      <span className="font-bold text-primary">{item.quantity}x</span>
-                                      <span>{dish?.name || 'Unknown'}</span>
-                                      {item.note && (
-                                        <Badge variant="outline" className="text-xs">
-                                          📝 {item.note}
-                                        </Badge>
-                                      )}
-                                    </div>
-                                    <Button
-                                      size="sm"
-                                      variant="ghost"
-                                      onClick={() => updateOrderItemStatus(order.id, item.id, 'SERVED')}
-                                    >
-                                      ✓
-                                    </Button>
-                                  </div>
-                                )
-                              })}
-                            </div>
-                          </CardContent>
-                        </Card>
-                      )
-                    })
+            {
+              !showCompletedOrders ? (
+                <div className="space-y-4">
+                  {restaurantOrders.length === 0 ? (
+                    <Card>
+                      <CardContent className="flex flex-col items-center justify-center py-12">
+                        <ChefHat size={48} className="text-muted-foreground mb-3" />
+                        <p className="text-muted-foreground">Nessun ordine attivo</p>
+                      </CardContent>
+                    </Card>
                   ) : (
-                    // View by Dish
-                    (() => {
-                      const dishGroups: { [key: string]: { dish: Dish, orders: Array<{ orderId: string, tableNumber: string, quantity: number, elapsed: number, note?: string }> } } = {}
-
-                      restaurantOrders.forEach(order => {
+                    orderViewMode === 'table' ? (
+                      // View by Table
+                      restaurantOrders.map(order => {
                         const table = restaurantTables.find(t => t.id === getTableIdFromOrder(order))
                         const orderTime = new Date(order.created_at || Date.now())
                         const elapsed = Math.floor((Date.now() - orderTime.getTime()) / 1000 / 60)
-
-                        order.items?.forEach((item: any) => {
-                          const dish = restaurantDishes.find(d => d.id === item.dish_id)
-                          if (!dish) return
-
-                          if (!dishGroups[dish.id]) {
-                            dishGroups[dish.id] = { dish, orders: [] }
-                          }
-
-                          dishGroups[dish.id].orders.push({
-                            orderId: order.id,
-                            tableNumber: table?.number || '?',
-                            quantity: item.quantity,
-                            elapsed,
-                            note: item.note
-                          })
-                        })
-                      })
-
-                      return Object.values(dishGroups).map(({ dish, orders }) => {
-                        const totalQty = orders.reduce((sum, o) => sum + o.quantity, 0)
-                        const maxElapsed = Math.max(...orders.map(o => o.elapsed))
-                        const isUrgent = maxElapsed > 20
-                        const isCritical = maxElapsed > 30
+                        const isUrgent = elapsed > 20
+                        const isCritical = elapsed > 30
 
                         return (
-                          <Card key={dish.id} className={`border-l-4 ${isCritical ? 'border-l-red-500 bg-red-50/50' :
+                          <Card key={order.id} className={`border-l-4 ${isCritical ? 'border-l-red-500 bg-red-50/50' :
                             isUrgent ? 'border-l-orange-500 bg-orange-50/50' :
                               'border-l-green-500'
                             }`}>
                             <CardContent className="p-4">
                               <div className="flex items-start justify-between mb-3">
-                                <div>
-                                  <h3 className="font-bold text-lg">{dish.name}</h3>
-                                  <div className="flex items-center gap-2">
-                                    <Badge className="bg-primary">🍽️ {totalQty}x totali</Badge>
-                                    <Badge variant={isCritical ? 'destructive' : isUrgent ? 'default' : 'secondary'}>
-                                      ⏱️ max {maxElapsed} min
-                                    </Badge>
+                                <div className="flex items-center gap-3">
+                                  <div className={`w-10 h-10 rounded-lg flex items-center justify-center font-bold ${isCritical ? 'bg-red-500 text-white' :
+                                    isUrgent ? 'bg-orange-500 text-white' :
+                                      'bg-green-500 text-white'
+                                    }`}>
+                                    {table?.number || '?'}
                                   </div>
-                                </div>
-                                <Button
-                                  size="sm"
-                                  className="bg-green-600 hover:bg-green-700"
-                                >
-                                  <Check size={14} className="mr-1" />
-                                  Segna tutto pronto
-                                </Button>
-                              </div>
-                              <div className="space-y-2">
-                                {orders.map((orderInfo, idx) => (
-                                  <div key={idx} className="flex items-center justify-between p-2 bg-background/50 rounded text-sm">
-                                    <div className="flex items-center gap-2">
-                                      <span className="font-bold">Tavolo {orderInfo.tableNumber}:</span>
-                                      <span>{orderInfo.quantity}x</span>
-                                      <span className="text-muted-foreground">({orderInfo.elapsed} min)</span>
-                                      {orderInfo.note && (
-                                        <Badge variant="outline" className="text-xs">
-                                          📝 {orderInfo.note}
-                                        </Badge>
-                                      )}
+                                  <div>
+                                    <h3 className="font-bold text-lg">Tavolo {table?.number || '?'}</h3>
+                                    <div className="flex items-center gap-2 text-sm">
+                                      <Badge variant={isCritical ? 'destructive' : isUrgent ? 'default' : 'secondary'}>
+                                        ⏱️ {elapsed} min
+                                      </Badge>
+                                      <span className="text-muted-foreground">{order.items?.length || 0} piatti</span>
                                     </div>
                                   </div>
-                                ))}
+                                </div>
+                                <div className="flex gap-2">
+                                  <Button
+                                    size="sm"
+                                    variant="outline"
+                                    className="bg-blue-50 hover:bg-blue-100 text-blue-700 border-blue-200"
+                                    onClick={() => updateOrderStatus(order.id, 'ready')}
+                                  >
+                                    <Check size={14} className="mr-1" />
+                                    Pronto
+                                  </Button>
+                                  <Button
+                                    size="sm"
+                                    className="bg-green-600 hover:bg-green-700"
+                                    onClick={() => updateOrderStatus(order.id, 'completed')}
+                                  >
+                                    <CheckCircle size={14} className="mr-1" />
+                                    Completato
+                                  </Button>
+                                </div>
+                              </div>
+                              <div className="space-y-2">
+                                {order.items?.map((item: any) => {
+                                  const dish = restaurantDishes.find(d => d.id === item.dish_id)
+                                  return (
+                                    <div key={item.id} className="flex items-center justify-between p-2 bg-background/50 rounded">
+                                      <div className="flex items-center gap-2">
+                                        <span className="font-bold text-primary">{item.quantity}x</span>
+                                        <span>{dish?.name || 'Unknown'}</span>
+                                        {item.note && (
+                                          <Badge variant="outline" className="text-xs">
+                                            📝 {item.note}
+                                          </Badge>
+                                        )}
+                                      </div>
+                                      <Button
+                                        size="sm"
+                                        variant="ghost"
+                                        onClick={() => updateOrderItemStatus(order.id, item.id, 'SERVED')}
+                                      >
+                                        ✓
+                                      </Button>
+                                    </div>
+                                  )
+                                })}
                               </div>
                             </CardContent>
                           </Card>
                         )
                       })
-                    })()
-                  )
-                )}
-              </div>
-            ) : (
-              // Storico Ordini
-              <div className="space-y-4">
-                {restaurantCompletedOrders.length === 0 ? (
-                  <Card>
-                    <CardContent className="flex flex-col items-center justify-center py-12">
-                      <ClockCounterClockwise size={48} className="text-muted-foreground mb-3" />
-                      <p className="text-muted-foreground">Nessun ordine completato</p>
-                    </CardContent>
-                  </Card>
-                ) : (
-                  restaurantCompletedOrders.map(order => {
-                    const table = restaurantTables.find(t => t.id === getTableIdFromOrder(order))
-                    return (
-                      <Card key={order.id} className="opacity-60 hover:opacity-100 transition-opacity">
-                        <CardContent className="p-4">
-                          <div className="flex items-center justify-between">
-                            <div className="flex items-center gap-3">
-                              <div className="w-10 h-10 rounded-lg bg-muted flex items-center justify-center font-bold">
-                                {table?.number || '?'}
-                              </div>
-                              <div>
-                                <h3 className="font-bold">Tavolo {table?.number || '?'}</h3>
-                                <p className="text-sm text-muted-foreground">
-                                  {new Date(order.created_at || Date.now()).toLocaleString('it-IT')}
-                                </p>
-                              </div>
-                            </div>
-                            <Badge variant="secondary">
-                              <CheckCircle size={14} className="mr-1" />
-                              Completato
-                            </Badge>
-                          </div>
-                          <div className="mt-3 text-sm text-muted-foreground">
-                            {order.items?.length || 0} piatti
-                          </div>
-                        </CardContent>
-                      </Card>
+                    ) : (
+                      // View by Dish
+                      (() => {
+                        const dishGroups: { [key: string]: { dish: Dish, orders: Array<{ orderId: string, tableNumber: string, quantity: number, elapsed: number, note?: string }> } } = {}
+
+                        restaurantOrders.forEach(order => {
+                          const table = restaurantTables.find(t => t.id === getTableIdFromOrder(order))
+                          const orderTime = new Date(order.created_at || Date.now())
+                          const elapsed = Math.floor((Date.now() - orderTime.getTime()) / 1000 / 60)
+
+                          order.items?.forEach((item: any) => {
+                            const dish = restaurantDishes.find(d => d.id === item.dish_id)
+                            if (!dish) return
+
+                            if (!dishGroups[dish.id]) {
+                              dishGroups[dish.id] = { dish, orders: [] }
+                            }
+
+                            dishGroups[dish.id].orders.push({
+                              orderId: order.id,
+                              tableNumber: table?.number || '?',
+                              quantity: item.quantity,
+                              elapsed,
+                              note: item.note
+                            })
+                          })
+                        })
+
+                        return Object.values(dishGroups).map(({ dish, orders }) => {
+                          const totalQty = orders.reduce((sum, o) => sum + o.quantity, 0)
+                          const maxElapsed = Math.max(...orders.map(o => o.elapsed))
+                          const isUrgent = maxElapsed > 20
+                          const isCritical = maxElapsed > 30
+
+                          return (
+                            <Card key={dish.id} className={`border-l-4 ${isCritical ? 'border-l-red-500 bg-red-50/50' :
+                              isUrgent ? 'border-l-orange-500 bg-orange-50/50' :
+                                'border-l-green-500'
+                              }`}>
+                              <CardContent className="p-4">
+                                <div className="flex items-start justify-between mb-3">
+                                  <div>
+                                    <h3 className="font-bold text-lg">{dish.name}</h3>
+                                    <div className="flex items-center gap-2">
+                                      <Badge className="bg-primary">🍽️ {totalQty}x totali</Badge>
+                                      <Badge variant={isCritical ? 'destructive' : isUrgent ? 'default' : 'secondary'}>
+                                        ⏱️ max {maxElapsed} min
+                                      </Badge>
+                                    </div>
+                                  </div>
+                                  <Button
+                                    size="sm"
+                                    className="bg-green-600 hover:bg-green-700"
+                                  >
+                                    <Check size={14} className="mr-1" />
+                                    Segna tutto pronto
+                                  </Button>
+                                </div>
+                                <div className="space-y-2">
+                                  {orders.map((orderInfo, idx) => (
+                                    <div key={idx} className="flex items-center justify-between p-2 bg-background/50 rounded text-sm">
+                                      <div className="flex items-center gap-2">
+                                        <span className="font-bold">Tavolo {orderInfo.tableNumber}:</span>
+                                        <span>{orderInfo.quantity}x</span>
+                                        <span className="text-muted-foreground">({orderInfo.elapsed} min)</span>
+                                        {orderInfo.note && (
+                                          <Badge variant="outline" className="text-xs">
+                                            📝 {orderInfo.note}
+                                          </Badge>
+                                        )}
+                                      </div>
+                                    </div>
+                                  ))}
+                                </div>
+                              </CardContent>
+                            </Card>
+                          )
+                        })
+                      })()
                     )
-                  })
-                )}
-              </div>
-            )}
-          </TabsContent>
+                  )}
+                </div>
+              ) : (
+                // Storico Ordini
+                <div className="space-y-4">
+                  {restaurantCompletedOrders.length === 0 ? (
+                    <Card>
+                      <CardContent className="flex flex-col items-center justify-center py-12">
+                        <ClockCounterClockwise size={48} className="text-muted-foreground mb-3" />
+                        <p className="text-muted-foreground">Nessun ordine completato</p>
+                      </CardContent>
+                    </Card>
+                  ) : (
+                    restaurantCompletedOrders.map(order => {
+                      const table = restaurantTables.find(t => t.id === getTableIdFromOrder(order))
+                      return (
+                        <Card key={order.id} className="opacity-60 hover:opacity-100 transition-opacity">
+                          <CardContent className="p-4">
+                            <div className="flex items-center justify-between">
+                              <div className="flex items-center gap-3">
+                                <div className="w-10 h-10 rounded-lg bg-muted flex items-center justify-center font-bold">
+                                  {table?.number || '?'}
+                                </div>
+                                <div>
+                                  <h3 className="font-bold">Tavolo {table?.number || '?'}</h3>
+                                  <p className="text-sm text-muted-foreground">
+                                    {new Date(order.created_at || Date.now()).toLocaleString('it-IT')}
+                                  </p>
+                                </div>
+                              </div>
+                              <Badge variant="secondary">
+                                <CheckCircle size={14} className="mr-1" />
+                                Completato
+                              </Badge>
+                            </div>
+                            <div className="mt-3 text-sm text-muted-foreground">
+                              {order.items?.length || 0} piatti
+                            </div>
+                          </CardContent>
+                        </Card>
+                      )
+                    })
+                  )}
+                </div>
+              )
+            }
+          </TabsContent >
 
           {/* Settings Tab */}
-          <TabsContent value="settings" className="space-y-6">
+          < TabsContent value="settings" className="space-y-6" >
             <div className="flex items-center justify-between mb-6">
               <div className="flex items-center gap-3">
                 <div className="w-11 h-11 rounded-xl bg-gradient-to-br from-primary to-accent flex items-center justify-center text-white shadow-gold">
@@ -1688,24 +1692,21 @@ const RestaurantDashboard = ({ user, onLogout }: RestaurantDashboardProps) => {
                     <Label>Abilita Modalità AYCE</Label>
                     <p className="text-sm text-muted-foreground">Attiva il menu fisso per il ristorante</p>
                   </div>
-                  <input
-                    type="checkbox"
-                    className="h-5 w-5 rounded border-gray-300 text-primary focus:ring-primary"
+                  <Switch
                     checked={currentRestaurant?.all_you_can_eat?.enabled || false}
-                    onChange={(e) => {
-                      const ayceEnabled = currentRestaurant?.all_you_can_eat?.enabled || false
+                    onCheckedChange={(checked) => {
                       const { id, ...rest } = currentRestaurant!
                       const updatedRestaurantData = {
                         ...rest,
                         all_you_can_eat: {
-                          enabled: !ayceEnabled,
+                          enabled: checked,
                           pricePerPerson: rest.all_you_can_eat?.pricePerPerson || 0,
                           maxOrders: rest.all_you_can_eat?.maxOrders || 5
                         }
                       }
                       DatabaseService.updateRestaurant({ id: restaurantId, ...updatedRestaurantData })
                         .then(() => {
-                          toast.success(ayceEnabled ? 'All You Can Eat disattivato' : 'All You Can Eat attivato')
+                          toast.success(checked ? 'All You Can Eat attivato' : 'All You Can Eat disattivato')
                         })
                     }}
                   />
@@ -1752,25 +1753,54 @@ const RestaurantDashboard = ({ user, onLogout }: RestaurantDashboardProps) => {
                 <CardTitle>Coperto</CardTitle>
               </CardHeader>
               <CardContent className="space-y-4">
-                <div className="space-y-2">
-                  <Label>Costo Coperto a Persona (€)</Label>
-                  <Input
-                    type="number"
-                    value={currentRestaurant?.cover_charge_per_person || 0}
-                    onChange={(e) => {
-                      DatabaseService.updateRestaurant({ ...currentRestaurant, id: restaurantId, cover_charge_per_person: parseFloat(e.target.value) })
+                <div className="flex items-center justify-between">
+                  <div className="space-y-1">
+                    <Label>Abilita Coperto</Label>
+                    <p className="text-sm text-muted-foreground">Applica un costo fisso per persona</p>
+                  </div>
+                  <Switch
+                    checked={(currentRestaurant?.cover_charge_per_person || 0) > 0}
+                    onCheckedChange={(checked) => {
+                      const { id, ...rest } = currentRestaurant!
+                      const updatedRestaurantData = {
+                        ...rest,
+                        cover_charge_per_person: checked ? 2.0 : 0 // Default 2.0€ if enabled, 0 if disabled
+                      }
+                      DatabaseService.updateRestaurant({ id: restaurantId, ...updatedRestaurantData })
+                        .then(() => {
+                          toast.success(checked ? 'Coperto attivato' : 'Coperto disattivato')
+                        })
                     }}
                   />
-                  <p className="text-sm text-muted-foreground">Questo importo verrà aggiunto automaticamente al totale per ogni coperto.</p>
                 </div>
+                {(currentRestaurant?.cover_charge_per_person || 0) > 0 && (
+                  <div className="space-y-2 pt-4">
+                    <Label>Costo Coperto (€)</Label>
+                    <Input
+                      type="number"
+                      step="0.50"
+                      value={currentRestaurant?.cover_charge_per_person || 0}
+                      onChange={(e) => {
+                        const { id, ...rest } = currentRestaurant!
+                        const updatedRestaurantData = {
+                          ...rest,
+                          cover_charge_per_person: parseFloat(e.target.value)
+                        }
+                        DatabaseService.updateRestaurant({ id: restaurantId, ...updatedRestaurantData })
+                      }}
+                    />
+                  </div>
+                )}
               </CardContent>
             </Card>
-          </TabsContent>
-        </Tabs>
-      </div>
+
+
+          </TabsContent >
+        </Tabs >
+      </div >
 
       {/* Table Activation Dialog */}
-      <Dialog open={!!selectedTable && !showQrDialog} onOpenChange={(open) => { if (!open) setSelectedTable(null) }}>
+      < Dialog open={!!selectedTable && !showQrDialog} onOpenChange={(open) => { if (!open) setSelectedTable(null) }}>
         <DialogContent>
           <DialogHeader>
             <DialogTitle>Attiva Tavolo {selectedTable?.number}</DialogTitle>
@@ -1797,10 +1827,10 @@ const RestaurantDashboard = ({ user, onLogout }: RestaurantDashboardProps) => {
             </Button>
           </div>
         </DialogContent>
-      </Dialog>
+      </Dialog >
 
       {/* QR Code Dialog */}
-      <Dialog open={showQrDialog} onOpenChange={(open) => setShowQrDialog(open)}>
+      < Dialog open={showQrDialog} onOpenChange={(open) => setShowQrDialog(open)}>
         <DialogContent className="sm:max-w-md">
           <DialogHeader>
             <DialogTitle>Tavolo Attivato!</DialogTitle>
@@ -1826,10 +1856,10 @@ const RestaurantDashboard = ({ user, onLogout }: RestaurantDashboardProps) => {
             Chiudi
           </Button>
         </DialogContent>
-      </Dialog>
+      </Dialog >
 
       {/* Edit Category Dialog */}
-      <Dialog open={!!editingCategory} onOpenChange={(open) => { if (!open) handleCancelEdit() }}>
+      < Dialog open={!!editingCategory} onOpenChange={(open) => { if (!open) handleCancelEdit() }}>
         <DialogContent>
           <DialogHeader>
             <DialogTitle>Modifica Categoria</DialogTitle>
@@ -1845,10 +1875,10 @@ const RestaurantDashboard = ({ user, onLogout }: RestaurantDashboardProps) => {
             <Button onClick={handleSaveCategory} className="w-full">Salva Modifiche</Button>
           </div>
         </DialogContent>
-      </Dialog>
+      </Dialog >
 
       {/* Edit Dish Dialog */}
-      <Dialog open={!!editingDish} onOpenChange={(open) => { if (!open) handleCancelDishEdit() }}>
+      < Dialog open={!!editingDish} onOpenChange={(open) => { if (!open) handleCancelDishEdit() }}>
         <DialogContent>
           <DialogHeader>
             <DialogTitle>Modifica Piatto</DialogTitle>
@@ -1941,10 +1971,10 @@ const RestaurantDashboard = ({ user, onLogout }: RestaurantDashboardProps) => {
             <Button onClick={handleSaveDish} className="w-full">Salva Modifiche</Button>
           </div>
         </DialogContent>
-      </Dialog>
+      </Dialog >
 
       {/* Table QR & PIN Dialog */}
-      <Dialog open={showTableQrDialog} onOpenChange={(open) => setShowTableQrDialog(open)}>
+      < Dialog open={showTableQrDialog} onOpenChange={(open) => setShowTableQrDialog(open)}>
         <DialogContent className="sm:max-w-md">
           <DialogHeader>
             <DialogTitle>QR Code & PIN - Tavolo {selectedTableForActions?.number}</DialogTitle>
@@ -1975,10 +2005,10 @@ const RestaurantDashboard = ({ user, onLogout }: RestaurantDashboardProps) => {
             Chiudi
           </Button>
         </DialogContent>
-      </Dialog>
+      </Dialog >
 
       {/* Table Bill Dialog */}
-      <Dialog open={showTableBillDialog} onOpenChange={(open) => setShowTableBillDialog(open)}>
+      < Dialog open={showTableBillDialog} onOpenChange={(open) => setShowTableBillDialog(open)}>
         <DialogContent className="sm:max-w-lg">
           <DialogHeader>
             <DialogTitle>Conto - Tavolo {selectedTableForActions?.number}</DialogTitle>
@@ -2053,7 +2083,7 @@ const RestaurantDashboard = ({ user, onLogout }: RestaurantDashboardProps) => {
             Chiudi
           </Button>
         </DialogContent>
-      </Dialog>
+      </Dialog >
 
     </div >
   )

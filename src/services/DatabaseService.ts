@@ -516,5 +516,27 @@ export const DatabaseService = {
             .delete()
             .eq('session_id', sessionId)
         if (error) throw error
+    },
+
+    async verifySessionPin(tableId: string, pin: string): Promise<boolean> {
+        try {
+            // Find active session for this table
+            const { data: sessions, error } = await supabase
+                .from('table_sessions')
+                .select('session_pin')
+                .eq('table_id', tableId)
+                .eq('status', 'ACTIVE')
+                .single()
+
+            if (error || !sessions) {
+                console.error('Error verifying PIN or no active session:', error)
+                return false
+            }
+
+            return sessions.session_pin === pin
+        } catch (error) {
+            console.error('Error in verifySessionPin:', error)
+            return false
+        }
     }
 }

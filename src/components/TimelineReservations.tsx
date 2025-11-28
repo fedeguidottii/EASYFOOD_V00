@@ -16,6 +16,7 @@ interface TimelineReservationsProps {
   restaurantId: string
   tables: Table[]
   bookings: Booking[]
+  onRefresh?: () => void
 }
 
 interface TimeSlot {
@@ -31,7 +32,7 @@ interface ReservationBlock {
   table: Table
 }
 
-const TimelineReservations = ({ user, restaurantId, tables, bookings }: TimelineReservationsProps) => {
+const TimelineReservations = ({ user, restaurantId, tables, bookings, onRefresh }: TimelineReservationsProps) => {
   const [selectedDate, setSelectedDate] = useState(new Date().toISOString().split('T')[0])
   const [showReservationDialog, setShowReservationDialog] = useState(false)
   const [newReservation, setNewReservation] = useState({
@@ -180,7 +181,9 @@ const TimelineReservations = ({ user, restaurantId, tables, bookings }: Timeline
         })
         setShowReservationDialog(false)
         setSelectedTimeSlot(null)
+        setSelectedTimeSlot(null)
         toast.success('Prenotazione creata')
+        onRefresh?.()
       })
   }
 

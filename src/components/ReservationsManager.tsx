@@ -321,6 +321,7 @@ export default function ReservationsManager({ user, restaurantId, tables, bookin
           restaurantId={restaurantId}
           tables={tables}
           bookings={bookings}
+          onRefresh={onRefresh}
         />
       </div>
 

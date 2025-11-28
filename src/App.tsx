@@ -7,6 +7,8 @@ import { Toaster } from 'sonner'
 import { User, Table } from './services/types'
 import { DataInitializer } from './services/DataInitializer'
 
+import ClientTableAccess from './components/ClientTableAccess'
+
 function App() {
   const [currentUser, setCurrentUser] = useState<User | null>(() => {
     const saved = localStorage.getItem('session_user')
@@ -15,6 +17,9 @@ function App() {
   const [currentTable, setCurrentTable] = useState<string | null>(() => {
     return localStorage.getItem('session_table')
   })
+
+  // New state for client access route
+  const [clientAccessTableId, setClientAccessTableId] = useState<string | null>(null)
 
   // Persist session changes
   useEffect(() => {
@@ -35,20 +40,19 @@ function App() {
 
   // Handle URL parameters for table access (QR code scan)
   useEffect(() => {
-    const urlParams = new URLSearchParams(window.location.search)
-    const tableId = urlParams.get('table')
+    const path = window.location.pathname
+    // Check for /client/table/:tableId
+    const match = path.match(/\/client\/table\/([^/]+)/)
 
-    if (tableId) {
-      setCurrentTable(tableId)
-      // If table ID is present, we might want to auto-login as customer?
-      // For now, let's just set the table ID.
-      // The user said: "ordinare nel menu bisogna accedere solamente scannerizzando il QR code"
-      // So if QR code is scanned, we should probably show the menu directly?
-      // But we need a user session.
-      // Let's create a temp customer user if table is present.
-      const tempUser: User = { id: 'customer-temp', name: 'Cliente', role: 'CUSTOMER', email: 'customer@temp.com' }
-      setCurrentUser(tempUser)
-      window.history.replaceState({}, document.title, window.location.pathname)
+    if (match && match[1]) {
+      setClientAccessTableId(match[1])
+    } else {
+      // Fallback for legacy query param ?table=...
+      const urlParams = new URLSearchParams(window.location.search)
+      const tableId = urlParams.get('table')
+      if (tableId) {
+        setClientAccessTableId(tableId)
+      }
     }
   }, [])
 
@@ -62,8 +66,28 @@ function App() {
   const handleLogout = () => {
     setCurrentUser(null)
     setCurrentTable(null)
+    setClientAccessTableId(null) // Reset client access on logout
     localStorage.removeItem('session_user')
     localStorage.removeItem('session_table')
+    // Clear URL to avoid re-triggering client access
+    window.history.replaceState({}, document.title, '/')
+  }
+
+  // If we have a table ID from URL but no user, show Client Access (PIN entry)
+  if (clientAccessTableId && !currentUser) {
+    return (
+      <>
+        <DataInitializer />
+        <ClientTableAccess
+          tableId={clientAccessTableId}
+          onAccessGranted={(user) => {
+            setCurrentUser(user)
+            setCurrentTable(clientAccessTableId)
+          }}
+        />
+        <Toaster position="top-center" />
+      </>
+    )
   }
 
   if (!currentUser) {
