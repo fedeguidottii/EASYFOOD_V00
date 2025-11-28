@@ -1757,8 +1757,11 @@ const RestaurantDashboard = ({ user, onLogout }: RestaurantDashboardProps) => {
                 />
                 <div className="text-center">
                   <p className="text-sm font-medium">PIN Tavolo</p>
-                  <p className="text-4xl font-bold tracking-widest font-mono mt-1">
-                    {sessions?.find(s => s.table_id === selectedTableForActions.id && s.status === 'OPEN')?.session_pin || '****'}
+                  <p className="text-4xl font-bold tracking-widest font-mono mt-1 text-primary">
+                    {(() => {
+                      const activeSession = sessions?.find(s => s.table_id === selectedTableForActions.id && s.status === 'OPEN')
+                      return activeSession?.session_pin || 'N/A'
+                    })()}
                   </p>
                 </div>
               </>
