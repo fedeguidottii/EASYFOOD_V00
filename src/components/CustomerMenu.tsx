@@ -659,7 +659,6 @@ export default function CustomerMenu({ tableId, onExit }: Props) {
               </div>
             </div>
           )}
-            )}
         </DialogContent>
       </Dialog>
 

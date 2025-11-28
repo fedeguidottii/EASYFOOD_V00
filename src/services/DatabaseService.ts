@@ -577,7 +577,7 @@ export const DatabaseService = {
             console.error('Error in verifySessionPin:', error)
             return false
         }
-    }
+    },
     async getSessionOrders(sessionId: string): Promise<Order[]> {
         const { data, error } = await supabase
             .from('orders')
