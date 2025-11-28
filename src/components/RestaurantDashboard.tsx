@@ -16,7 +16,7 @@ import { Progress } from '@/components/ui/progress'
 import { toast } from 'sonner'
 import QRCodeGenerator from './QRCodeGenerator'
 import { Plus, MapPin, BookOpen, Clock, ChartBar, Gear, SignOut, Trash, Eye, EyeSlash, QrCode, PencilSimple, Calendar, List, ClockCounterClockwise, Check, X, Receipt, CaretDown, CaretUp, CheckCircle, WarningCircle, ForkKnife } from '@phosphor-icons/react'
-import type { User, Table, Dish, Order, Restaurant, Booking, Category, OrderItem } from '../services/types'
+import type { User, Table, Dish, Order, Restaurant, Booking, Category, OrderItem, TableSession } from '../services/types'
 import TimelineReservations from './TimelineReservations'
 import ReservationsManager from './ReservationsManager'
 import AnalyticsCharts from './AnalyticsCharts'
@@ -39,13 +39,22 @@ const RestaurantDashboard = ({ user, onLogout }: RestaurantDashboardProps) => {
   // Or simpler: useSupabaseData filters by user.id if we set up RLS correctly, but here we filter client side.
   const [restaurants] = useSupabaseData<Restaurant>('restaurants', [])
   const currentRestaurant = restaurants?.find(r => r.owner_id === user.id)
-  const restaurantId = currentRestaurant?.id || ''
+  // Ensure restaurantId is a string, default to empty string if not found
+  const restaurantId = currentRestaurant?.id ? String(currentRestaurant.id) : ''
 
+  // Only fetch data if we have a valid restaurant ID
   const [tables] = useSupabaseData<Table>('tables', [], { column: 'restaurant_id', value: restaurantId })
   const [dishes] = useSupabaseData<Dish>('dishes', [], { column: 'restaurant_id', value: restaurantId })
   const [orders] = useSupabaseData<Order>('orders', [], { column: 'restaurant_id', value: restaurantId })
   const [bookings] = useSupabaseData<Booking>('bookings', [], { column: 'restaurant_id', value: restaurantId })
   const [categories] = useSupabaseData<Category>('categories', [], { column: 'restaurant_id', value: restaurantId })
+  const [sessions] = useSupabaseData<TableSession>('table_sessions', [], { column: 'restaurant_id', value: restaurantId })
+
+  // Helper to get table ID from order
+  const getTableIdFromOrder = (order: Order) => {
+    const session = sessions?.find(s => s.id === order.table_session_id)
+    return session?.table_id
+  }
 
   const [newTableName, setNewTableName] = useState('')
   const [newDish, setNewDish] = useState({
@@ -85,8 +94,8 @@ const RestaurantDashboard = ({ user, onLogout }: RestaurantDashboardProps) => {
 
   const restaurantDishes = dishes || []
   const restaurantTables = tables || []
-  const restaurantOrders = orders?.filter(order => order.status !== 'COMPLETED' && order.status !== 'CANCELLED') || []
-  const restaurantCompletedOrders = orders?.filter(order => order.status === 'COMPLETED') || []
+  const restaurantOrders = orders?.filter(order => order.status !== 'completed' && order.status !== 'CANCELLED') || []
+  const restaurantCompletedOrders = orders?.filter(order => order.status === 'completed') || []
   const restaurantBookings = bookings || []
   const restaurantCategories = categories || []
 
@@ -109,8 +118,8 @@ const RestaurantDashboard = ({ user, onLogout }: RestaurantDashboardProps) => {
     const newTable: Partial<Table> = {
       restaurant_id: restaurantId,
       number: newTableName, // Using 'number' field for name/number
-      status: 'AVAILABLE',
-      capacity: 4 // Default capacity
+      status: 'available',
+      // capacity: 4 // Default capacity removed as it's not in Table type
     }
 
     DatabaseService.createTable(newTable)
@@ -125,15 +134,15 @@ const RestaurantDashboard = ({ user, onLogout }: RestaurantDashboardProps) => {
     const table = tables?.find(t => t.id === tableId)
     if (!table) return
 
-    if (table.status === 'OCCUPIED') {
+    if (table.status === 'occupied') {
       // Deactivate table - mark as available
       const updatedTable = {
         ...table,
-        status: 'AVAILABLE' as const,
+        status: 'available' as const,
         // Clear session data if needed, but Table type in EASYFOOD_V00 is simple.
         // Session logic is handled separately in useRestaurantLogic/DatabaseService.
       }
-      DatabaseService.updateTable(updatedTable)
+      DatabaseService.updateTable(table.id, updatedTable)
         .then(() => toast.success('Tavolo liberato'))
         .catch(err => {
           console.error('Error freeing table:', err)
@@ -159,10 +168,10 @@ const RestaurantDashboard = ({ user, onLogout }: RestaurantDashboardProps) => {
     // But for the UI state, we update the table status.
     const updatedTable = {
       ...tableToUpdate,
-      status: 'OCCUPIED' as const
+      status: 'occupied' as const
     }
 
-    DatabaseService.updateTable(updatedTable)
+    DatabaseService.updateTable(updatedTable.id, updatedTable)
       .then(async () => {
         // Create session
         await DatabaseService.createSession({
@@ -206,7 +215,7 @@ const RestaurantDashboard = ({ user, onLogout }: RestaurantDashboardProps) => {
     }
 
     const updatedTable = { ...editingTable, number: editTableName.trim() }
-    DatabaseService.updateTable(updatedTable)
+    DatabaseService.updateTable(updatedTable.id, updatedTable)
       .then(() => {
         setEditingTable(null)
         setEditTableName('')
@@ -232,7 +241,7 @@ const RestaurantDashboard = ({ user, onLogout }: RestaurantDashboardProps) => {
       price: parseFloat(newDish.price),
       category_id: newDish.categoryId,
       image_url: newDish.image,
-      is_available: true,
+      is_active: true,
       excludeFromAllYouCanEat: false
     }
 
@@ -251,7 +260,7 @@ const RestaurantDashboard = ({ user, onLogout }: RestaurantDashboardProps) => {
   const handleToggleDish = (dishId: string) => {
     const item = dishes?.find(i => i.id === dishId)
     if (item) {
-      DatabaseService.updateDish({ ...item, is_available: !item.is_available })
+      DatabaseService.updateDish({ ...item, is_active: !item.is_active })
         .catch((error) => {
           console.error('Error updating dish:', error)
           toast.error('Errore durante l\'aggiornamento del piatto')
@@ -322,7 +331,7 @@ const RestaurantDashboard = ({ user, onLogout }: RestaurantDashboardProps) => {
   }
 
   const handleCompleteOrder = (orderId: string) => {
-    updateOrderStatus(orderId, 'COMPLETED')
+    updateOrderStatus(orderId, 'completed')
     toast.success('Ordine completato')
   }
 
@@ -463,104 +472,108 @@ const RestaurantDashboard = ({ user, onLogout }: RestaurantDashboardProps) => {
   }
 
   return (
-    <div className="min-h-screen bg-subtle-gradient flex">
+    <div className="min-h-screen bg-background text-foreground flex overflow-hidden">
       {/* Fixed Sidebar */}
       <div
         id="sidebar"
-        className={`${sidebarExpanded ? 'w-64' : 'w-16'
-          } bg-white shadow-professional-lg transition-all duration-300 ease-in-out border-r border-border/20 flex flex-col fixed h-full z-50`}
+        className={`${sidebarExpanded ? 'w-64' : 'w-20'
+          } glass border-r border-border/20 flex flex-col fixed h-full z-50 transition-all duration-300 ease-in-out`}
       >
-        <div className="p-4 border-b border-border/10">
-          <h1 className={`font-bold text-primary transition-all duration-300 ${sidebarExpanded ? 'text-xl' : 'text-sm text-center'
+        <div className="p-6 border-b border-border/10 flex items-center justify-center">
+          <h1 className={`font-bold text-primary transition-all duration-300 ${sidebarExpanded ? 'text-2xl' : 'text-sm'
             }`}>
-            {sidebarExpanded ? 'Dashboard Ristorante' : 'DR'}
+            {sidebarExpanded ? 'EASYFOOD' : 'EF'}
           </h1>
         </div>
 
-        <nav className="flex-1 p-2 space-y-1">
+        <nav className="flex-1 p-4 space-y-2">
           <Button
-            variant={activeSection === 'orders' ? 'secondary' : 'ghost'}
-            className={`w-full justify-start ${!sidebarExpanded && 'px-2'} transition-all duration-200 hover:shadow-gold ${activeSection === 'orders' ? 'shadow-gold bg-primary/10 text-primary border-primary/20' : 'hover:bg-primary/5'
+            variant="ghost"
+            className={`w-full justify-start ${!sidebarExpanded && 'justify-center px-0'} transition-all duration-200 hover:bg-white/5 ${activeSection === 'orders' ? 'bg-primary/20 text-primary border border-primary/20' : 'text-muted-foreground'
               }`}
             onClick={() => {
               setActiveSection('orders')
               if (sidebarExpanded) setSidebarExpanded(false)
             }}
           >
-            <Clock size={16} />
-            {sidebarExpanded && <span className="ml-2 transition-all duration-200">Ordini</span>}
+            <Clock size={24} weight={activeSection === 'orders' ? 'fill' : 'regular'} />
+            {sidebarExpanded && <span className="ml-3 font-medium">Ordini</span>}
           </Button>
 
           <Button
-            variant={activeSection === 'tables' ? 'secondary' : 'ghost'}
-            className={`w-full justify-start ${!sidebarExpanded && 'px-2'} transition-all duration-200 hover:shadow-gold ${activeSection === 'tables' ? 'shadow-gold bg-primary/10 text-primary border-primary/20' : 'hover:bg-primary/5'
+            variant="ghost"
+            className={`w-full justify-start ${!sidebarExpanded && 'justify-center px-0'} transition-all duration-200 hover:bg-white/5 ${activeSection === 'tables' ? 'bg-primary/20 text-primary border border-primary/20' : 'text-muted-foreground'
               }`}
             onClick={() => {
               setActiveSection('tables')
               if (sidebarExpanded) setSidebarExpanded(false)
             }}
           >
-            <MapPin size={16} />
-            {sidebarExpanded && <span className="ml-2 transition-all duration-200">Tavoli</span>}
+            <MapPin size={24} weight={activeSection === 'tables' ? 'fill' : 'regular'} />
+            {sidebarExpanded && <span className="ml-3 font-medium">Tavoli</span>}
           </Button>
 
           <Button
-            variant={activeSection === 'menu' ? 'secondary' : 'ghost'}
-            className={`w-full justify-start ${!sidebarExpanded && 'px-2'} transition-all duration-200 hover:shadow-gold ${activeSection === 'menu' ? 'shadow-gold bg-primary/10 text-primary border-primary/20' : 'hover:bg-primary/5'
+            variant="ghost"
+            className={`w-full justify-start ${!sidebarExpanded && 'justify-center px-0'} transition-all duration-200 hover:bg-white/5 ${activeSection === 'menu' ? 'bg-primary/20 text-primary border border-primary/20' : 'text-muted-foreground'
               }`}
             onClick={() => {
               setActiveSection('menu')
               if (sidebarExpanded) setSidebarExpanded(false)
             }}
           >
-            <BookOpen size={16} />
-            {sidebarExpanded && <span className="ml-2 transition-all duration-200">Menu</span>}
+            <BookOpen size={24} weight={activeSection === 'menu' ? 'fill' : 'regular'} />
+            {sidebarExpanded && <span className="ml-3 font-medium">Menu</span>}
           </Button>
 
           <Button
-            variant={activeSection === 'reservations' ? 'secondary' : 'ghost'}
-            className={`w-full justify-start ${!sidebarExpanded && 'px-2'} transition-all duration-200 hover:shadow-gold ${activeSection === 'reservations' ? 'shadow-gold bg-primary/10 text-primary border-primary/20' : 'hover:bg-primary/5'
+            variant="ghost"
+            className={`w-full justify-start ${!sidebarExpanded && 'justify-center px-0'} transition-all duration-200 hover:bg-white/5 ${activeSection === 'reservations' ? 'bg-primary/20 text-primary border border-primary/20' : 'text-muted-foreground'
               }`}
             onClick={() => {
               setActiveSection('reservations')
               if (sidebarExpanded) setSidebarExpanded(false)
             }}
           >
-            <Calendar size={16} />
-            {sidebarExpanded && <span className="ml-2 transition-all duration-200">Prenotazioni</span>}
+            <Calendar size={24} weight={activeSection === 'reservations' ? 'fill' : 'regular'} />
+            {sidebarExpanded && <span className="ml-3 font-medium">Prenotazioni</span>}
           </Button>
 
           <Button
-            variant={activeSection === 'analytics' ? 'secondary' : 'ghost'}
-            className={`w-full justify-start ${!sidebarExpanded && 'px-2'} transition-all duration-200 hover:shadow-gold ${activeSection === 'analytics' ? 'shadow-gold bg-primary/10 text-primary border-primary/20' : 'hover:bg-primary/5'
+            variant="ghost"
+            className={`w-full justify-start ${!sidebarExpanded && 'justify-center px-0'} transition-all duration-200 hover:bg-white/5 ${activeSection === 'analytics' ? 'bg-primary/20 text-primary border border-primary/20' : 'text-muted-foreground'
               }`}
             onClick={() => {
               setActiveSection('analytics')
               if (sidebarExpanded) setSidebarExpanded(false)
             }}
           >
-            <ChartBar size={16} />
-            {sidebarExpanded && <span className="ml-2 transition-all duration-200">Analitiche</span>}
+            <ChartBar size={24} weight={activeSection === 'analytics' ? 'fill' : 'regular'} />
+            {sidebarExpanded && <span className="ml-3 font-medium">Analitiche</span>}
           </Button>
 
           <Button
-            variant={activeSection === 'settings' ? 'secondary' : 'ghost'}
-            className={`w-full justify-start ${!sidebarExpanded && 'px-2'} transition-all duration-200 hover:shadow-gold ${activeSection === 'settings' ? 'shadow-gold bg-primary/10 text-primary border-primary/20' : 'hover:bg-primary/5'
+            variant="ghost"
+            className={`w-full justify-start ${!sidebarExpanded && 'justify-center px-0'} transition-all duration-200 hover:bg-white/5 ${activeSection === 'settings' ? 'bg-primary/20 text-primary border border-primary/20' : 'text-muted-foreground'
               }`}
             onClick={() => {
               setActiveSection('settings')
               if (sidebarExpanded) setSidebarExpanded(false)
             }}
           >
-            <Gear size={16} />
-            {sidebarExpanded && <span className="ml-2 transition-all duration-200">Impostazioni</span>}
+            <Gear size={24} weight={activeSection === 'settings' ? 'fill' : 'regular'} />
+            {sidebarExpanded && <span className="ml-3 font-medium">Impostazioni</span>}
           </Button>
         </nav>
 
-        <div className="p-2">
-          <Button variant="outline" onClick={onLogout} className={`w-full ${!sidebarExpanded && 'px-2'} transition-all duration-200 hover:shadow-gold hover:bg-destructive/5 hover:border-destructive/20 hover:text-destructive`}>
-            <SignOut size={16} />
-            {sidebarExpanded && <span className="ml-2 transition-all duration-200">Esci</span>}
+        <div className="p-4 border-t border-border/10">
+          <Button
+            variant="ghost"
+            onClick={onLogout}
+            className={`w-full justify-start ${!sidebarExpanded && 'justify-center px-0'} text-destructive hover:bg-destructive/10 hover:text-destructive transition-colors`}
+          >
+            <SignOut size={24} />
+            {sidebarExpanded && <span className="ml-3 font-medium">Esci</span>}
           </Button>
         </div>
       </div>
@@ -667,7 +680,8 @@ const RestaurantDashboard = ({ user, onLogout }: RestaurantDashboardProps) => {
                 {restaurantOrders
                   .sort((a, b) => orderSortMode === 'oldest' ? new Date(a.created_at).getTime() - new Date(b.created_at).getTime() : new Date(b.created_at).getTime() - new Date(a.created_at).getTime())
                   .map(order => {
-                    const table = restaurantTables.find(t => t.id === order.table_id)
+                    const tableId = getTableIdFromOrder(order)
+                    const table = restaurantTables.find(t => t.id === tableId)
                     const items = order.items || []
                     const totalDishes = items.reduce((sum, item) => sum + item.quantity, 0)
                     const completedDishes = items.reduce((sum, item) => sum + (item.status === 'SERVED' ? item.quantity : 0), 0)
@@ -723,10 +737,10 @@ const RestaurantDashboard = ({ user, onLogout }: RestaurantDashboardProps) => {
                                     <span className={`text-sm font-medium ${item.status === 'SERVED' ? 'text-muted-foreground line-through decoration-primary/30' : 'text-foreground'}`}>
                                       {dish?.name || 'Piatto sconosciuto'}
                                     </span>
-                                    {item.notes && (
+                                    {item.note && (
                                       <div className="flex items-center gap-1 text-[10px] text-orange-600 font-medium mt-0.5 bg-orange-50 px-1.5 py-0.5 rounded w-fit">
                                         <WarningCircle size={10} weight="fill" />
-                                        {item.notes}
+                                        {item.note}
                                       </div>
                                     )}
                                   </div>
@@ -791,8 +805,8 @@ const RestaurantDashboard = ({ user, onLogout }: RestaurantDashboardProps) => {
 
             <div className="grid gap-4 grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5">
               {restaurantTables.map(table => {
-                const isActive = table.status === 'OCCUPIED'
-                const activeOrder = restaurantOrders.find(o => o.table_id === table.id)
+                const isActive = table.status === 'occupied'
+                const activeOrder = restaurantOrders.find(o => getTableIdFromOrder(o) === table.id)
 
                 return (
                   <Card key={table.id} className={`relative overflow-hidden transition-all duration-300 hover:shadow-lg group ${isActive ? 'border-primary/50 bg-primary/5' : 'border-border/40 hover:border-primary/30'}`}>
@@ -984,7 +998,7 @@ const RestaurantDashboard = ({ user, onLogout }: RestaurantDashboardProps) => {
                                 <Button
                                   variant="ghost"
                                   size="icon"
-                                  className={`h-8 w-8 ${dish.excludeFromAllYouCanEat ? 'text-orange-500 bg-orange-50' : 'text-muted-foreground'}`}
+                                  className={`h-8 w-8 ${currentRestaurant?.allYouCanEat?.enabled && !dish.excludeFromAllYouCanEat && dish.is_active ? 'text-orange-500 bg-orange-50' : 'text-muted-foreground'}`}
                                   onClick={() => handleToggleAllYouCanEatExclusion(dish.id)}
                                   title={dish.excludeFromAllYouCanEat ? "Includi in AYCE" : "Escludi da AYCE"}
                                 >
@@ -993,10 +1007,10 @@ const RestaurantDashboard = ({ user, onLogout }: RestaurantDashboardProps) => {
                                 <Button
                                   variant="ghost"
                                   size="icon"
-                                  className={`h-8 w-8 ${!dish.is_available ? 'text-muted-foreground' : 'text-green-600'}`}
+                                  className={`h-8 w-8 ${!dish.is_active ? 'text-muted-foreground' : 'text-green-600'}`}
                                   onClick={() => handleToggleDish(dish.id)}
                                 >
-                                  {dish.is_available ? <Eye size={14} /> : <EyeSlash size={14} />}
+                                  {dish.is_active ? <Eye size={14} /> : <EyeSlash size={14} />}
                                 </Button>
                               </div>
                               <Button

@@ -200,9 +200,9 @@ export default function CustomerMenu({ tableId, onExit }: Props) {
 
     const orderItems = cart.map((item) => {
       return {
-        menuItemId: item.menuItemId,
+        dish_id: item.menuItemId,
         quantity: item.quantity,
-        notes: item.notes,
+        note: item.notes,
       }
     })
 

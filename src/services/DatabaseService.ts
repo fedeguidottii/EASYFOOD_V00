@@ -240,6 +240,14 @@ export const DatabaseService = {
         if (error) throw error
     },
 
+    async deleteCategory(categoryId: string) {
+        const { error } = await supabase
+            .from('categories')
+            .delete()
+            .eq('id', categoryId)
+        if (error) throw error
+    },
+
     // Dishes
     async getDishes(restaurantId: string) {
         const { data, error } = await supabase

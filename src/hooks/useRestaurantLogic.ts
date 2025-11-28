@@ -10,7 +10,7 @@ export function useRestaurantLogic(restaurantId: string) {
     const [dishes] = useSupabaseData<Dish>('dishes', [], { column: 'restaurant_id', value: restaurantId })
     const [categories] = useSupabaseData<Category>('categories', [], { column: 'restaurant_id', value: restaurantId })
 
-    const createOrder = async (tableId: string, items: OrderItem[]) => {
+    const createOrder = async (tableId: string, items: Partial<OrderItem>[]) => {
         if (!items.length) return
 
         const table = tables?.find(t => t.id === tableId)
@@ -21,7 +21,7 @@ export function useRestaurantLogic(restaurantId: string) {
         items.forEach(item => {
             const dish = dishes?.find(d => d.id === item.dish_id)
             if (dish) {
-                total += dish.price * item.quantity
+                total += dish.price * (item.quantity || 1)
             }
         })
 
