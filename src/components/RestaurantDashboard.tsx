@@ -259,8 +259,7 @@ const RestaurantDashboard = ({ user, onLogout }: RestaurantDashboardProps) => {
         // We need to change it to: const [sessions, , , setSessions] = ...
 
         toast.success('Tavolo liberato')
-        // Force reload to clear state if reactivity is an issue, or better:
-        setTimeout(() => window.location.reload(), 500)
+        refreshSessions() // Update sessions list immediately
       } catch (error) {
         console.error('Error freeing table:', error)
         toast.error('Errore durante la liberazione del tavolo')
