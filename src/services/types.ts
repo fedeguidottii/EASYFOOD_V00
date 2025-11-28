@@ -1,7 +1,7 @@
 export type UserRole = 'ADMIN' | 'OWNER' | 'STAFF' | 'CUSTOMER'
 export type RestaurantStaffRole = 'OWNER' | 'STAFF'
 export type SessionStatus = 'OPEN' | 'CLOSED'
-export type OrderStatus = 'OPEN' | 'PAID' | 'CANCELLED'
+export type OrderStatus = 'OPEN' | 'PAID' | 'CANCELLED' | 'pending' | 'preparing' | 'ready' | 'served' | 'completed'
 export type OrderItemStatus = 'PENDING' | 'IN_PREPARATION' | 'READY' | 'SERVED'
 
 export interface User {
@@ -52,6 +52,7 @@ export interface Dish {
     is_active: boolean
     image_url?: string
     created_at?: string
+    excludeFromAllYouCanEat?: boolean
 }
 
 export interface Table {
@@ -60,12 +61,15 @@ export interface Table {
     restaurant_id: string
     token: string
     pin?: string
+    seats?: number
     created_at?: string
     // Frontend helper properties
     status?: 'available' | 'occupied'
     current_session_id?: string
     isActive?: boolean // For frontend compatibility
     name?: string // Alias for number
+    remainingOrders?: number
+    customerCount?: number
 }
 
 export interface TableSession {

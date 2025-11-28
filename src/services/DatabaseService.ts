@@ -233,6 +233,14 @@ export const DatabaseService = {
         if (error) throw error
     },
 
+    async deleteDish(id: string) {
+        const { error } = await supabase
+            .from('dishes')
+            .delete()
+            .eq('id', id)
+        if (error) throw error
+    },
+
     // Tables
     async getTables(restaurantId: string) {
         const { data, error } = await supabase
@@ -245,6 +253,22 @@ export const DatabaseService = {
 
     async createTable(table: Partial<Table>) {
         const { error } = await supabase.from('tables').insert(table)
+        if (error) throw error
+    },
+
+    async updateTable(tableId: string, updates: Partial<Table>) {
+        const { error } = await supabase
+            .from('tables')
+            .update(updates)
+            .eq('id', tableId)
+        if (error) throw error
+    },
+
+    async deleteTable(id: string) {
+        const { error } = await supabase
+            .from('tables')
+            .delete()
+            .eq('id', id)
         if (error) throw error
     },
 

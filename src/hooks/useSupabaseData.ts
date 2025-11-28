@@ -17,6 +17,12 @@ export function useSupabaseData<T>(
     }, [mapper])
 
     const fetchData = useCallback(async () => {
+        // If filter is provided but value is missing, skip fetch to avoid 400 errors (invalid UUID)
+        if (filter && !filter.value) {
+            setLoading(false)
+            return
+        }
+
         let query = supabase.from(tableName).select('*')
         if (filter) {
             query = query.eq(filter.column, filter.value)
@@ -35,6 +41,9 @@ export function useSupabaseData<T>(
     }, [tableName, filter?.column, filter?.value])
 
     useEffect(() => {
+        // Skip subscription if filter value is missing
+        if (filter && !filter.value) return
+
         fetchData()
 
         // Realtime subscription

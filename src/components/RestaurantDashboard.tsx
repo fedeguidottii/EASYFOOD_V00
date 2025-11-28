@@ -6,6 +6,7 @@ import { useSupabaseData } from '../hooks/useSupabaseData'
 import { User, Restaurant, Table, Dish, Category, Order, Booking } from '../services/types'
 import { DatabaseService } from '../services/DatabaseService'
 import { toast } from 'sonner'
+import { v4 as uuidv4 } from 'uuid'
 import {
   Storefront,
   List,
@@ -111,12 +112,14 @@ export default function RestaurantDashboard({ user, onLogout }: Props) {
       }
 
       await DatabaseService.createTable({
-        name: `Tavolo ${newTable.number}`, // Assuming name is used for display
-        number: parseInt(newTable.number), // Assuming number is int
+        name: `Tavolo ${newTable.number}`,
+        number: newTable.number,
         seats: newTable.seats,
         restaurant_id: restaurantId!,
         is_active: true,
-        status: 'available'
+        status: 'available',
+        token: uuidv4(),
+        pin: Math.floor(1000 + Math.random() * 9000).toString()
       } as any)
 
       setShowNewTableDialog(false)
@@ -494,11 +497,12 @@ export default function RestaurantDashboard({ user, onLogout }: Props) {
                     <div className={`w-16 h-16 rounded-full flex items-center justify-center text-xl font-bold
                       ${table.status === 'occupied' ? 'bg-red-100 text-red-600' : 'bg-green-100 text-green-600'}
                     `}>
-                      {table.name.replace('Tavolo ', '')}
+                      {(table.name || String(table.number)).replace('Tavolo ', '')}
                     </div>
                     <div>
                       <p className="font-medium">{table.seats} Posti</p>
                       <p className="text-xs text-muted-foreground capitalize">{table.status === 'occupied' ? 'Occupato' : 'Libero'}</p>
+                      {table.pin && <p className="text-xs font-mono bg-secondary/50 px-2 py-1 rounded mt-1">PIN: {table.pin}</p>}
                     </div>
 
                     <div className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity">

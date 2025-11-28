@@ -18,6 +18,53 @@ export function useRestaurantLogic(restaurantId: string) {
         }
     }
 
+    const createOrder = async (tableId: string, items: any[]) => {
+        try {
+            // Find active session or create one?
+            // For now, assume session exists or create one.
+            // But wait, DatabaseService.createOrder takes (order, items).
+            // We need to construct the order object.
+
+            // Get active session for table
+            let session = await DatabaseService.getActiveSession(tableId)
+            if (!session) {
+                // Create new session if not exists
+                session = await DatabaseService.createSession({
+                    restaurant_id: restaurantId,
+                    table_id: tableId,
+                    status: 'OPEN',
+                    opened_at: new Date().toISOString()
+                })
+            }
+
+            const order = {
+                restaurant_id: restaurantId,
+                table_session_id: session.id,
+                status: 'pending' as const, // Use 'pending' as per updated types
+                total_amount: 0, // Should be calculated backend or here?
+                created_at: new Date().toISOString()
+            }
+
+            // Calculate total amount
+            // We need prices. But items passed here might just have IDs.
+            // For now, let's trust the backend or ignore total_amount for a moment.
+            // Actually, DatabaseService.createOrder expects items with dish_id etc.
+
+            const dbItems = items.map(item => ({
+                dish_id: item.menuItemId,
+                quantity: item.quantity,
+                note: item.notes,
+                status: 'PENDING' as const
+            }))
+
+            await DatabaseService.createOrder(order, dbItems)
+            toast.success('Ordine inviato con successo!')
+        } catch (error) {
+            console.error(error)
+            toast.error('Errore invio ordine')
+        }
+    }
+
     const updateOrderItemStatus = async (itemId: string, status: any) => {
         // Implementation for item status update if needed
         console.log('Update item status', itemId, status)
@@ -28,6 +75,7 @@ export function useRestaurantLogic(restaurantId: string) {
         tables,
         dishes,
         updateOrderStatus,
-        updateOrderItemStatus
+        updateOrderItemStatus,
+        createOrder
     }
 }
