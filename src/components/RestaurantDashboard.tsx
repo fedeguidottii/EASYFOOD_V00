@@ -171,22 +171,9 @@ const RestaurantDashboard = ({ user, onLogout }: RestaurantDashboardProps) => {
   const restaurantBookings = bookings || []
   const restaurantCategories = categories || []
 
-  // Sidebar hover auto-expand
-  useEffect(() => {
-    const sidebar = document.getElementById('sidebar')
-    if (!sidebar) return
+  // Sidebar hover auto-expand handled via onMouseEnter/onMouseLeave directly on the element
+  // to avoid issues with element references and cleanup
 
-    const handleMouseEnter = () => setSidebarExpanded(true)
-    const handleMouseLeave = () => setSidebarExpanded(false)
-
-    sidebar.addEventListener('mouseenter', handleMouseEnter)
-    sidebar.addEventListener('mouseleave', handleMouseLeave)
-
-    return () => {
-      sidebar.removeEventListener('mouseenter', handleMouseEnter)
-      sidebar.removeEventListener('mouseleave', handleMouseLeave)
-    }
-  }, [])
 
   // Load AYCE and Coperto settings from restaurant
   useEffect(() => {
