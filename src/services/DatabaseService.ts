@@ -142,11 +142,18 @@ export const DatabaseService = {
 
         if (error) throw error
 
-        // 5. Tenta di eliminare l'utente proprietario (se esiste)
+        // 5. Tenta di eliminare l'utente proprietario (se esiste), MA NON SE È ADMIN
         // Questo va fatto DOPO aver eliminato il ristorante e lo staff
         if (restaurant?.owner_id) {
             try {
-                await supabase.from('users').delete().eq('id', restaurant.owner_id)
+                // Check if user is ADMIN first
+                const { data: user } = await supabase.from('users').select('role').eq('id', restaurant.owner_id).single()
+
+                if (user?.role !== 'ADMIN') {
+                    await supabase.from('users').delete().eq('id', restaurant.owner_id)
+                } else {
+                    console.log('Skipping deletion of restaurant owner because they are ADMIN')
+                }
             } catch (e) {
                 console.warn("Could not auto-delete owner user", e)
                 // Non lanciamo errore qui per non bloccare l'operazione se il ristorante è già andato
