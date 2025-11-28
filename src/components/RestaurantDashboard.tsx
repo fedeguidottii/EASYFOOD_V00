@@ -779,7 +779,7 @@ const RestaurantDashboard = ({ user, onLogout }: RestaurantDashboardProps) => {
                     return (
                       <div
                         key={order.id}
-                        className="group bg-white rounded-xl shadow-md border border-border/20 hover:shadow-lg hover:-translate-y-0.5 transition-all duration-200 overflow-hidden"
+                        className="group bg-card rounded-xl shadow-md border border-border hover:shadow-lg hover:-translate-y-0.5 transition-all duration-200 overflow-hidden"
                       >
                         <div className="bg-gradient-to-br from-primary/5 via-accent/5 to-primary/5 p-3.5 border-b border-border/10">
                           <div className="flex items-center justify-between mb-2.5">
@@ -900,7 +900,10 @@ const RestaurantDashboard = ({ user, onLogout }: RestaurantDashboardProps) => {
                 return (
                   <Card key={table.id} className={`relative overflow-hidden transition-all duration-300 hover:shadow-lg group ${isActive ? 'border-primary/50 bg-primary/5' : 'border-border/40 hover:border-primary/30'}`}>
                     <CardContent className="p-4 flex flex-col items-center justify-center min-h-[160px] relative z-10">
-                      <div className={`w-16 h-16 rounded-2xl flex items-center justify-center mb-3 transition-all duration-300 ${isActive ? 'bg-gradient-to-br from-primary to-accent text-white shadow-gold scale-110' : 'bg-muted text-muted-foreground group-hover:scale-105'}`}>
+                      <div className={`w-16 h-16 rounded-2xl flex items-center justify-center mb-3 transition-all duration-300 ${isActive
+                          ? 'bg-primary/20 text-primary border-2 border-primary shadow-lg scale-110'
+                          : 'bg-muted text-foreground group-hover:scale-105'
+                        }`}>
                         <span className="text-2xl font-bold">{table.number}</span>
                       </div>
 
