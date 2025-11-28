@@ -11,30 +11,30 @@
     background-color: var(--background);
     color: var(--foreground);
     background-image:
-      radial-gradient(circle at 50% 0%, rgba(251, 146, 60, 0.08) 0%, transparent 50%),
-      radial-gradient(circle at 100% 50%, rgba(251, 146, 60, 0.04) 0%, transparent 40%);
+      radial-gradient(circle at 50% 0%, color-mix(in srgb, var(--primary) 10%, transparent) 0%, transparent 45%),
+      radial-gradient(circle at 100% 50%, color-mix(in srgb, var(--accent) 8%, transparent) 0%, transparent 40%);
     background-attachment: fixed;
   }
 
   /* Glassmorphism Utilities */
   .glass {
-    background: rgba(36, 36, 36, 0.95);
+    background: var(--glass-strong);
     backdrop-filter: blur(12px);
     -webkit-backdrop-filter: blur(12px);
-    border: 1px solid rgba(255, 255, 255, 0.12);
+    border: 1px solid var(--border);
   }
 
   .glass-card {
-    background: rgba(36, 36, 36, 0.98);
+    background: var(--glass-soft);
     backdrop-filter: blur(12px);
     -webkit-backdrop-filter: blur(12px);
-    border: 1px solid rgba(255, 255, 255, 0.08);
-    box-shadow: 0 4px 24px 0 rgba(0, 0, 0, 0.4);
+    border: 1px solid color-mix(in srgb, var(--border) 60%, transparent);
+    box-shadow: 0 8px 30px 0 color-mix(in srgb, var(--foreground) 10%, transparent);
   }
 
   .glass-hover:hover {
-    background: rgba(255, 255, 255, 0.05);
-    border-color: rgba(255, 255, 255, 0.18);
+    background: color-mix(in srgb, var(--glass-soft) 70%, transparent);
+    border-color: color-mix(in srgb, var(--border) 80%, transparent);
   }
 
   /* Elegant professional shadows */
@@ -92,37 +92,37 @@
   }
 
   ::-webkit-scrollbar-thumb {
-    background: rgba(255, 255, 255, 0.1);
+    background: color-mix(in srgb, var(--foreground) 14%, transparent);
     border-radius: 100px;
   }
 
   ::-webkit-scrollbar-thumb:hover {
-    background: rgba(255, 255, 255, 0.2);
+    background: color-mix(in srgb, var(--foreground) 24%, transparent);
   }
 }
 
 :root {
   /* Light Theme */
-  --background: #ffffff;
-  --foreground: #0f172a;
+  --background: #f8fafc;
+  --foreground: #0b1220;
 
   --card: #ffffff;
-  --card-foreground: #0f172a;
+  --card-foreground: #0b1220;
 
   --popover: #ffffff;
-  --popover-foreground: #0f172a;
+  --popover-foreground: #0b1220;
 
-  --primary: #fb923c;
-  --primary-foreground: #ffffff;
+  --primary: #f97316;
+  --primary-foreground: #0b1220;
 
-  --secondary: #f1f5f9;
-  --secondary-foreground: #0f172a;
+  --secondary: #e2e8f0;
+  --secondary-foreground: #0b1220;
 
-  --muted: #f1f5f9;
-  --muted-foreground: #64748b;
+  --muted: #e2e8f0;
+  --muted-foreground: #475569;
 
-  --accent: #f1f5f9;
-  --accent-foreground: #0f172a;
+  --accent: #fff1e6;
+  --accent-foreground: #9a3412;
 
   --destructive: #ef4444;
   --destructive-foreground: #ffffff;
@@ -131,38 +131,44 @@
   --input: #e2e8f0;
   --ring: #fb923c;
 
+  --glass-soft: rgba(255, 255, 255, 0.82);
+  --glass-strong: rgba(255, 255, 255, 0.88);
+
   --radius: 1rem;
 }
 
 .dark {
   /* Professional Dark Theme */
-  --background: #1a1a1a;
-  --foreground: #ffffff;
+  --background: #0b1220;
+  --foreground: #e2e8f0;
 
-  --card: #242424;
-  --card-foreground: #ffffff;
+  --card: #0f172a;
+  --card-foreground: #e2e8f0;
 
-  --popover: #2a2a2a;
-  --popover-foreground: #ffffff;
+  --popover: #111827;
+  --popover-foreground: #e2e8f0;
 
   --primary: #fb923c;
-  --primary-foreground: #000000;
+  --primary-foreground: #231104;
 
-  --secondary: #3a3a3a;
-  --secondary-foreground: #e5e5e5;
+  --secondary: #1f2937;
+  --secondary-foreground: #e5e7eb;
 
-  --muted: #2f2f2f;
-  --muted-foreground: #a1a1a1;
+  --muted: #111827;
+  --muted-foreground: #9ca3af;
 
-  --accent: #fb923c;
-  --accent-foreground: #000000;
+  --accent: #f97316;
+  --accent-foreground: #0b1220;
 
-  --destructive: #ef4444;
-  --destructive-foreground: #ffffff;
+  --destructive: #f87171;
+  --destructive-foreground: #0b1220;
 
-  --border: rgba(255, 255, 255, 0.12);
-  --input: rgba(255, 255, 255, 0.08);
-  --ring: rgba(251, 146, 60, 0.4);
+  --border: #1f2937;
+  --input: #1f2937;
+  --ring: #fb923c;
+
+  --glass-soft: rgba(15, 23, 42, 0.76);
+  --glass-strong: rgba(17, 24, 39, 0.84);
 }
 
 @theme {
