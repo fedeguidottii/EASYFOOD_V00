@@ -142,6 +142,13 @@ const RestaurantDashboard = ({ user, onLogout }: RestaurantDashboardProps) => {
   const [showTableBillDialog, setShowTableBillDialog] = useState(false)
   const [selectedTableForActions, setSelectedTableForActions] = useState<Table | null>(null)
 
+  // AYCE and Coperto Settings
+  const [ayceEnabled, setAyceEnabled] = useState(false)
+  const [aycePrice, setAycePrice] = useState(0)
+  const [ayceMaxOrders, setAyceMaxOrders] = useState(5)
+  const [copertoEnabled, setCopertoEnabled] = useState(false)
+  const [copertoPrice, setCopertoPrice] = useState(0)
+
   const restaurantDishes = dishes || []
   const restaurantTables = tables || []
   const restaurantOrders = orders?.filter(order => order.status !== 'completed' && order.status !== 'CANCELLED') || []
@@ -165,6 +172,22 @@ const RestaurantDashboard = ({ user, onLogout }: RestaurantDashboardProps) => {
       sidebar.removeEventListener('mouseleave', handleMouseLeave)
     }
   }, [])
+
+  // Load AYCE and Coperto settings from restaurant
+  useEffect(() => {
+    if (currentRestaurant) {
+      if (currentRestaurant.all_you_can_eat) {
+        const ayce = currentRestaurant.all_you_can_eat
+        setAyceEnabled(ayce.enabled || false)
+        setAycePrice(ayce.pricePerPerson || 0)
+        setAyceMaxOrders(ayce.maxOrders || 5)
+      }
+      if (currentRestaurant.cover_charge_per_person !== undefined) {
+        setCopertoPrice(currentRestaurant.cover_charge_per_person)
+        setCopertoEnabled(currentRestaurant.cover_charge_per_person > 0)
+      }
+    }
+  }, [currentRestaurant])
 
   const { updateOrderItemStatus, updateOrderStatus } = useRestaurantLogic(restaurantId)
 
@@ -274,8 +297,38 @@ const RestaurantDashboard = ({ user, onLogout }: RestaurantDashboardProps) => {
       .then(() => toast.success('Tavolo eliminato'))
       .catch((error) => {
         console.error('Error deleting table:', error)
-        toast.error('Errore durante l\'eliminazione del tavolo')
+        toast.error('Errore nell\'eliminare il tavolo')
       })
+  }
+
+  // AYCE Settings Save
+  const handleSaveAYCE = async () => {
+    try {
+      await DatabaseService.updateRestaurant(restaurantId, {
+        ...currentRestaurant!,
+        all_you_can_eat: {
+          enabled: ayceEnabled,
+          pricePerPerson: aycePrice,
+          maxOrders: ayceMaxOrders
+        }
+      })
+      toast.success('Impostazioni All You Can Eat salvate!')
+    } catch (error) {
+      toast.error('Errore nel salvare le impostazioni')
+    }
+  }
+
+  // Coperto Settings Save
+  const handleSaveCoperto = async () => {
+    try {
+      await DatabaseService.updateRestaurant(restaurantId, {
+        ...currentRestaurant!,
+        cover_charge_per_person: copertoEnabled ? copertoPrice : 0
+      })
+      toast.success('Impostazioni Coperto salvate!')
+    } catch (error) {
+      toast.error('Errore nel salvare le impostazioni')
+    }
   }
 
   const handleEditTable = (table: Table) => {
@@ -854,12 +907,8 @@ const RestaurantDashboard = ({ user, onLogout }: RestaurantDashboardProps) => {
               </div>
             ) : (
               // Dish View Mode
-              <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
-                {/* Group items by dish ID */}
-                {/* This requires complex aggregation. For brevity, I'll simplify or skip implementation details for now. */}
-                <div className="col-span-full text-center py-8 text-muted-foreground">
-                  Vista per piatti in arrivo...
-                </div>
+              <div className="col-span-full text-center py-8 text-muted-foreground">
+                Vista per piatti in arrivo...
               </div>
             )}
           </TabsContent>
@@ -901,8 +950,8 @@ const RestaurantDashboard = ({ user, onLogout }: RestaurantDashboardProps) => {
                   <Card key={table.id} className={`relative overflow-hidden transition-all duration-300 hover:shadow-lg group ${isActive ? 'border-primary/50 bg-primary/5' : 'border-border/40 hover:border-primary/30'}`}>
                     <CardContent className="p-4 flex flex-col items-center justify-center min-h-[160px] relative z-10">
                       <div className={`w-16 h-16 rounded-2xl flex items-center justify-center mb-3 transition-all duration-300 ${isActive
-                          ? 'bg-primary/20 text-primary border-2 border-primary shadow-lg scale-110'
-                          : 'bg-muted text-foreground group-hover:scale-105'
+                        ? 'bg-primary/20 text-primary border-2 border-primary shadow-lg scale-110'
+                        : 'bg-muted text-foreground group-hover:scale-105'
                         }`}>
                         <span className="text-2xl font-bold">{table.number}</span>
                       </div>
@@ -1137,7 +1186,7 @@ const RestaurantDashboard = ({ user, onLogout }: RestaurantDashboardProps) => {
 
             <div className="space-y-8">
               {restaurantCategories.map(category => {
-                const categoryDishes = restaurantDishes.filter(d => d.category_id === category.id)
+                const categoryDishes = restaurantDishes.filter(d => d.id && d.category_id === category.id)
                 if (categoryDishes.length === 0) return null
 
                 return (
@@ -1148,7 +1197,8 @@ const RestaurantDashboard = ({ user, onLogout }: RestaurantDashboardProps) => {
                     </h3>
                     <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
                       {categoryDishes.map(dish => (
-                        <Card key={dish.id} className="group hover:shadow-md transition-all">
+                        <Card key={dish.id} className={`group hover:shadow-md transition-all ${!dish.is_active ? 'opacity-40' : 'opacity-100'
+                          }`}>
                           <CardContent className="p-0">
                             {dish.image_url && (
                               <div className="relative h-48 w-full overflow-hidden">
