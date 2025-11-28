@@ -92,6 +92,7 @@ export interface TableSession {
     opened_at: string
     closed_at?: string
     session_pin?: string
+    customer_count?: number
 }
 
 export interface Order {
@@ -140,4 +141,6 @@ export interface CartItem {
     quantity: number
     notes?: string
     created_at?: string
+    // Frontend helper
+    dish?: Dish
 }

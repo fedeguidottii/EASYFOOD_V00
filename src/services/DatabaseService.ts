@@ -1,5 +1,5 @@
 import { supabase } from '../lib/supabase'
-import { User, Restaurant, Category, Dish, Table, TableSession, Order, OrderItem, Booking } from './types'
+import { User, Restaurant, Category, Dish, Table, TableSession, Order, OrderItem, Booking, CartItem } from './types'
 
 export const DatabaseService = {
     // Users
@@ -508,23 +508,27 @@ export const DatabaseService = {
     async getCartItems(sessionId: string) {
         const { data, error } = await supabase
             .from('cart_items')
-            .select('*')
+            .select('*, dish:dishes(*)')
             .eq('session_id', sessionId)
         if (error) throw error
-        return data as any[] // Using any for now to avoid type issues, ideally CartItem
+        return data as CartItem[]
     },
 
     async addToCart(item: { session_id: string, dish_id: string, quantity: number, notes?: string }) {
-        // Check if item exists
+        // Check if item exists (same dish, same notes)
         const { data: existing } = await supabase
             .from('cart_items')
             .select('*')
             .eq('session_id', item.session_id)
             .eq('dish_id', item.dish_id)
+            // We might want to separate by notes too, but for now let's keep it simple: same dish = same item
+            // If notes are different, it should probably be a separate line item?
+            // User request: "Distingui visivamente nel carrello tra: Piatti da ordinare e Piatti già ordinati"
+            // This is just adding to cart.
             .single()
 
-        if (existing) {
-            // Update quantity
+        if (existing && existing.notes === item.notes) {
+            // Update quantity if notes are identical
             return this.updateCartItem(existing.id, { quantity: existing.quantity + item.quantity })
         } else {
             // Insert new
@@ -534,6 +538,9 @@ export const DatabaseService = {
     },
 
     async updateCartItem(itemId: string, updates: { quantity?: number, notes?: string }) {
+        if (updates.quantity !== undefined && updates.quantity <= 0) {
+            return this.removeFromCart(itemId)
+        }
         const { error } = await supabase
             .from('cart_items')
             .update(updates)
@@ -578,21 +585,14 @@ export const DatabaseService = {
             return false
         }
     },
-    async getSessionOrders(sessionId: string): Promise<Order[]> {
+
+    async getSessionOrders(sessionId: string) {
         const { data, error } = await supabase
             .from('orders')
-            .select(`
-                *,
-                items:order_items(*)
-            `)
-            .eq('session_id', sessionId)
+            .select('*, items:order_items(*, dish:dishes(*))')
+            .eq('table_session_id', sessionId)
             .order('created_at', { ascending: false })
-
-        if (error) {
-            console.error('Error fetching session orders:', error)
-            return []
-        }
-
-        return data || []
+        if (error) throw error
+        return data as Order[]
     }
 }

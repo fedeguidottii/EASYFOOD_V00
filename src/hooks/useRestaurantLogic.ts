@@ -75,6 +75,23 @@ export function useRestaurantLogic(restaurantId: string) {
         // We should probably rely on open sessions to determine status.
     }
 
+    // Cart Logic
+    const addToCart = async (sessionId: string, dishId: string, quantity: number, notes?: string) => {
+        await DatabaseService.addToCart({ session_id: sessionId, dish_id: dishId, quantity, notes })
+    }
+
+    const removeFromCart = async (itemId: string) => {
+        await DatabaseService.removeFromCart(itemId)
+    }
+
+    const updateCartItem = async (itemId: string, updates: { quantity?: number, notes?: string }) => {
+        await DatabaseService.updateCartItem(itemId, updates)
+    }
+
+    const clearCart = async (sessionId: string) => {
+        await DatabaseService.clearCart(sessionId)
+    }
+
     return {
         orders,
         tables,
@@ -83,6 +100,11 @@ export function useRestaurantLogic(restaurantId: string) {
         createOrder,
         updateOrderStatus,
         updateOrderItemStatus,
-        updateTableStatus
+        updateTableStatus,
+        // Cart
+        addToCart,
+        removeFromCart,
+        updateCartItem,
+        clearCart
     }
 }

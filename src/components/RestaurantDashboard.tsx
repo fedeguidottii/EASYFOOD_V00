@@ -47,6 +47,7 @@ import type { User, Table, Dish, Order, Restaurant, Booking, Category, OrderItem
 import TimelineReservations from './TimelineReservations'
 import ReservationsManager from './ReservationsManager'
 import AnalyticsCharts from './AnalyticsCharts'
+import { KitchenView } from './KitchenView'
 import { useRestaurantLogic } from '../hooks/useRestaurantLogic'
 import { ModeToggle } from './mode-toggle'
 
@@ -344,7 +345,8 @@ const RestaurantDashboard = ({ user, onLogout }: RestaurantDashboardProps) => {
         table_id: tableId,
         status: 'OPEN',
         opened_at: new Date().toISOString(),
-        session_pin: generatePin()
+        session_pin: generatePin(),
+        customer_count: customerCount
       })
 
       toast.success(`Tavolo attivato per ${customerCount} persone`)
@@ -2001,9 +2003,12 @@ const RestaurantDashboard = ({ user, onLogout }: RestaurantDashboardProps) => {
               const completedOrders = restaurantCompletedOrders.filter(o => getTableIdFromOrder(o) === selectedTableForActions.id)
               const allOrders = [...tableOrders, ...completedOrders]
 
+              const session = sessions?.find(s => s.table_id === selectedTableForActions.id && s.status === 'OPEN')
+              const customerCount = session?.customer_count || 1
+
               let subtotal = 0
-              const coverCharge = currentRestaurant?.cover_charge_per_person || 0
-              const ayceCharge = currentRestaurant?.all_you_can_eat?.enabled ? (currentRestaurant.all_you_can_eat.pricePerPerson || 0) : 0
+              const coverCharge = (currentRestaurant?.cover_charge_per_person || 0) * customerCount
+              const ayceCharge = (currentRestaurant?.all_you_can_eat?.enabled ? (currentRestaurant.all_you_can_eat.pricePerPerson || 0) : 0) * customerCount
 
               return (
                 <>
@@ -2038,13 +2043,13 @@ const RestaurantDashboard = ({ user, onLogout }: RestaurantDashboardProps) => {
                     </div>
                     {coverCharge > 0 && (
                       <div className="flex justify-between text-sm">
-                        <span>Coperto:</span>
+                        <span>Coperto ({customerCount} pers.):</span>
                         <span>€{coverCharge.toFixed(2)}</span>
                       </div>
                     )}
                     {ayceCharge > 0 && (
                       <div className="flex justify-between text-sm">
-                        <span>All You Can Eat:</span>
+                        <span>All You Can Eat ({customerCount} pers.):</span>
                         <span>€{ayceCharge.toFixed(2)}</span>
                       </div>
                     )}
