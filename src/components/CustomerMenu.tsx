@@ -128,9 +128,7 @@ export default function CustomerMenu({ tableId, onExit }: Props) {
                 {restaurant?.name || 'Menu'}
               </h1>
             </div>
-            <Button variant="ghost" size="icon" onClick={onExit} className="text-muted-foreground">
-              <X size={20} />
-            </Button>
+
           </div>
 
           {/* Search Bar */}
