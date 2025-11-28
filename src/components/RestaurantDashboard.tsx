@@ -3,7 +3,7 @@ import { useSupabaseData } from '../hooks/useSupabaseData'
 import { DatabaseService } from '../services/DatabaseService'
 import { v4 as uuidv4 } from 'uuid'
 import { Button } from '@/components/ui/button'
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogDescription } from '@/components/ui/dialog'
 import { Input } from '@/components/ui/input'
@@ -194,6 +194,13 @@ const RestaurantDashboard = ({ user, onLogout }: RestaurantDashboardProps) => {
   }, [currentRestaurant])
 
   const { updateOrderItemStatus, updateOrderStatus } = useRestaurantLogic(restaurantId)
+
+  // Refresh sessions when switching to tables tab to ensure PINs are up to date
+  useEffect(() => {
+    if (activeTab === 'tables') {
+      refreshSessions()
+    }
+  }, [activeTab, refreshSessions])
 
   const generatePin = () => Math.floor(1000 + Math.random() * 9000).toString()
 
@@ -1758,9 +1765,9 @@ const RestaurantDashboard = ({ user, onLogout }: RestaurantDashboardProps) => {
               <Card>
                 <CardHeader>
                   <CardTitle>Impostazioni All You Can Eat</CardTitle>
-                  <DialogDescription>
+                  <CardDescription>
                     Configura le opzioni per la modalità All You Can Eat. Le modifiche vengono salvate automaticamente.
-                  </DialogDescription>
+                  </CardDescription>
                 </CardHeader>
                 <CardContent className="space-y-4">
                   <div className="flex items-center justify-between">
@@ -1808,9 +1815,9 @@ const RestaurantDashboard = ({ user, onLogout }: RestaurantDashboardProps) => {
               <Card>
                 <CardHeader>
                   <CardTitle>Impostazioni Coperto</CardTitle>
-                  <DialogDescription>
+                  <CardDescription>
                     Configura il costo del coperto per persona. Le modifiche vengono salvate automaticamente.
-                  </DialogDescription>
+                  </CardDescription>
                 </CardHeader>
                 <CardContent className="space-y-4">
                   <div className="flex items-center justify-between">
