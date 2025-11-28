@@ -445,8 +445,14 @@ export const DatabaseService = {
     },
 
     async createBooking(booking: Partial<Booking>) {
-        const { error } = await supabase.from('bookings').insert(booking)
+        const { data, error } = await supabase
+            .from('bookings')
+            .insert(booking)
+            .select()
+            .single()
+
         if (error) throw error
+        return data as Booking
     },
 
     async updateBooking(booking: Partial<Booking>) {

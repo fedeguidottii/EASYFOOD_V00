@@ -9,14 +9,13 @@ import { toast } from 'sonner'
 import { X } from '@phosphor-icons/react'
 import type { Table, Booking, User } from '../services/types'
 import { DatabaseService } from '../services/DatabaseService'
-import { v4 as uuidv4 } from 'uuid'
 
 interface TimelineReservationsProps {
   user: User
   restaurantId: string
   tables: Table[]
   bookings: Booking[]
-  onRefresh?: () => void
+  onRefresh?: () => Promise<void> | void
 }
 
 interface TimeSlot {
@@ -35,6 +34,7 @@ interface ReservationBlock {
 const TimelineReservations = ({ user, restaurantId, tables, bookings, onRefresh }: TimelineReservationsProps) => {
   const [selectedDate, setSelectedDate] = useState(new Date().toISOString().split('T')[0])
   const [showReservationDialog, setShowReservationDialog] = useState(false)
+  const [localBookings, setLocalBookings] = useState<Booking[]>(bookings)
   const [newReservation, setNewReservation] = useState({
     name: '',
     phone: '',
@@ -62,11 +62,15 @@ const TimelineReservations = ({ user, restaurantId, tables, bookings, onRefresh 
   // Filter tables and bookings
   const restaurantTables = tables?.filter(table => table.restaurant_id === restaurantId) || []
 
-  const dayBookings = bookings?.filter(res => {
+  const dayBookings = localBookings?.filter(res => {
     if (!res.date_time) return false
     const date = res.date_time.split('T')[0]
     return date === selectedDate
   }) || []
+
+  useEffect(() => {
+    setLocalBookings(bookings)
+  }, [bookings])
 
   // Convert time to minutes from start of day
   const timeToMinutes = (time: string) => {
@@ -146,9 +150,20 @@ const TimelineReservations = ({ user, restaurantId, tables, bookings, onRefresh 
   }
 
   // Create reservation
-  const handleCreateReservation = () => {
-    if (!newReservation.name || !newReservation.phone || !newReservation.tableId || !newReservation.time) {
-      toast.error('Compila tutti i campi obbligatori')
+  const handleCreateReservation = async () => {
+    if (!newReservation.name.trim() || !newReservation.phone.trim() || !newReservation.tableId || !newReservation.time) {
+      toast.error('Compila tutti i campi obbligatori (nome, telefono, tavolo, orario)')
+      return
+    }
+
+    if (newReservation.guests < 1) {
+      toast.error('Il numero di persone deve essere almeno 1')
+      return
+    }
+
+    const phoneIsValid = /^[0-9+\s().-]{6,20}$/.test(newReservation.phone.trim())
+    if (!phoneIsValid) {
+      toast.error('Inserisci un numero di telefono valido')
       return
     }
 
@@ -162,29 +177,33 @@ const TimelineReservations = ({ user, restaurantId, tables, bookings, onRefresh 
     const reservation: Partial<Booking> = {
       restaurant_id: restaurantId,
       table_id: newReservation.tableId,
-      name: newReservation.name,
-      phone: newReservation.phone,
+      name: newReservation.name.trim(),
+      phone: newReservation.phone.trim(),
       date_time: dateTime,
       guests: newReservation.guests,
       status: 'CONFIRMED'
     }
 
-    DatabaseService.createBooking(reservation)
-      .then(() => {
-        setNewReservation({
-          name: '',
-          phone: '',
-          tableId: '',
-          time: '',
-          guests: 1,
-          duration: 120
-        })
-        setShowReservationDialog(false)
-        setSelectedTimeSlot(null)
-        setSelectedTimeSlot(null)
-        toast.success('Prenotazione creata')
-        onRefresh?.()
+    try {
+      const created = await DatabaseService.createBooking(reservation)
+      setLocalBookings(prev => [...prev, created])
+      await onRefresh?.()
+
+      setNewReservation({
+        name: '',
+        phone: '',
+        tableId: '',
+        time: '',
+        guests: 1,
+        duration: 120
       })
+      setShowReservationDialog(false)
+      setSelectedTimeSlot(null)
+      toast.success('Prenotazione creata con successo')
+    } catch (error) {
+      console.error('Errore durante la creazione della prenotazione', error)
+      toast.error('Impossibile creare la prenotazione. Riprova più tardi')
+    }
   }
 
   // Delete reservation
