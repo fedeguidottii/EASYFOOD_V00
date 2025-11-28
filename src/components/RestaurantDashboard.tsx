@@ -15,7 +15,32 @@ import { Separator } from '@/components/ui/separator'
 import { Progress } from '@/components/ui/progress'
 import { toast } from 'sonner'
 import QRCodeGenerator from './QRCodeGenerator'
-import { Plus, MapPin, BookOpen, Clock, ChartBar, Gear, SignOut, Trash, Eye, EyeSlash, QrCode, PencilSimple, Calendar, List, ClockCounterClockwise, Check, X, Receipt, CaretDown, CaretUp, CheckCircle, WarningCircle, ForkKnife } from '@phosphor-icons/react'
+import {
+  Clock,
+  Plus,
+  Trash,
+  PencilSimple,
+  Gear,
+  MapPin,
+  List,
+  BookOpen,
+  ClockCounterClockwise,
+  Check,
+  CheckCircle,
+  Eye,
+  EyeSlash,
+  QrCode,
+  ForkKnife,
+  Receipt,
+  ChefHat,
+  Calendar,
+  ChartBar,
+  SignOut,
+  WarningCircle,
+  X,
+  CaretDown,
+  CaretUp
+} from '@phosphor-icons/react'
 import type { User, Table, Dish, Order, Restaurant, Booking, Category, OrderItem, TableSession } from '../services/types'
 import TimelineReservations from './TimelineReservations'
 import ReservationsManager from './ReservationsManager'
@@ -1211,6 +1236,257 @@ const RestaurantDashboard = ({ user, onLogout }: RestaurantDashboardProps) => {
               dishes={restaurantDishes}
               categories={restaurantCategories}
             />
+          </TabsContent>
+
+          {/* Orders Tab */}
+          <TabsContent value="orders" className="space-y-6">
+            <div className="flex items-center justify-between mb-6">
+              <div className="flex items-center gap-3">
+                <div className="w-11 h-11 rounded-xl bg-gradient-to-br from-primary to-accent flex items-center justify-center text-white shadow-gold">
+                  <Clock size={20} weight="duotone" />
+                </div>
+                <div>
+                  <h2 className="text-2xl font-bold text-foreground">Ordini Attivi</h2>
+                  <p className="text-xs text-muted-foreground mt-0.5">{restaurantOrders.length} ordini in cucina</p>
+                </div>
+              </div>
+              <div className="flex gap-2">
+                <Select value={orderViewMode} onValueChange={(v: 'table' | 'dish') => setOrderViewMode(v)}>
+                  <SelectTrigger className="w-[180px]">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="table">📍 Per Tavolo</SelectItem>
+                    <SelectItem value="dish">🍽️ Per Piatto</SelectItem>
+                  </SelectContent>
+                </Select>
+                <Button
+                  variant={showCompletedOrders ? "default" : "outline"}
+                  onClick={() => setShowCompletedOrders(!showCompletedOrders)}
+                >
+                  <ClockCounterClockwise size={16} className="mr-2" />
+                  Storico
+                </Button>
+              </div>
+            </div>
+
+            {!showCompletedOrders ? (
+              <div className="space-y-4">
+                {restaurantOrders.length === 0 ? (
+                  <Card>
+                    <CardContent className="flex flex-col items-center justify-center py-12">
+                      <ChefHat size={48} className="text-muted-foreground mb-3" />
+                      <p className="text-muted-foreground">Nessun ordine attivo</p>
+                    </CardContent>
+                  </Card>
+                ) : (
+                  orderViewMode === 'table' ? (
+                    // View by Table
+                    restaurantOrders.map(order => {
+                      const table = restaurantTables.find(t => t.id === getTableIdFromOrder(order))
+                      const orderTime = new Date(order.created_at || Date.now())
+                      const elapsed = Math.floor((Date.now() - orderTime.getTime()) / 1000 / 60)
+                      const isUrgent = elapsed > 20
+                      const isCritical = elapsed > 30
+
+                      return (
+                        <Card key={order.id} className={`border-l-4 ${isCritical ? 'border-l-red-500 bg-red-50/50' :
+                          isUrgent ? 'border-l-orange-500 bg-orange-50/50' :
+                            'border-l-green-500'
+                          }`}>
+                          <CardContent className="p-4">
+                            <div className="flex items-start justify-between mb-3">
+                              <div className="flex items-center gap-3">
+                                <div className={`w-10 h-10 rounded-lg flex items-center justify-center font-bold ${isCritical ? 'bg-red-500 text-white' :
+                                  isUrgent ? 'bg-orange-500 text-white' :
+                                    'bg-green-500 text-white'
+                                  }`}>
+                                  {table?.number || '?'}
+                                </div>
+                                <div>
+                                  <h3 className="font-bold text-lg">Tavolo {table?.number || '?'}</h3>
+                                  <div className="flex items-center gap-2 text-sm">
+                                    <Badge variant={isCritical ? 'destructive' : isUrgent ? 'default' : 'secondary'}>
+                                      ⏱️ {elapsed} min
+                                    </Badge>
+                                    <span className="text-muted-foreground">{order.items?.length || 0} piatti</span>
+                                  </div>
+                                </div>
+                              </div>
+                              <div className="flex gap-2">
+                                <Button
+                                  size="sm"
+                                  variant="outline"
+                                  className="bg-blue-50 hover:bg-blue-100 text-blue-700 border-blue-200"
+                                  onClick={() => updateOrderStatus(order.id, 'ready')}
+                                >
+                                  <Check size={14} className="mr-1" />
+                                  Pronto
+                                </Button>
+                                <Button
+                                  size="sm"
+                                  className="bg-green-600 hover:bg-green-700"
+                                  onClick={() => updateOrderStatus(order.id, 'completed')}
+                                >
+                                  <CheckCircle size={14} className="mr-1" />
+                                  Completato
+                                </Button>
+                              </div>
+                            </div>
+                            <div className="space-y-2">
+                              {order.items?.map((item: any) => {
+                                const dish = restaurantDishes.find(d => d.id === item.dish_id)
+                                return (
+                                  <div key={item.id} className="flex items-center justify-between p-2 bg-background/50 rounded">
+                                    <div className="flex items-center gap-2">
+                                      <span className="font-bold text-primary">{item.quantity}x</span>
+                                      <span>{dish?.name || 'Unknown'}</span>
+                                      {item.note && (
+                                        <Badge variant="outline" className="text-xs">
+                                          📝 {item.note}
+                                        </Badge>
+                                      )}
+                                    </div>
+                                    <Button
+                                      size="sm"
+                                      variant="ghost"
+                                      onClick={() => updateOrderItemStatus(item.id, 'completed')}
+                                    >
+                                      ✓
+                                    </Button>
+                                  </div>
+                                )
+                              })}
+                            </div>
+                          </CardContent>
+                        </Card>
+                      )
+                    })
+                  ) : (
+                    // View by Dish
+                    (() => {
+                      const dishGroups: { [key: string]: { dish: Dish, orders: Array<{ orderId: string, tableNumber: string, quantity: number, elapsed: number, note?: string }> } } = {}
+
+                      restaurantOrders.forEach(order => {
+                        const table = restaurantTables.find(t => t.id === getTableIdFromOrder(order))
+                        const orderTime = new Date(order.created_at || Date.now())
+                        const elapsed = Math.floor((Date.now() - orderTime.getTime()) / 1000 / 60)
+
+                        order.items?.forEach((item: any) => {
+                          const dish = restaurantDishes.find(d => d.id === item.dish_id)
+                          if (!dish) return
+
+                          if (!dishGroups[dish.id]) {
+                            dishGroups[dish.id] = { dish, orders: [] }
+                          }
+
+                          dishGroups[dish.id].orders.push({
+                            orderId: order.id,
+                            tableNumber: table?.number || '?',
+                            quantity: item.quantity,
+                            elapsed,
+                            note: item.note
+                          })
+                        })
+                      })
+
+                      return Object.values(dishGroups).map(({ dish, orders }) => {
+                        const totalQty = orders.reduce((sum, o) => sum + o.quantity, 0)
+                        const maxElapsed = Math.max(...orders.map(o => o.elapsed))
+                        const isUrgent = maxElapsed > 20
+                        const isCritical = maxElapsed > 30
+
+                        return (
+                          <Card key={dish.id} className={`border-l-4 ${isCritical ? 'border-l-red-500 bg-red-50/50' :
+                            isUrgent ? 'border-l-orange-500 bg-orange-50/50' :
+                              'border-l-green-500'
+                            }`}>
+                            <CardContent className="p-4">
+                              <div className="flex items-start justify-between mb-3">
+                                <div>
+                                  <h3 className="font-bold text-lg">{dish.name}</h3>
+                                  <div className="flex items-center gap-2">
+                                    <Badge className="bg-primary">🍽️ {totalQty}x totali</Badge>
+                                    <Badge variant={isCritical ? 'destructive' : isUrgent ? 'default' : 'secondary'}>
+                                      ⏱️ max {maxElapsed} min
+                                    </Badge>
+                                  </div>
+                                </div>
+                                <Button
+                                  size="sm"
+                                  className="bg-green-600 hover:bg-green-700"
+                                >
+                                  <Check size={14} className="mr-1" />
+                                  Segna tutto pronto
+                                </Button>
+                              </div>
+                              <div className="space-y-2">
+                                {orders.map((orderInfo, idx) => (
+                                  <div key={idx} className="flex items-center justify-between p-2 bg-background/50 rounded text-sm">
+                                    <div className="flex items-center gap-2">
+                                      <span className="font-bold">Tavolo {orderInfo.tableNumber}:</span>
+                                      <span>{orderInfo.quantity}x</span>
+                                      <span className="text-muted-foreground">({orderInfo.elapsed} min)</span>
+                                      {orderInfo.note && (
+                                        <Badge variant="outline" className="text-xs">
+                                          📝 {orderInfo.note}
+                                        </Badge>
+                                      )}
+                                    </div>
+                                  </div>
+                                ))}
+                              </div>
+                            </CardContent>
+                          </Card>
+                        )
+                      })
+                    })()
+                  )
+                )}
+              </div>
+            ) : (
+              // Storico Ordini
+              <div className="space-y-4">
+                {restaurantCompletedOrders.length === 0 ? (
+                  <Card>
+                    <CardContent className="flex flex-col items-center justify-center py-12">
+                      <ClockCounterClockwise size={48} className="text-muted-foreground mb-3" />
+                      <p className="text-muted-foreground">Nessun ordine completato</p>
+                    </CardContent>
+                  </Card>
+                ) : (
+                  restaurantCompletedOrders.map(order => {
+                    const table = restaurantTables.find(t => t.id === getTableIdFromOrder(order))
+                    return (
+                      <Card key={order.id} className="opacity-60 hover:opacity-100 transition-opacity">
+                        <CardContent className="p-4">
+                          <div className="flex items-center justify-between">
+                            <div className="flex items-center gap-3">
+                              <div className="w-10 h-10 rounded-lg bg-muted flex items-center justify-center font-bold">
+                                {table?.number || '?'}
+                              </div>
+                              <div>
+                                <h3 className="font-bold">Tavolo {table?.number || '?'}</h3>
+                                <p className="text-sm text-muted-foreground">
+                                  {new Date(order.created_at || Date.now()).toLocaleString('it-IT')}
+                                </p>
+                              </div>
+                            </div>
+                            <Badge variant="secondary">
+                              <CheckCircle size={14} className="mr-1" />
+                              Completato
+                            </Badge>
+                          </div>
+                          <div className="mt-3 text-sm text-muted-foreground">
+                            {order.items?.length || 0} piatti
+                          </div>
+                        </CardContent>
+                      </Card>
+                    )
+                  })
+                )}
+              </div>
+            )}
           </TabsContent>
 
           {/* Settings Tab */}
