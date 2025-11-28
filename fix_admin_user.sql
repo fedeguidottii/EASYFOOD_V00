@@ -30,11 +30,19 @@ BEGIN
         END IF;
     END IF;
 
-    -- 3. Reassign ALL restaurants to this Admin user
-    -- This resolves the Foreign Key constraint error by moving the reference to the user we are keeping
-    UPDATE public.restaurants SET owner_id = v_admin_id;
+    -- 3. Handle restaurants owned by conflicting users (e.g. old temple)
+    -- Instead of assigning them to Admin, we set owner_id to NULL.
+    -- This respects the rule: "Admin does not own restaurants".
+    -- The Admin can still see and delete these "orphan" restaurants from the dashboard.
+    UPDATE public.restaurants 
+    SET owner_id = NULL 
+    WHERE owner_id IN (
+        SELECT id FROM public.users 
+        WHERE id != v_admin_id 
+        AND (name = 'temple' OR email = 'fezzguidotti@gmail.com' OR role = 'ADMIN')
+    );
 
-    -- 4. Now safely delete any other conflicting users (e.g. old 'temple' if we didn't rename it because admin already existed)
+    -- 4. Now safely delete any other conflicting users
     DELETE FROM public.users 
     WHERE id != v_admin_id 
     AND (name = 'temple' OR email = 'fezzguidotti@gmail.com' OR role = 'ADMIN');
