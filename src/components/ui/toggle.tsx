@@ -1,11 +1,12 @@
 import { ComponentProps } from "react"
 import * as TogglePrimitive from "@radix-ui/react-toggle"
+import { Check } from "lucide-react"
 import { cva, type VariantProps } from "class-variance-authority"
 
 import { cn } from "@/lib/utils"
 
 const toggleVariants = cva(
-  "inline-flex items-center justify-center gap-2 rounded-md text-sm font-medium hover:bg-muted hover:text-muted-foreground disabled:pointer-events-none disabled:opacity-50 data-[state=on]:bg-accent data-[state=on]:text-accent-foreground [&_svg]:pointer-events-none [&_svg:not([class*='size-'])]:size-4 [&_svg]:shrink-0 focus-visible:border-ring focus-visible:ring-ring/50 focus-visible:ring-[3px] outline-none transition-[color,box-shadow] aria-invalid:ring-destructive/20 dark:aria-invalid:ring-destructive/40 aria-invalid:border-destructive whitespace-nowrap",
+  "group inline-flex items-center justify-center gap-2 rounded-md text-sm font-medium hover:bg-muted hover:text-muted-foreground disabled:pointer-events-none disabled:opacity-50 data-[state=on]:bg-accent data-[state=on]:text-accent-foreground [&_svg]:pointer-events-none [&_svg:not([class*='size-'])]:size-4 [&_svg]:shrink-0 focus-visible:border-ring focus-visible:ring-ring/50 focus-visible:ring-[3px] outline-none transition-[color,box-shadow] aria-invalid:ring-destructive/20 dark:aria-invalid:ring-destructive/40 aria-invalid:border-destructive whitespace-nowrap relative",
   {
     variants: {
       variant: {
@@ -38,7 +39,19 @@ function Toggle({
       data-slot="toggle"
       className={cn(toggleVariants({ variant, size, className }))}
       {...props}
-    />
+    >
+      <span className="flex items-center gap-2">
+        <span
+          aria-hidden
+          className="flex h-5 w-5 items-center justify-center rounded-full border border-input bg-background transition-colors group-data-[state=on]:border-primary/70 group-data-[state=on]:bg-primary"
+        >
+          <TogglePrimitive.Indicator>
+            <Check className="h-3 w-3 text-primary-foreground" />
+          </TogglePrimitive.Indicator>
+        </span>
+        <span className="leading-none">{props.children}</span>
+      </span>
+    </TogglePrimitive.Root>
   )
 }
 

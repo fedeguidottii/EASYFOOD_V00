@@ -184,15 +184,16 @@ const RestaurantDashboard = ({ user, onLogout }: RestaurantDashboardProps) => {
   // Load AYCE and Coperto settings from restaurant
   useEffect(() => {
     if (currentRestaurant) {
-      if (currentRestaurant.all_you_can_eat) {
-        const ayce = currentRestaurant.all_you_can_eat
+      const ayce = currentRestaurant.all_you_can_eat || currentRestaurant.allYouCanEat
+      if (ayce) {
         setAyceEnabled(ayce.enabled || false)
         setAycePrice(ayce.pricePerPerson || 0)
         setAyceMaxOrders(ayce.maxOrders || 5)
       }
-      if (currentRestaurant.cover_charge_per_person !== undefined) {
-        setCopertoPrice(currentRestaurant.cover_charge_per_person)
-        setCopertoEnabled(currentRestaurant.cover_charge_per_person > 0)
+      const coverCharge = currentRestaurant.cover_charge_per_person ?? currentRestaurant.coverChargePerPerson
+      if (coverCharge !== undefined) {
+        setCopertoPrice(coverCharge)
+        setCopertoEnabled(coverCharge > 0)
       }
     }
   }, [currentRestaurant])
@@ -252,8 +253,8 @@ const RestaurantDashboard = ({ user, onLogout }: RestaurantDashboardProps) => {
         })
     } else {
       // Check settings
-      const isAyceEnabled = currentRestaurant?.all_you_can_eat?.enabled
-      const isCopertoEnabled = currentRestaurant?.cover_charge_per_person && currentRestaurant.cover_charge_per_person > 0
+      const isAyceEnabled = ayceEnabled
+      const isCopertoEnabled = copertoEnabled && copertoPrice > 0
 
       if (!isAyceEnabled && !isCopertoEnabled) {
         // Activate directly with default 1 person
@@ -318,18 +319,32 @@ const RestaurantDashboard = ({ user, onLogout }: RestaurantDashboardProps) => {
 
   // AYCE Settings Save
   const handleSaveAYCE = async () => {
+    if (!restaurantId) {
+      toast.error('Ristorante non trovato')
+      return
+    }
+
+    if (ayceEnabled) {
+      if (!aycePrice || aycePrice <= 0) {
+        toast.error('Inserisci un prezzo valido per persona')
+        return
+      }
+      if (!ayceMaxOrders || ayceMaxOrders <= 0) {
+        toast.error('Imposta un numero massimo di ordini valido')
+        return
+      }
+    }
+
     try {
-      const { id, ...rest } = currentRestaurant!
       await DatabaseService.updateRestaurant({
         id: restaurantId,
-        ...rest,
-        all_you_can_eat: {
+        allYouCanEat: {
           enabled: ayceEnabled,
-          pricePerPerson: aycePrice,
-          maxOrders: ayceMaxOrders
+          pricePerPerson: ayceEnabled ? aycePrice : 0,
+          maxOrders: ayceEnabled ? ayceMaxOrders : 0
         }
       })
-      toast.success('Impostazioni All You Can Eat salvate!')
+      toast.success(ayceEnabled ? 'All You Can Eat attivato' : 'All You Can Eat disattivato')
     } catch (error) {
       toast.error('Errore nel salvare le impostazioni')
     }
@@ -337,19 +352,22 @@ const RestaurantDashboard = ({ user, onLogout }: RestaurantDashboardProps) => {
 
   // Coperto Settings Save
   const handleSaveCoperto = async () => {
+    if (!restaurantId) {
+      toast.error('Ristorante non trovato')
+      return
+    }
+
+    if (copertoEnabled && (!copertoPrice || copertoPrice <= 0)) {
+      toast.error('Inserisci un importo valido per il coperto')
+      return
+    }
+
     try {
-      const { id, ...rest } = currentRestaurant!
-      const updatedSettings = { ...rest, cover_charge_per_person: !copertoEnabled ? copertoPrice : 0 } // If enabling, use price, else 0? Logic seems to be toggle enabled.
-      // Wait, copertoEnabled state tracks if it is enabled.
-      // If we are toggling, we should update the enabled state or price?
-      // The original code was: cover_charge_per_person: !copertoEnabled ? copertoPrice : 0
-      // But cover_charge_per_person is a number. Usually 0 means disabled?
-      // Let's assume 0 means disabled.
-      await DatabaseService.updateRestaurant({ id: restaurantId, ...updatedSettings })
-        .then(() => {
-          setCopertoEnabled(!copertoEnabled)
-          toast.success(!copertoEnabled ? 'Coperto attivato' : 'Coperto disattivato')
-        })
+      await DatabaseService.updateRestaurant({
+        id: restaurantId,
+        coverChargePerPerson: copertoEnabled ? copertoPrice : 0
+      })
+      toast.success(copertoEnabled ? 'Coperto attivato' : 'Coperto disattivato')
     } catch (error) {
       toast.error('Errore nel salvare le impostazioni')
     }
@@ -1688,63 +1706,48 @@ const RestaurantDashboard = ({ user, onLogout }: RestaurantDashboardProps) => {
               </CardHeader>
               <CardContent className="space-y-4">
                 <div className="flex items-center justify-between">
-                  <div className="space-y-1">
-                    <Label>Abilita Modalità AYCE</Label>
-                    <p className="text-sm text-muted-foreground">Attiva il menu fisso per il ristorante</p>
+                  <div className="flex items-center gap-3">
+                    <div className={`flex h-10 w-10 items-center justify-center rounded-full border ${ayceEnabled ? 'bg-primary text-primary-foreground border-primary' : 'bg-muted text-muted-foreground border-border'}`}>
+                      <Check size={18} />
+                    </div>
+                    <div className="space-y-1">
+                      <Label>Abilita Modalità AYCE</Label>
+                      <p className="text-sm text-muted-foreground">Attiva il menu fisso per il ristorante</p>
+                    </div>
                   </div>
                   <Switch
-                    checked={currentRestaurant?.all_you_can_eat?.enabled || false}
-                    onCheckedChange={(checked) => {
-                      const { id, ...rest } = currentRestaurant!
-                      const updatedRestaurantData = {
-                        ...rest,
-                        all_you_can_eat: {
-                          enabled: checked,
-                          pricePerPerson: rest.all_you_can_eat?.pricePerPerson || 0,
-                          maxOrders: rest.all_you_can_eat?.maxOrders || 5
-                        }
-                      }
-                      DatabaseService.updateRestaurant({ id: restaurantId, ...updatedRestaurantData })
-                        .then(() => {
-                          toast.success(checked ? 'All You Can Eat attivato' : 'All You Can Eat disattivato')
-                        })
-                    }}
+                    checked={ayceEnabled}
+                    onCheckedChange={(checked) => setAyceEnabled(checked)}
                   />
                 </div>
-                {currentRestaurant?.all_you_can_eat?.enabled && (
-                  <div className="grid grid-cols-2 gap-4 pt-4">
+                {ayceEnabled && (
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4 pt-4">
                     <div className="space-y-2">
                       <Label>Prezzo a Persona (€)</Label>
                       <Input
                         type="number"
-                        value={currentRestaurant?.all_you_can_eat?.pricePerPerson || 0}
-                        onChange={(e) => {
-                          const updatedSettings = {
-                            enabled: currentRestaurant?.all_you_can_eat?.enabled || false,
-                            maxOrders: currentRestaurant?.all_you_can_eat?.maxOrders || 5,
-                            pricePerPerson: parseFloat(e.target.value)
-                          }
-                          DatabaseService.updateRestaurant({ ...currentRestaurant, id: restaurantId, all_you_can_eat: updatedSettings })
-                        }}
+                        min="0"
+                        step="0.1"
+                        value={aycePrice}
+                        onChange={(e) => setAycePrice(parseFloat(e.target.value) || 0)}
                       />
                     </div>
                     <div className="space-y-2">
-                      <Label>Limite Round</Label>
+                      <Label>Limite round (ordini)</Label>
                       <Input
                         type="number"
-                        value={currentRestaurant?.all_you_can_eat?.maxOrders || 5}
-                        onChange={(e) => {
-                          const updatedSettings = {
-                            enabled: currentRestaurant?.all_you_can_eat?.enabled || false,
-                            pricePerPerson: currentRestaurant?.all_you_can_eat?.pricePerPerson || 0,
-                            maxOrders: parseInt(e.target.value)
-                          }
-                          DatabaseService.updateRestaurant({ ...currentRestaurant, id: restaurantId, all_you_can_eat: updatedSettings })
-                        }}
+                        min="1"
+                        value={ayceMaxOrders}
+                        onChange={(e) => setAyceMaxOrders(parseInt(e.target.value) || 0)}
                       />
                     </div>
                   </div>
                 )}
+                <div className="flex justify-end pt-2">
+                  <Button onClick={handleSaveAYCE}>
+                    Salva impostazioni
+                  </Button>
+                </div>
               </CardContent>
             </Card>
 
@@ -1754,43 +1757,37 @@ const RestaurantDashboard = ({ user, onLogout }: RestaurantDashboardProps) => {
               </CardHeader>
               <CardContent className="space-y-4">
                 <div className="flex items-center justify-between">
-                  <div className="space-y-1">
-                    <Label>Abilita Coperto</Label>
-                    <p className="text-sm text-muted-foreground">Applica un costo fisso per persona</p>
+                  <div className="flex items-center gap-3">
+                    <div className={`flex h-10 w-10 items-center justify-center rounded-full border ${copertoEnabled && copertoPrice > 0 ? 'bg-primary text-primary-foreground border-primary' : 'bg-muted text-muted-foreground border-border'}`}>
+                      <Check size={18} />
+                    </div>
+                    <div className="space-y-1">
+                      <Label>Abilita Coperto</Label>
+                      <p className="text-sm text-muted-foreground">Applica un costo fisso per persona</p>
+                    </div>
                   </div>
                   <Switch
-                    checked={(currentRestaurant?.cover_charge_per_person || 0) > 0}
-                    onCheckedChange={(checked) => {
-                      const { id, ...rest } = currentRestaurant!
-                      const updatedRestaurantData = {
-                        ...rest,
-                        cover_charge_per_person: checked ? 2.0 : 0 // Default 2.0€ if enabled, 0 if disabled
-                      }
-                      DatabaseService.updateRestaurant({ id: restaurantId, ...updatedRestaurantData })
-                        .then(() => {
-                          toast.success(checked ? 'Coperto attivato' : 'Coperto disattivato')
-                        })
-                    }}
+                    checked={copertoEnabled}
+                    onCheckedChange={(checked) => setCopertoEnabled(checked)}
                   />
                 </div>
-                {(currentRestaurant?.cover_charge_per_person || 0) > 0 && (
+                {copertoEnabled && (
                   <div className="space-y-2 pt-4">
                     <Label>Costo Coperto (€)</Label>
                     <Input
                       type="number"
+                      min="0"
                       step="0.50"
-                      value={currentRestaurant?.cover_charge_per_person || 0}
-                      onChange={(e) => {
-                        const { id, ...rest } = currentRestaurant!
-                        const updatedRestaurantData = {
-                          ...rest,
-                          cover_charge_per_person: parseFloat(e.target.value)
-                        }
-                        DatabaseService.updateRestaurant({ id: restaurantId, ...updatedRestaurantData })
-                      }}
+                      value={copertoPrice}
+                      onChange={(e) => setCopertoPrice(parseFloat(e.target.value) || 0)}
                     />
                   </div>
                 )}
+                <div className="flex justify-end pt-2">
+                  <Button onClick={handleSaveCoperto}>
+                    Salva impostazioni
+                  </Button>
+                </div>
               </CardContent>
             </Card>
 
