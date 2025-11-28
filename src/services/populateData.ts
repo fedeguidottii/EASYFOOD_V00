@@ -44,8 +44,7 @@ export const populateRestaurantData = async (restaurantId: string) => {
             number: t.name,
             restaurant_id: restaurantId,
             token: uuidv4(), // Generate a token for QR
-            pin: Math.floor(1000 + Math.random() * 9000).toString(), // 4 digit PIN
-            seats: 4
+            pin: Math.floor(1000 + Math.random() * 9000).toString() // 4 digit PIN
         }
         await DatabaseService.createTable(newTable)
     }
