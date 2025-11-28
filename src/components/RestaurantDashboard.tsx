@@ -1063,7 +1063,7 @@ const RestaurantDashboard = ({ user, onLogout }: RestaurantDashboardProps) => {
                 const activeOrder = restaurantOrders.find(o => getTableIdFromOrder(o) === table.id)
 
                 return (
-                  <Card key={table.id} className={`relative overflow-hidden transition-all duration-300 hover:shadow-lg group ${isActive ? 'border-primary/50 bg-primary/5' : 'border-border/40 hover:border-primary/30'}`}>
+                  <Card key={table.id} className={`relative overflow-hidden transition-all duration-300 hover:shadow-lg group ${isActive ? 'border-primary shadow-md' : 'border-border/40 hover:border-primary/30'}`}>
                     <CardContent className="p-4 flex flex-col items-center justify-center min-h-[160px] relative z-10">
                       <div className={`w-16 h-16 rounded-2xl flex items-center justify-center mb-3 transition-all duration-300 ${isActive
                         ? 'bg-muted text-foreground border-2 border-primary shadow-lg scale-110'
@@ -1093,11 +1093,11 @@ const RestaurantDashboard = ({ user, onLogout }: RestaurantDashboardProps) => {
                         )}
                       </div>
 
-                      <div className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity flex gap-1">
-                        <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => handleEditTable(table)}>
+                      <div className="absolute top-2 right-2 flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity bg-background/80 backdrop-blur-sm rounded-lg p-1 shadow-sm border border-border/50">
+                        <Button variant="ghost" size="icon" className="h-7 w-7 hover:bg-primary/10 hover:text-primary" onClick={() => handleEditTable(table)}>
                           <PencilSimple size={14} />
                         </Button>
-                        <Button variant="ghost" size="icon" className="h-7 w-7 text-destructive" onClick={() => handleDeleteTable(table.id)}>
+                        <Button variant="ghost" size="icon" className="h-7 w-7 text-destructive hover:bg-destructive/10" onClick={() => handleDeleteTable(table.id)}>
                           <Trash size={14} />
                         </Button>
                       </div>
@@ -1635,15 +1635,16 @@ const RestaurantDashboard = ({ user, onLogout }: RestaurantDashboardProps) => {
                               }`}>
                               <CardContent className="p-4">
                                 <div className="flex items-start justify-between mb-3">
-                                  <div className="flex gap-3 items-start">
-                                    {dish.image_url && (
-                                      <img
-                                        src={dish.image_url}
-                                        alt={dish.name}
-                                        className="w-16 h-16 rounded-lg object-cover border"
-                                      />
-                                    )}
-                                    <div>
+                                  <div className="flex items-center gap-4">
+                                    {dish.image_url ? (
+                                      <div className="w-16 h-16 rounded-lg overflow-hidden border border-border shrink-0">
+                                        <img src={dish.image_url} alt={dish.name} className="w-full h-full object-cover" />
+                                      </div>
+                                    ) : (
+                                      <div className="w-16 h-16 rounded-lg bg-muted flex items-center justify-center text-muted-foreground shrink-0">
+                                        <ForkKnife size={24} />
+                                      </div>
+                                    )}        <div>
                                       <h3 className="font-bold text-lg">{dish.name}</h3>
                                       <div className="flex items-center gap-2">
                                         <Badge className="bg-primary">🍽️ {totalQty}x totali</Badge>

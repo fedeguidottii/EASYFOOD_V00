@@ -126,7 +126,8 @@ export default function CustomerMenu({ tableId, onExit }: Props) {
       DatabaseService.getActiveSession(tableId).then(session => {
         if (session) {
           setActiveSession(session)
-          if (!isPinVerified) setShowPinDialog(true)
+          // Removed internal PIN check, rely on ClientTableAccess
+          setIsPinVerified(true)
 
           // Subscribe to cart items
           DatabaseService.getCartItems(session.id).then(setCartItems)
@@ -144,7 +145,7 @@ export default function CustomerMenu({ tableId, onExit }: Props) {
         }
       })
     }
-  }, [tableId, isPinVerified])
+  }, [tableId])
 
   useEffect(() => {
     const fetchOrderCount = async () => {
@@ -171,17 +172,29 @@ export default function CustomerMenu({ tableId, onExit }: Props) {
     }
   }
 
-  const addToCart = async (menuItemId: string) => {
-    if (!isPinVerified || !activeSession) {
-      setShowPinDialog(true)
-      return
-    }
+  const [selectedDish, setSelectedDish] = useState<Dish | null>(null)
+  const [itemQuantity, setItemQuantity] = useState(1)
+  const [itemNotes, setItemNotes] = useState('')
+  const [showAddDialog, setShowAddDialog] = useState(false)
+
+  const openAddDialog = (dish: Dish) => {
+    setSelectedDish(dish)
+    setItemQuantity(1)
+    setItemNotes('')
+    setShowAddDialog(true)
+  }
+
+  const confirmAddToCart = async () => {
+    if (!activeSession || !selectedDish) return
+
     await DatabaseService.addToCart({
       session_id: activeSession.id,
-      dish_id: menuItemId,
-      quantity: 1
+      dish_id: selectedDish.id,
+      quantity: itemQuantity,
+      notes: itemNotes
     })
-    toast.success('Aggiunto al carrello condiviso')
+    toast.success('Aggiunto al carrello')
+    setShowAddDialog(false)
   }
 
   const removeFromCart = async (itemId: string) => {
@@ -402,59 +415,64 @@ export default function CustomerMenu({ tableId, onExit }: Props) {
       {/* Main Content */}
       <main className="container mx-auto px-4 py-6">
         {/* Menu Items Grid - No Category Titles */}
-        <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+        {/* Menu Items List - Vertical Layout */}
+        <div className="space-y-4 max-w-3xl mx-auto">
           {filteredItems.map((item) => {
             const quantityInCart = getItemQuantityInCart(item.id)
 
             return (
-              <Card key={item.id} className="overflow-hidden shadow-professional hover:shadow-professional-lg transition-all duration-300 hover-lift bg-order-card">
-                {item.image_url && (
-                  <div className="relative h-48 overflow-hidden">
-                    <img
-                      src={item.image_url}
-                      alt={item.name}
-                      className="w-full h-full object-cover transition-transform duration-300 hover:scale-105"
-                      onError={(e) => {
-                        (e.target as HTMLImageElement).style.display = 'none'
-                      }}
-                    />
-                    <div className="absolute inset-0 bg-gradient-to-t from-black/20 to-transparent" />
+              <Card key={item.id} className="overflow-hidden shadow-sm hover:shadow-md transition-all duration-200 bg-card border-border/50">
+                <div className="flex flex-row h-32 sm:h-40">
+                  {/* Image Section */}
+                  <div className="w-32 sm:w-48 shrink-0 relative">
+                    {item.image_url ? (
+                      <img
+                        src={item.image_url}
+                        alt={item.name}
+                        className="w-full h-full object-cover"
+                        onError={(e) => {
+                          (e.target as HTMLImageElement).style.display = 'none'
+                        }}
+                      />
+                    ) : (
+                      <div className="w-full h-full bg-muted flex items-center justify-center text-muted-foreground">
+                        <ChefHat size={32} />
+                      </div>
+                    )}
                   </div>
-                )}
-                <CardContent className="p-4">
-                  <div className="space-y-3">
-                    <div>
-                      <h3 className="font-bold text-lg text-foreground">{item.name}</h3>
-                      <p className="text-sm text-muted-foreground line-clamp-2">{item.description}</p>
-                    </div>
 
-                    <div className="flex items-center justify-between">
-                      <div className="flex items-center gap-2">
-                        <span className="text-2xl font-bold text-primary">
+                  {/* Content Section */}
+                  <div className="flex-1 p-3 sm:p-4 flex flex-col justify-between">
+                    <div>
+                      <div className="flex justify-between items-start gap-2">
+                        <h3 className="font-bold text-base sm:text-lg text-foreground line-clamp-1">{item.name}</h3>
+                        <span className="font-bold text-primary whitespace-nowrap">
                           {isAyceEnabled && !item.excludeFromAllYouCanEat
                             ? 'Incluso'
                             : `€${item.price.toFixed(2)}`
                           }
                         </span>
-                        {isAyceEnabled && !item.excludeFromAllYouCanEat && (
-                          <Badge variant="secondary" className="text-xs bg-green-100 text-green-800">
-                            All You Can Eat
-                          </Badge>
-                        )}
                       </div>
+                      <p className="text-xs sm:text-sm text-muted-foreground line-clamp-2 mt-1">{item.description}</p>
                     </div>
 
-                    <div className="flex items-center justify-between gap-2">
+                    <div className="flex items-center justify-between mt-2">
+                      {isAyceEnabled && !item.excludeFromAllYouCanEat && (
+                        <Badge variant="secondary" className="text-[10px] sm:text-xs bg-green-100 text-green-800 border-green-200">
+                          AYCE
+                        </Badge>
+                      )}
                       <Button
-                        onClick={() => addToCart(item.id)}
-                        className="flex-1 bg-primary hover:bg-primary/90 shadow-gold"
+                        onClick={() => openAddDialog(item)}
+                        size="sm"
+                        className="ml-auto bg-primary hover:bg-primary/90 shadow-sm h-8 sm:h-9"
                       >
-                        <Plus size={16} className="mr-2" />
+                        <Plus size={14} className="mr-1" />
                         Aggiungi {quantityInCart > 0 && `(${quantityInCart})`}
                       </Button>
                     </div>
                   </div>
-                </CardContent>
+                </div>
               </Card>
             )
           })}
@@ -485,127 +503,173 @@ export default function CustomerMenu({ tableId, onExit }: Props) {
 
       {/* Cart Dialog */}
       <Dialog open={showCart} onOpenChange={setShowCart}>
-        <DialogContent className="max-w-md shadow-liquid-lg bg-order-card">
-          <DialogHeader>
-            <DialogTitle className="text-xl">Il Tuo Ordine</DialogTitle>
-            <DialogDescription>
-              Controlla i piatti selezionati prima di inviare l'ordine
-            </DialogDescription>
-          </DialogHeader>
-          <div className="flex-1 overflow-y-auto p-4 space-y-4">
-            {cartItems.length === 0 ? (
-              <div className="text-center text-muted-foreground py-8">
-                Il carrello è vuoto
-              </div>
-            ) : (
-              cartItems.map(item => {
-                const dish = restaurantDishes.find(d => d.id === item.dish_id)
-                if (!dish) return null
+        {/* Cart Dialog */}
+        <Dialog open={showCart} onOpenChange={setShowCart}>
+          <DialogContent className="max-w-md bg-background border border-border shadow-xl">
+            <DialogHeader>
+              <DialogTitle className="text-xl">Il Tuo Ordine</DialogTitle>
+              <DialogDescription>
+                Controlla i piatti selezionati prima di inviare l'ordine
+              </DialogDescription>
+            </DialogHeader>
+            <div className="flex-1 overflow-y-auto p-4 space-y-4">
+              {cartItems.length === 0 ? (
+                <div className="text-center text-muted-foreground py-8">
+                  Il carrello è vuoto
+                </div>
+              ) : (
+                cartItems.map(item => {
+                  const dish = restaurantDishes.find(d => d.id === item.dish_id)
+                  if (!dish) return null
 
-                return (
-                  <div key={item.id} className="flex gap-4 bg-muted/30 p-3 rounded-lg">
-                    {dish.image_url && (
-                      <img
-                        src={dish.image_url}
-                        alt={dish.name}
-                        className="w-16 h-16 rounded-md object-cover"
-                      />
-                    )}
-                    <div className="flex-1">
-                      <div className="flex justify-between items-start">
-                        <h4 className="font-bold">{dish.name}</h4>
-                        <span className="font-medium">€{(dish.price * item.quantity).toFixed(2)}</span>
-                      </div>
-                      <div className="flex items-center gap-3 mt-2">
-                        <div className="flex items-center gap-2 bg-background rounded-md border">
+                  return (
+                    <div key={item.id} className="flex gap-4 bg-muted/30 p-3 rounded-lg">
+                      {dish.image_url && (
+                        <img
+                          src={dish.image_url}
+                          alt={dish.name}
+                          className="w-16 h-16 rounded-md object-cover"
+                        />
+                      )}
+                      <div className="flex-1">
+                        <div className="flex justify-between items-start">
+                          <h4 className="font-bold">{dish.name}</h4>
+                          <span className="font-medium">€{(dish.price * item.quantity).toFixed(2)}</span>
+                        </div>
+                        <div className="flex items-center gap-3 mt-2">
+                          <div className="flex items-center gap-2 bg-background rounded-md border">
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              className="h-7 w-7"
+                              onClick={() => updateQuantity(item.id, -1)}
+                            >
+                              <Minus size={12} />
+                            </Button>
+                            <span className="text-sm font-medium w-4 text-center">{item.quantity}</span>
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              className="h-7 w-7"
+                              onClick={() => updateQuantity(item.id, 1)}
+                            >
+                              <Plus size={12} />
+                            </Button>
+                          </div>
                           <Button
                             variant="ghost"
                             size="icon"
-                            className="h-7 w-7"
-                            onClick={() => updateQuantity(item.id, -1)}
+                            className="h-7 w-7 text-destructive ml-auto"
+                            onClick={() => removeFromCart(item.id)}
                           >
-                            <Minus size={12} />
-                          </Button>
-                          <span className="text-sm font-medium w-4 text-center">{item.quantity}</span>
-                          <Button
-                            variant="ghost"
-                            size="icon"
-                            className="h-7 w-7"
-                            onClick={() => updateQuantity(item.id, 1)}
-                          >
-                            <Plus size={12} />
+                            <X size={14} />
                           </Button>
                         </div>
-                        <Button
-                          variant="ghost"
-                          size="icon"
-                          className="h-7 w-7 text-destructive ml-auto"
-                          onClick={() => removeFromCart(item.id)}
-                        >
-                          <X size={14} />
-                        </Button>
+                        <Input
+                          placeholder="Note per la cucina..."
+                          className="mt-2 h-8 text-xs bg-background"
+                          value={item.notes || ''}
+                          onChange={(e) => updateItemNotes(item.id, e.target.value)}
+                        />
                       </div>
-                      <Input
-                        placeholder="Note per la cucina..."
-                        className="mt-2 h-8 text-xs bg-background"
-                        value={item.notes || ''}
-                        onChange={(e) => updateItemNotes(item.id, e.target.value)}
-                      />
                     </div>
+                  )
+                })
+              )}
+            </div>
+
+            <div className="border-t pt-4">
+              <div className="space-y-2 mb-4">
+                {/* Regular items */}
+                {cartCalculations.regularTotal > 0 && (
+                  <div className="flex justify-between text-sm">
+                    <span>Piatti:</span>
+                    <span>€{cartCalculations.regularTotal.toFixed(2)}</span>
                   </div>
-                )
-              })
-            )}
-          </div>
+                )}
 
-          <div className="border-t pt-4">
-            <div className="space-y-2 mb-4">
-              {/* Regular items */}
-              {cartCalculations.regularTotal > 0 && (
-                <div className="flex justify-between text-sm">
-                  <span>Piatti:</span>
-                  <span>€{cartCalculations.regularTotal.toFixed(2)}</span>
-                </div>
-              )}
+                {/* Cover charge */}
+                {cartCalculations.coverCharge > 0 && (
+                  <div className="flex justify-between text-sm">
+                    <span>Coperto ({table?.customerCount} persone):</span>
+                    <span>€{cartCalculations.coverCharge.toFixed(2)}</span>
+                  </div>
+                )}
 
-              {/* Cover charge */}
-              {cartCalculations.coverCharge > 0 && (
-                <div className="flex justify-between text-sm">
-                  <span>Coperto ({table?.customerCount} persone):</span>
-                  <span>€{cartCalculations.coverCharge.toFixed(2)}</span>
-                </div>
-              )}
+                {/* All You Can Eat charge */}
+                {cartCalculations.allYouCanEatCharge > 0 && (
+                  <div className="flex justify-between text-sm">
+                    <span>All You Can Eat ({table?.customerCount} persone):</span>
+                    <span>€{cartCalculations.allYouCanEatCharge.toFixed(2)}</span>
+                  </div>
+                )}
 
-              {/* All You Can Eat charge */}
-              {cartCalculations.allYouCanEatCharge > 0 && (
-                <div className="flex justify-between text-sm">
-                  <span>All You Can Eat ({table?.customerCount} persone):</span>
-                  <span>€{cartCalculations.allYouCanEatCharge.toFixed(2)}</span>
-                </div>
-              )}
+                {remainingOrders !== null && (
+                  <div className="text-sm text-center p-2 bg-blue-50 rounded">
+                    Ordini rimasti: {remainingOrders}
+                  </div>
+                )}
+              </div>
 
-              {remainingOrders !== null && (
-                <div className="text-sm text-center p-2 bg-blue-50 rounded">
-                  Ordini rimasti: {remainingOrders}
-                </div>
-              )}
+              <div className="flex justify-between items-center mb-4">
+                <span className="font-bold text-xl">Totale:</span>
+                <span className="font-bold text-primary text-2xl">
+                  €{(cartCalculations.regularTotal + cartCalculations.coverCharge + cartCalculations.allYouCanEatCharge).toFixed(2)}
+                </span>
+              </div>
+              <Button
+                onClick={handlePlaceOrder}
+                className="w-full bg-green-500 hover:bg-green-600 text-white font-bold text-lg py-3 shadow-liquid-lg"
+                disabled={remainingOrders !== null && remainingOrders <= 0}
+              >
+                <Check size={20} className="mr-2" />
+                {remainingOrders !== null && remainingOrders <= 0
+                  ? 'Limite ordini raggiunto'
+                  : 'Invia Ordine'}
+              </Button>
             </div>
+          </DialogContent>
+        </Dialog>
+      </Dialog>
 
-            <div className="flex justify-between items-center mb-4">
-              <span className="font-bold text-xl">Totale:</span>
-              <span className="font-bold text-primary text-2xl">
-                €{(cartCalculations.regularTotal + cartCalculations.coverCharge + cartCalculations.allYouCanEatCharge).toFixed(2)}
-              </span>
+      {/* Add to Cart Dialog */}
+      <Dialog open={showAddDialog} onOpenChange={setShowAddDialog}>
+        <DialogContent className="max-w-sm bg-background">
+          <DialogHeader>
+            <DialogTitle>Aggiungi al carrello</DialogTitle>
+            <DialogDescription>
+              {selectedDish?.name}
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4 py-4">
+            <div className="flex items-center justify-center gap-4">
+              <Button
+                variant="outline"
+                size="icon"
+                onClick={() => setItemQuantity(Math.max(1, itemQuantity - 1))}
+              >
+                <Minus size={16} />
+              </Button>
+              <span className="text-2xl font-bold w-8 text-center">{itemQuantity}</span>
+              <Button
+                variant="outline"
+                size="icon"
+                onClick={() => setItemQuantity(itemQuantity + 1)}
+              >
+                <Plus size={16} />
+              </Button>
             </div>
-            <Button
-              onClick={handlePlaceOrder}
-              className="w-full bg-green-500 hover:bg-green-600 text-white font-bold text-lg py-3 shadow-liquid-lg"
-              disabled={remainingOrders !== null && remainingOrders <= 0}
-            >
-              <Check size={20} className="mr-2" />
-              {remainingOrders !== null && remainingOrders <= 0
-                ? 'Limite ordini raggiunto'
-                : 'Invia Ordine'}
+            <div className="space-y-2">
+              <Label>Note per la cucina (opzionale)</Label>
+              <Textarea
+                placeholder="Es. Senza cipolla, ben cotto..."
+                value={itemNotes}
+                onChange={(e) => setItemNotes(e.target.value)}
+                className="resize-none"
+              />
+            </div>
+            <Button onClick={confirmAddToCart} className="w-full font-bold text-lg">
+              Conferma Aggiunta
             </Button>
           </div>
         </DialogContent>
