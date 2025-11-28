@@ -149,6 +149,9 @@ const RestaurantDashboard = ({ user, onLogout }: RestaurantDashboardProps) => {
   const [copertoEnabled, setCopertoEnabled] = useState(false)
   const [copertoPrice, setCopertoPrice] = useState(0)
 
+  // Reservations Date Filter
+  const [reservationsDateFilter, setReservationsDateFilter] = useState<'today' | 'tomorrow' | 'all'>('today')
+
   const restaurantDishes = dishes || []
   const restaurantTables = tables || []
   const restaurantOrders = orders?.filter(order => order.status !== 'completed' && order.status !== 'CANCELLED') || []
@@ -1313,13 +1316,34 @@ const RestaurantDashboard = ({ user, onLogout }: RestaurantDashboardProps) => {
           </TabsContent>
 
           {/* Reservations Tab */}
-          <TabsContent value="reservations" className="space-y-6">
-            <ReservationsManager
-              user={user}
-              restaurantId={restaurantId}
-              tables={restaurantTables}
-              bookings={restaurantBookings}
-            />
+          <TabsContent value="reservations" className="space-y-6 p-6">
+            {/* Date Filter */}
+            <div className="flex gap-2 mb-4">
+              <Button
+                variant={reservationsDateFilter === 'today' ? 'default' : 'outline'}
+                onClick={() => setReservationsDateFilter('today')}
+                size="sm"
+              >
+                <Calendar size={16} className="mr-2" />
+                Oggi
+              </Button>
+              <Button
+                variant={reservationsDateFilter === 'tomorrow' ? 'default' : 'outline'}
+                onClick={() => setReservationsDateFilter('tomorrow')}
+                size="sm"
+              >
+                <Calendar size={16} className="mr-2" />
+                Domani
+              </Button>
+              <Button
+                variant={reservationsDateFilter === 'all' ? 'default' : 'outline'}
+                onClick={() => setReservationsDateFilter('all')}
+                size="sm"
+              >
+                Tutte
+              </Button>
+            </div>
+            <ReservationsManager restaurantId={restaurantId} dateFilter={reservationsDateFilter} />
           </TabsContent>
 
           {/* Analytics Tab */}
@@ -1817,6 +1841,32 @@ const RestaurantDashboard = ({ user, onLogout }: RestaurantDashboardProps) => {
                   </SelectContent>
                 </Select>
               </div>
+            </div>
+            <div className="space-y-2">
+              <Label>Foto Piatto</Label>
+              <Input
+                type="file"
+                accept="image/*"
+                onChange={(e) => {
+                  const file = e.target.files?.[0]
+                  if (file) {
+                    const reader = new FileReader()
+                    reader.onloadend = () => {
+                      setEditDishData({ ...editDishData, image: reader.result as string })
+                    }
+                    reader.readAsDataURL(file)
+                  }
+                }}
+              />
+              {editDishData.image && (
+                <div className="mt-2">
+                  <img
+                    src={editDishData.image}
+                    alt="Preview"
+                    className="w-full h-32 object-cover rounded-lg border-2 border-border"
+                  />
+                </div>
+              )}
             </div>
             <div className="flex items-center space-x-2 pt-4">
               <input

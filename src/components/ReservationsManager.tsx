@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { DatabaseService } from '../services/DatabaseService'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
@@ -19,9 +19,10 @@ interface ReservationsManagerProps {
   restaurantId: string
   tables: Table[]
   bookings: Booking[]
+  dateFilter?: 'today' | 'tomorrow' | 'all'
 }
 
-export default function ReservationsManager({ user, restaurantId, tables, bookings }: ReservationsManagerProps) {
+export default function ReservationsManager({ user, restaurantId, tables, bookings, dateFilter = 'today' }: ReservationsManagerProps) {
   const [selectedBooking, setSelectedBooking] = useState<Booking | null>(null)
   const [showEditDialog, setShowEditDialog] = useState(false)
   const [showDeleteDialog, setShowDeleteDialog] = useState(false)
@@ -30,6 +31,21 @@ export default function ReservationsManager({ user, restaurantId, tables, bookin
   // Filter states for future reservations
   const [futureFilter, setFutureFilter] = useState<string>('all')
   const [customFutureDate, setCustomFutureDate] = useState('')
+
+  // Sync prop with internal state when it changes
+  useEffect(() => {
+    if (dateFilter === 'today') {
+      const today = new Date().toISOString().split('T')[0]
+      setFutureFilter(today)
+    } else if (dateFilter === 'tomorrow') {
+      const tomorrow = new Date()
+      tomorrow.setDate(tomorrow.getDate() + 1)
+      const tomorrowStr = tomorrow.toISOString().split('T')[0]
+      setFutureFilter(tomorrowStr)
+    } else {
+      setFutureFilter('all')
+    }
+  }, [dateFilter])
 
   // Filter states for history
   const [historyFilter, setHistoryFilter] = useState<string>('all')
