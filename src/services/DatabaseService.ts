@@ -216,6 +216,24 @@ export const DatabaseService = {
         return data.publicUrl
     },
 
+    async uploadImage(file: File, bucket: string) {
+        const fileExt = file.name.split('.').pop()
+        const fileName = `${Math.random()}.${fileExt}`
+        const filePath = `${fileName}`
+
+        const { error: uploadError } = await supabase.storage
+            .from(bucket)
+            .upload(filePath, file)
+
+        if (uploadError) throw uploadError
+
+        const { data } = supabase.storage
+            .from(bucket)
+            .getPublicUrl(filePath)
+
+        return data.publicUrl
+    },
+
     // Categories
     async getCategories(restaurantId: string) {
         const { data, error } = await supabase

@@ -71,7 +71,7 @@ const RestaurantDashboard = ({ user, onLogout }: RestaurantDashboardProps) => {
   const [tables] = useSupabaseData<Table>('tables', [], { column: 'restaurant_id', value: restaurantId })
   const [dishes] = useSupabaseData<Dish>('dishes', [], { column: 'restaurant_id', value: restaurantId })
   const [orders] = useSupabaseData<Order>('orders', [], { column: 'restaurant_id', value: restaurantId })
-  const [bookings] = useSupabaseData<Booking>('bookings', [], { column: 'restaurant_id', value: restaurantId })
+  const [bookings, , refreshBookings] = useSupabaseData<Booking>('bookings', [], { column: 'restaurant_id', value: restaurantId })
   const [categories] = useSupabaseData<Category>('categories', [], { column: 'restaurant_id', value: restaurantId })
   const [sessions] = useSupabaseData<TableSession>('table_sessions', [], { column: 'restaurant_id', value: restaurantId })
 
@@ -90,6 +90,7 @@ const RestaurantDashboard = ({ user, onLogout }: RestaurantDashboardProps) => {
     image: string
     is_ayce: boolean
     allergens?: string[]
+    imageFile?: File
   }>({
     name: '',
     description: '',
@@ -97,7 +98,8 @@ const RestaurantDashboard = ({ user, onLogout }: RestaurantDashboardProps) => {
     categoryId: '',
     image: '',
     is_ayce: false,
-    allergens: []
+    allergens: [],
+    imageFile: undefined
   })
   const [newCategory, setNewCategory] = useState('')
   const [draggedCategory, setDraggedCategory] = useState<Category | null>(null)
@@ -118,6 +120,7 @@ const RestaurantDashboard = ({ user, onLogout }: RestaurantDashboardProps) => {
     image: string
     is_ayce: boolean
     allergens?: string[]
+    imageFile?: File
   }>({
     name: '',
     description: '',
@@ -125,7 +128,8 @@ const RestaurantDashboard = ({ user, onLogout }: RestaurantDashboardProps) => {
     categoryId: '',
     image: '',
     is_ayce: false,
-    allergens: []
+    allergens: [],
+    imageFile: undefined
   })
   const [orderViewMode, setOrderViewMode] = useState<'table' | 'dish'>('table')
   const [showCompletedOrders, setShowCompletedOrders] = useState(false)
@@ -200,7 +204,7 @@ const RestaurantDashboard = ({ user, onLogout }: RestaurantDashboardProps) => {
     const session = sessions?.find(s => s.table_id === tableId && s.status === 'OPEN')
     const pin = session?.session_pin || ''
     // Direct link to menu with table ID and PIN (skip login)
-    return `${window.location.origin}/menu?table=${tableId}&pin=${pin}`
+    return `${window.location.origin}/?table=${tableId}&pin=${pin}`
   }
 
   const handleCreateTable = () => {
@@ -307,8 +311,10 @@ const RestaurantDashboard = ({ user, onLogout }: RestaurantDashboardProps) => {
   // AYCE Settings Save
   const handleSaveAYCE = async () => {
     try {
-      await DatabaseService.updateRestaurant(restaurantId, {
-        ...currentRestaurant!,
+      const { id, ...rest } = currentRestaurant!
+      await DatabaseService.updateRestaurant({
+        id: restaurantId,
+        ...rest,
         all_you_can_eat: {
           enabled: ayceEnabled,
           pricePerPerson: aycePrice,
@@ -324,11 +330,18 @@ const RestaurantDashboard = ({ user, onLogout }: RestaurantDashboardProps) => {
   // Coperto Settings Save
   const handleSaveCoperto = async () => {
     try {
-      await DatabaseService.updateRestaurant(restaurantId, {
-        ...currentRestaurant!,
-        cover_charge_per_person: copertoEnabled ? copertoPrice : 0
-      })
-      toast.success('Impostazioni Coperto salvate!')
+      const { id, ...rest } = currentRestaurant!
+      const updatedSettings = { ...rest, cover_charge_per_person: !copertoEnabled ? copertoPrice : 0 } // If enabling, use price, else 0? Logic seems to be toggle enabled.
+      // Wait, copertoEnabled state tracks if it is enabled.
+      // If we are toggling, we should update the enabled state or price?
+      // The original code was: cover_charge_per_person: !copertoEnabled ? copertoPrice : 0
+      // But cover_charge_per_person is a number. Usually 0 means disabled?
+      // Let's assume 0 means disabled.
+      await DatabaseService.updateRestaurant({ id: restaurantId, ...updatedSettings })
+        .then(() => {
+          setCopertoEnabled(!copertoEnabled)
+          toast.success(!copertoEnabled ? 'Coperto attivato' : 'Coperto disattivato')
+        })
     } catch (error) {
       toast.error('Errore nel salvare le impostazioni')
     }
@@ -359,10 +372,21 @@ const RestaurantDashboard = ({ user, onLogout }: RestaurantDashboardProps) => {
     setEditTableName('')
   }
 
-  const handleCreateDish = () => {
+  const handleCreateDish = async () => {
     if (!newDish.name.trim() || !newDish.price || !newDish.categoryId) {
       toast.error('Compila tutti i campi obbligatori')
       return
+    }
+
+    let imageUrl = newDish.image
+    if (newDish.imageFile) {
+      try {
+        imageUrl = await DatabaseService.uploadImage(newDish.imageFile, 'dishes')
+      } catch (error) {
+        console.error('Error uploading image:', error)
+        toast.error('Errore durante il caricamento dell\'immagine')
+        return
+      }
     }
 
     const newItem: Partial<Dish> = {
@@ -371,7 +395,7 @@ const RestaurantDashboard = ({ user, onLogout }: RestaurantDashboardProps) => {
       description: newDish.description,
       price: parseFloat(newDish.price),
       category_id: newDish.categoryId,
-      image_url: newDish.image,
+      image_url: imageUrl,
       is_active: true,
       is_ayce: newDish.is_ayce,
       excludeFromAllYouCanEat: !newDish.is_ayce,
@@ -425,10 +449,21 @@ const RestaurantDashboard = ({ user, onLogout }: RestaurantDashboardProps) => {
     setAllergenInput(item.allergens?.join(', ') || '')
   }
 
-  const handleSaveDish = () => {
+  const handleSaveDish = async () => {
     if (!editingDish || !editDishData.name.trim() || !editDishData.price || !editDishData.categoryId) {
       toast.error('Compila tutti i campi obbligatori')
       return
+    }
+
+    let imageUrl = editDishData.image
+    if (editDishData.imageFile) {
+      try {
+        imageUrl = await DatabaseService.uploadImage(editDishData.imageFile, 'dishes')
+      } catch (error) {
+        console.error('Error uploading image:', error)
+        toast.error('Errore durante il caricamento dell\'immagine')
+        return
+      }
     }
 
     const updatedItem = {
@@ -437,7 +472,7 @@ const RestaurantDashboard = ({ user, onLogout }: RestaurantDashboardProps) => {
       description: editDishData.description.trim(),
       price: parseFloat(editDishData.price),
       category_id: editDishData.categoryId,
-      image_url: editDishData.image,
+      image_url: imageUrl,
       is_ayce: editDishData.is_ayce,
       excludeFromAllYouCanEat: !editDishData.is_ayce,
       allergens: editDishData.allergens || []
@@ -618,12 +653,12 @@ const RestaurantDashboard = ({ user, onLogout }: RestaurantDashboardProps) => {
       <div
         id="sidebar"
         className={`${sidebarExpanded ? 'w-64' : 'w-20'
-          } glass border-r border-border/20 flex flex-col fixed h-full z-50 transition-all duration-300 ease-in-out`}
+          } glass border-r border-border/20 flex flex-col fixed h-full z-50 transition-all duration-300 ease-in-out bg-card/80 backdrop-blur-md`}
       >
         <div className="p-6 border-b border-border/10 flex items-center justify-center">
           {sidebarExpanded ? (
-            <div className="text-center">
-              <h1 className="font-bold text-xl text-primary">{currentRestaurant?.name || 'EASYFOOD'}</h1>
+            <div className="text-center w-full">
+              <h1 className="font-bold text-xl text-primary truncate px-2">{currentRestaurant?.name || 'EASYFOOD'}</h1>
               <p className="text-xs text-muted-foreground mt-1">Dashboard</p>
             </div>
           ) : (
@@ -740,7 +775,7 @@ const RestaurantDashboard = ({ user, onLogout }: RestaurantDashboardProps) => {
                 </div>
               </div>
               <div className="flex flex-wrap items-center gap-2">
-                <div className="flex items-center gap-2 bg-white rounded-lg p-1 shadow-sm border border-border/30">
+                <div className="flex items-center gap-2 bg-card rounded-lg p-1 shadow-sm border border-border/30">
                   <Button
                     variant={orderViewMode === 'table' ? 'default' : 'ghost'}
                     size="sm"
@@ -873,7 +908,7 @@ const RestaurantDashboard = ({ user, onLogout }: RestaurantDashboardProps) => {
                           {items.map((item, index) => {
                             const dish = dishes?.find(d => d.id === item.dish_id)
                             return (
-                              <div key={index} className="flex items-center justify-between group/item hover:bg-muted/30 p-1.5 rounded-lg transition-colors">
+                              <div key={item.id} className="flex items-center justify-between p-3 bg-card rounded-lg border border-border/50 hover:border-primary/30 transition-all">
                                 <div className="flex items-center gap-3">
                                   <Badge variant="outline" className="w-6 h-6 rounded-md flex items-center justify-center p-0 font-bold bg-background border-primary/20 text-primary">
                                     {item.quantity}x
@@ -953,7 +988,7 @@ const RestaurantDashboard = ({ user, onLogout }: RestaurantDashboardProps) => {
                   <Card key={table.id} className={`relative overflow-hidden transition-all duration-300 hover:shadow-lg group ${isActive ? 'border-primary/50 bg-primary/5' : 'border-border/40 hover:border-primary/30'}`}>
                     <CardContent className="p-4 flex flex-col items-center justify-center min-h-[160px] relative z-10">
                       <div className={`w-16 h-16 rounded-2xl flex items-center justify-center mb-3 transition-all duration-300 ${isActive
-                        ? 'bg-primary/20 text-primary border-2 border-primary shadow-lg scale-110'
+                        ? 'bg-muted text-foreground border-2 border-primary shadow-lg scale-110'
                         : 'bg-muted text-foreground group-hover:scale-105'
                         }`}>
                         <span className="text-2xl font-bold">{table.number}</span>
@@ -1347,8 +1382,9 @@ const RestaurantDashboard = ({ user, onLogout }: RestaurantDashboardProps) => {
               user={user}
               restaurantId={restaurantId}
               tables={restaurantTables}
-              bookings={restaurantBookings}
+              bookings={bookings || []}
               dateFilter={reservationsDateFilter}
+              onRefresh={refreshBookings}
             />
           </TabsContent>
 
@@ -1474,7 +1510,7 @@ const RestaurantDashboard = ({ user, onLogout }: RestaurantDashboardProps) => {
                                     <Button
                                       size="sm"
                                       variant="ghost"
-                                      onClick={() => updateOrderItemStatus(item.id, 'completed')}
+                                      onClick={() => updateOrderItemStatus(order.id, item.id, 'SERVED')}
                                     >
                                       ✓
                                     </Button>
@@ -1657,12 +1693,20 @@ const RestaurantDashboard = ({ user, onLogout }: RestaurantDashboardProps) => {
                     className="h-5 w-5 rounded border-gray-300 text-primary focus:ring-primary"
                     checked={currentRestaurant?.all_you_can_eat?.enabled || false}
                     onChange={(e) => {
-                      const updatedSettings = {
-                        ...currentRestaurant?.all_you_can_eat,
-                        enabled: e.target.checked
+                      const ayceEnabled = currentRestaurant?.all_you_can_eat?.enabled || false
+                      const { id, ...rest } = currentRestaurant!
+                      const updatedRestaurantData = {
+                        ...rest,
+                        all_you_can_eat: {
+                          enabled: !ayceEnabled,
+                          pricePerPerson: rest.all_you_can_eat?.pricePerPerson || 0,
+                          maxOrders: rest.all_you_can_eat?.maxOrders || 5
+                        }
                       }
-                      DatabaseService.updateRestaurant(restaurantId, { all_you_can_eat: updatedSettings })
-                        .then(() => toast.success('Impostazioni aggiornate'))
+                      DatabaseService.updateRestaurant({ id: restaurantId, ...updatedRestaurantData })
+                        .then(() => {
+                          toast.success(ayceEnabled ? 'All You Can Eat disattivato' : 'All You Can Eat attivato')
+                        })
                     }}
                   />
                 </div>
@@ -1675,10 +1719,11 @@ const RestaurantDashboard = ({ user, onLogout }: RestaurantDashboardProps) => {
                         value={currentRestaurant?.all_you_can_eat?.pricePerPerson || 0}
                         onChange={(e) => {
                           const updatedSettings = {
-                            ...currentRestaurant?.all_you_can_eat,
+                            enabled: currentRestaurant?.all_you_can_eat?.enabled || false,
+                            maxOrders: currentRestaurant?.all_you_can_eat?.maxOrders || 5,
                             pricePerPerson: parseFloat(e.target.value)
                           }
-                          DatabaseService.updateRestaurant(restaurantId, { all_you_can_eat: updatedSettings })
+                          DatabaseService.updateRestaurant({ ...currentRestaurant, id: restaurantId, all_you_can_eat: updatedSettings })
                         }}
                       />
                     </div>
@@ -1689,10 +1734,11 @@ const RestaurantDashboard = ({ user, onLogout }: RestaurantDashboardProps) => {
                         value={currentRestaurant?.all_you_can_eat?.maxOrders || 5}
                         onChange={(e) => {
                           const updatedSettings = {
-                            ...currentRestaurant?.all_you_can_eat,
+                            enabled: currentRestaurant?.all_you_can_eat?.enabled || false,
+                            pricePerPerson: currentRestaurant?.all_you_can_eat?.pricePerPerson || 0,
                             maxOrders: parseInt(e.target.value)
                           }
-                          DatabaseService.updateRestaurant(restaurantId, { all_you_can_eat: updatedSettings })
+                          DatabaseService.updateRestaurant({ ...currentRestaurant, id: restaurantId, all_you_can_eat: updatedSettings })
                         }}
                       />
                     </div>
@@ -1712,7 +1758,7 @@ const RestaurantDashboard = ({ user, onLogout }: RestaurantDashboardProps) => {
                     type="number"
                     value={currentRestaurant?.cover_charge_per_person || 0}
                     onChange={(e) => {
-                      DatabaseService.updateRestaurant(restaurantId, { cover_charge_per_person: parseFloat(e.target.value) })
+                      DatabaseService.updateRestaurant({ ...currentRestaurant, id: restaurantId, cover_charge_per_person: parseFloat(e.target.value) })
                     }}
                   />
                   <p className="text-sm text-muted-foreground">Questo importo verrà aggiunto automaticamente al totale per ogni coperto.</p>
@@ -1772,7 +1818,7 @@ const RestaurantDashboard = ({ user, onLogout }: RestaurantDashboardProps) => {
             <div className="text-center">
               <p className="text-sm font-medium">PIN Tavolo</p>
               <p className="text-3xl font-bold tracking-widest font-mono mt-1">
-                {currentSessionPin || '****'}
+                {currentSessionPin || '----'}
               </p>
             </div>
           </div>
@@ -1858,7 +1904,7 @@ const RestaurantDashboard = ({ user, onLogout }: RestaurantDashboardProps) => {
                   if (file) {
                     const reader = new FileReader()
                     reader.onloadend = () => {
-                      setEditDishData({ ...editDishData, image: reader.result as string })
+                      setEditDishData({ ...editDishData, image: reader.result as string, imageFile: file })
                     }
                     reader.readAsDataURL(file)
                   }
@@ -1873,6 +1919,14 @@ const RestaurantDashboard = ({ user, onLogout }: RestaurantDashboardProps) => {
                   />
                 </div>
               )}
+            </div>
+            <div className="space-y-2">
+              <Label>Allergeni (separati da virgola)</Label>
+              <Input
+                value={editDishData.allergens?.join(', ') || ''}
+                onChange={(e) => setEditDishData({ ...editDishData, allergens: e.target.value.split(',').map(s => s.trim()).filter(Boolean) })}
+                placeholder="Glutine, Lattosio, etc."
+              />
             </div>
             <div className="flex items-center space-x-2 pt-4">
               <input

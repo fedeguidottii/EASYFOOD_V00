@@ -20,9 +20,10 @@ interface ReservationsManagerProps {
   tables: Table[]
   bookings: Booking[]
   dateFilter?: 'today' | 'tomorrow' | 'all'
+  onRefresh?: () => void
 }
 
-export default function ReservationsManager({ user, restaurantId, tables, bookings, dateFilter = 'today' }: ReservationsManagerProps) {
+export default function ReservationsManager({ user, restaurantId, tables, bookings, dateFilter = 'today', onRefresh }: ReservationsManagerProps) {
   const [selectedBooking, setSelectedBooking] = useState<Booking | null>(null)
   const [showEditDialog, setShowEditDialog] = useState(false)
   const [showDeleteDialog, setShowDeleteDialog] = useState(false)
@@ -119,6 +120,7 @@ export default function ReservationsManager({ user, restaurantId, tables, bookin
         setShowEditDialog(false)
         setSelectedBooking(null)
         toast.success('Prenotazione modificata con successo')
+        onRefresh?.()
       })
   }
 
@@ -131,13 +133,17 @@ export default function ReservationsManager({ user, restaurantId, tables, bookin
         setShowDeleteDialog(false)
         setSelectedBooking(null)
         toast.success('Prenotazione eliminata')
+        onRefresh?.()
       })
   }
 
   // Complete reservation (move to history)
   const handleCompleteBooking = (booking: Booking) => {
     DatabaseService.updateBooking({ id: booking.id, status: 'COMPLETED' })
-      .then(() => toast.success('Prenotazione completata'))
+      .then(() => {
+        toast.success('Prenotazione completata')
+        onRefresh?.()
+      })
   }
 
   // Get table name
@@ -323,44 +329,52 @@ export default function ReservationsManager({ user, restaurantId, tables, bookin
         <div className="flex items-center justify-between flex-wrap gap-4">
           <h3 className="text-xl font-semibold text-foreground">Lista Prenotazioni</h3>
 
-          {/* Future Reservations Filter */}
-          <div className="flex items-center gap-4">
-            <Select value={futureFilter} onValueChange={setFutureFilter}>
-              <SelectTrigger className="w-48">
-                <SelectValue placeholder="Filtra per data" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">Tutte le date</SelectItem>
-                {futureDateSuggestions.map(suggestion => (
-                  <SelectItem key={suggestion.value} value={suggestion.value}>
-                    {suggestion.label}
-                  </SelectItem>
-                ))}
-                <SelectItem value="custom">Personalizzato</SelectItem>
-              </SelectContent>
-            </Select>
+          {/* Future Reservations Filter - Buttons */}
+          <div className="flex items-center gap-2 flex-wrap">
+            <Button
+              variant={futureFilter === 'all' ? 'default' : 'outline'}
+              size="sm"
+              onClick={() => setFutureFilter('all')}
+            >
+              Tutte
+            </Button>
+            {futureDateSuggestions.slice(0, 3).map(suggestion => (
+              <Button
+                key={suggestion.value}
+                variant={futureFilter === suggestion.value ? 'default' : 'outline'}
+                size="sm"
+                onClick={() => setFutureFilter(suggestion.value)}
+              >
+                {suggestion.label}
+              </Button>
+            ))}
 
-            {futureFilter === 'custom' && (
-              <Popover>
-                <PopoverTrigger asChild>
-                  <Button variant="outline" className="gap-2">
-                    <CalendarBlank size={16} />
-                    Scegli Data
-                  </Button>
-                </PopoverTrigger>
-                <PopoverContent className="w-auto" align="end">
-                  <div className="space-y-2">
-                    <Label htmlFor="custom-future-date">Data personalizzata</Label>
-                    <Input
-                      id="custom-future-date"
-                      type="date"
-                      value={customFutureDate}
-                      onChange={(e) => setCustomFutureDate(e.target.value)}
-                    />
-                  </div>
-                </PopoverContent>
-              </Popover>
-            )}
+            <Popover>
+              <PopoverTrigger asChild>
+                <Button
+                  variant={futureFilter === 'custom' || (!['all', ...futureDateSuggestions.slice(0, 3).map(s => s.value)].includes(futureFilter)) ? 'default' : 'outline'}
+                  size="sm"
+                  className="gap-2"
+                >
+                  <CalendarBlank size={16} />
+                  {futureFilter === 'custom' || (!['all', ...futureDateSuggestions.slice(0, 3).map(s => s.value)].includes(futureFilter)) ? (customFutureDate ? formatDate(customFutureDate) : 'Data') : 'Altro'}
+                </Button>
+              </PopoverTrigger>
+              <PopoverContent className="w-auto p-0" align="end">
+                <div className="p-3">
+                  <Label htmlFor="custom-future-date" className="mb-2 block">Seleziona data</Label>
+                  <Input
+                    id="custom-future-date"
+                    type="date"
+                    value={customFutureDate}
+                    onChange={(e) => {
+                      setCustomFutureDate(e.target.value)
+                      setFutureFilter('custom')
+                    }}
+                  />
+                </div>
+              </PopoverContent>
+            </Popover>
           </div>
         </div>
 
