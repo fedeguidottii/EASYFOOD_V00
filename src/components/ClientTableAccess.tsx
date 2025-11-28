@@ -41,7 +41,7 @@ export default function ClientTableAccess({ tableId, onAccessGranted }: ClientTa
         setLoading(true)
         try {
             // Verify PIN
-            const isValid = await DatabaseService.verifySessionPin(tableId, pin)
+            const isValid = await DatabaseService.verifySessionPin(tableId, pin.trim())
 
             if (isValid) {
                 // Create a temporary customer user
