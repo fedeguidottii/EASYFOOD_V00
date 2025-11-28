@@ -372,6 +372,23 @@ export const DatabaseService = {
         return data as TableSession
     },
 
+    async closeSession(sessionId: string) {
+        const { error } = await supabase
+            .from('table_sessions')
+            .update({ status: 'CLOSED', closed_at: new Date().toISOString() })
+            .eq('id', sessionId)
+        if (error) throw error
+    },
+
+    async markOrdersPaidForSession(sessionId: string) {
+        const { error } = await supabase
+            .from('orders')
+            .update({ status: 'PAID', closed_at: new Date().toISOString() })
+            .eq('table_session_id', sessionId)
+            .neq('status', 'PAID')
+        if (error) throw error
+    },
+
     // Orders
     async getOrders(restaurantId: string) {
         const { data, error } = await supabase

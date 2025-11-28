@@ -125,16 +125,19 @@ export default function ReservationsManager({ user, restaurantId, tables, bookin
   }
 
   // Delete reservation
-  const handleDeleteBooking = () => {
+  const handleDeleteBooking = async () => {
     if (!selectedBooking) return
 
-    DatabaseService.deleteBooking(selectedBooking.id)
-      .then(() => {
-        setShowDeleteDialog(false)
-        setSelectedBooking(null)
-        toast.success('Prenotazione eliminata')
-        onRefresh?.()
-      })
+    try {
+      await DatabaseService.deleteBooking(selectedBooking.id)
+      setShowDeleteDialog(false)
+      setSelectedBooking(null)
+      toast.success('Prenotazione eliminata')
+      await onRefresh?.()
+    } catch (error) {
+      console.error('Errore durante l\'eliminazione della prenotazione', error)
+      toast.error('Non è stato possibile eliminare la prenotazione')
+    }
   }
 
   // Complete reservation (move to history)

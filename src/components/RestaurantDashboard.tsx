@@ -70,7 +70,7 @@ const RestaurantDashboard = ({ user, onLogout }: RestaurantDashboardProps) => {
 
   // Only fetch data if we have a valid restaurant ID
   const [tables] = useSupabaseData<Table>('tables', [], { column: 'restaurant_id', value: restaurantId })
-  const [dishes] = useSupabaseData<Dish>('dishes', [], { column: 'restaurant_id', value: restaurantId })
+  const [dishes, , , setDishes] = useSupabaseData<Dish>('dishes', [], { column: 'restaurant_id', value: restaurantId })
   const [orders] = useSupabaseData<Order>('orders', [], { column: 'restaurant_id', value: restaurantId })
   const [bookings, , refreshBookings] = useSupabaseData<Booking>('bookings', [], { column: 'restaurant_id', value: restaurantId })
   const [categories] = useSupabaseData<Category>('categories', [], { column: 'restaurant_id', value: restaurantId })
@@ -153,14 +153,21 @@ const RestaurantDashboard = ({ user, onLogout }: RestaurantDashboardProps) => {
   const [ayceMaxOrders, setAyceMaxOrders] = useState(5)
   const [copertoEnabled, setCopertoEnabled] = useState(false)
   const [copertoPrice, setCopertoPrice] = useState(0)
+  const [settingsInitialized, setSettingsInitialized] = useState(false)
+  const [ayceDirty, setAyceDirty] = useState(false)
+  const [copertoDirty, setCopertoDirty] = useState(false)
 
   // Reservations Date Filter
   const [reservationsDateFilter, setReservationsDateFilter] = useState<'today' | 'tomorrow' | 'all'>('today')
 
   const restaurantDishes = dishes || []
   const restaurantTables = tables || []
-  const restaurantOrders = orders?.filter(order => order.status !== 'completed' && order.status !== 'CANCELLED') || []
-  const restaurantCompletedOrders = orders?.filter(order => order.status === 'completed') || []
+  const restaurantOrders = orders?.filter(order =>
+    order.status !== 'completed' &&
+    order.status !== 'CANCELLED' &&
+    order.status !== 'PAID'
+  ) || []
+  const restaurantCompletedOrders = orders?.filter(order => order.status === 'completed' || order.status === 'PAID') || []
   const restaurantBookings = bookings || []
   const restaurantCategories = categories || []
 
@@ -195,6 +202,7 @@ const RestaurantDashboard = ({ user, onLogout }: RestaurantDashboardProps) => {
         setCopertoPrice(coverCharge)
         setCopertoEnabled(coverCharge > 0)
       }
+      setSettingsInitialized(true)
     }
   }, [currentRestaurant])
 
@@ -203,8 +211,8 @@ const RestaurantDashboard = ({ user, onLogout }: RestaurantDashboardProps) => {
   const generatePin = () => Math.floor(1000 + Math.random() * 9000).toString()
 
   const generateQrCode = (tableId: string) => {
-    // Direct link to menu with table ID
-    return `${window.location.origin}/client/table/${tableId}`
+    // Direct link to menu with table ID using root path to avoid platform auth screens
+    return `${window.location.origin}/?table=${tableId}`
   }
 
   const handleCreateTable = () => {
@@ -221,7 +229,6 @@ const RestaurantDashboard = ({ user, onLogout }: RestaurantDashboardProps) => {
     const newTable: Partial<Table> = {
       restaurant_id: restaurantId,
       number: newTableName, // Using 'number' field for name/number
-      status: 'available',
       // capacity: 4 // Default capacity removed as it's not in Table type
     }
 
@@ -233,41 +240,41 @@ const RestaurantDashboard = ({ user, onLogout }: RestaurantDashboardProps) => {
       .catch(err => toast.error('Errore nella creazione del tavolo'))
   }
 
-  const handleToggleTable = (tableId: string) => {
+  const getOpenSessionForTable = (tableId: string) =>
+    sessions?.find(s => s.table_id === tableId && s.status === 'OPEN')
+
+  const handleToggleTable = async (tableId: string) => {
+    const openSession = getOpenSessionForTable(tableId)
+    if (openSession) {
+      try {
+        await DatabaseService.markOrdersPaidForSession(openSession.id)
+        await DatabaseService.closeSession(openSession.id)
+        toast.success('Tavolo liberato')
+      } catch (error) {
+        console.error('Error freeing table:', error)
+        toast.error('Errore durante la liberazione del tavolo')
+      }
+      return
+    }
+
     const table = tables?.find(t => t.id === tableId)
     if (!table) return
 
-    if (table.status === 'occupied') {
-      // Deactivate table - mark as available
-      const updatedTable = {
-        ...table,
-        status: 'available' as const,
-        // Clear session data if needed, but Table type in EASYFOOD_V00 is simple.
-        // Session logic is handled separately in useRestaurantLogic/DatabaseService.
-      }
-      DatabaseService.updateTable(table.id, updatedTable)
-        .then(() => toast.success('Tavolo liberato'))
-        .catch(err => {
-          console.error('Error freeing table:', err)
-          toast.error('Errore durante la liberazione del tavolo')
-        })
-    } else {
-      // Check settings
-      const isAyceEnabled = ayceEnabled
-      const isCopertoEnabled = copertoEnabled && copertoPrice > 0
+    // Check settings
+    const isAyceEnabled = ayceEnabled
+    const isCopertoEnabled = copertoEnabled && copertoPrice > 0
 
-      if (!isAyceEnabled && !isCopertoEnabled) {
-        // Activate directly with default 1 person
-        handleActivateTable(tableId, 1)
-      } else {
-        // Show dialog for customer count
-        setSelectedTable(table)
-        setShowTableDialog(true)
-      }
+    if (!isAyceEnabled && !isCopertoEnabled) {
+      // Activate directly with default 1 person
+      handleActivateTable(tableId, 1)
+    } else {
+      // Show dialog for customer count
+      setSelectedTable(table)
+      setShowTableDialog(true)
     }
   }
 
-  const handleActivateTable = (tableId: string, customerCount: number) => {
+  const handleActivateTable = async (tableId: string, customerCount: number) => {
     if (!customerCount || customerCount <= 0) {
       toast.error('Inserisci un numero valido di clienti')
       return
@@ -276,36 +283,24 @@ const RestaurantDashboard = ({ user, onLogout }: RestaurantDashboardProps) => {
     const tableToUpdate = tables?.find(t => t.id === tableId)
     if (!tableToUpdate) return
 
-    // In EASYFOOD_V00, we create a TableSession, we don't just update the table.
-    // But for the UI state, we update the table status.
-    const updatedTable = {
-      ...tableToUpdate,
-      status: 'occupied' as const
+    try {
+      const session = await DatabaseService.createSession({
+        restaurant_id: restaurantId,
+        table_id: tableId,
+        status: 'OPEN',
+        opened_at: new Date().toISOString(),
+        session_pin: generatePin()
+      })
+
+      toast.success(`Tavolo attivato per ${customerCount} persone`)
+      setCustomerCount('')
+      setSelectedTable({ ...tableToUpdate })
+      setCurrentSessionPin(session.session_pin || '')
+      setShowQrDialog(true)
+    } catch (err) {
+      console.error('Error activating table:', err)
+      toast.error('Errore durante l\'attivazione del tavolo')
     }
-
-    DatabaseService.updateTable(updatedTable.id, updatedTable)
-      .then(async () => {
-        // Create session
-        const session = await DatabaseService.createSession({
-          restaurant_id: restaurantId,
-          table_id: tableId,
-          status: 'OPEN',
-          opened_at: new Date().toISOString(),
-          session_pin: generatePin()
-        })
-
-        toast.success(`Tavolo attivato per ${customerCount} persone`)
-        setCustomerCount('')
-        if (updatedTable) {
-          setSelectedTable({ ...updatedTable })
-          setCurrentSessionPin(session.session_pin || '')
-          setShowQrDialog(true)
-        }
-      })
-      .catch(err => {
-        console.error('Error activating table:', err)
-        toast.error('Errore durante l\'attivazione del tavolo')
-      })
   }
 
   const handleDeleteTable = (tableId: string) => {
@@ -317,12 +312,8 @@ const RestaurantDashboard = ({ user, onLogout }: RestaurantDashboardProps) => {
       })
   }
 
-  // AYCE Settings Save
-  const handleSaveAYCE = async () => {
-    if (!restaurantId) {
-      toast.error('Ristorante non trovato')
-      return
-    }
+  const saveAyceSettings = async () => {
+    if (!restaurantId || !settingsInitialized) return
 
     if (ayceEnabled) {
       if (!aycePrice || aycePrice <= 0) {
@@ -344,18 +335,17 @@ const RestaurantDashboard = ({ user, onLogout }: RestaurantDashboardProps) => {
           maxOrders: ayceEnabled ? ayceMaxOrders : 0
         }
       })
-      toast.success(ayceEnabled ? 'All You Can Eat attivato' : 'All You Can Eat disattivato')
+      if (ayceDirty) {
+        toast.success(ayceEnabled ? 'All You Can Eat attivato' : 'All You Can Eat disattivato')
+        setAyceDirty(false)
+      }
     } catch (error) {
       toast.error('Errore nel salvare le impostazioni')
     }
   }
 
-  // Coperto Settings Save
-  const handleSaveCoperto = async () => {
-    if (!restaurantId) {
-      toast.error('Ristorante non trovato')
-      return
-    }
+  const saveCopertoSettings = async () => {
+    if (!restaurantId || !settingsInitialized) return
 
     if (copertoEnabled && (!copertoPrice || copertoPrice <= 0)) {
       toast.error('Inserisci un importo valido per il coperto')
@@ -367,11 +357,35 @@ const RestaurantDashboard = ({ user, onLogout }: RestaurantDashboardProps) => {
         id: restaurantId,
         coverChargePerPerson: copertoEnabled ? copertoPrice : 0
       })
-      toast.success(copertoEnabled ? 'Coperto attivato' : 'Coperto disattivato')
+      if (copertoDirty) {
+        toast.success(copertoEnabled ? 'Coperto attivato' : 'Coperto disattivato')
+        setCopertoDirty(false)
+      }
     } catch (error) {
       toast.error('Errore nel salvare le impostazioni')
     }
   }
+
+  // Auto-persist settings when the user changes them
+  useEffect(() => {
+    if (!settingsInitialized || !ayceDirty) return
+
+    const timeout = setTimeout(() => {
+      saveAyceSettings()
+    }, 400)
+
+    return () => clearTimeout(timeout)
+  }, [ayceEnabled, aycePrice, ayceMaxOrders, settingsInitialized, ayceDirty])
+
+  useEffect(() => {
+    if (!settingsInitialized || !copertoDirty) return
+
+    const timeout = setTimeout(() => {
+      saveCopertoSettings()
+    }, 400)
+
+    return () => clearTimeout(timeout)
+  }, [copertoEnabled, copertoPrice, settingsInitialized, copertoDirty])
 
   const handleEditTable = (table: Table) => {
     setEditingTable(table)
@@ -444,10 +458,16 @@ const RestaurantDashboard = ({ user, onLogout }: RestaurantDashboardProps) => {
   const handleToggleDish = (dishId: string) => {
     const item = dishes?.find(i => i.id === dishId)
     if (item) {
-      DatabaseService.updateDish({ ...item, is_active: !item.is_active })
+      const previousStatus = item.is_active ?? true
+      const updatedItem = { ...item, is_active: !(item.is_active ?? true) }
+
+      setDishes((prev) => prev.map(dish => dish.id === dishId ? updatedItem : dish))
+
+      DatabaseService.updateDish(updatedItem)
         .catch((error) => {
           console.error('Error updating dish:', error)
           toast.error('Errore durante l\'aggiornamento del piatto')
+          setDishes((prev) => prev.map(dish => dish.id === dishId ? { ...dish, is_active: previousStatus } : dish))
         })
     }
   }
@@ -1007,7 +1027,8 @@ const RestaurantDashboard = ({ user, onLogout }: RestaurantDashboardProps) => {
 
             <div className="grid gap-6 grid-cols-[repeat(auto-fill,minmax(220px,1fr))]">
               {restaurantTables.map(table => {
-                const isActive = table.status === 'occupied'
+                const session = getOpenSessionForTable(table.id)
+                const isActive = session?.status === 'OPEN'
                 const activeOrder = restaurantOrders.find(o => getTableIdFromOrder(o) === table.id)
 
                 return (
@@ -1029,18 +1050,11 @@ const RestaurantDashboard = ({ user, onLogout }: RestaurantDashboardProps) => {
                             <p className="text-xs font-medium text-muted-foreground">
                               {activeOrder ? `${activeOrder.items?.length || 0} piatti` : 'In attesa'}
                             </p>
-                            {/* Find session for this table to show PIN */}
-                            {(() => {
-                              const session = sessions?.find(s => s.table_id === table.id && s.status === 'OPEN')
-                              if (session?.session_pin) {
-                                return (
-                                  <Badge variant="outline" className="font-mono text-xs tracking-widest">
-                                    PIN: {session.session_pin}
-                                  </Badge>
-                                )
-                              }
-                              return null
-                            })()}
+                            {session?.session_pin && (
+                              <Badge variant="outline" className="font-mono text-xs tracking-widest">
+                                PIN: {session.session_pin}
+                              </Badge>
+                            )}
                           </div>
                         )}
                       </div>
@@ -1132,6 +1146,9 @@ const RestaurantDashboard = ({ user, onLogout }: RestaurantDashboardProps) => {
                   <DialogContent>
                     <DialogHeader>
                       <DialogTitle>Aggiungi Piatto</DialogTitle>
+                      <DialogDescription>
+                        Compila i dettagli del piatto e carica un\'immagine facoltativa.
+                      </DialogDescription>
                     </DialogHeader>
                     <div className="space-y-4 mt-4">
                       <div className="space-y-2">
@@ -1726,7 +1743,10 @@ const RestaurantDashboard = ({ user, onLogout }: RestaurantDashboardProps) => {
                   </div>
                   <Switch
                     checked={ayceEnabled}
-                    onCheckedChange={(checked) => setAyceEnabled(checked)}
+                    onCheckedChange={(checked) => {
+                      setAyceEnabled(checked)
+                      setAyceDirty(true)
+                    }}
                   />
                 </div>
                 {ayceEnabled && (
@@ -1738,7 +1758,10 @@ const RestaurantDashboard = ({ user, onLogout }: RestaurantDashboardProps) => {
                         min="0"
                         step="0.1"
                         value={aycePrice}
-                        onChange={(e) => setAycePrice(parseFloat(e.target.value) || 0)}
+                        onChange={(e) => {
+                          setAycePrice(parseFloat(e.target.value) || 0)
+                          setAyceDirty(true)
+                        }}
                       />
                     </div>
                     <div className="space-y-2">
@@ -1747,16 +1770,14 @@ const RestaurantDashboard = ({ user, onLogout }: RestaurantDashboardProps) => {
                         type="number"
                         min="1"
                         value={ayceMaxOrders}
-                        onChange={(e) => setAyceMaxOrders(parseInt(e.target.value) || 0)}
+                        onChange={(e) => {
+                          setAyceMaxOrders(parseInt(e.target.value) || 0)
+                          setAyceDirty(true)
+                        }}
                       />
                     </div>
                   </div>
                 )}
-                <div className="flex justify-end pt-2">
-                  <Button onClick={handleSaveAYCE}>
-                    Salva impostazioni
-                  </Button>
-                </div>
               </CardContent>
             </Card>
 
@@ -1777,7 +1798,10 @@ const RestaurantDashboard = ({ user, onLogout }: RestaurantDashboardProps) => {
                   </div>
                   <Switch
                     checked={copertoEnabled}
-                    onCheckedChange={(checked) => setCopertoEnabled(checked)}
+                    onCheckedChange={(checked) => {
+                      setCopertoEnabled(checked)
+                      setCopertoDirty(true)
+                    }}
                   />
                 </div>
                 {copertoEnabled && (
@@ -1788,15 +1812,13 @@ const RestaurantDashboard = ({ user, onLogout }: RestaurantDashboardProps) => {
                       min="0"
                       step="0.50"
                       value={copertoPrice}
-                      onChange={(e) => setCopertoPrice(parseFloat(e.target.value) || 0)}
+                      onChange={(e) => {
+                        setCopertoPrice(parseFloat(e.target.value) || 0)
+                        setCopertoDirty(true)
+                      }}
                     />
                   </div>
                 )}
-                <div className="flex justify-end pt-2">
-                  <Button onClick={handleSaveCoperto}>
-                    Salva impostazioni
-                  </Button>
-                </div>
               </CardContent>
             </Card>
 
