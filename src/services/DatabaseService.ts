@@ -26,12 +26,12 @@ export const DatabaseService = {
 
     async createRestaurant(restaurant: Partial<Restaurant>) {
         const payload: any = { ...restaurant }
-        
+
         // Gestione corretta is_active
         if (restaurant.isActive !== undefined) {
             payload.is_active = restaurant.isActive
         }
-        
+
         // Rimuovi campi frontend-only
         delete payload.isActive
         delete payload.hours
@@ -44,7 +44,7 @@ export const DatabaseService = {
 
     async updateRestaurant(restaurant: Partial<Restaurant>) {
         const payload: any = {}
-        
+
         // Campi permessi per l'aggiornamento
         const allowedFields = ['name', 'address', 'phone', 'email', 'logo_url', 'owner_id']
 
@@ -65,25 +65,32 @@ export const DatabaseService = {
             .from('restaurants')
             .update(payload)
             .eq('id', restaurant.id)
-        
+
         if (error) throw error
     },
 
     async deleteRestaurant(restaurantId: string) {
+        // 0. Recupera info ristorante per eliminare il logo
+        const { data: restaurant } = await supabase
+            .from('restaurants')
+            .select('logo_url')
+            .eq('id', restaurantId)
+            .single()
+
         // 1. Elimina dipendenze complesse (Order Items)
         // Prima recuperiamo gli ID degli ordini del ristorante
         const { data: orders } = await supabase
             .from('orders')
             .select('id')
             .eq('restaurant_id', restaurantId)
-        
+
         if (orders && orders.length > 0) {
             const orderIds = orders.map(o => o.id)
             // Elimina items collegati a questi ordini
             await supabase.from('order_items').delete().in('order_id', orderIds)
         }
 
-        // 2. Elimina Tabelle dipendenti direttamente da restaurant_id
+        // 2. Elimina Tabelle dipendenti direttamente da restaurant_id (Ordine Strict)
         await supabase.from('orders').delete().eq('restaurant_id', restaurantId)
         await supabase.from('table_sessions').delete().eq('restaurant_id', restaurantId)
         await supabase.from('bookings').delete().eq('restaurant_id', restaurantId)
@@ -91,12 +98,30 @@ export const DatabaseService = {
         await supabase.from('categories').delete().eq('restaurant_id', restaurantId)
         await supabase.from('tables').delete().eq('restaurant_id', restaurantId)
 
-        // 3. Infine elimina il ristorante
+        // 3. Elimina logo dallo Storage se esiste
+        if (restaurant?.logo_url) {
+            try {
+                // Estrai il path del file dall'URL pubblico
+                // Esempio: .../storage/v1/object/public/logos/filename.jpg -> filename.jpg
+                const urlParts = restaurant.logo_url.split('/')
+                const fileName = urlParts[urlParts.length - 1]
+
+                if (fileName) {
+                    await supabase.storage
+                        .from('logos')
+                        .remove([fileName])
+                }
+            } catch (e) {
+                console.warn("Could not delete logo file", e)
+            }
+        }
+
+        // 4. Infine elimina il ristorante
         const { error } = await supabase
             .from('restaurants')
             .delete()
             .eq('id', restaurantId)
-            
+
         if (error) throw error
     },
 

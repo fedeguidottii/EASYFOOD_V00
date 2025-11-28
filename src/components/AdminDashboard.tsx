@@ -126,51 +126,51 @@ export default function AdminDashboard({ user, onLogout }: Props) {
     setIsUploading(true) // Usa questo per mostrare loading sul bottone
 
     try {
-        let finalLogoUrl = newRestaurant.logo_url
-        if (logoFile) {
-            const uploadedUrl = await handleLogoUpload(logoFile)
-            if (uploadedUrl) finalLogoUrl = uploadedUrl
-        }
+      let finalLogoUrl = newRestaurant.logo_url
+      if (logoFile) {
+        const uploadedUrl = await handleLogoUpload(logoFile)
+        if (uploadedUrl) finalLogoUrl = uploadedUrl
+      }
 
-        const restaurantId = uuidv4()
-        const userId = uuidv4()
+      const restaurantId = uuidv4()
+      const userId = uuidv4()
 
-        const restaurant: Restaurant = {
-            id: restaurantId,
-            name: newRestaurant.name,
-            phone: newRestaurant.phone,
-            email: newRestaurant.email,
-            logo_url: finalLogoUrl,
-            owner_id: userId,
-            isActive: true,
-        }
+      const restaurant: Restaurant = {
+        id: restaurantId,
+        name: newRestaurant.name,
+        phone: newRestaurant.phone,
+        email: newRestaurant.email,
+        logo_url: finalLogoUrl,
+        owner_id: userId,
+        isActive: true,
+      }
 
-        const restaurantUser: User = {
-            id: userId,
-            name: newRestaurant.username,
-            email: newRestaurant.email,
-            password_hash: newRestaurant.password,
-            role: 'OWNER',
-        }
+      const restaurantUser: User = {
+        id: userId,
+        name: newRestaurant.username,
+        email: newRestaurant.email,
+        password_hash: newRestaurant.password,
+        role: 'OWNER',
+      }
 
-        // Create User first
-        await DatabaseService.createUser(restaurantUser)
-        // Then Restaurant
-        await DatabaseService.createRestaurant(restaurant)
+      // Create User first
+      await DatabaseService.createUser(restaurantUser)
+      // Then Restaurant
+      await DatabaseService.createRestaurant(restaurant)
 
-        setNewRestaurant({ name: '', phone: '', email: '', logo_url: '', username: '', password: '' })
-        setLogoFile(null)
-        setShowRestaurantDialog(false)
-        toast.success('Ristorante creato con successo')
+      setNewRestaurant({ name: '', phone: '', email: '', logo_url: '', username: '', password: '' })
+      setLogoFile(null)
+      setShowRestaurantDialog(false)
+      toast.success('Ristorante creato con successo')
     } catch (error: any) {
-        console.error('Error creating restaurant:', error)
-        if (error.code === '23505' || error.status === 409 || error.message?.includes('duplicate key')) {
-            toast.error('Esiste già un utente o un ristorante con questa email.')
-        } else {
-            toast.error('Errore durante la creazione: ' + (error.message || 'Errore sconosciuto'))
-        }
+      console.error('Error creating restaurant:', error)
+      if (error.code === '23505' || error.status === 409 || error.message?.includes('duplicate key')) {
+        toast.error('Esiste già un utente o un ristorante con questa email.')
+      } else {
+        toast.error('Errore durante la creazione: ' + (error.message || 'Errore sconosciuto'))
+      }
     } finally {
-        setIsUploading(false)
+      setIsUploading(false)
     }
   }
 
@@ -190,7 +190,7 @@ export default function AdminDashboard({ user, onLogout }: Props) {
     if (confirm('Sei sicuro? Questa azione è irreversibile e cancellerà TUTTI i dati del ristorante (ordini, menu, statistiche).')) {
       try {
         const restaurant = restaurants?.find(r => r.id === restaurantId)
-        
+
         // La funzione deleteRestaurant ora gestisce la pulizia a cascata
         await DatabaseService.deleteRestaurant(restaurantId)
 
@@ -218,7 +218,7 @@ export default function AdminDashboard({ user, onLogout }: Props) {
         id: restaurant.id,
         isActive: !restaurant.isActive
       })
-      
+
       const nuovoStato = !restaurant.isActive ? 'attivato' : 'disattivato'
       toast.success(`Ristorante ${nuovoStato} con successo`)
     } catch (error) {
@@ -257,10 +257,10 @@ export default function AdminDashboard({ user, onLogout }: Props) {
 
       if (editingUser) {
         await DatabaseService.updateUser({
-            id: editingUser.id,
-            name: editingUser.name,
-            password_hash: editingUser.password_hash,
-            role: editingUser.role // mantieni il ruolo
+          id: editingUser.id,
+          name: editingUser.name,
+          password_hash: editingUser.password_hash,
+          role: editingUser.role // mantieni il ruolo
         })
       }
 
@@ -273,7 +273,7 @@ export default function AdminDashboard({ user, onLogout }: Props) {
       console.error('Error updating:', error)
       toast.error('Errore durante l\'aggiornamento')
     } finally {
-        setIsUploading(false)
+      setIsUploading(false)
     }
   }
 
@@ -433,80 +433,103 @@ export default function AdminDashboard({ user, onLogout }: Props) {
                 return (
                   <Card key={restaurant.id} className="overflow-hidden">
                     <CardContent className="p-0">
-                      <div className={`flex flex-col md:flex-row md:items-center justify-between p-6 gap-4 transition-all duration-300 ${!restaurant.isActive ? 'opacity-50 grayscale bg-muted/30' : ''}`}>
-                        <div className="flex items-center gap-4 flex-1">
+                      <div className={`flex flex-col md:flex-row items-center p-4 gap-4 transition-all duration-300 ${!restaurant.isActive ? 'opacity-50 grayscale bg-muted/30' : ''}`}>
+
+                        {/* Left: Logo */}
+                        <div className="flex-shrink-0">
                           {restaurant.logo_url ? (
-                            <img src={restaurant.logo_url} alt={restaurant.name} className="w-16 h-16 rounded-lg object-cover bg-muted border" />
+                            <img src={restaurant.logo_url} alt={restaurant.name} className="w-12 h-12 rounded-full object-cover border bg-background" />
                           ) : (
-                            <div className="w-16 h-16 rounded-lg bg-muted flex items-center justify-center border">
-                              <Buildings size={24} className="text-muted-foreground" />
+                            <div className="w-12 h-12 rounded-full bg-muted flex items-center justify-center border">
+                              <Buildings size={20} className="text-muted-foreground" />
                             </div>
                           )}
-                          <div className="space-y-2">
+                        </div>
+
+                        {/* Center: Info */}
+                        <div className="flex-1 min-w-0 grid grid-cols-1 md:grid-cols-2 gap-4 items-center">
+                          <div className="space-y-1">
                             <div className="flex items-center gap-2">
-                              <h3 className="text-lg font-semibold">{restaurant.name}</h3>
-                              <Badge variant={restaurant.isActive ? "default" : "destructive"}>
+                              <h3 className="text-base font-bold truncate">{restaurant.name}</h3>
+                              <Badge variant={restaurant.isActive ? "default" : "secondary"} className="text-xs px-2 py-0 h-5">
                                 {restaurant.isActive ? "Attivo" : "Disabilitato"}
                               </Badge>
                             </div>
-                            <div className="grid grid-cols-1 md:grid-cols-2 gap-x-8 gap-y-1 text-sm text-muted-foreground">
-                              <p>Email: <span className="text-foreground">{restaurant.email}</span></p>
-                              <p>Tel: <span className="text-foreground">{restaurant.phone}</span></p>
-                              {restaurantUser && (
-                                <>
-                                  <p>Username: <span className="text-foreground font-medium">{restaurantUser.name}</span></p>
-                                  <div className="flex items-center gap-2">
-                                    <span>Password: </span>
-                                    <span className="text-foreground font-medium">
-                                      {isPasswordVisible ? restaurantUser.password_hash : '••••••••'}
-                                    </span>
-                                    <button
-                                      onClick={() => togglePasswordVisibility(restaurant.id)}
-                                      className="text-muted-foreground hover:text-foreground"
-                                    >
-                                      {isPasswordVisible ? <EyeSlash size={14} /> : <Eye size={14} />}
-                                    </button>
-                                  </div>
-                                </>
-                              )}
+                            <div className="text-xs text-muted-foreground flex items-center gap-3 truncate">
+                              <span>{restaurant.email}</span>
+                              <span className="w-1 h-1 rounded-full bg-border" />
+                              <span>{restaurant.phone}</span>
                             </div>
                           </div>
+
+                          {/* Credentials (Compact) */}
+                          {restaurantUser && (
+                            <div className="text-xs text-muted-foreground bg-muted/50 p-2 rounded border flex items-center justify-between gap-2">
+                              <div className="truncate">
+                                <span className="font-medium text-foreground">{restaurantUser.name}</span>
+                              </div>
+                              <div className="flex items-center gap-2 flex-shrink-0">
+                                <span className="font-mono bg-background px-1 rounded border">
+                                  {isPasswordVisible ? restaurantUser.password_hash : '••••••••'}
+                                </span>
+                                <button
+                                  onClick={() => togglePasswordVisibility(restaurant.id)}
+                                  className="text-muted-foreground hover:text-foreground p-1 hover:bg-background rounded"
+                                >
+                                  {isPasswordVisible ? <EyeSlash size={12} /> : <Eye size={12} />}
+                                </button>
+                              </div>
+                            </div>
+                          )}
                         </div>
 
-                        <div className="flex items-center gap-2 self-start md:self-center">
+                        {/* Right: Actions */}
+                        <div className="flex items-center gap-1 flex-shrink-0 border-l pl-4 ml-2">
                           <Button
-                            variant="outline"
-                            size="sm"
+                            variant="ghost"
+                            size="icon"
+                            className="h-8 w-8 text-muted-foreground hover:text-primary"
                             onClick={() => handlePopulateData(restaurant.id)}
                             title="Popola Dati Demo"
                           >
                             <Database size={16} />
                           </Button>
+
                           <Button
-                            variant={restaurant.isActive ? "outline" : "default"}
-                            size="sm"
+                            variant="ghost"
+                            size="icon"
+                            className={`h-8 w-8 ${restaurant.isActive ? 'text-muted-foreground hover:text-destructive' : 'text-muted-foreground hover:text-green-600'}`}
                             onClick={() => handleToggleActive(restaurant)}
-                            title={restaurant.isActive ? "Disattiva" : "Attiva"}
-                            className={restaurant.isActive ? "text-red-600 hover:text-red-700 hover:bg-red-50 border-red-200" : "bg-green-600 hover:bg-green-700"}
+                            title={restaurant.isActive ? "Nascondi (Disattiva)" : "Mostra (Attiva)"}
                           >
-                            <Power size={16} weight={restaurant.isActive ? "regular" : "bold"} />
-                            {!restaurant.isActive && <span className="ml-2">Riattiva</span>}
+                            {restaurant.isActive ? (
+                              <Eye size={18} />
+                            ) : (
+                              <EyeSlash size={18} />
+                            )}
                           </Button>
+
                           <Button
-                            variant="outline"
-                            size="sm"
+                            variant="ghost"
+                            size="icon"
+                            className="h-8 w-8 text-muted-foreground hover:text-foreground"
                             onClick={() => handleEditRestaurant(restaurant)}
+                            title="Modifica"
                           >
                             <PencilSimple size={16} />
                           </Button>
+
                           <Button
-                            variant="destructive"
-                            size="sm"
+                            variant="ghost"
+                            size="icon"
+                            className="h-8 w-8 text-muted-foreground hover:text-destructive hover:bg-destructive/10"
                             onClick={() => handleDeleteRestaurant(restaurant.id)}
+                            title="Elimina"
                           >
                             <Trash size={16} />
                           </Button>
                         </div>
+
                       </div>
                     </CardContent>
                   </Card>

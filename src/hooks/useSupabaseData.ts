@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useState, useCallback, useRef } from 'react'
 import { supabase } from '../lib/supabase'
 
 export function useSupabaseData<T>(
@@ -10,28 +10,31 @@ export function useSupabaseData<T>(
     const [data, setData] = useState<T[]>(initialData)
     const [loading, setLoading] = useState(true)
 
+    // Use ref for mapper to avoid infinite loops if an inline function is passed
+    const mapperRef = useRef(mapper)
     useEffect(() => {
-        let isMounted = true
+        mapperRef.current = mapper
+    }, [mapper])
 
-        const fetchData = async () => {
-            let query = supabase.from(tableName).select('*')
-            if (filter) {
-                query = query.eq(filter.column, filter.value)
-            }
-
-            const { data: result, error } = await query
-            if (error) {
-                console.error(`Error fetching ${tableName}:`, error)
-                return
-            }
-
-            if (isMounted) {
-                const mappedData = mapper ? result.map(mapper) : result as T[]
-                setData(mappedData)
-                setLoading(false)
-            }
+    const fetchData = useCallback(async () => {
+        let query = supabase.from(tableName).select('*')
+        if (filter) {
+            query = query.eq(filter.column, filter.value)
         }
 
+        const { data: result, error } = await query
+        if (error) {
+            console.error(`Error fetching ${tableName}:`, error)
+            return
+        }
+
+        const currentMapper = mapperRef.current
+        const mappedData = currentMapper ? result.map(currentMapper) : result as T[]
+        setData(mappedData)
+        setLoading(false)
+    }, [tableName, filter?.column, filter?.value])
+
+    useEffect(() => {
         fetchData()
 
         // Realtime subscription
@@ -46,11 +49,12 @@ export function useSupabaseData<T>(
                     filter: filter ? `"${filter.column}"=eq.${filter.value}` : undefined
                 },
                 (payload) => {
+                    const currentMapper = mapperRef.current
                     if (payload.eventType === 'INSERT') {
-                        const newItem = mapper ? mapper(payload.new) : payload.new as T
+                        const newItem = currentMapper ? currentMapper(payload.new) : payload.new as T
                         setData((prev) => [...prev, newItem])
                     } else if (payload.eventType === 'UPDATE') {
-                        const updatedItem = mapper ? mapper(payload.new) : payload.new as T
+                        const updatedItem = currentMapper ? currentMapper(payload.new) : payload.new as T
                         setData((prev) =>
                             prev.map((item: any) => (item.id === (payload.new as any).id ? updatedItem : item))
                         )
@@ -62,10 +66,9 @@ export function useSupabaseData<T>(
             .subscribe()
 
         return () => {
-            isMounted = false
             supabase.removeChannel(channel)
         }
-    }, [tableName, filter?.column, filter?.value])
+    }, [tableName, filter?.column, filter?.value, fetchData])
 
-    return [data, loading] as const
+    return [data, loading, fetchData] as const
 }
