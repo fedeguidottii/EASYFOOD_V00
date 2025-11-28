@@ -321,6 +321,26 @@ const RestaurantDashboard = ({ user, onLogout }: RestaurantDashboardProps) => {
     }
   }
 
+  const handleShowTableQr = async (table: Table) => {
+    setSelectedTableForActions(table)
+    setShowTableQrDialog(true)
+    setCurrentSessionPin('Caricamento...') // Show loading state
+
+    try {
+      const session = await DatabaseService.getActiveSession(table.id)
+      if (session && session.session_pin) {
+        setCurrentSessionPin(session.session_pin)
+      } else {
+        setCurrentSessionPin('N/A')
+        // Try to refresh global sessions as fallback/side-effect
+        refreshSessions()
+      }
+    } catch (error) {
+      console.error('Error fetching session for PIN:', error)
+      setCurrentSessionPin('Errore')
+    }
+  }
+
   const handleDeleteTable = (tableId: string) => {
     DatabaseService.deleteTable(tableId)
       .then(() => toast.success('Tavolo eliminato'))
@@ -1096,14 +1116,10 @@ const RestaurantDashboard = ({ user, onLogout }: RestaurantDashboardProps) => {
                               <Button
                                 variant="outline"
                                 size="sm"
-                                onClick={() => {
-                                  setSelectedTableForActions(table)
-                                  refreshSessions() // Refresh to ensure PIN is available
-                                  setShowTableQrDialog(true)
-                                }}
+                                onClick={() => handleShowTableQr(table)}
                               >
-                                <QrCode size={14} className="mr-1" />
-                                QR/PIN
+                                <QrCode size={16} className="mr-2" />
+                                QR & PIN
                               </Button>
                               <Button
                                 variant="outline"
@@ -2054,10 +2070,7 @@ const RestaurantDashboard = ({ user, onLogout }: RestaurantDashboardProps) => {
                 <div className="text-center">
                   <p className="text-sm font-medium">PIN Tavolo</p>
                   <p className="text-4xl font-bold tracking-widest font-mono mt-1 text-primary">
-                    {(() => {
-                      const activeSession = sessions?.find(s => s.table_id === selectedTableForActions.id && s.status === 'OPEN')
-                      return activeSession?.session_pin || 'N/A'
-                    })()}
+                    {currentSessionPin}
                   </p>
                 </div>
               </>
