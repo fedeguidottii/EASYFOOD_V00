@@ -45,11 +45,15 @@ export default function CustomerMenu({ tableId, onExit }: Props) {
   // Find the table first to get the restaurant ID
   const table = tables?.find(t => t.id === tableId)
   const restaurant = restaurants?.find(r => r.id === table?.restaurant_id)
+  const ayceSettings = restaurant?.allYouCanEat || restaurant?.all_you_can_eat
+  const isAyceEnabled = ayceSettings?.enabled
+  const maxAyceOrders = ayceSettings?.maxOrders || 0
 
   // Use restaurant-specific key for orders
   const { createOrder } = useRestaurantLogic(table?.restaurant_id || '')
 
   const [activeSession, setActiveSession] = useState<any>(null)
+  const [sessionOrderCount, setSessionOrderCount] = useState(0)
   const [cartItems, setCartItems] = useState<any[]>([])
   const [showCart, setShowCart] = useState(false)
   const [showPinDialog, setShowPinDialog] = useState(false)
@@ -80,13 +84,13 @@ export default function CustomerMenu({ tableId, onExit }: Props) {
     regularTotal: cartItems.reduce((total, cartItem) => {
       const dish = restaurantDishes.find(d => d.id === cartItem.dish_id)
       // Assuming no AYCE exclusion logic for now as it's not in Dish type
-      if (dish && (!restaurant?.allYouCanEat?.enabled)) {
+      if (dish && (!isAyceEnabled)) {
         return total + dish.price * cartItem.quantity
       }
       // If AYCE is enabled, everything is included unless specified otherwise (logic to be added if needed)
-      // For now, if AYCE enabled, price is 0 for items? Or just total is 0?
+      // For now, if AYCE enabled, price is 0 for AYCE items? Or just total is 0?
       // User request implied AYCE logic. Let's assume standard price if not AYCE.
-      if (dish && restaurant?.allYouCanEat?.enabled) {
+      if (dish && isAyceEnabled) {
         return total // Price is 0 for AYCE items
       }
       return total + (dish?.price || 0) * cartItem.quantity
@@ -98,19 +102,23 @@ export default function CustomerMenu({ tableId, onExit }: Props) {
       : 0,
 
     // All you can eat charge (only for first order typically)
-    allYouCanEatCharge: restaurant?.allYouCanEat?.enabled && table?.seats
-      ? restaurant.allYouCanEat.pricePerPerson * table.seats
+    allYouCanEatCharge: isAyceEnabled && table?.seats
+      ? (ayceSettings?.pricePerPerson || 0) * table.seats
       : 0,
 
     // Free items (included in AYCE)
     freeItems: cartItems.filter(cartItem => {
       const dish = restaurantDishes.find(d => d.id === cartItem.dish_id)
-      return dish && restaurant?.allYouCanEat?.enabled
+      return dish && isAyceEnabled
     })
   }
 
   // Legacy cart total for compatibility
   const cartTotal = cartCalculations.regularTotal
+
+  const remainingOrders = isAyceEnabled && maxAyceOrders
+    ? Math.max(maxAyceOrders - sessionOrderCount, 0)
+    : null
 
   // Check PIN on mount and fetch session
   useEffect(() => {
@@ -137,6 +145,21 @@ export default function CustomerMenu({ tableId, onExit }: Props) {
       })
     }
   }, [tableId, isPinVerified])
+
+  useEffect(() => {
+    const fetchOrderCount = async () => {
+      if (activeSession?.id && isAyceEnabled) {
+        try {
+          const count = await DatabaseService.getSessionOrderCount(activeSession.id)
+          setSessionOrderCount(count)
+        } catch (error) {
+          console.error('Errore nel recupero del numero di ordini', error)
+        }
+      }
+    }
+
+    fetchOrderCount()
+  }, [activeSession?.id, isAyceEnabled])
 
   const handlePinVerification = () => {
     if (activeSession && enteredPin === activeSession.session_pin) {
@@ -181,16 +204,21 @@ export default function CustomerMenu({ tableId, onExit }: Props) {
     await DatabaseService.updateCartItem(itemId, { notes })
   }
 
-  const handlePlaceOrder = () => {
+  const handlePlaceOrder = async () => {
     if (cartItems.length === 0) {
       toast.error('Il carrello è vuoto')
       return
     }
 
     // Check all-you-can-eat limits
-    if (restaurant?.allYouCanEat?.enabled && table?.remainingOrders !== undefined && table.remainingOrders !== null && table.remainingOrders <= 0) {
-      toast.error('Hai raggiunto il limite massimo di ordini per All You Can Eat')
-      return
+    if (isAyceEnabled && activeSession?.id) {
+      const latestCount = await DatabaseService.getSessionOrderCount(activeSession.id)
+      setSessionOrderCount(latestCount)
+
+      if (maxAyceOrders && latestCount >= maxAyceOrders) {
+        toast.error('Hai raggiunto il limite massimo di ordini per All You Can Eat')
+        return
+      }
     }
 
     // Calculate costs based on restaurant settings
@@ -202,15 +230,15 @@ export default function CustomerMenu({ tableId, onExit }: Props) {
       coverCharge = restaurant.coverChargePerPerson * table.customerCount
     }
 
-    if (restaurant?.allYouCanEat?.enabled && table?.customerCount) {
-      allYouCanEatCharge = restaurant.allYouCanEat.pricePerPerson * table.customerCount
+    if (isAyceEnabled && table?.customerCount) {
+      allYouCanEatCharge = (ayceSettings?.pricePerPerson || 0) * table.customerCount
     }
 
     // Calculate regular items
     cartItems.forEach(cartItem => {
       const dish = restaurantDishes.find(d => d.id === cartItem.dish_id)
       if (dish) {
-        if (!restaurant?.allYouCanEat?.enabled || dish.excludeFromAllYouCanEat) {
+        if (!isAyceEnabled || dish.excludeFromAllYouCanEat) {
           regularTotal += dish.price * cartItem.quantity
         }
       }
@@ -230,17 +258,15 @@ export default function CustomerMenu({ tableId, onExit }: Props) {
         await DatabaseService.clearCart(activeSession.id)
         setCartItems([])
         setShowCart(false)
+        if (isAyceEnabled) {
+          setSessionOrderCount(count => count + 1)
+        }
         toast.success('Ordine inviato in cucina!')
       })
       .catch((error) => {
         console.error('Error creating order:', error)
         toast.error('Errore durante l\'invio dell\'ordine')
       })
-
-    // Decrease remaining orders for all-you-can-eat
-    if (restaurant?.allYouCanEat?.enabled && table?.remainingOrders !== undefined && table.id) {
-      DatabaseService.updateTable(table.id, { remainingOrders: (table.remainingOrders || 0) - 1 })
-    }
   }
 
   const getItemQuantityInCart = (menuItemId: string) => {
@@ -405,12 +431,12 @@ export default function CustomerMenu({ tableId, onExit }: Props) {
                     <div className="flex items-center justify-between">
                       <div className="flex items-center gap-2">
                         <span className="text-2xl font-bold text-primary">
-                          {restaurant?.allYouCanEat?.enabled && !item.excludeFromAllYouCanEat
+                          {isAyceEnabled && !item.excludeFromAllYouCanEat
                             ? 'Incluso'
                             : `€${item.price.toFixed(2)}`
                           }
                         </span>
-                        {restaurant?.allYouCanEat?.enabled && !item.excludeFromAllYouCanEat && (
+                        {isAyceEnabled && !item.excludeFromAllYouCanEat && (
                           <Badge variant="secondary" className="text-xs bg-green-100 text-green-800">
                             All You Can Eat
                           </Badge>
@@ -558,9 +584,9 @@ export default function CustomerMenu({ tableId, onExit }: Props) {
                 </div>
               )}
 
-              {restaurant?.allYouCanEat?.enabled && table?.remainingOrders !== undefined && (
+              {remainingOrders !== null && (
                 <div className="text-sm text-center p-2 bg-blue-50 rounded">
-                  Ordini rimasti: {table.remainingOrders}
+                  Ordini rimasti: {remainingOrders}
                 </div>
               )}
             </div>
@@ -574,13 +600,12 @@ export default function CustomerMenu({ tableId, onExit }: Props) {
             <Button
               onClick={handlePlaceOrder}
               className="w-full bg-green-500 hover:bg-green-600 text-white font-bold text-lg py-3 shadow-liquid-lg"
-              disabled={restaurant?.allYouCanEat?.enabled && table?.remainingOrders !== undefined && table.remainingOrders !== null && table.remainingOrders <= 0}
+              disabled={remainingOrders !== null && remainingOrders <= 0}
             >
               <Check size={20} className="mr-2" />
-              {restaurant?.allYouCanEat?.enabled && table?.remainingOrders !== undefined && table.remainingOrders !== null && table.remainingOrders <= 0
+              {remainingOrders !== null && remainingOrders <= 0
                 ? 'Limite ordini raggiunto'
-                : 'Invia Ordine'
-              }
+                : 'Invia Ordine'}
             </Button>
           </div>
         </DialogContent>

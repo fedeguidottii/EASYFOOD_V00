@@ -36,8 +36,14 @@ export const DatabaseService = {
         if (restaurant.allYouCanEat !== undefined) {
             payload.all_you_can_eat = restaurant.allYouCanEat
         }
+        if (restaurant.all_you_can_eat !== undefined) {
+            payload.all_you_can_eat = restaurant.all_you_can_eat
+        }
         if (restaurant.coverChargePerPerson !== undefined) {
             payload.cover_charge_per_person = restaurant.coverChargePerPerson
+        }
+        if (restaurant.cover_charge_per_person !== undefined) {
+            payload.cover_charge_per_person = restaurant.cover_charge_per_person
         }
 
         // Rimuovi campi frontend-only
@@ -392,6 +398,16 @@ export const DatabaseService = {
             .select('*')
         if (error) throw error
         return data as TableSession[]
+    },
+
+    async getSessionOrderCount(sessionId: string) {
+        const { error, count } = await supabase
+            .from('orders')
+            .select('id', { count: 'exact', head: true })
+            .eq('table_session_id', sessionId)
+
+        if (error) throw error
+        return count || 0
     },
 
     async createOrder(order: Partial<Order>, items: Partial<OrderItem>[]) {
