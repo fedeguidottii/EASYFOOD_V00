@@ -163,6 +163,10 @@ const RestaurantDashboard = ({ user, onLogout }: RestaurantDashboardProps) => {
   const restaurantCompletedOrders = orders?.filter(order => order.status === 'completed') || []
   const restaurantBookings = bookings || []
   const restaurantCategories = categories || []
+  const requiresCustomerCount = Boolean(
+    currentRestaurant?.all_you_can_eat?.enabled ||
+    (currentRestaurant?.cover_charge_per_person || 0) > 0
+  )
 
   // Sidebar hover auto-expand
   useEffect(() => {
@@ -202,8 +206,8 @@ const RestaurantDashboard = ({ user, onLogout }: RestaurantDashboardProps) => {
   const generatePin = () => Math.floor(1000 + Math.random() * 9000).toString()
 
   const generateQrCode = (tableId: string) => {
-    // Direct link to menu with table ID
-    return `${window.location.origin}/client/table/${tableId}`
+    // Direct link to the client PIN access page with table ID
+    return `${window.location.origin}/client/table/${tableId}/pin`
   }
 
   const handleCreateTable = () => {
@@ -251,13 +255,9 @@ const RestaurantDashboard = ({ user, onLogout }: RestaurantDashboardProps) => {
           toast.error('Errore durante la liberazione del tavolo')
         })
     } else {
-      // Check settings
-      const isAyceEnabled = currentRestaurant?.all_you_can_eat?.enabled
-      const isCopertoEnabled = currentRestaurant?.cover_charge_per_person && currentRestaurant.cover_charge_per_person > 0
-
-      if (!isAyceEnabled && !isCopertoEnabled) {
-        // Activate directly with default 1 person
-        handleActivateTable(tableId, 1)
+      if (!requiresCustomerCount) {
+        // Activate directly without asking for customer count
+        handleActivateTable(tableId)
       } else {
         // Show dialog for customer count
         setSelectedTable(table)
@@ -266,8 +266,10 @@ const RestaurantDashboard = ({ user, onLogout }: RestaurantDashboardProps) => {
     }
   }
 
-  const handleActivateTable = (tableId: string, customerCount: number) => {
-    if (!customerCount || customerCount <= 0) {
+  const handleActivateTable = (tableId: string, customerCount?: number) => {
+    const guests = requiresCustomerCount ? customerCount : 1
+
+    if (requiresCustomerCount && (!guests || guests <= 0)) {
       toast.error('Inserisci un numero valido di clienti')
       return
     }
@@ -293,12 +295,13 @@ const RestaurantDashboard = ({ user, onLogout }: RestaurantDashboardProps) => {
           session_pin: generatePin()
         })
 
-        toast.success(`Tavolo attivato per ${customerCount} persone`)
+        toast.success(requiresCustomerCount ? `Tavolo attivato per ${guests} persone` : 'Tavolo attivato')
         setCustomerCount('')
         if (updatedTable) {
           setSelectedTable({ ...updatedTable })
           setCurrentSessionPin(session.session_pin || '')
           setShowQrDialog(true)
+          setShowTableDialog(false)
         }
       })
       .catch(err => {
@@ -1800,7 +1803,12 @@ const RestaurantDashboard = ({ user, onLogout }: RestaurantDashboardProps) => {
       </div >
 
       {/* Table Activation Dialog */}
-      < Dialog open={!!selectedTable && !showQrDialog} onOpenChange={(open) => { if (!open) setSelectedTable(null) }}>
+      < Dialog open={!!selectedTable && showTableDialog && requiresCustomerCount && !showQrDialog} onOpenChange={(open) => {
+        if (!open) {
+          setSelectedTable(null)
+          setShowTableDialog(false)
+        }
+      }}>
         <DialogContent>
           <DialogHeader>
             <DialogTitle>Attiva Tavolo {selectedTable?.number}</DialogTitle>
@@ -1809,19 +1817,21 @@ const RestaurantDashboard = ({ user, onLogout }: RestaurantDashboardProps) => {
             </DialogDescription>
           </DialogHeader>
           <div className="space-y-4 mt-4">
-            <div className="space-y-2">
-              <Label>Numero Clienti</Label>
-              <Input
-                type="number"
-                min="1"
-                value={customerCount}
-                onChange={(e) => setCustomerCount(e.target.value)}
-                autoFocus
-              />
-            </div>
+            {requiresCustomerCount && (
+              <div className="space-y-2">
+                <Label>Numero Clienti</Label>
+                <Input
+                  type="number"
+                  min="1"
+                  value={customerCount}
+                  onChange={(e) => setCustomerCount(e.target.value)}
+                  autoFocus
+                />
+              </div>
+            )}
             <Button
               className="w-full"
-              onClick={() => selectedTable && handleActivateTable(selectedTable.id, parseInt(customerCount))}
+              onClick={() => selectedTable && handleActivateTable(selectedTable.id, parseInt(customerCount, 10))}
             >
               Attiva Tavolo
             </Button>

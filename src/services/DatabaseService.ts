@@ -525,7 +525,7 @@ export const DatabaseService = {
                 .from('table_sessions')
                 .select('session_pin')
                 .eq('table_id', tableId)
-                .eq('status', 'ACTIVE')
+                .eq('status', 'OPEN')
                 .single()
 
             if (error || !sessions) {
