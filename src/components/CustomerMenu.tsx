@@ -52,13 +52,11 @@ export default function CustomerMenu({ tableId, onExit, interfaceMode = 'custome
   const [searchTerm, setSearchTerm] = useState('')
   const [showCart, setShowCart] = useState(false)
 
-  // Add Dish Dialog State
   const [selectedDish, setSelectedDish] = useState<Dish | null>(null)
   const [itemQuantity, setItemQuantity] = useState(1)
   const [itemNotes, setItemNotes] = useState('')
   const [showAddDialog, setShowAddDialog] = useState(false)
 
-  // Filter Logic
   const filteredItems = useMemo(() => {
     const normalizedSearch = searchTerm.toLowerCase()
     return dishes.filter(item => {
@@ -83,7 +81,6 @@ export default function CustomerMenu({ tableId, onExit, interfaceMode = 'custome
     })
   }, [categories])
 
-  // Cart Calculations
   const cartTotal = useMemo(() => {
     return cartItems.reduce((total, item) => {
       const dish = dishes.find(d => d.id === item.dish_id)
@@ -93,7 +90,6 @@ export default function CustomerMenu({ tableId, onExit, interfaceMode = 'custome
 
   const cartItemCount = cartItems.reduce((acc, item) => acc + item.quantity, 0)
 
-  // Handlers
   const openAddDialog = (dish: Dish) => {
     setSelectedDish(dish)
     setItemQuantity(1)
@@ -111,7 +107,6 @@ export default function CustomerMenu({ tableId, onExit, interfaceMode = 'custome
     setItemNotes('')
   }
 
-  // Waiter Mode Handlers
   const handleQuickAdd = async (e: React.MouseEvent, dish: Dish) => {
     e.stopPropagation()
     await addToCart(dish, 1, '')
@@ -132,7 +127,7 @@ export default function CustomerMenu({ tableId, onExit, interfaceMode = 'custome
   const handleSendOrder = async () => {
     await placeOrder()
     if (mode === 'waiter') {
-      setActiveTab('orders') // Switch to orders tab to show progress
+      setActiveTab('orders')
     } else {
       onExit()
     }
@@ -161,7 +156,6 @@ export default function CustomerMenu({ tableId, onExit, interfaceMode = 'custome
 
   return (
     <div className={`min-h-screen ${mode === 'waiter' ? 'bg-gray-100 pb-32' : 'bg-background pb-24'}`}>
-      {/* Header */}
       <header className="sticky top-0 z-40 w-full bg-background/95 backdrop-blur-md border-b shadow-sm">
         <div className="container mx-auto px-4 h-16 flex items-center justify-between">
           {mode === 'customer' ? (
@@ -180,7 +174,6 @@ export default function CustomerMenu({ tableId, onExit, interfaceMode = 'custome
             </div>
           )}
 
-          {/* Waiter Mode Tabs */}
           {mode === 'waiter' && (
             <div className="flex gap-2">
               <Button
@@ -208,7 +201,6 @@ export default function CustomerMenu({ tableId, onExit, interfaceMode = 'custome
           )}
         </div>
 
-        {/* Categories (Only in Menu Tab) */}
         {activeTab === 'menu' && (
           <div className="w-full overflow-x-auto no-scrollbar border-b bg-background/50">
             <div className="container mx-auto px-4 flex gap-2 py-3">
@@ -252,9 +244,7 @@ export default function CustomerMenu({ tableId, onExit, interfaceMode = 'custome
 
       <main className="container mx-auto px-4 py-2">
         {activeTab === 'menu' ? (
-          // MENU VIEW
           mode === 'waiter' ? (
-            // WAITER MODE LIST VIEW
             <div className="space-y-2">
               {filteredItems.map(dish => {
                 const cartItem = cartItems.find(i => i.dish_id === dish.id)
@@ -299,7 +289,6 @@ export default function CustomerMenu({ tableId, onExit, interfaceMode = 'custome
               })}
             </div>
           ) : (
-            // CUSTOMER MODE CARD VIEW
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
               {filteredItems.map(dish => (
                 <Card
@@ -308,7 +297,6 @@ export default function CustomerMenu({ tableId, onExit, interfaceMode = 'custome
                   onClick={() => openAddDialog(dish)}
                 >
                   <div className="flex h-32">
-                    {/* Image */}
                     <div className="w-32 h-full shrink-0 bg-muted relative">
                       {dish.image_url ? (
                         <img
@@ -329,29 +317,28 @@ export default function CustomerMenu({ tableId, onExit, interfaceMode = 'custome
                       )}
                     </div>
 
-                    {/* Content */}
                     <div className="flex-1 p-3 flex flex-col justify-between">
                       <div>
                         <div className="flex justify-between items-start gap-2">
-                          <h3 className="font-semibold line-clamp-1">{dish.name}</h3>
-                          <span className="font-bold text-primary">€{dish.price.toFixed(2)}</span>
+                          <h3 className="font-black text-gray-900 line-clamp-1 text-lg">{dish.name}</h3>
+                          <span className="font-black text-primary text-lg">€{dish.price.toFixed(2)}</span>
                         </div>
-                        <p className="text-xs text-muted-foreground line-clamp-2 mt-1">{dish.description}</p>
+                        <p className="text-xs text-gray-600 font-medium line-clamp-2 mt-1">{dish.description}</p>
                       </div>
 
                       <div className="flex items-center justify-between mt-2">
                         <div className="flex gap-1">
                           {dish.allergens?.slice(0, 2).map((allergen, i) => (
-                            <Badge key={i} variant="secondary" className="text-[10px] px-1 h-5">
+                            <Badge key={i} variant="secondary" className="text-[10px] px-1 h-5 bg-gray-100 text-gray-700 border-gray-200">
                               {allergen}
                             </Badge>
                           ))}
                           {(dish.allergens?.length || 0) > 2 && (
-                            <Badge variant="secondary" className="text-[10px] px-1 h-5">+{dish.allergens!.length - 2}</Badge>
+                            <Badge variant="secondary" className="text-[10px] px-1 h-5 bg-gray-100 text-gray-700 border-gray-200">+{dish.allergens!.length - 2}</Badge>
                           )}
                         </div>
-                        <Button size="sm" className="h-8 w-8 p-0 rounded-full shadow-sm">
-                          <Plus size={16} />
+                        <Button size="sm" className="h-8 w-8 p-0 rounded-full shadow-sm bg-black text-white hover:bg-gray-800">
+                          <Plus size={16} weight="bold" />
                         </Button>
                       </div>
                     </div>
@@ -361,7 +348,6 @@ export default function CustomerMenu({ tableId, onExit, interfaceMode = 'custome
             </div>
           )
         ) : (
-          // ORDERS VIEW (IN CORSO)
           <div className="space-y-4">
             {orders.filter(o => o.status !== 'completed' && o.status !== 'PAID' && o.status !== 'CANCELLED').length === 0 ? (
               <div className="text-center py-12 text-muted-foreground">
@@ -442,7 +428,6 @@ export default function CustomerMenu({ tableId, onExit, interfaceMode = 'custome
         )}
       </main>
 
-      {/* Footer Actions */}
       {mode === 'waiter' && activeTab === 'menu' ? (
         <div className="fixed bottom-0 left-0 right-0 p-4 bg-white border-t shadow-[0_-4px_6px_-1px_rgba(0,0,0,0.1)] z-50">
           <div className="container mx-auto max-w-md flex flex-col gap-3">
@@ -467,7 +452,6 @@ export default function CustomerMenu({ tableId, onExit, interfaceMode = 'custome
           </div>
         </div>
       ) : mode === 'customer' ? (
-        // Customer Floating Cart
         (cartItemCount > 0 || orders.length > 0) && (
           <div className="fixed bottom-6 left-0 right-0 px-4 flex justify-center z-50">
             <Button
@@ -486,7 +470,6 @@ export default function CustomerMenu({ tableId, onExit, interfaceMode = 'custome
         )
       ) : null}
 
-      {/* Add Dish Dialog (Shared) */}
       <Dialog open={showAddDialog} onOpenChange={setShowAddDialog}>
         <DialogContent className="max-w-sm sm:max-w-md">
           <DialogHeader>
@@ -540,16 +523,15 @@ export default function CustomerMenu({ tableId, onExit, interfaceMode = 'custome
         </DialogContent>
       </Dialog>
 
-      {/* Cart Drawer */}
       <Dialog open={showCart} onOpenChange={setShowCart}>
-        <DialogContent className="max-w-md h-[80vh] flex flex-col p-0 gap-0">
+        <div className="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm" aria-hidden="true" onClick={() => setShowCart(false)} />
+        <DialogContent className="fixed z-50 left-[50%] top-[50%] translate-x-[-50%] translate-y-[-50%] w-full max-w-md h-[80vh] flex flex-col p-0 gap-0 border shadow-lg duration-200 sm:rounded-lg">
           <DialogHeader className="p-6 pb-2">
             <DialogTitle>Il Tuo Ordine</DialogTitle>
             <DialogDescription>Riepilogo del tavolo</DialogDescription>
           </DialogHeader>
 
           <div className="flex-1 overflow-y-auto p-6 pt-2 space-y-6">
-            {/* Current Cart */}
             {cartItems.length > 0 && (
               <div className="space-y-4">
                 <div className="flex items-center gap-2 pb-2 border-b border-border/10">
@@ -590,7 +572,6 @@ export default function CustomerMenu({ tableId, onExit, interfaceMode = 'custome
               </div>
             )}
 
-            {/* Order History */}
             {orders.length > 0 && (
               <div className="space-y-4">
                 <div className="flex items-center gap-2 pb-2 border-b border-border/10">
@@ -602,11 +583,7 @@ export default function CustomerMenu({ tableId, onExit, interfaceMode = 'custome
                   const isCompleted = order.status === 'completed' || order.status === 'PAID' || allServed
                   const isCancelled = order.status === 'CANCELLED'
 
-                  if (isCancelled) return null // Hide cancelled orders from history? Or show them? 
-                  // Usually hide or show as cancelled. Let's show as cancelled if we want history.
-                  // But for "Inviati alla Cucina" maybe we only want active ones?
-                  // The user said "In Corso" section for active.
-                  // This is the cart drawer history.
+                  if (isCancelled) return null
 
                   return (
                     <div key={order.id} className="border rounded-xl p-4 space-y-3">
@@ -649,7 +626,6 @@ export default function CustomerMenu({ tableId, onExit, interfaceMode = 'custome
             )}
           </div>
 
-          {/* Footer Actions */}
           {cartItems.length > 0 && (
             <div className="p-6 border-t bg-background">
               <div className="space-y-2 mb-4">

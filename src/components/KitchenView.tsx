@@ -2,7 +2,7 @@ import { useState, useEffect, useMemo } from 'react'
 import { Order, OrderItem, Table, Dish } from '../services/types'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader } from '@/components/ui/card'
-import { Clock, Minus, Plus } from '@phosphor-icons/react'
+import { Check, Clock, Minus, Plus } from '@phosphor-icons/react'
 import { cn } from '@/lib/utils'
 
 interface KitchenViewProps {
@@ -36,42 +36,33 @@ export function KitchenView({ orders, tables, dishes, selectedCategoryIds = [], 
     const handleZoomIn = () => setColumns(prev => Math.max(1, prev - 1))
     const handleZoomOut = () => setColumns(prev => Math.min(5, prev + 1))
 
-    // Helper to check if order is complete
     const isOrderComplete = (order: Order) => {
         return order.items?.every(item => item.status === 'SERVED' || item.status === 'ready')
     }
 
-    // Helper to check if item matches category filter
     const itemMatchesCategory = (item: OrderItem) => {
         if (!selectedCategoryIds || selectedCategoryIds.length === 0) return true
         const dish = getDish(item.dish_id)
         return dish && selectedCategoryIds.includes(dish.category_id)
     }
 
-    // Filter active orders:
-    // 1. Must be in active status
-    // 2. Must NOT be fully complete (Auto-Archive)
-    // 3. Must have at least one item matching the category filter
     const activeOrders = useMemo(() => {
         return orders
             .filter(o => ['OPEN', 'pending', 'preparing', 'ready'].includes(o.status))
-            .filter(o => !isOrderComplete(o)) // Auto-archive
+            .filter(o => !isOrderComplete(o))
             .filter(o => {
-                // Check if order has any item matching the category
                 if (!selectedCategoryIds || selectedCategoryIds.length === 0) return true
                 return o.items?.some(item => itemMatchesCategory(item))
             })
             .sort((a, b) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime())
     }, [orders, selectedCategoryIds, dishes])
 
-    // Group by Dish Logic
     const dishesViewData = useMemo(() => {
         const dishMap = new Map<string, { dish: Dish | undefined, items: { order: Order, item: OrderItem }[] }>()
 
         activeOrders.forEach(order => {
             order.items?.forEach(item => {
-                // Filter by status AND category
-                if (item.status !== 'SERVED' && item.status !== 'ready' && itemMatchesCategory(item)) {
+                if (itemMatchesCategory(item)) {
                     const existing = dishMap.get(item.dish_id) || { dish: getDish(item.dish_id), items: [] }
                     existing.items.push({ order, item })
                     dishMap.set(item.dish_id, existing)
@@ -84,7 +75,6 @@ export function KitchenView({ orders, tables, dishes, selectedCategoryIds = [], 
 
     return (
         <div className="p-2 h-screen flex flex-col bg-background">
-            {/* Header / Controls */}
             <div className="flex items-center justify-between mb-4 bg-muted/20 p-2 rounded-lg border">
                 <div className="flex items-center gap-4">
                     <div className="flex gap-2">
@@ -119,7 +109,6 @@ export function KitchenView({ orders, tables, dishes, selectedCategoryIds = [], 
                 </div>
             </div>
 
-            {/* Grid */}
             <div
                 className="grid gap-4 overflow-y-auto pb-20 content-start"
                 style={{
@@ -127,12 +116,10 @@ export function KitchenView({ orders, tables, dishes, selectedCategoryIds = [], 
                 }}
             >
                 {viewMode === 'table' ? (
-                    // TABLE VIEW
                     activeOrders.map(order => {
                         const tableName = getTableName(undefined, order.table_session_id)
                         const timeDiff = (now.getTime() - new Date(order.created_at).getTime()) / 1000 / 60
 
-                        // Filter items for display
                         const visibleItems = order.items?.filter(item => itemMatchesCategory(item)) || []
                         if (visibleItems.length === 0) return null
 
@@ -143,13 +130,13 @@ export function KitchenView({ orders, tables, dishes, selectedCategoryIds = [], 
                             >
                                 <CardHeader className="pb-2 border-b bg-muted/30 p-3">
                                     <div className="flex justify-between items-center w-full">
-                                        <span className="text-3xl font-black text-foreground">
+                                        <span className="text-4xl font-black text-foreground">
                                             {tableName.replace('Tavolo ', '')}
                                         </span>
 
                                         <div className="flex items-center gap-2">
-                                            <div className="flex items-center gap-1 px-2 py-1 rounded-md font-bold text-2xl bg-background border">
-                                                <Clock weight="fill" className="h-6 w-6 text-muted-foreground" />
+                                            <div className="flex items-center gap-1 px-2 py-1 rounded-md font-bold text-3xl bg-background border">
+                                                <Clock weight="fill" className="h-8 w-8 text-muted-foreground" />
                                                 {Math.floor(timeDiff)}'
                                             </div>
                                         </div>
@@ -161,20 +148,22 @@ export function KitchenView({ orders, tables, dishes, selectedCategoryIds = [], 
                                         const dish = getDish(item.dish_id)
                                         const isItemDone = item.status === 'SERVED' || item.status === 'ready'
 
-                                        if (isItemDone) return null
-
                                         return (
                                             <div
                                                 key={`${item.id}-${idx}`}
-                                                className="flex items-start gap-3 p-2 rounded-md hover:bg-accent cursor-pointer select-none border border-transparent hover:border-border transition-all"
-                                                onClick={() => onCompleteDish(order.id, item.id)}
+                                                className={cn(
+                                                    "flex items-center justify-between p-2 rounded-md border transition-all",
+                                                    isItemDone
+                                                        ? "opacity-30 bg-muted border-transparent"
+                                                        : "bg-card border-transparent hover:bg-accent hover:border-border"
+                                                )}
                                             >
                                                 <div className="flex-1">
                                                     <div className="flex items-baseline gap-2">
-                                                        <span className="text-3xl font-black text-primary">
+                                                        <span className="text-4xl font-black text-primary">
                                                             {item.quantity}
                                                         </span>
-                                                        <span className="text-2xl font-bold leading-tight text-foreground">
+                                                        <span className="text-3xl font-bold leading-tight text-foreground">
                                                             {dish?.name || '???'}
                                                         </span>
                                                     </div>
@@ -184,6 +173,19 @@ export function KitchenView({ orders, tables, dishes, selectedCategoryIds = [], 
                                                         </div>
                                                     )}
                                                 </div>
+
+                                                <Button
+                                                    size="icon"
+                                                    variant={isItemDone ? "ghost" : "default"}
+                                                    className={cn(
+                                                        "h-14 w-14 rounded-full flex-shrink-0 ml-2",
+                                                        isItemDone ? "text-muted-foreground" : "bg-green-600 hover:bg-green-700 text-white shadow-md"
+                                                    )}
+                                                    onClick={() => !isItemDone && onCompleteDish(order.id, item.id)}
+                                                    disabled={isItemDone}
+                                                >
+                                                    <Check weight="bold" className="h-8 w-8" />
+                                                </Button>
                                             </div>
                                         )
                                     })}
@@ -192,49 +194,72 @@ export function KitchenView({ orders, tables, dishes, selectedCategoryIds = [], 
                         )
                     })
                 ) : (
-                    // DISH VIEW
-                    dishesViewData.map((data, idx) => (
-                        <Card
-                            key={`dish-view-${idx}`}
-                            className="flex flex-col shadow-sm border-2 border-border bg-card overflow-hidden"
-                        >
-                            <CardHeader className="pb-2 border-b bg-muted/30 p-3">
-                                <div className="flex justify-between items-center w-full">
-                                    <span className="text-3xl font-black text-foreground leading-tight">
-                                        {data.dish?.name}
-                                    </span>
-                                </div>
-                            </CardHeader>
+                    dishesViewData.map((data, idx) => {
+                        const allItemsDone = data.items.every(({ item }) => item.status === 'SERVED' || item.status === 'ready')
+                        if (allItemsDone) return null
 
-                            <CardContent className="flex-1 p-3 flex flex-col gap-2">
-                                {data.items.map(({ order, item }, itemIdx) => {
-                                    const tableName = getTableName(undefined, order.table_session_id)
-                                    const timeDiff = (now.getTime() - new Date(order.created_at).getTime()) / 1000 / 60
+                        return (
+                            <Card
+                                key={`dish-view-${idx}`}
+                                className="flex flex-col shadow-sm border-2 border-border bg-card overflow-hidden"
+                            >
+                                <CardHeader className="pb-2 border-b bg-muted/30 p-3">
+                                    <div className="flex justify-between items-center w-full">
+                                        <span className="text-4xl font-black text-foreground leading-tight">
+                                            {data.dish?.name}
+                                        </span>
+                                    </div>
+                                </CardHeader>
 
-                                    return (
-                                        <div
-                                            key={`dv-${item.id}-${itemIdx}`}
-                                            className="flex items-center justify-between p-2 rounded-md hover:bg-accent cursor-pointer select-none border border-transparent hover:border-border transition-all"
-                                            onClick={() => onCompleteDish(order.id, item.id)}
-                                        >
-                                            <div className="flex items-center gap-3">
-                                                <span className="text-3xl font-black text-primary">
-                                                    {item.quantity}
-                                                </span>
-                                                <span className="text-2xl font-bold text-foreground">
-                                                    {tableName.replace('Tavolo ', '')}
-                                                </span>
+                                <CardContent className="flex-1 p-3 flex flex-col gap-2">
+                                    {data.items.map(({ order, item }, itemIdx) => {
+                                        const tableName = getTableName(undefined, order.table_session_id)
+                                        const timeDiff = (now.getTime() - new Date(order.created_at).getTime()) / 1000 / 60
+                                        const isItemDone = item.status === 'SERVED' || item.status === 'ready'
+
+                                        return (
+                                            <div
+                                                key={`dv-${item.id}-${itemIdx}`}
+                                                className={cn(
+                                                    "flex items-center justify-between p-2 rounded-md border transition-all",
+                                                    isItemDone
+                                                        ? "opacity-30 bg-muted border-transparent"
+                                                        : "bg-card border-transparent hover:bg-accent hover:border-border"
+                                                )}
+                                            >
+                                                <div className="flex items-center gap-3">
+                                                    <span className="text-4xl font-black text-primary">
+                                                        {item.quantity}
+                                                    </span>
+                                                    <span className="text-3xl font-bold text-foreground">
+                                                        {tableName.replace('Tavolo ', '')}
+                                                    </span>
+                                                </div>
+
+                                                <div className="flex items-center gap-4">
+                                                    <div className="font-bold text-2xl text-muted-foreground">
+                                                        {Math.floor(timeDiff)}'
+                                                    </div>
+                                                    <Button
+                                                        size="icon"
+                                                        variant={isItemDone ? "ghost" : "default"}
+                                                        className={cn(
+                                                            "h-14 w-14 rounded-full flex-shrink-0",
+                                                            isItemDone ? "text-muted-foreground" : "bg-green-600 hover:bg-green-700 text-white shadow-md"
+                                                        )}
+                                                        onClick={() => !isItemDone && onCompleteDish(order.id, item.id)}
+                                                        disabled={isItemDone}
+                                                    >
+                                                        <Check weight="bold" className="h-8 w-8" />
+                                                    </Button>
+                                                </div>
                                             </div>
-
-                                            <div className="font-bold text-xl text-muted-foreground">
-                                                {Math.floor(timeDiff)}'
-                                            </div>
-                                        </div>
-                                    )
-                                })}
-                            </CardContent>
-                        </Card>
-                    ))
+                                        )
+                                    })}
+                                </CardContent>
+                            </Card>
+                        )
+                    })
                 )}
             </div>
         </div>
