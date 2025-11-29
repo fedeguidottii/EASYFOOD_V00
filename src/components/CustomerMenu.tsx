@@ -43,6 +43,7 @@ export default function CustomerMenu({ tableId, onExit, interfaceMode = 'custome
   } = useCustomerSession(tableId)
 
   const isWaiterMode = interfaceMode === 'waiter'
+  const mode = interfaceMode
 
   const [selectedCategory, setSelectedCategory] = useState<string>('all')
   const [searchTerm, setSearchTerm] = useState('')

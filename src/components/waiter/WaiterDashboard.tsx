@@ -3,7 +3,7 @@ import { supabase } from '../../lib/supabase'
 import { DatabaseService } from '../../services/DatabaseService'
 import { Table, Order, TableSession, Restaurant } from '../../services/types'
 import { toast } from 'sonner'
-import { SignOut, User, CheckCircle } from '@phosphor-icons/react'
+import { SignOut, User, CheckCircle, ArrowsClockwise } from '@phosphor-icons/react'
 import { Button } from '../ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '../ui/card'
 import { Badge } from '../ui/badge'
@@ -133,15 +133,7 @@ const WaiterDashboard = ({ user, onLogout }: WaiterDashboardProps) => {
         if (ords) setActiveOrders(ords)
     }
 
-    // Fetch restaurant settings
-    const [restaurant, setRestaurant] = useState<any>(null)
 
-    useEffect(() => {
-        if (restaurantId) {
-            supabase.from('restaurants').select('*').eq('id', restaurantId).single()
-                .then(({ data }) => setRestaurant(data))
-        }
-    }, [restaurantId])
 
     const getTableTotal = (sessionId: string) => {
         const sessionOrders = activeOrders.filter(o => o.table_session_id === sessionId)
