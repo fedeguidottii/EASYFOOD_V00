@@ -96,6 +96,7 @@ export interface TableSession {
     closed_at?: string
     session_pin?: string
     customer_count?: number
+    created_at: string
 }
 
 export interface Order {
