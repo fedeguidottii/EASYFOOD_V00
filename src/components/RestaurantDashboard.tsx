@@ -164,6 +164,8 @@ const RestaurantDashboard = ({ user, onLogout }: RestaurantDashboardProps) => {
   // Waiter Mode Settings
   const [waiterModeEnabled, setWaiterModeEnabled] = useState(false)
   const [allowWaiterPayments, setAllowWaiterPayments] = useState(false)
+  const [waiterPassword, setWaiterPassword] = useState('')
+  const [waiterCredentialsDirty, setWaiterCredentialsDirty] = useState(false)
 
   // Reservations Date Filter
   const [reservationsDateFilter, setReservationsDateFilter] = useState<'today' | 'tomorrow' | 'all'>('today')
@@ -245,6 +247,7 @@ const RestaurantDashboard = ({ user, onLogout }: RestaurantDashboardProps) => {
       // Waiter Mode
       setWaiterModeEnabled(currentRestaurant.waiter_mode_enabled || false)
       setAllowWaiterPayments(currentRestaurant.allow_waiter_payments || false)
+      setWaiterPassword(currentRestaurant.waiter_password || '')
     }
   }, [currentRestaurant])
 

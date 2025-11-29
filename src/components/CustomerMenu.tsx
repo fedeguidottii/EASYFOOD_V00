@@ -356,7 +356,7 @@ export default function CustomerMenu({ tableId, onExit, interfaceMode = 'custome
         </div>
       ) : (
         // Customer Floating Cart
-        cartItemCount > 0 && (
+        (cartItemCount > 0 || orders.length > 0) && (
           <div className="fixed bottom-6 left-0 right-0 px-4 flex justify-center z-50">
             <Button
               onClick={() => setShowCart(true)}
