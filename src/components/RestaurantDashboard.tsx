@@ -115,6 +115,7 @@ const RestaurantDashboard = ({ user, onLogout }: RestaurantDashboardProps) => {
   const [showMenuDialog, setShowMenuDialog] = useState(false)
   const [selectedTable, setSelectedTable] = useState<Table | null>(null)
   const [showTableDialog, setShowTableDialog] = useState(false)
+  const [showCreateTableDialog, setShowCreateTableDialog] = useState(false)
   const [editingTable, setEditingTable] = useState<Table | null>(null)
   const [editTableName, setEditTableName] = useState('')
   const [editingDish, setEditingDish] = useState<Dish | null>(null)
@@ -275,6 +276,7 @@ const RestaurantDashboard = ({ user, onLogout }: RestaurantDashboardProps) => {
     DatabaseService.createTable(newTable)
       .then(() => {
         setNewTableName('')
+        setShowCreateTableDialog(false)
         toast.success('Tavolo creato con successo')
       })
       .catch(err => toast.error('Errore nella creazione del tavolo'))
@@ -1332,7 +1334,7 @@ const RestaurantDashboard = ({ user, onLogout }: RestaurantDashboardProps) => {
                     className="pl-8 h-9 w-[150px] lg:w-[200px]"
                   />
                 </div>
-                <Button onClick={() => setShowTableDialog(true)} size="sm">
+                <Button onClick={() => setShowCreateTableDialog(true)} size="sm">
                   <Plus size={16} className="mr-2" />
                   Nuovo Tavolo
                 </Button>
@@ -1943,6 +1945,29 @@ const RestaurantDashboard = ({ user, onLogout }: RestaurantDashboardProps) => {
             >
               Attiva Tavolo
             </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* Create Table Dialog */}
+      <Dialog open={showCreateTableDialog} onOpenChange={setShowCreateTableDialog}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Nuovo Tavolo</DialogTitle>
+            <DialogDescription>
+              Inserisci il nome o numero del nuovo tavolo.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4 mt-4">
+            <div className="space-y-2">
+              <Label>Nome/Numero Tavolo</Label>
+              <Input
+                value={newTableName}
+                onChange={(e) => setNewTableName(e.target.value)}
+                placeholder="Es. 1, 2, Esterno 1..."
+              />
+            </div>
+            <Button onClick={handleCreateTable} className="w-full">Crea Tavolo</Button>
           </div>
         </DialogContent>
       </Dialog>
