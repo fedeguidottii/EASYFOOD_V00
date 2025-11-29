@@ -78,7 +78,7 @@ const RestaurantDashboard = ({ user, onLogout }: RestaurantDashboardProps) => {
   const [dishes, , , setDishes] = useSupabaseData<Dish>('dishes', [], { column: 'restaurant_id', value: restaurantId })
   const [orders] = useSupabaseData<Order>('orders', [], { column: 'restaurant_id', value: restaurantId })
   const [bookings, , refreshBookings] = useSupabaseData<Booking>('bookings', [], { column: 'restaurant_id', value: restaurantId })
-  const [categories] = useSupabaseData<Category>('categories', [], { column: 'restaurant_id', value: restaurantId })
+  const [categories, , , setCategories] = useSupabaseData<Category>('categories', [], { column: 'restaurant_id', value: restaurantId })
   const [sessions, , refreshSessions] = useSupabaseData<TableSession>('table_sessions', [], { column: 'restaurant_id', value: restaurantId })
 
   // Helper to get table ID from order
@@ -169,7 +169,7 @@ const RestaurantDashboard = ({ user, onLogout }: RestaurantDashboardProps) => {
   const [tableSearchTerm, setTableSearchTerm] = useState('')
 
   const restaurantDishes = dishes || []
-  const restaurantCategories = (categories || []).sort((a, b) => (a.order || 0) - (b.order || 0))
+  const restaurantCategories = (categories || []).sort((a, b) => (a.order ?? Number.MAX_SAFE_INTEGER) - (b.order ?? Number.MAX_SAFE_INTEGER))
   const restaurantTables = (tables || []).filter(t =>
     t.number.toLowerCase().includes(tableSearchTerm.toLowerCase())
   )
@@ -726,10 +726,12 @@ const RestaurantDashboard = ({ user, onLogout }: RestaurantDashboardProps) => {
       return
     }
 
+    const nextOrder = restaurantCategories.length
+
     const newCategoryObj: Partial<Category> = {
       restaurant_id: restaurantId,
       name: newCategory,
-      // order: (restaurantCategories?.length || 0) + 1 // Add order field if supported
+      order: nextOrder
     }
 
     DatabaseService.createCategory(newCategoryObj)
@@ -790,55 +792,25 @@ const RestaurantDashboard = ({ user, onLogout }: RestaurantDashboardProps) => {
 
   const handleMoveCategory = async (index: number, direction: 'up' | 'down') => {
     if (!restaurantCategories) return
-    const newCategories = [...restaurantCategories]
 
-    if (direction === 'up') {
-      if (index === 0) return
-      const temp = newCategories[index]
-      newCategories[index] = newCategories[index - 1]
-      newCategories[index - 1] = temp
-    } else {
-      if (index === newCategories.length - 1) return
-      const temp = newCategories[index]
-      newCategories[index] = newCategories[index + 1]
-      newCategories[index + 1] = temp
-    }
+    const targetIndex = direction === 'up' ? index - 1 : index + 1
+    if (targetIndex < 0 || targetIndex >= restaurantCategories.length) return
 
-    // Optimistic update (if we had setCategories, but we don't directly. We can try to mutate or just wait for DB)
-    // Since we don't have setCategories exposed, we will just update the DB and rely on realtime/refetch.
-    // To make it optimistic, we should really expose setCategories.
-    // For now, let's just update the DB. The user asked for "sorting mechanism".
-    // We need to update the 'order' field for swapped categories.
+    const reordered = [...restaurantCategories]
+    const [movedCategory] = reordered.splice(index, 1)
+    reordered.splice(targetIndex, 0, movedCategory)
 
-    const cat1 = newCategories[index]
-    const cat2 = direction === 'up' ? newCategories[index + 1] : newCategories[index - 1]
-
-    // Swap orders
-    // Assuming 'order' field exists and is populated. If not, we might need to initialize it.
-    // Let's assume they have orders.
+    const orderedCategories = reordered.map((cat, idx) => ({ ...cat, order: idx }))
+    setCategories?.(orderedCategories)
 
     try {
-      // We need to update both categories in DB
-      // We can't easily batch update with this service structure without a new method.
-      // We will call updateCategory twice.
-
-      // First, let's assign new orders based on index
-      const updates = newCategories.map((cat, idx) => ({ ...cat, order: idx }))
-
-      // Update all (or just the two swapped)
-      // Updating just the two is safer/faster
-      // But if orders are messed up, updating all is better.
-      // Let's update the two swapped ones.
-
-      const item1 = newCategories[index] // The one that moved to 'index'
-      const item2 = direction === 'up' ? newCategories[index + 1] : newCategories[index - 1] // The one that was at 'index'
-
-      await DatabaseService.updateCategory({ ...item1, order: index })
-      await DatabaseService.updateCategory({ ...item2, order: direction === 'up' ? index + 1 : index - 1 })
-
+      await Promise.all(
+        orderedCategories.map(cat => DatabaseService.updateCategory({ id: cat.id, order: cat.order }))
+      )
       toast.success('Ordine aggiornato')
     } catch (e) {
       toast.error('Errore nel riordinare')
+      setCategories?.(restaurantCategories)
     }
   }
 
@@ -1059,8 +1031,8 @@ const RestaurantDashboard = ({ user, onLogout }: RestaurantDashboardProps) => {
                     <span className="text-xs font-medium">Piatti</span>
                   </Button>
                 </div>
-                {/* Category filter hidden in dish mode as requested */
-                  orderViewMode === 'table' && (
+                {/* Category filter shown solo in vista piatti */
+                  orderViewMode === 'dish' && (
                     <Select value={selectedCategoryFilter} onValueChange={setSelectedCategoryFilter}>
                       <SelectTrigger className="w-[200px] h-8 shadow-sm hover:shadow-md border hover:border-primary/30 transition-all duration-200">
                         <SelectValue placeholder="Tutte le categorie" />

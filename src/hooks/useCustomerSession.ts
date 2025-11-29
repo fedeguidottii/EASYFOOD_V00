@@ -167,9 +167,8 @@ export function useCustomerSession(tableId: string) {
             await DatabaseService.createOrder({
                 restaurant_id: restaurant.id,
                 table_session_id: session.id,
-                status: 'PENDING', // Uppercase to match DB constraint
-                total_amount: totalAmount,
-                created_at: new Date().toISOString()
+                status: 'OPEN',
+                total_amount: totalAmount
             }, orderItems)
 
             // Clear cart after successful order
