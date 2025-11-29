@@ -22,7 +22,9 @@ export const DatabaseService = {
             ...r,
             isActive: r.is_active, // Mappa is_active (DB) a isActive (Frontend)
             allYouCanEat: r.all_you_can_eat,
-            coverChargePerPerson: r.cover_charge_per_person
+            coverChargePerPerson: r.cover_charge_per_person,
+            waiter_mode_enabled: r.waiter_mode_enabled,
+            allow_waiter_payments: r.allow_waiter_payments
         })) as Restaurant[]
     },
 
@@ -42,6 +44,12 @@ export const DatabaseService = {
         if (restaurant.coverChargePerPerson !== undefined) {
             payload.cover_charge_per_person = restaurant.coverChargePerPerson
         }
+        if (restaurant.waiter_mode_enabled !== undefined) {
+            payload.waiter_mode_enabled = restaurant.waiter_mode_enabled
+        }
+        if (restaurant.allow_waiter_payments !== undefined) {
+            payload.allow_waiter_payments = restaurant.allow_waiter_payments
+        }
         if (restaurant.cover_charge_per_person !== undefined) {
             payload.cover_charge_per_person = restaurant.cover_charge_per_person
         }
@@ -51,6 +59,8 @@ export const DatabaseService = {
         delete payload.hours
         delete payload.coverChargePerPerson
         delete payload.allYouCanEat
+        delete payload.waiter_mode_enabled
+        delete payload.allow_waiter_payments
 
         const { error } = await supabase.from('restaurants').insert(payload)
         if (error) throw error
@@ -60,7 +70,7 @@ export const DatabaseService = {
         const payload: any = {}
 
         // Campi permessi per l'aggiornamento
-        const allowedFields = ['name', 'address', 'phone', 'email', 'logo_url', 'owner_id']
+        const allowedFields = ['name', 'address', 'phone', 'email', 'logo_url', 'owner_id', 'waiter_mode_enabled', 'allow_waiter_payments']
 
         // Copia solo i campi presenti nell'oggetto input
         allowedFields.forEach(field => {
@@ -78,6 +88,12 @@ export const DatabaseService = {
         }
         if (restaurant.coverChargePerPerson !== undefined) {
             payload.cover_charge_per_person = restaurant.coverChargePerPerson
+        }
+        if (restaurant.waiter_mode_enabled !== undefined) {
+            payload.waiter_mode_enabled = restaurant.waiter_mode_enabled
+        }
+        if (restaurant.allow_waiter_payments !== undefined) {
+            payload.allow_waiter_payments = restaurant.allow_waiter_payments
         }
 
         const { error } = await supabase
@@ -345,8 +361,9 @@ export const DatabaseService = {
     },
 
     async createTable(table: Partial<Table>) {
-        const { error } = await supabase.from('tables').insert(table)
+        const { data, error } = await supabase.from('tables').insert(table).select().single()
         if (error) throw error
+        return data as Table
     },
 
     async updateTable(tableId: string, updates: Partial<Table>) {

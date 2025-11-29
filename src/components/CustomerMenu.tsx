@@ -25,10 +25,10 @@ import { toast } from 'sonner'
 interface Props {
   tableId: string
   onExit: () => void
-  mode?: 'customer' | 'waiter'
+  interfaceMode?: 'customer' | 'waiter'
 }
 
-export default function CustomerMenu({ tableId, onExit, mode = 'customer' }: Props) {
+export default function CustomerMenu({ tableId, onExit, interfaceMode = 'customer' }: Props) {
   const {
     restaurant,
     categories,
@@ -41,6 +41,8 @@ export default function CustomerMenu({ tableId, onExit, mode = 'customer' }: Pro
     updateCartItem,
     placeOrder
   } = useCustomerSession(tableId)
+
+  const isWaiterMode = interfaceMode === 'waiter'
 
   const [selectedCategory, setSelectedCategory] = useState<string>('all')
   const [searchTerm, setSearchTerm] = useState('')
@@ -136,7 +138,7 @@ export default function CustomerMenu({ tableId, onExit, mode = 'customer' }: Pro
                 {restaurant?.name || 'Menu'}
               </h1>
             </div>
-            {mode === 'waiter' && (
+            {isWaiterMode && (
               <Badge variant="outline" className="bg-orange-100 text-orange-700 border-orange-200">
                 Cameriere
               </Badge>
@@ -246,14 +248,22 @@ export default function CustomerMenu({ tableId, onExit, mode = 'customer' }: Pro
         cartItemCount > 0 && (
           <div className="fixed bottom-6 left-0 right-0 px-4 flex justify-center z-50">
             <Button
-              onClick={() => setShowCart(true)}
+              onClick={() => {
+                if (isWaiterMode) {
+                  placeOrder()
+                } else {
+                  setShowCart(true)
+                }
+              }}
               className="w-full max-w-md h-14 rounded-full shadow-lg bg-primary text-primary-foreground flex items-center justify-between px-6 animate-in slide-in-from-bottom-4"
             >
               <div className="flex items-center gap-2">
                 <div className="bg-white/20 px-2 py-1 rounded text-sm font-bold">
                   {cartItemCount}
                 </div>
-                <span className="font-semibold">Vedi Ordine</span>
+                <span className="font-semibold">
+                  {isWaiterMode ? `Invia Ordine al Tavolo ${tableId}` : 'Vedi Ordine'}
+                </span>
               </div>
               <span className="font-bold text-lg">€{cartTotal.toFixed(2)}</span>
             </Button>

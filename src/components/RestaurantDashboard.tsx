@@ -274,12 +274,16 @@ const RestaurantDashboard = ({ user, onLogout }: RestaurantDashboardProps) => {
     }
 
     DatabaseService.createTable(newTable)
-      .then(() => {
+      .then((created) => {
+        setTables?.((prev = []) => [...prev, created as Table])
         setNewTableName('')
         setShowCreateTableDialog(false)
         toast.success('Tavolo creato con successo')
       })
-      .catch(err => toast.error('Errore nella creazione del tavolo'))
+      .catch(err => {
+        console.error('Create table error', err)
+        toast.error('Errore nella creazione del tavolo')
+      })
   }
 
   const getOpenSessionForTable = (tableId: string) =>
@@ -650,6 +654,9 @@ const RestaurantDashboard = ({ user, onLogout }: RestaurantDashboardProps) => {
 
     DatabaseService.updateDish(updatedItem)
       .then(() => {
+        setDishes?.((prev = []) =>
+          prev.map(d => d.id === updatedItem.id ? { ...d, ...updatedItem } : d)
+        )
         setEditingDish(null)
         setEditDishData({ name: '', description: '', price: '', categoryId: '', image: '', is_ayce: false, allergens: [] })
         setAllergenInput('')

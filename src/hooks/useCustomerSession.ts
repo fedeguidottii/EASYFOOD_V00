@@ -17,6 +17,8 @@ export function useCustomerSession(tableId: string) {
     useEffect(() => {
         if (!tableId) return
 
+        localStorage.setItem('customer_table_id', tableId)
+
         const initSession = async () => {
             try {
                 setLoading(true)
@@ -40,6 +42,7 @@ export function useCustomerSession(tableId: string) {
                             allYouCanEat: restData.all_you_can_eat,
                             coverChargePerPerson: restData.cover_charge_per_person
                         })
+                        localStorage.setItem('customer_restaurant_id', restData.id)
                     }
 
                     // 3. Get Menu (Categories & Dishes)
@@ -149,7 +152,15 @@ export function useCustomerSession(tableId: string) {
     }
 
     const placeOrder = async () => {
-        if (!session || !restaurant || cartItems.length === 0) return
+        if (!session) {
+            toast.error('Sessione del tavolo non trovata, aggiorna il QR e riprova')
+            return
+        }
+        if (!restaurant) {
+            toast.error('Ristorante non disponibile, riprova tra pochi secondi')
+            return
+        }
+        if (cartItems.length === 0) return
 
         try {
             const totalAmount = cartItems.reduce((sum, item) => {
@@ -177,7 +188,8 @@ export function useCustomerSession(tableId: string) {
             toast.success('Ordine inviato in cucina!')
         } catch (error) {
             console.error('Place order error:', error)
-            toast.error('Errore durante l\'invio dell\'ordine')
+            const message = (error as any)?.message || 'Errore durante l\'invio dell\'ordine'
+            toast.error(message)
         }
     }
 

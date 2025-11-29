@@ -1,10 +1,9 @@
 import React, { useState, useEffect } from 'react'
 import { supabase } from '../../lib/supabase'
 import { DatabaseService } from '../../services/DatabaseService'
-import { Table, Order, TableSession } from '../../services/types'
+import { Table, Order, TableSession, Restaurant } from '../../services/types'
 import { toast } from 'sonner'
-import { useNavigate } from 'react-router-dom'
-import { SignOut, ArrowsClockwise, User, ForkKnife, CheckCircle, WarningCircle } from '@phosphor-icons/react'
+import { SignOut, User, CheckCircle } from '@phosphor-icons/react'
 import { Button } from '../ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '../ui/card'
 import { Badge } from '../ui/badge'
@@ -15,12 +14,12 @@ interface WaiterDashboardProps {
 }
 
 const WaiterDashboard = ({ user, onLogout }: WaiterDashboardProps) => {
-    const navigate = useNavigate()
     const [tables, setTables] = useState<Table[]>([])
     const [sessions, setSessions] = useState<TableSession[]>([])
     const [activeOrders, setActiveOrders] = useState<Order[]>([])
     const [loading, setLoading] = useState(true)
     const [restaurantId, setRestaurantId] = useState<string | null>(null)
+    const [restaurant, setRestaurant] = useState<Restaurant | null>(null)
 
     // Fetch initial data
     useEffect(() => {
@@ -60,6 +59,15 @@ const WaiterDashboard = ({ user, onLogout }: WaiterDashboardProps) => {
 
                 setRestaurantId(rId)
 
+                const { data: restMeta } = await supabase
+                    .from('restaurants')
+                    .select('waiter_mode_enabled, allow_waiter_payments')
+                    .eq('id', rId)
+                    .single()
+                if (restMeta) {
+                    setRestaurant(restMeta as Restaurant)
+                }
+
                 // Fetch Tables
                 const tbs = await DatabaseService.getTables(rId)
                 setTables(tbs)
@@ -80,7 +88,7 @@ const WaiterDashboard = ({ user, onLogout }: WaiterDashboardProps) => {
                     .from('orders')
                     .select('*, items:order_items(*)')
                     .eq('restaurant_id', rId)
-                    .in('status', ['pending', 'preparing', 'ready', 'served']) // Filter active statuses
+                    .in('status', ['pending', 'preparing', 'ready', 'served', 'CANCELLED'])
 
                 if (ords) setActiveOrders(ords)
 
@@ -130,6 +138,8 @@ const WaiterDashboard = ({ user, onLogout }: WaiterDashboardProps) => {
         if (!session) return 'free'
 
         const orders = activeOrders.filter(o => o.table_session_id === session.id)
+        const hasIssue = orders.some(o => o.status === 'CANCELLED')
+        if (hasIssue) return 'issue'
         if (orders.length > 0) return 'occupied'
 
         return 'occupied-no-orders' // Session open but no active orders (maybe just seated)
@@ -139,6 +149,7 @@ const WaiterDashboard = ({ user, onLogout }: WaiterDashboardProps) => {
         switch (status) {
             case 'free': return 'bg-white border-gray-200 hover:border-primary/50'
             case 'occupied': return 'bg-green-50 border-green-500 text-green-700'
+            case 'issue': return 'bg-red-50 border-red-500 text-red-700'
             case 'occupied-no-orders': return 'bg-blue-50 border-blue-300 text-blue-700'
             default: return 'bg-gray-100'
         }
@@ -146,7 +157,7 @@ const WaiterDashboard = ({ user, onLogout }: WaiterDashboardProps) => {
 
     const handleTableClick = (table: Table) => {
         // Navigate to order taking mode
-        navigate(`/waiter/table/${table.id}`)
+        window.location.href = `/waiter/table/${table.id}`
     }
 
     const handleMarkAsPaid = async (e: React.MouseEvent, tableId: string) => {
@@ -237,7 +248,7 @@ const WaiterDashboard = ({ user, onLogout }: WaiterDashboardProps) => {
                                 )}
 
                                 {/* Quick Actions for Occupied Tables */}
-                                {(status === 'occupied' || status === 'occupied-no-orders') && (
+                                {(status === 'occupied' || status === 'occupied-no-orders') && restaurant?.allow_waiter_payments && (
                                     <div className="absolute top-2 right-2">
                                         <Button
                                             variant="ghost"
