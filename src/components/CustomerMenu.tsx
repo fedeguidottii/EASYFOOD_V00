@@ -69,7 +69,9 @@ export default function CustomerMenu({ tableId, onExit, mode = 'customer' }: Pro
   }, [dishes, categories, selectedCategory, searchTerm])
 
   const sortedCategories = useMemo(() => {
-    return [...categories].sort((a, b) => a.order - b.order)
+    return [...categories].sort(
+      (a, b) => (a.order ?? Number.MAX_SAFE_INTEGER) - (b.order ?? Number.MAX_SAFE_INTEGER)
+    )
   }, [categories])
 
   // Cart Calculations

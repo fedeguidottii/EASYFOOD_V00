@@ -134,8 +134,6 @@ export default function ReservationsManager({ user, restaurantId, tables, bookin
       setSelectedBooking(null)
       toast.success('Prenotazione eliminata')
       await onRefresh?.()
-      // Force reload to ensure UI update if refresh is slow
-      setTimeout(() => window.location.reload(), 500)
     } catch (error) {
       console.error('Errore durante l\'eliminazione della prenotazione', error)
       toast.error('Non è stato possibile eliminare la prenotazione')

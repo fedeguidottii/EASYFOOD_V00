@@ -47,6 +47,10 @@ const TimelineReservations = ({ user, restaurantId, tables, bookings, onRefresh,
   const [selectedTimeSlot, setSelectedTimeSlot] = useState<{ tableId: string, time: string } | null>(null)
   const timelineRef = useRef<HTMLDivElement>(null)
 
+  const TIMELINE_START_MINUTES = 10 * 60 // 10:00
+  const TIMELINE_END_MINUTES = 24 * 60 // 24:00
+  const TIMELINE_DURATION = TIMELINE_END_MINUTES - TIMELINE_START_MINUTES
+
   // Generate time slots from 10:00 to 24:00 (every 30 minutes)
   const timeSlots: TimeSlot[] = []
   for (let hour = 10; hour <= 23; hour++) {
@@ -94,8 +98,8 @@ const TimelineReservations = ({ user, restaurantId, tables, bookings, onRefresh,
     if (currentDate !== selectedDate) return null
 
     const currentMinutes = now.getHours() * 60 + now.getMinutes()
-    const startMinutes = 10 * 60 // 10:00
-    const endMinutes = 24 * 60   // 24:00
+    const startMinutes = TIMELINE_START_MINUTES
+    const endMinutes = TIMELINE_END_MINUTES
 
     if (currentMinutes < startMinutes || currentMinutes > endMinutes) return null
 
@@ -125,8 +129,8 @@ const TimelineReservations = ({ user, restaurantId, tables, bookings, onRefresh,
     const clickX = e.clientX - rect.left
     const percentage = (clickX / rect.width) * 100
 
-    const startMinutes = 10 * 60 // 10:00
-    const endMinutes = 24 * 60   // 24:00
+    const startMinutes = TIMELINE_START_MINUTES
+    const endMinutes = TIMELINE_END_MINUTES
     const totalMinutes = endMinutes - startMinutes
 
     const clickedMinutes = startMinutes + (percentage / 100) * totalMinutes
@@ -210,9 +214,16 @@ const TimelineReservations = ({ user, restaurantId, tables, bookings, onRefresh,
   }
 
   // Delete reservation
-  const handleDeleteReservation = (reservationId: string) => {
-    DatabaseService.deleteBooking(reservationId)
-      .then(() => toast.success('Prenotazione eliminata'))
+  const handleDeleteReservation = async (reservationId: string) => {
+    try {
+      await DatabaseService.deleteBooking(reservationId)
+      setLocalBookings(prev => prev.filter(res => res.id !== reservationId))
+      await onRefresh?.()
+      toast.success('Prenotazione eliminata')
+    } catch (error) {
+      console.error('Errore durante l\'eliminazione della prenotazione', error)
+      toast.error('Non è stato possibile eliminare la prenotazione')
+    }
   }
 
   // Get reservation blocks for rendering
@@ -247,17 +258,18 @@ const TimelineReservations = ({ user, restaurantId, tables, bookings, onRefresh,
 
   // Get position and width for reservation block
   const getBlockStyle = (block: ReservationBlock) => {
-    const startMinutes = 10 * 60 // 10:00
-    const endMinutes = 24 * 60   // 24:00
-    const totalMinutes = endMinutes - startMinutes
-
-    const left = ((block.startMinutes - startMinutes) / totalMinutes) * 100
-    const width = (block.duration / totalMinutes) * 100
+    const left = ((block.startMinutes - TIMELINE_START_MINUTES) / TIMELINE_DURATION) * 100
+    const width = (block.duration / TIMELINE_DURATION) * 100
 
     return {
       left: `${Math.max(0, left)}%`,
       width: `${Math.min(100 - Math.max(0, left), width)}%`
     }
+  }
+
+  const getTimeLabelPosition = (slot: TimeSlot) => {
+    const minutes = timeToMinutes(slot.time)
+    return ((minutes - TIMELINE_START_MINUTES) / TIMELINE_DURATION) * 100
   }
 
   const currentTimePosition = getCurrentTimePosition()
@@ -281,10 +293,14 @@ const TimelineReservations = ({ user, restaurantId, tables, bookings, onRefresh,
       </div>
 
       {/* Timeline Header - Time Labels */}
-      <div className="relative">
-        <div className="flex pl-32 pr-4">
+      <div className="relative pl-32 pr-4">
+        <div className="relative h-6">
           {timeSlots.filter((_, index) => index % 2 === 0).map((slot) => (
-            <div key={slot.time} className="flex-1 text-center text-sm text-muted-foreground border-l border-border/20 first:border-l-0">
+            <div
+              key={slot.time}
+              className="absolute -translate-x-1/2 text-center text-sm text-muted-foreground"
+              style={{ left: `${getTimeLabelPosition(slot)}%` }}
+            >
               {slot.time}
             </div>
           ))}
@@ -324,7 +340,7 @@ const TimelineReservations = ({ user, restaurantId, tables, bookings, onRefresh,
                     <div
                       key={slot.time}
                       className="absolute top-0 bottom-0 border-l border-border/10 pointer-events-none"
-                      style={{ left: `${((timeToMinutes(slot.time) - 10 * 60) / (14 * 60)) * 100}%` }}
+                      style={{ left: `${getTimeLabelPosition(slot)}%` }}
                     />
                   ))}
 
