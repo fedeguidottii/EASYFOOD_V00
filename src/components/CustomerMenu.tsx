@@ -61,7 +61,7 @@ export default function CustomerMenu({ tableId, onExit, interfaceMode = 'custome
     return dishes.filter(item => {
       const matchesCategory = selectedCategory === 'all'
         ? true
-        : categories.find(c => c.id === item.category_id)?.name === selectedCategory
+        : item.category_id === selectedCategory
 
       const matchesSearch = !normalizedSearch
         || item.name.toLowerCase().includes(normalizedSearch)
@@ -190,9 +190,9 @@ export default function CustomerMenu({ tableId, onExit, interfaceMode = 'custome
             {sortedCategories.map(category => (
               <Button
                 key={category.id}
-                variant={selectedCategory === category.name ? 'default' : 'outline'}
+                variant={selectedCategory === category.id ? 'default' : 'outline'}
                 size="sm"
-                onClick={() => setSelectedCategory(category.name)}
+                onClick={() => setSelectedCategory(category.id)}
                 className="rounded-full whitespace-nowrap shadow-sm"
               >
                 {category.name}

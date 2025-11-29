@@ -190,6 +190,9 @@ const WaiterDashboard = ({ user, onLogout }: WaiterDashboardProps) => {
                         .in('id', sessionOrders.map(o => o.id))
                 }
 
+                // Svuota eventuali carrelli residui per evitare confusione tra tavoli
+                await DatabaseService.clearCart(session.id)
+
                 toast.success('Tavolo liberato e ordini pagati')
                 refreshData()
             } catch (error) {
