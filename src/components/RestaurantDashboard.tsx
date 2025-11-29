@@ -76,7 +76,7 @@ const RestaurantDashboard = ({ user, onLogout }: RestaurantDashboardProps) => {
   // Only fetch data if we have a valid restaurant ID
   const [tables, , , setTables] = useSupabaseData<Table>('tables', [], { column: 'restaurant_id', value: restaurantId })
   const [dishes, , , setDishes] = useSupabaseData<Dish>('dishes', [], { column: 'restaurant_id', value: restaurantId })
-  const [dishes, , , setDishes] = useSupabaseData<Dish>('dishes', [], { column: 'restaurant_id', value: restaurantId })
+
 
   // Custom Orders Fetching with Relations and Realtime
   const [orders, setOrders] = useState<Order[]>([])
