@@ -428,60 +428,109 @@ return (
       </DialogContent>
     </Dialog>
 
-    <div className="space-y-4">
+    {/* Cart Drawer */}
+    <Dialog open={showCart} onOpenChange={setShowCart}>
+      <DialogContent className="max-w-md h-[80vh] flex flex-col p-0 gap-0">
+        <DialogHeader className="p-6 pb-2">
+          <DialogTitle>Il Tuo Ordine</DialogTitle>
+          <DialogDescription>Riepilogo del tavolo</DialogDescription>
+        </DialogHeader>
 
-      <div className="flex items-center gap-2 pb-2 border-b border-border/10">
-        <div className="w-6 h-6 rounded-full bg-green-500/20 flex items-center justify-center text-green-600 text-xs font-bold">2</div>
-        <h3 className="font-semibold text-sm text-foreground uppercase tracking-wider">Inviati alla Cucina</h3>
-      </div>
-      {orders.map(order => (
-        <div key={order.id} className="border rounded-xl p-4 space-y-3">
-          <div className="flex justify-between items-center">
-            <Badge variant={order.status === 'completed' ? 'default' : 'secondary'}>
-              {order.status === 'completed' ? 'Completato' : 'In Preparazione'}
-            </Badge>
-            <span className="text-xs text-muted-foreground flex items-center gap-1">
-              <Clock size={12} />
-              {getElapsedLabel(order.created_at)}
-            </span>
-          </div>
-          <div className="space-y-2">
-            {order.items?.map(item => (
-              <div key={item.id} className="flex justify-between text-sm">
-                <span className="text-muted-foreground">{item.quantity}x {item.dish?.name}</span>
-                <span>{item.status === 'SERVED' ? '✅' : '⏳'}</span>
+        <div className="flex-1 overflow-y-auto p-6 pt-2 space-y-6">
+          {/* Current Cart */}
+          {cartItems.length > 0 && (
+            <div className="space-y-4">
+              <div className="flex items-center gap-2 pb-2 border-b border-border/10">
+                <div className="w-6 h-6 rounded-full bg-primary/20 flex items-center justify-center text-primary text-xs font-bold">1</div>
+                <h3 className="font-semibold text-sm text-foreground uppercase tracking-wider">Da Ordinare</h3>
               </div>
-            ))}
-          </div>
+              {cartItems.map(item => {
+                const dish = dishes.find(d => d.id === item.dish_id)
+                if (!dish) return null
+                return (
+                  <div key={item.id} className="flex gap-3 bg-secondary/30 p-3 rounded-xl">
+                    <div className="flex-1 space-y-1">
+                      <div className="flex justify-between font-medium">
+                        <span>{dish.name}</span>
+                        <span>€{(dish.price * item.quantity).toFixed(2)}</span>
+                      </div>
+                      <div className="flex items-center gap-3">
+                        <div className="flex items-center gap-2 bg-background rounded-lg border px-1 h-8">
+                          <Button variant="ghost" size="icon" className="h-6 w-6" onClick={() => updateCartItem(item.id, item.quantity - 1)}>
+                            <Minus size={12} />
+                          </Button>
+                          <span className="text-sm font-medium w-4 text-center">{item.quantity}</span>
+                          <Button variant="ghost" size="icon" className="h-6 w-6" onClick={() => updateCartItem(item.id, item.quantity + 1)}>
+                            <Plus size={12} />
+                          </Button>
+                        </div>
+                        <Button variant="ghost" size="icon" className="h-8 w-8 text-destructive ml-auto" onClick={() => removeFromCart(item.id)}>
+                          <X size={16} />
+                        </Button>
+                      </div>
+                      {item.notes && (
+                        <p className="text-xs text-muted-foreground italic">Note: {item.notes}</p>
+                      )}
+                    </div>
+                  </div>
+                )
+              })}
+            </div>
+          )}
+
+          {/* Order History */}
+          {orders.length > 0 && (
+            <div className="space-y-4">
+              <div className="flex items-center gap-2 pb-2 border-b border-border/10">
+                <div className="w-6 h-6 rounded-full bg-green-500/20 flex items-center justify-center text-green-600 text-xs font-bold">2</div>
+                <h3 className="font-semibold text-sm text-foreground uppercase tracking-wider">Inviati alla Cucina</h3>
+              </div>
+              {orders.map(order => (
+                <div key={order.id} className="border rounded-xl p-4 space-y-3">
+                  <div className="flex justify-between items-center">
+                    <Badge variant={order.status === 'completed' ? 'default' : 'secondary'}>
+                      {order.status === 'completed' ? 'Completato' : 'In Preparazione'}
+                    </Badge>
+                    <span className="text-xs text-muted-foreground flex items-center gap-1">
+                      <Clock size={12} />
+                      {getElapsedLabel(order.created_at)}
+                    </span>
+                  </div>
+                  <div className="space-y-2">
+                    {order.items?.map(item => (
+                      <div key={item.id} className="flex justify-between text-sm">
+                        <span className="text-muted-foreground">{item.quantity}x {item.dish?.name}</span>
+                        <span>{item.status === 'SERVED' ? '✅' : '⏳'}</span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+
+          {cartItems.length === 0 && orders.length === 0 && (
+            <div className="text-center py-10 text-muted-foreground">
+              <ShoppingCart size={48} className="mx-auto mb-4 opacity-20" />
+              <p>Il carrello è vuoto</p>
+            </div>
+          )}
         </div>
-      ))}
-    </div>
-            )}
 
-    {cartItems.length === 0 && orders.length === 0 && (
-      <div className="text-center py-10 text-muted-foreground">
-        <ShoppingCart size={48} className="mx-auto mb-4 opacity-20" />
-        <p>Il carrello è vuoto</p>
-      </div>
-    )}
+        {/* Footer Actions */}
+        {cartItems.length > 0 && (
+          <div className="p-6 border-t bg-background">
+            <div className="flex justify-between items-center mb-4 text-lg font-bold">
+              <span>Totale Da Ordinare</span>
+              <span>€{cartTotal.toFixed(2)}</span>
+            </div>
+            <Button onClick={() => { placeOrder(); setShowCart(false); }} className="w-full h-12 text-lg font-bold shadow-lg">
+              Invia Ordine
+            </Button>
+          </div>
+        )}
+      </DialogContent>
+    </Dialog>
   </div>
-
-          {/* Footer Actions */ }
-{
-  cartItems.length > 0 && (
-    <div className="p-6 border-t bg-background">
-      <div className="flex justify-between items-center mb-4 text-lg font-bold">
-        <span>Totale Da Ordinare</span>
-        <span>€{cartTotal.toFixed(2)}</span>
-      </div>
-      <Button onClick={() => { placeOrder(); setShowCart(false); }} className="w-full h-12 text-lg font-bold shadow-lg">
-        Invia Ordine
-      </Button>
-    </div>
-  )
-}
-        </DialogContent >
-      </Dialog >
-    </div >
-  )
+)
 }
