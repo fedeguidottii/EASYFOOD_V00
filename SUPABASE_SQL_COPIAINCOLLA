@@ -1,7 +1,1 @@
--- Esegui in Supabase SQL editor per abilitare l'upload delle immagini dei piatti da client non autenticati.
--- Sostituisce la policy esistente solo autenticata con una che consente anche al ruolo anon di inserire oggetti nel bucket "dishes".
 
-drop policy if exists "Allow anon uploads to dishes" on storage.objects;
-create policy "Allow anon uploads to dishes"
-  on storage.objects for insert
-  with check (bucket_id = 'dishes');
