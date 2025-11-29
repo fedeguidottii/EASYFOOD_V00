@@ -43,10 +43,12 @@ export function useCustomerSession(tableId: string) {
                     }
 
                     // 3. Get Menu (Categories & Dishes)
-                    const cats = await DatabaseService.getCategories(tableData.restaurant_id)
-                    setCategories(cats)
-                    const dshs = await DatabaseService.getDishes(tableData.restaurant_id)
-                    setDishes(dshs)
+                    if (tableData.restaurant_id) {
+                        const cats = await DatabaseService.getCategories(tableData.restaurant_id)
+                        setCategories(cats)
+                        const dshs = await DatabaseService.getDishes(tableData.restaurant_id)
+                        setDishes(dshs)
+                    }
                 }
 
                 // 4. Get Cart Items
@@ -165,7 +167,7 @@ export function useCustomerSession(tableId: string) {
             await DatabaseService.createOrder({
                 restaurant_id: restaurant.id,
                 table_session_id: session.id,
-                status: 'pending', // or 'OPEN' depending on your types
+                status: 'PENDING', // Uppercase to match DB constraint
                 total_amount: totalAmount,
                 created_at: new Date().toISOString()
             }, orderItems)

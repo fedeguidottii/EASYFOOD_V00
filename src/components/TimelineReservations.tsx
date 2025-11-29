@@ -173,6 +173,8 @@ const TimelineReservations = ({ user, restaurantId, tables, bookings, onRefresh,
       return
     }
 
+    // Fix: Construct date explicitly to avoid timezone shifts
+    // We want the database to store exactly what we selected
     const dateTime = `${selectedDate}T${newReservation.time}:00`
 
     const reservation: Partial<Booking> = {
