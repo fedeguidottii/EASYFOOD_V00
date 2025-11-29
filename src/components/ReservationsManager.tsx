@@ -33,16 +33,19 @@ export default function ReservationsManager({ user, restaurantId, tables, bookin
   const [futureFilter, setFutureFilter] = useState<string>('all')
   const [customFutureDate, setCustomFutureDate] = useState('')
 
+  // Helper for date comparison (ignoring time)
+  const isSameDay = (d1: Date, d2: Date) => {
+    return d1.getFullYear() === d2.getFullYear() &&
+      d1.getMonth() === d2.getMonth() &&
+      d1.getDate() === d2.getDate()
+  }
+
   // Sync prop with internal state when it changes
   useEffect(() => {
     if (dateFilter === 'today') {
-      const today = new Date().toISOString().split('T')[0]
-      setFutureFilter(today)
+      setFutureFilter('today')
     } else if (dateFilter === 'tomorrow') {
-      const tomorrow = new Date()
-      tomorrow.setDate(tomorrow.getDate() + 1)
-      const tomorrowStr = tomorrow.toISOString().split('T')[0]
-      setFutureFilter(tomorrowStr)
+      setFutureFilter('tomorrow')
     } else {
       setFutureFilter('all')
     }
@@ -68,17 +71,23 @@ export default function ReservationsManager({ user, restaurantId, tables, bookin
   const restaurantTables = tables.filter(t => t.restaurant_id === restaurantId)
 
   // Separate active and history (completed) bookings
-  // Assuming 'completed' status or past date means history
   const now = new Date()
+
   const activeBookings = restaurantBookings.filter(b => {
     const bookingDate = new Date(b.date_time)
-    return bookingDate >= now && b.status !== 'COMPLETED' && b.status !== 'CANCELLED'
+    // Active if in the future OR today (even if time passed, keep it visible for the day)
+    // OR if status is not final
+    const isFutureOrToday = bookingDate >= now || isSameDay(bookingDate, now)
+    return isFutureOrToday && b.status !== 'COMPLETED' && b.status !== 'CANCELLED'
   })
 
   const historyBookings = restaurantBookings.filter(b => {
     const bookingDate = new Date(b.date_time)
-    return bookingDate < now || b.status === 'COMPLETED' || b.status === 'CANCELLED'
+    const isPast = bookingDate < now && !isSameDay(bookingDate, now)
+    return isPast || b.status === 'COMPLETED' || b.status === 'CANCELLED'
   })
+
+
 
   // Initialize edit form when reservation is selected
   const handleEditBooking = (booking: Booking) => {
@@ -625,101 +634,103 @@ export default function ReservationsManager({ user, restaurantId, tables, bookin
 
       {/* Reservation History Dialog */}
       <Dialog open={showHistoryDialog} onOpenChange={setShowHistoryDialog}>
-        <DialogContent className="max-w-4xl">
+        <DialogContent className="max-w-4xl h-[80vh] flex flex-col">
           <DialogHeader>
             <DialogTitle>Storico Prenotazioni</DialogTitle>
             <DialogDescription>
-              Tutte le prenotazioni completate
+              Tutte le prenotazioni completate o cancellate
             </DialogDescription>
           </DialogHeader>
 
-          {/* History Filter */}
-          <div className="flex items-center gap-4 mb-4 flex-wrap">
-            <Select value={historyFilter} onValueChange={setHistoryFilter}>
-              <SelectTrigger className="w-48">
-                <SelectValue placeholder="Filtra storico" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">Tutte le prenotazioni</SelectItem>
-                {historyDateFilters.map(filter => (
-                  <SelectItem key={filter.value} value={filter.value}>
-                    {filter.label}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
+          <div className="flex-1 overflow-hidden flex flex-col gap-4">
+            {/* History Filter */}
+            <div className="flex items-center gap-4 flex-wrap">
+              <Select value={historyFilter} onValueChange={setHistoryFilter}>
+                <SelectTrigger className="w-48">
+                  <SelectValue placeholder="Filtra storico" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">Tutte le prenotazioni</SelectItem>
+                  {historyDateFilters.map(filter => (
+                    <SelectItem key={filter.value} value={filter.value}>
+                      {filter.label}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
 
-            {historyFilter === 'custom' && (
-              <Popover>
-                <PopoverTrigger asChild>
-                  <Button variant="outline" className="gap-2">
-                    <CalendarBlank size={16} />
-                    Periodo Personalizzato
-                  </Button>
-                </PopoverTrigger>
-                <PopoverContent className="w-80" align="end">
-                  <div className="space-y-4">
-                    <div className="space-y-2">
-                      <Label htmlFor="custom-history-start">Data Inizio</Label>
-                      <Input
-                        id="custom-history-start"
-                        type="date"
-                        value={customHistoryStartDate}
-                        onChange={(e) => setCustomHistoryStartDate(e.target.value)}
-                      />
+              {historyFilter === 'custom' && (
+                <Popover>
+                  <PopoverTrigger asChild>
+                    <Button variant="outline" className="gap-2">
+                      <CalendarBlank size={16} />
+                      Periodo Personalizzato
+                    </Button>
+                  </PopoverTrigger>
+                  <PopoverContent className="w-80" align="end">
+                    <div className="space-y-4 p-2">
+                      <div className="space-y-2">
+                        <Label htmlFor="custom-history-start">Data Inizio</Label>
+                        <Input
+                          id="custom-history-start"
+                          type="date"
+                          value={customHistoryStartDate}
+                          onChange={(e) => setCustomHistoryStartDate(e.target.value)}
+                        />
+                      </div>
+                      <div className="space-y-2">
+                        <Label htmlFor="custom-history-end">Data Fine</Label>
+                        <Input
+                          id="custom-history-end"
+                          type="date"
+                          value={customHistoryEndDate}
+                          onChange={(e) => setCustomHistoryEndDate(e.target.value)}
+                        />
+                      </div>
                     </div>
-                    <div className="space-y-2">
-                      <Label htmlFor="custom-history-end">Data Fine</Label>
-                      <Input
-                        id="custom-history-end"
-                        type="date"
-                        value={customHistoryEndDate}
-                        onChange={(e) => setCustomHistoryEndDate(e.target.value)}
-                      />
-                    </div>
-                  </div>
-                </PopoverContent>
-              </Popover>
-            )}
-          </div>
+                  </PopoverContent>
+                </Popover>
+              )}
+            </div>
 
-          <div className="max-h-96 overflow-y-auto">
-            {filteredHistoryBookings.length === 0 ? (
-              <p className="text-center text-muted-foreground py-8">
-                {historyFilter === 'all' ? 'Nessuna prenotazione nello storico' : 'Nessuna prenotazione per il periodo selezionato'}
-              </p>
-            ) : (
-              <div className="space-y-3">
-                {filteredHistoryBookings
-                  .sort((a, b) => new Date(b.date_time).getTime() - new Date(a.date_time).getTime())
-                  .map(booking => (
-                    <Card key={booking.id} className="border-l-4 border-l-green-400">
-                      <CardContent className="p-4">
-                        <div className="grid gap-2 md:grid-cols-2 lg:grid-cols-4">
-                          <div>
-                            <p className="font-semibold">{booking.name}</p>
-                            <p className="text-sm text-muted-foreground">{booking.phone}</p>
+            <div className="flex-1 overflow-y-auto pr-2">
+              {filteredHistoryBookings.length === 0 ? (
+                <div className="text-center py-10 text-muted-foreground">
+                  <p>{historyFilter === 'all' ? 'Nessuna prenotazione nello storico' : 'Nessuna prenotazione trovata per il periodo selezionato'}</p>
+                </div>
+              ) : (
+                <div className="space-y-3">
+                  {filteredHistoryBookings
+                    .sort((a, b) => new Date(b.date_time).getTime() - new Date(a.date_time).getTime())
+                    .map(booking => (
+                      <Card key={booking.id} className="border-l-4 border-l-muted">
+                        <CardContent className="p-4">
+                          <div className="grid gap-2 md:grid-cols-2 lg:grid-cols-4">
+                            <div>
+                              <p className="font-semibold">{booking.name}</p>
+                              <p className="text-sm text-muted-foreground">{booking.phone}</p>
+                            </div>
+                            <div>
+                              <p className="text-sm">{formatDate(booking.date_time.split('T')[0])}</p>
+                              <p className="text-sm text-muted-foreground">{booking.date_time.split('T')[1].substring(0, 5)}</p>
+                            </div>
+                            <div>
+                              <p className="text-sm">{getTableName(booking.table_id)}</p>
+                              <p className="text-sm text-muted-foreground">{booking.guests} ospiti</p>
+                            </div>
+                            <div className="flex items-center">
+                              <Badge variant={booking.status === 'COMPLETED' ? 'default' : 'destructive'} className={booking.status === 'COMPLETED' ? 'bg-green-600' : ''}>
+                                {booking.status === 'COMPLETED' ? 'Completata' : 'Cancellata'}
+                              </Badge>
+                            </div>
                           </div>
-                          <div>
-                            <p className="text-sm">{formatDate(booking.date_time.split('T')[0])}</p>
-                            <p className="text-sm text-muted-foreground">{booking.date_time.split('T')[1].substring(0, 5)}</p>
-                          </div>
-                          <div>
-                            <p className="text-sm">{getTableName(booking.table_id)}</p>
-                            <p className="text-sm text-muted-foreground">{booking.guests} ospiti</p>
-                          </div>
-                          <div className="flex items-center">
-                            <Badge variant="default" className="bg-green-600">
-                              {booking.status === 'COMPLETED' ? 'Completata' : 'Cancellata'}
-                            </Badge>
-                          </div>
-                        </div>
-                      </CardContent>
-                    </Card>
-                  ))
-                }
-              </div>
-            )}
+                        </CardContent>
+                      </Card>
+                    ))
+                  }
+                </div>
+              )}
+            </div>
           </div>
         </DialogContent>
       </Dialog>

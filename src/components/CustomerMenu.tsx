@@ -69,9 +69,12 @@ export default function CustomerMenu({ tableId, onExit, mode = 'customer' }: Pro
   }, [dishes, categories, selectedCategory, searchTerm])
 
   const sortedCategories = useMemo(() => {
-    return [...categories].sort(
-      (a, b) => (a.order ?? Number.MAX_SAFE_INTEGER) - (b.order ?? Number.MAX_SAFE_INTEGER)
-    )
+    return [...categories].sort((a, b) => {
+      const orderA = a.order ?? 9999
+      const orderB = b.order ?? 9999
+      if (orderA !== orderB) return orderA - orderB
+      return a.name.localeCompare(b.name)
+    })
   }, [categories])
 
   // Cart Calculations
