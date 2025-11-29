@@ -181,7 +181,11 @@ const RestaurantDashboard = ({ user, onLogout }: RestaurantDashboardProps) => {
   const [customerCount, setCustomerCount] = useState('')
   const [selectedOrderHistory, setSelectedOrderHistory] = useState<any | null>(null) // Placeholder type
   const [historyDateFilter, setHistoryDateFilter] = useState<string>('')
+
   const [selectedCategoryFilter, setSelectedCategoryFilter] = useState<string>('all')
+  const [selectedCategoryIds, setSelectedCategoryIds] = useState<string[]>([])
+  const [kitchenViewMode, setKitchenViewMode] = useState<'dish' | 'table'>('dish')
+  const [showOrderHistory, setShowOrderHistory] = useState(false)
   const [orderSortMode, setOrderSortMode] = useState<'oldest' | 'newest'>('oldest')
   const [isAddItemDialogOpen, setIsAddItemDialogOpen] = useState(false)
   const [currentSessionPin, setCurrentSessionPin] = useState<string>('')
@@ -251,13 +255,28 @@ const RestaurantDashboard = ({ user, onLogout }: RestaurantDashboardProps) => {
 
   const dishGroups = dishQueue.reduce<Record<string, DishTicket[]>>((acc, entry) => {
     if (!entry.dish) return acc
-    if (selectedCategoryFilter !== 'all') {
-      const category = restaurantCategories.find(c => c.id === entry.categoryId)
-      if (category?.name !== selectedCategoryFilter) return acc
+
+    // Filter by selected categories (multi-select)
+    if (selectedCategoryIds.length > 0 && !selectedCategoryIds.includes(entry.categoryId)) {
+      return acc
     }
 
     acc[entry.dish.id] = acc[entry.dish.id] || []
     acc[entry.dish.id].push(entry)
+    return acc
+  }, {})
+
+  const tableGroups = dishQueue.reduce<Record<string, DishTicket[]>>((acc, entry) => {
+    if (!entry.dish) return acc
+
+    // Filter by selected categories (multi-select)
+    if (selectedCategoryIds.length > 0 && !selectedCategoryIds.includes(entry.categoryId)) {
+      return acc
+    }
+
+    const tableKey = entry.tableNumber
+    acc[tableKey] = acc[tableKey] || []
+    acc[tableKey].push(entry)
     return acc
   }, {})
 
@@ -1057,7 +1076,7 @@ const RestaurantDashboard = ({ user, onLogout }: RestaurantDashboardProps) => {
         <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
           {/* Orders Tab */}
           <TabsContent value="orders" className="space-y-6">
-            <div className="flex items-center justify-between mb-6">
+            <div className="flex flex-col md:flex-row items-start md:items-center justify-between mb-6 gap-4">
               <div className="flex items-center gap-3">
                 <div className="w-11 h-11 rounded-xl bg-gradient-to-br from-primary to-accent flex items-center justify-center text-white shadow-gold">
                   <Clock size={20} weight="duotone" />
@@ -1067,31 +1086,74 @@ const RestaurantDashboard = ({ user, onLogout }: RestaurantDashboardProps) => {
                   <p className="text-xs text-muted-foreground mt-0.5">Gestisci gli ordini in tempo reale</p>
                 </div>
               </div>
-              <div className="flex flex-wrap items-center gap-2">
-                <Badge variant="outline" className="bg-primary/5 text-primary border-primary/20 px-3 py-1 text-xs">
-                  Vista piatti attiva
-                </Badge>
-                <Select value={selectedCategoryFilter} onValueChange={setSelectedCategoryFilter}>
-                  <SelectTrigger className="w-[200px] h-8 shadow-sm hover:shadow-md border hover:border-primary/30 transition-all duration-200">
-                    <SelectValue placeholder="Tutte le categorie" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="all">
-                      <div className="flex items-center gap-2">
-                        <BookOpen size={14} />
-                        <span className="text-sm whitespace-nowrap">Tutte le categorie</span>
+              <div className="flex flex-wrap items-center gap-2 w-full md:w-auto">
+                <div className="flex items-center bg-muted/30 p-1 rounded-lg border border-border/40">
+                  <Button
+                    variant={kitchenViewMode === 'dish' ? 'secondary' : 'ghost'}
+                    size="sm"
+                    onClick={() => setKitchenViewMode('dish')}
+                    className="h-7 text-xs"
+                  >
+                    Per Piatto
+                  </Button>
+                  <Button
+                    variant={kitchenViewMode === 'table' ? 'secondary' : 'ghost'}
+                    size="sm"
+                    onClick={() => setKitchenViewMode('table')}
+                    className="h-7 text-xs"
+                  >
+                    Per Tavolo
+                  </Button>
+                </div>
+
+                <div className="flex items-center gap-2">
+                  <Dialog>
+                    <DialogTrigger asChild>
+                      <Button variant="outline" size="sm" className="h-9 border-dashed">
+                        <Plus size={14} className="mr-1" />
+                        Categorie ({selectedCategoryIds.length})
+                      </Button>
+                    </DialogTrigger>
+                    <DialogContent className="sm:max-w-[425px]">
+                      <DialogHeader>
+                        <DialogTitle>Filtra per Categoria</DialogTitle>
+                        <DialogDescription>Seleziona le categorie da visualizzare in cucina.</DialogDescription>
+                      </DialogHeader>
+                      <div className="grid gap-2 py-4 max-h-[60vh] overflow-y-auto">
+                        <div className="flex items-center space-x-2 p-2 hover:bg-muted/50 rounded-lg cursor-pointer" onClick={() => setSelectedCategoryIds([])}>
+                          <div className={`w-4 h-4 rounded border flex items-center justify-center ${selectedCategoryIds.length === 0 ? 'bg-primary border-primary text-primary-foreground' : 'border-muted-foreground'}`}>
+                            {selectedCategoryIds.length === 0 && <Check size={10} />}
+                          </div>
+                          <span className="text-sm font-medium">Tutte le categorie</span>
+                        </div>
+                        {restaurantCategories.map((category) => {
+                          const isSelected = selectedCategoryIds.includes(category.id)
+                          return (
+                            <div
+                              key={category.id}
+                              className="flex items-center space-x-2 p-2 hover:bg-muted/50 rounded-lg cursor-pointer"
+                              onClick={() => {
+                                if (isSelected) {
+                                  setSelectedCategoryIds(prev => prev.filter(id => id !== category.id))
+                                } else {
+                                  setSelectedCategoryIds(prev => [...prev, category.id])
+                                }
+                              }}
+                            >
+                              <div className={`w-4 h-4 rounded border flex items-center justify-center ${isSelected ? 'bg-primary border-primary text-primary-foreground' : 'border-muted-foreground'}`}>
+                                {isSelected && <Check size={10} />}
+                              </div>
+                              <span className="text-sm">{category.name}</span>
+                            </div>
+                          )
+                        })}
                       </div>
-                    </SelectItem>
-                    {restaurantCategories
-                      .map(category => (
-                        <SelectItem key={category.id} value={category.name}>
-                          <span className="text-sm whitespace-nowrap">{category.name}</span>
-                        </SelectItem>
-                      ))}
-                  </SelectContent>
-                </Select>
+                    </DialogContent>
+                  </Dialog>
+                </div>
+
                 <Select value={orderSortMode} onValueChange={(value: 'oldest' | 'newest') => setOrderSortMode(value)}>
-                  <SelectTrigger className="w-[160px] h-8 shadow-sm hover:shadow-md border hover:border-primary/30 transition-all duration-200">
+                  <SelectTrigger className="w-[140px] h-9 shadow-sm hover:shadow-md border hover:border-primary/30 transition-all duration-200">
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
@@ -1109,19 +1171,63 @@ const RestaurantDashboard = ({ user, onLogout }: RestaurantDashboardProps) => {
                     </SelectItem>
                   </SelectContent>
                 </Select>
-                <div className="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-gradient-to-br from-primary/5 to-accent/5 border border-primary/20 shadow-sm">
+
+                <div className="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-gradient-to-br from-primary/5 to-accent/5 border border-primary/20 shadow-sm ml-auto md:ml-0">
                   <Clock size={16} className="text-primary" weight="duotone" />
                   <div className="text-right">
                     <div className="text-xl font-bold text-primary">{totalPendingDishes}</div>
                     <div className="text-[10px] text-muted-foreground font-medium leading-none whitespace-nowrap">
-                      {totalPendingDishes === 1 ? 'piatto in attesa' : 'piatti in attesa'}
+                      in attesa
                     </div>
                   </div>
                 </div>
+
+                <Button
+                  variant={showOrderHistory ? "default" : "outline"}
+                  size="sm"
+                  onClick={() => setShowOrderHistory(!showOrderHistory)}
+                  className="ml-2"
+                >
+                  <ClockCounterClockwise size={16} className="mr-2" />
+                  Storico
+                </Button>
               </div>
             </div>
 
-            {sortedActiveOrders.length === 0 ? (
+            {showOrderHistory ? (
+              <div className="space-y-4">
+                <h3 className="text-lg font-semibold mb-4">Storico Ordini Completati</h3>
+                {restaurantCompletedOrders.length === 0 ? (
+                  <div className="text-center py-10 text-muted-foreground">
+                    Nessun ordine completato
+                  </div>
+                ) : (
+                  <div className="grid gap-4">
+                    {restaurantCompletedOrders.sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime()).map(order => (
+                      <Card key={order.id} className="bg-muted/20">
+                        <CardHeader className="p-4 pb-2">
+                          <div className="flex justify-between items-center">
+                            <CardTitle className="text-base">Ordine #{order.id.slice(0, 8)}</CardTitle>
+                            <Badge variant="outline">{new Date(order.created_at).toLocaleString()}</Badge>
+                          </div>
+                          <CardDescription>Tavolo {restaurantTables.find(t => t.id === getTableIdFromOrder(order))?.number || 'N/D'}</CardDescription>
+                        </CardHeader>
+                        <CardContent className="p-4 pt-2">
+                          <div className="space-y-2">
+                            {order.items?.map(item => (
+                              <div key={item.id} className="flex justify-between text-sm">
+                                <span>{item.quantity}x {restaurantDishes.find(d => d.id === item.dish_id)?.name}</span>
+                                <Badge variant="secondary" className="text-xs">Completato</Badge>
+                              </div>
+                            ))}
+                          </div>
+                        </CardContent>
+                      </Card>
+                    ))}
+                  </div>
+                )}
+              </div>
+            ) : sortedActiveOrders.length === 0 ? (
               <div className="col-span-full text-center py-16">
                 <div className="w-16 h-16 rounded-2xl bg-muted/20 flex items-center justify-center mx-auto mb-4">
                   <Clock size={32} className="text-muted-foreground/40" weight="duotone" />
@@ -1131,97 +1237,166 @@ const RestaurantDashboard = ({ user, onLogout }: RestaurantDashboardProps) => {
               </div>
             ) : (
               <div className="space-y-4">
-                {Object.keys(dishGroups).length === 0 ? (
-                  <Card>
-                    <CardContent className="py-10 text-center text-muted-foreground">
-                      Nessun piatto in preparazione
-                    </CardContent>
-                  </Card>
-                ) : (
-                  Object.entries(dishGroups).map(([dishId, tickets]) => {
-                    const dish = tickets[0].dish!
-                    const totalQuantity = tickets.reduce((sum, t) => sum + t.quantity, 0)
-                    const longestWait = tickets.reduce((max, t) => {
-                      const elapsed = Math.floor((Date.now() - new Date(t.createdAt).getTime()) / 60000)
-                      return Math.max(max, elapsed)
-                    }, 0)
+                {kitchenViewMode === 'dish' ? (
+                  // DISH VIEW
+                  Object.keys(dishGroups).length === 0 ? (
+                    <Card>
+                      <CardContent className="py-10 text-center text-muted-foreground">
+                        Nessun piatto in preparazione per i filtri selezionati
+                      </CardContent>
+                    </Card>
+                  ) : (
+                    Object.entries(dishGroups).map(([dishId, tickets]) => {
+                      const dish = tickets[0].dish!
+                      const totalQuantity = tickets.reduce((sum, t) => sum + t.quantity, 0)
+                      const longestWait = tickets.reduce((max, t) => {
+                        const elapsed = Math.floor((Date.now() - new Date(t.createdAt).getTime()) / 60000)
+                        return Math.max(max, elapsed)
+                      }, 0)
 
-                    return (
-                      <Card key={dishId} className="border border-border/60 shadow-sm">
-                        <CardContent className="p-5 space-y-4">
-                          <div className="flex items-start justify-between gap-3">
-                            <div className="flex items-center gap-3">
-                              {dish.image_url ? (
-                                <img
-                                  src={dish.image_url}
-                                  alt={dish.name}
-                                  className="w-16 h-16 rounded-lg object-cover border"
-                                />
-                              ) : (
-                                <div className="w-16 h-16 rounded-lg bg-muted flex items-center justify-center text-muted-foreground">
-                                  <ForkKnife size={22} />
-                                </div>
-                              )}
-                              <div>
-                                <h3 className="font-bold text-lg leading-tight">{dish.name}</h3>
-                                <div className="flex flex-wrap gap-2 mt-1 text-xs">
-                                  <Badge variant="secondary">Totale {totalQuantity}x</Badge>
-                                  <Badge variant={longestWait > 20 ? 'destructive' : longestWait > 10 ? 'default' : 'outline'}>
-                                    In attesa da {longestWait} min
-                                  </Badge>
-                                  {dish.allergens?.length ? (
-                                    <Badge variant="outline" className="bg-amber-50 text-amber-700">
-                                      Allergeni: {dish.allergens.join(', ')}
+                      return (
+                        <Card key={dishId} className="border border-border/60 shadow-sm">
+                          <CardContent className="p-5 space-y-4">
+                            <div className="flex items-start justify-between gap-3">
+                              <div className="flex items-center gap-3">
+                                {dish.image_url ? (
+                                  <img
+                                    src={dish.image_url}
+                                    alt={dish.name}
+                                    className="w-16 h-16 rounded-lg object-cover border"
+                                  />
+                                ) : (
+                                  <div className="w-16 h-16 rounded-lg bg-muted flex items-center justify-center text-muted-foreground">
+                                    <ForkKnife size={22} />
+                                  </div>
+                                )}
+                                <div>
+                                  <h3 className="font-bold text-lg leading-tight">{dish.name}</h3>
+                                  <div className="flex flex-wrap gap-2 mt-1 text-xs">
+                                    <Badge variant="secondary">Totale {totalQuantity}x</Badge>
+                                    <Badge variant={longestWait > 20 ? 'destructive' : longestWait > 10 ? 'default' : 'outline'}>
+                                      In attesa da {longestWait} min
                                     </Badge>
-                                  ) : null}
+                                    {dish.allergens?.length ? (
+                                      <Badge variant="outline" className="bg-amber-50 text-amber-700">
+                                        Allergeni: {dish.allergens.join(', ')}
+                                      </Badge>
+                                    ) : null}
+                                  </div>
                                 </div>
                               </div>
-                            </div>
-                            <Button
-                              size="sm"
-                              className="bg-green-600 hover:bg-green-700"
-                              onClick={() => handleCompleteDishGroup(tickets)}
-                            >
-                              <Check size={14} className="mr-1" />
-                              Segna tutto pronto
-                            </Button>
-                          </div>
-
-                          <div className="grid md:grid-cols-2 gap-2">
-                            {tickets.map(ticket => (
-                              <div
-                                key={`${ticket.orderId}-${ticket.itemId}`}
-                                className="p-3 rounded-lg border border-border/60 bg-muted/30 flex items-start justify-between gap-2"
+                              <Button
+                                size="sm"
+                                className="bg-green-600 hover:bg-green-700"
+                                onClick={() => handleCompleteDishGroup(tickets)}
                               >
-                                <div className="space-y-1">
-                                  <div className="flex items-center gap-2 text-sm font-semibold">
-                                    <Badge variant="outline">Tavolo {ticket.tableNumber}</Badge>
-                                    <span>{ticket.quantity}x</span>
-                                  </div>
-                                  <div className="text-xs text-muted-foreground">
-                                    Ordinato {getTimeAgo(ticket.createdAt)} fa
-                                  </div>
-                                  {ticket.note && (
-                                    <div className="text-xs text-orange-600 bg-orange-50 border border-orange-200 rounded px-2 py-1">
-                                      Nota: {ticket.note}
-                                    </div>
-                                  )}
-                                </div>
-                                <Button
-                                  variant="ghost"
-                                  size="icon"
-                                  className="h-8 w-8 text-green-700"
-                                  onClick={() => handleCompleteDish(ticket.orderId, ticket.itemId)}
+                                <Check size={14} className="mr-1" />
+                                Segna tutto pronto
+                              </Button>
+                            </div>
+
+                            <div className="grid md:grid-cols-2 gap-2">
+                              {tickets.map(ticket => (
+                                <div
+                                  key={`${ticket.orderId}-${ticket.itemId}`}
+                                  className="p-3 rounded-lg border border-border/60 bg-muted/30 flex items-start justify-between gap-2"
                                 >
-                                  <Check size={16} />
+                                  <div className="space-y-1">
+                                    <div className="flex items-center gap-2 text-sm font-semibold">
+                                      <Badge variant="outline">Tavolo {ticket.tableNumber}</Badge>
+                                      <span>{ticket.quantity}x</span>
+                                    </div>
+                                    <div className="text-xs text-muted-foreground">
+                                      Ordinato {getTimeAgo(ticket.createdAt)} fa
+                                    </div>
+                                    {ticket.note && (
+                                      <div className="text-xs text-orange-600 bg-orange-50 border border-orange-200 rounded px-2 py-1">
+                                        Nota: {ticket.note}
+                                      </div>
+                                    )}
+                                  </div>
+                                  <Button
+                                    variant="ghost"
+                                    size="icon"
+                                    className="h-8 w-8 text-green-700"
+                                    onClick={() => handleCompleteDish(ticket.orderId, ticket.itemId)}
+                                  >
+                                    <Check size={16} />
+                                  </Button>
+                                </div>
+                              ))}
+                            </div>
+                          </CardContent>
+                        </Card>
+                      )
+                    })
+                  )
+                ) : (
+                  // TABLE VIEW
+                  Object.keys(tableGroups).length === 0 ? (
+                    <Card>
+                      <CardContent className="py-10 text-center text-muted-foreground">
+                        Nessun tavolo in attesa per i filtri selezionati
+                      </CardContent>
+                    </Card>
+                  ) : (
+                    <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
+                      {Object.entries(tableGroups).map(([tableNumber, tickets]) => {
+                        const oldestTicket = tickets.reduce((oldest, t) => {
+                          return new Date(t.createdAt) < new Date(oldest.createdAt) ? t : oldest
+                        }, tickets[0])
+                        const waitTime = Math.floor((Date.now() - new Date(oldestTicket.createdAt).getTime()) / 60000)
+
+                        return (
+                          <Card key={tableNumber} className="border border-border/60 shadow-sm overflow-hidden">
+                            <CardHeader className={`p-4 pb-2 border-b ${waitTime > 20 ? 'bg-red-500/10' : 'bg-muted/30'}`}>
+                              <div className="flex justify-between items-center">
+                                <CardTitle className="text-lg">Tavolo {tableNumber}</CardTitle>
+                                <Badge variant={waitTime > 20 ? 'destructive' : 'secondary'}>
+                                  {waitTime} min
+                                </Badge>
+                              </div>
+                            </CardHeader>
+                            <CardContent className="p-0">
+                              <div className="divide-y divide-border/40">
+                                {tickets.map(ticket => (
+                                  <div key={`${ticket.orderId}-${ticket.itemId}`} className="p-3 flex items-start justify-between gap-2 hover:bg-muted/10">
+                                    <div className="space-y-1 flex-1">
+                                      <div className="flex justify-between font-medium text-sm">
+                                        <span>{ticket.quantity}x {ticket.dish?.name}</span>
+                                      </div>
+                                      {ticket.note && (
+                                        <p className="text-xs text-orange-600 italic">Note: {ticket.note}</p>
+                                      )}
+                                      <p className="text-[10px] text-muted-foreground">{getTimeAgo(ticket.createdAt)}</p>
+                                    </div>
+                                    <Button
+                                      variant="ghost"
+                                      size="icon"
+                                      className="h-7 w-7 text-green-600 hover:text-green-700 hover:bg-green-50"
+                                      onClick={() => handleCompleteDish(ticket.orderId, ticket.itemId)}
+                                    >
+                                      <Check size={14} />
+                                    </Button>
+                                  </div>
+                                ))}
+                              </div>
+                              <div className="p-3 bg-muted/10 border-t border-border/10">
+                                <Button
+                                  variant="outline"
+                                  size="sm"
+                                  className="w-full text-xs h-8"
+                                  onClick={() => handleCompleteDishGroup(tickets)}
+                                >
+                                  Completa Tutti ({tickets.length})
                                 </Button>
                               </div>
-                            ))}
-                          </div>
-                        </CardContent>
-                      </Card>
-                    )
-                  })
+                            </CardContent>
+                          </Card>
+                        )
+                      })}
+                    </div>
+                  )
                 )}
               </div>
             )}
@@ -1253,6 +1428,39 @@ const RestaurantDashboard = ({ user, onLogout }: RestaurantDashboardProps) => {
                   <Plus size={16} className="mr-2" />
                   Nuovo Tavolo
                 </Button>
+                <Dialog>
+                  <DialogTrigger asChild>
+                    <Button variant="outline" size="sm">
+                      <ClockCounterClockwise size={16} className="mr-2" />
+                      Storico Tavoli
+                    </Button>
+                  </DialogTrigger>
+                  <DialogContent className="max-w-3xl max-h-[80vh] overflow-y-auto">
+                    <DialogHeader>
+                      <DialogTitle>Storico Tavoli Chiusi</DialogTitle>
+                      <DialogDescription>Visualizza le sessioni dei tavoli concluse.</DialogDescription>
+                    </DialogHeader>
+                    <div className="space-y-4 mt-4">
+                      {sessions?.filter(s => s.status === 'CLOSED').sort((a, b) => new Date(b.closed_at!).getTime() - new Date(a.closed_at!).getTime()).map(session => (
+                        <div key={session.id} className="border rounded-lg p-4 flex justify-between items-center bg-muted/20">
+                          <div>
+                            <p className="font-bold">Tavolo {restaurantTables.find(t => t.id === session.table_id)?.number || 'Unknown'}</p>
+                            <p className="text-xs text-muted-foreground">
+                              Aperto: {new Date(session.created_at).toLocaleString()} <br />
+                              Chiuso: {new Date(session.closed_at!).toLocaleString()}
+                            </p>
+                          </div>
+                          <div className="text-right">
+                            <Badge variant="secondary">Chiuso</Badge>
+                          </div>
+                        </div>
+                      ))}
+                      {(!sessions || sessions.filter(s => s.status === 'CLOSED').length === 0) && (
+                        <p className="text-center text-muted-foreground py-8">Nessuna sessione chiusa trovata.</p>
+                      )}
+                    </div>
+                  </DialogContent>
+                </Dialog>
               </div>
             </div>
 
@@ -1506,22 +1714,19 @@ const RestaurantDashboard = ({ user, onLogout }: RestaurantDashboardProps) => {
                               newCategories.splice(toIndex, 0, movedItem)
 
                               // Optimistic update
-                              // We need a way to setCategories, but it comes from useSupabaseData.
-                              // Assuming we can't easily set it, we'll rely on the DB update and refresh.
-                              // Actually, for DnD to feel good, we need local state update.
-                              // Since we don't have setCategories exposed directly from the hook in the same way,
-                              // we might see a flicker. Ideally we should update the hook.
-                              // But let's try to just update the DB and let the subscription/refresh handle it.
-                              // To make it smoother, we can manually update the order in DB for all affected items.
+                              const optimisticCategories = newCategories.map((c, i) => ({ ...c, order: i }))
+                              setCategories(optimisticCategories)
 
                               try {
                                 // Update order for all items
-                                const updates = newCategories.map((c, i) => ({ ...c, order: i }))
-                                await Promise.all(updates.map(c => DatabaseService.updateCategory(c)))
+                                const updates = optimisticCategories.map(c => DatabaseService.updateCategory(c))
+                                await Promise.all(updates)
                                 toast.success('Ordine aggiornato')
                               } catch (error) {
                                 console.error('Error reordering:', error)
                                 toast.error('Errore nel riordinare')
+                                // Revert on error (optional, but good practice)
+                                // setCategories(restaurantCategories) 
                               }
                             }}
                             className="flex items-center justify-between p-3 bg-card border border-border/40 rounded-xl shadow-sm hover:shadow-md transition-all group cursor-move active:cursor-grabbing"
