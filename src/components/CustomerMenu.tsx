@@ -481,27 +481,34 @@ export default function CustomerMenu({ tableId, onExit, interfaceMode = 'custome
                   <div className="w-6 h-6 rounded-full bg-green-500/20 flex items-center justify-center text-green-600 text-xs font-bold">2</div>
                   <h3 className="font-semibold text-sm text-foreground uppercase tracking-wider">Inviati alla Cucina</h3>
                 </div>
-                {orders.map(order => (
-                  <div key={order.id} className="border rounded-xl p-4 space-y-3">
-                    <div className="flex justify-between items-center">
-                      <Badge variant={order.status === 'completed' ? 'default' : 'secondary'}>
-                        {order.status === 'completed' ? 'Completato' : 'In Preparazione'}
-                      </Badge>
-                      <span className="text-xs text-muted-foreground flex items-center gap-1">
-                        <Clock size={12} />
-                        {getElapsedLabel(order.created_at)}
-                      </span>
+                {orders.map(order => {
+                  const allServed = order.items?.every(i => i.status === 'SERVED')
+                  const isCompleted = order.status === 'completed' || order.status === 'PAID' || allServed
+
+                  return (
+                    <div key={order.id} className="border rounded-xl p-4 space-y-3">
+                      <div className="flex justify-between items-center">
+                        <Badge variant={isCompleted ? 'default' : 'secondary'} className={isCompleted ? 'bg-green-600 hover:bg-green-700' : ''}>
+                          {isCompleted ? 'Piatto Pronto' : 'In Preparazione'}
+                        </Badge>
+                        <span className="text-xs text-muted-foreground flex items-center gap-1">
+                          <Clock size={12} />
+                          {getElapsedLabel(order.created_at)}
+                        </span>
+                      </div>
+                      <div className="space-y-2">
+                        {order.items?.map(item => (
+                          <div key={item.id} className="flex justify-between text-sm">
+                            <span className="text-muted-foreground">{item.quantity}x {item.dish?.name}</span>
+                            <span className={item.status === 'SERVED' ? 'text-green-600 font-medium' : 'text-muted-foreground'}>
+                              {item.status === 'SERVED' ? 'Pronto' : 'In arrivo...'}
+                            </span>
+                          </div>
+                        ))}
+                      </div>
                     </div>
-                    <div className="space-y-2">
-                      {order.items?.map(item => (
-                        <div key={item.id} className="flex justify-between text-sm">
-                          <span className="text-muted-foreground">{item.quantity}x {item.dish?.name}</span>
-                          <span>{item.status === 'SERVED' ? '✅' : '⏳'}</span>
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-                ))}
+                  )
+                })}
               </div>
             )}
 
@@ -516,9 +523,19 @@ export default function CustomerMenu({ tableId, onExit, interfaceMode = 'custome
           {/* Footer Actions */}
           {cartItems.length > 0 && (
             <div className="p-6 border-t bg-background">
-              <div className="flex justify-between items-center mb-4 text-lg font-bold">
-                <span>Totale Da Ordinare</span>
-                <span>€{cartTotal.toFixed(2)}</span>
+              <div className="space-y-2 mb-4">
+                <div className="flex justify-between items-center text-muted-foreground text-sm">
+                  <span>Totale Ordini Inviati</span>
+                  <span>€{orders.reduce((acc, o) => acc + (o.total_amount || 0), 0).toFixed(2)}</span>
+                </div>
+                <div className="flex justify-between items-center text-lg font-bold">
+                  <span>Totale Da Ordinare</span>
+                  <span>€{cartTotal.toFixed(2)}</span>
+                </div>
+                <div className="flex justify-between items-center text-xl font-black text-primary pt-2 border-t">
+                  <span>Totale Complessivo</span>
+                  <span>€{(cartTotal + orders.reduce((acc, o) => acc + (o.total_amount || 0), 0)).toFixed(2)}</span>
+                </div>
               </div>
               <Button onClick={() => { placeOrder(); setShowCart(false); }} className="w-full h-12 text-lg font-bold shadow-lg">
                 Invia Ordine

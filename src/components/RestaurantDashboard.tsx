@@ -359,41 +359,36 @@ const RestaurantDashboard = ({ user, onLogout }: RestaurantDashboardProps) => {
   const getOpenSessionForTable = (tableId: string) =>
     sessions?.find(s => s.table_id === tableId && s.status === 'OPEN')
 
-  const handleToggleTable = async (tableId: string) => {
+  const handleCloseTable = async (tableId: string, markPaid: boolean) => {
     const openSession = getOpenSessionForTable(tableId)
     if (openSession) {
       try {
-        // Optimistic update
-        const updatedTables = tables?.map(t => t.id === tableId ? { ...t } : t) // Trigger re-render
-        // We need to force a refresh or manually update the session state in the parent/hook
-        // For now, let's rely on the toast and the fact that the session is closed.
-        // A better way is to update the sessions list locally if we had setSessions.
-        // Since we don't have setSessions exposed from useSupabaseData easily here without refetch,
-        // we can try to force a reload or just wait for realtime/polling if enabled.
-        // BUT, the user wants immediate feedback.
-        // Let's reload the page or trigger a refetch if possible.
-        // Actually, we can just reload the window for a quick fix or use a callback.
-        // Let's try to just show the success message and maybe the UI updates if the hook polls.
-        // If not, we might need to manually update the local state of sessions.
-        // Since 'sessions' comes from useSupabaseData, we can't easily mutate it without setSessions.
-        // Let's check if we can get setSessions.
-        // We have: const [sessions] = useSupabaseData...
-        // We need to change it to: const [sessions, , , setSessions] = ...
-
         // Close session in DB
         await DatabaseService.closeSession(openSession.id)
-        await DatabaseService.markOrdersPaidForSession(openSession.id)
+        if (markPaid) {
+          await DatabaseService.markOrdersPaidForSession(openSession.id)
+        }
 
-        toast.success('Tavolo liberato')
+        toast.success(markPaid ? 'Tavolo pagato e liberato' : 'Tavolo svuotato e liberato')
         refreshSessions() // Update sessions list immediately
         setSelectedTable(null)
         setSelectedTableForActions(null)
         setShowTableDialog(false)
         setShowQrDialog(false)
+        setShowTableBillDialog(false)
       } catch (error) {
         console.error('Error freeing table:', error)
-        toast.error('Errore durante la liberazione del tavolo')
+        toast.error('Errore durante la chiusura del tavolo')
       }
+    }
+  }
+
+  const handleToggleTable = async (tableId: string) => {
+    const openSession = getOpenSessionForTable(tableId)
+    if (openSession) {
+      // If session is open, we default to closing and marking paid (legacy behavior if called directly)
+      // But now we primarily use the dialog.
+      handleCloseTable(tableId, true)
       return
     }
 
@@ -470,6 +465,8 @@ const RestaurantDashboard = ({ user, onLogout }: RestaurantDashboardProps) => {
       setCurrentSessionPin('Errore')
     }
   }
+
+
 
   const handleDeleteTable = (tableId: string) => {
     // Optimistic update
@@ -1562,7 +1559,7 @@ const RestaurantDashboard = ({ user, onLogout }: RestaurantDashboardProps) => {
                             </div>
                             {activeOrder && (
                               <Badge variant="outline" className="bg-background">
-                                {activeOrder.items?.length || 0} ordini attivi
+                                {activeOrder.items?.filter(i => i.status === 'SERVED').length || 0} ordini completati
                               </Badge>
                             )}
                           </>
@@ -1583,18 +1580,14 @@ const RestaurantDashboard = ({ user, onLogout }: RestaurantDashboardProps) => {
                                 <QrCode size={16} className="mr-2" />
                                 QR
                               </Button>
-                              <Button variant="outline" size="sm" onClick={() => { setSelectedTableForActions(table); setShowTableBillDialog(true); }}>
+                              <Button
+                                className="shadow-sm hover:shadow-md transition-all"
+                                onClick={() => { setSelectedTableForActions(table); setShowTableBillDialog(true); }}
+                              >
                                 <Receipt size={16} className="mr-2" />
                                 Conto
                               </Button>
                             </div>
-                            <Button
-                              variant="destructive"
-                              className="w-full shadow-sm hover:shadow-md transition-all"
-                              onClick={() => handleToggleTable(table.id)}
-                            >
-                              Segna Pagato & Libera
-                            </Button>
                           </>
                         ) : (
                           <Button
@@ -2524,13 +2517,24 @@ const RestaurantDashboard = ({ user, onLogout }: RestaurantDashboardProps) => {
                       <span>€{(subtotal + coverCharge + ayceCharge).toFixed(2)}</span>
                     </div>
                   </div>
+                  <div className="grid grid-cols-2 gap-2 pt-4">
+                    <Button
+                      variant="destructive"
+                      onClick={() => selectedTableForActions && handleCloseTable(selectedTableForActions.id, false)}
+                    >
+                      Svuota Tavolo
+                    </Button>
+                    <Button
+                      className="bg-green-600 hover:bg-green-700"
+                      onClick={() => selectedTableForActions && handleCloseTable(selectedTableForActions.id, true)}
+                    >
+                      Segna Pagato
+                    </Button>
+                  </div>
                 </>
               )
             })()}
           </div>
-          <Button onClick={() => setShowTableBillDialog(false)} className="w-full">
-            Chiudi
-          </Button>
         </DialogContent>
       </Dialog>
 
