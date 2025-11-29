@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react'
 import { useSupabaseData } from '../hooks/useSupabaseData'
+import { supabase } from '../lib/supabase'
 import { DatabaseService } from '../services/DatabaseService'
 import { v4 as uuidv4 } from 'uuid'
 import { Button } from '@/components/ui/button'
@@ -75,7 +76,45 @@ const RestaurantDashboard = ({ user, onLogout }: RestaurantDashboardProps) => {
   // Only fetch data if we have a valid restaurant ID
   const [tables, , , setTables] = useSupabaseData<Table>('tables', [], { column: 'restaurant_id', value: restaurantId })
   const [dishes, , , setDishes] = useSupabaseData<Dish>('dishes', [], { column: 'restaurant_id', value: restaurantId })
-  const [orders] = useSupabaseData<Order>('orders', [], { column: 'restaurant_id', value: restaurantId })
+  const [dishes, , , setDishes] = useSupabaseData<Dish>('dishes', [], { column: 'restaurant_id', value: restaurantId })
+
+  // Custom Orders Fetching with Relations and Realtime
+  const [orders, setOrders] = useState<Order[]>([])
+
+  useEffect(() => {
+    if (!restaurantId) return
+
+    const fetchOrders = async () => {
+      const { data } = await supabase
+        .from('orders')
+        .select('*, items:order_items(*)')
+        .eq('restaurant_id', restaurantId)
+        .neq('status', 'PAID')
+        .neq('status', 'CANCELLED')
+        .neq('status', 'completed')
+
+      if (data) setOrders(data as Order[])
+    }
+
+    fetchOrders()
+
+    const channel = supabase
+      .channel(`dashboard_orders_${restaurantId}`)
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'orders', filter: `restaurant_id=eq.${restaurantId}` }, () => {
+        fetchOrders()
+      })
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'order_items' }, () => {
+        // We can't filter order_items by restaurant_id directly, but RLS should handle visibility.
+        // Re-fetching is safe.
+        fetchOrders()
+      })
+      .subscribe()
+
+    return () => {
+      supabase.removeChannel(channel)
+    }
+  }, [restaurantId])
+
   const [bookings, , refreshBookings] = useSupabaseData<Booking>('bookings', [], { column: 'restaurant_id', value: restaurantId })
   const [categories, , , setCategories] = useSupabaseData<Category>('categories', [], { column: 'restaurant_id', value: restaurantId })
   const [sessions, , refreshSessions] = useSupabaseData<TableSession>('table_sessions', [], { column: 'restaurant_id', value: restaurantId })

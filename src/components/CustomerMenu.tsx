@@ -173,11 +173,7 @@ export default function CustomerMenu({ tableId, onExit, interfaceMode = 'custome
             </div>
           )}
 
-          {mode === 'customer' && (
-            <Button variant="ghost" size="icon" onClick={onExit} className="rounded-full hover:bg-muted">
-              <X size={20} />
-            </Button>
-          )}
+
         </div>
 
         {/* Categories */}
