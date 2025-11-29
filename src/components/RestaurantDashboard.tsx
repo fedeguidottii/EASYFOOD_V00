@@ -72,6 +72,7 @@ const RestaurantDashboard = ({ user, onLogout }: RestaurantDashboardProps) => {
   const currentRestaurant = restaurants?.find(r => r.owner_id === user.id)
   // Ensure restaurantId is a string, default to empty string if not found
   const restaurantId = currentRestaurant?.id ? String(currentRestaurant.id) : ''
+  const restaurantSlug = currentRestaurant?.name.toLowerCase().replace(/\s+/g, '-') || ''
 
   // Only fetch data if we have a valid restaurant ID
   const [tables, , , setTables] = useSupabaseData<Table>('tables', [], { column: 'restaurant_id', value: restaurantId })
@@ -89,9 +90,9 @@ const RestaurantDashboard = ({ user, onLogout }: RestaurantDashboardProps) => {
         .from('orders')
         .select('*, items:order_items(*)')
         .eq('restaurant_id', restaurantId)
-        .neq('status', 'PAID')
-        .neq('status', 'CANCELLED')
-        .neq('status', 'completed')
+        // We fetch all orders to support Analytics and History
+        // Filtering for active orders happens in the render logic
+        .order('created_at', { ascending: false })
 
       if (data) setOrders(data as Order[])
     }
@@ -1256,30 +1257,30 @@ const RestaurantDashboard = ({ user, onLogout }: RestaurantDashboardProps) => {
 
                       return (
                         <Card key={dishId} className="border border-border/60 shadow-sm">
-                          <CardContent className="p-5 space-y-4">
-                            <div className="flex items-start justify-between gap-3">
+                          <CardContent className="p-3 space-y-3">
+                            <div className="flex items-start justify-between gap-2">
                               <div className="flex items-center gap-3">
                                 {dish.image_url ? (
                                   <img
                                     src={dish.image_url}
                                     alt={dish.name}
-                                    className="w-16 h-16 rounded-lg object-cover border"
+                                    className="w-12 h-12 rounded-lg object-cover border"
                                   />
                                 ) : (
-                                  <div className="w-16 h-16 rounded-lg bg-muted flex items-center justify-center text-muted-foreground">
-                                    <ForkKnife size={22} />
+                                  <div className="w-12 h-12 rounded-lg bg-muted flex items-center justify-center text-muted-foreground">
+                                    <ForkKnife size={18} />
                                   </div>
                                 )}
                                 <div>
-                                  <h3 className="font-bold text-lg leading-tight">{dish.name}</h3>
-                                  <div className="flex flex-wrap gap-2 mt-1 text-xs">
-                                    <Badge variant="secondary">Totale {totalQuantity}x</Badge>
-                                    <Badge variant={longestWait > 20 ? 'destructive' : longestWait > 10 ? 'default' : 'outline'}>
-                                      In attesa da {longestWait} min
+                                  <h3 className="font-bold text-base leading-tight">{dish.name}</h3>
+                                  <div className="flex flex-wrap gap-1 mt-1 text-[10px]">
+                                    <Badge variant="secondary" className="h-5 px-1.5">Totale {totalQuantity}x</Badge>
+                                    <Badge variant={longestWait > 20 ? 'destructive' : longestWait > 10 ? 'default' : 'outline'} className="h-5 px-1.5">
+                                      {longestWait} min
                                     </Badge>
                                     {dish.allergens?.length ? (
-                                      <Badge variant="outline" className="bg-amber-50 text-amber-700">
-                                        Allergeni: {dish.allergens.join(', ')}
+                                      <Badge variant="outline" className="bg-amber-50 text-amber-700 h-5 px-1.5">
+                                        ⚠️ {dish.allergens.length}
                                       </Badge>
                                     ) : null}
                                   </div>
@@ -1287,41 +1288,41 @@ const RestaurantDashboard = ({ user, onLogout }: RestaurantDashboardProps) => {
                               </div>
                               <Button
                                 size="sm"
-                                className="bg-green-600 hover:bg-green-700"
+                                className="h-8 text-xs bg-green-600 hover:bg-green-700"
                                 onClick={() => handleCompleteDishGroup(tickets)}
                               >
-                                <Check size={14} className="mr-1" />
-                                Segna tutto pronto
+                                <Check size={12} className="mr-1" />
+                                Pronto
                               </Button>
                             </div>
 
-                            <div className="grid md:grid-cols-2 gap-2">
+                            <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-2">
                               {tickets.map(ticket => (
                                 <div
                                   key={`${ticket.orderId}-${ticket.itemId}`}
-                                  className="p-3 rounded-lg border border-border/60 bg-muted/30 flex items-start justify-between gap-2"
+                                  className="p-2 rounded-md border border-border/60 bg-muted/30 flex items-start justify-between gap-1"
                                 >
-                                  <div className="space-y-1">
-                                    <div className="flex items-center gap-2 text-sm font-semibold">
-                                      <Badge variant="outline">Tavolo {ticket.tableNumber}</Badge>
+                                  <div className="space-y-0.5 min-w-0">
+                                    <div className="flex items-center gap-1 text-xs font-semibold">
+                                      <Badge variant="outline" className="h-4 px-1 text-[10px]">Tav {ticket.tableNumber}</Badge>
                                       <span>{ticket.quantity}x</span>
                                     </div>
-                                    <div className="text-xs text-muted-foreground">
-                                      Ordinato {getTimeAgo(ticket.createdAt)} fa
+                                    <div className="text-[10px] text-muted-foreground truncate">
+                                      {getTimeAgo(ticket.createdAt)}
                                     </div>
                                     {ticket.note && (
-                                      <div className="text-xs text-orange-600 bg-orange-50 border border-orange-200 rounded px-2 py-1">
-                                        Nota: {ticket.note}
+                                      <div className="text-[10px] text-orange-600 bg-orange-50 border border-orange-200 rounded px-1 py-0.5 truncate max-w-full">
+                                        {ticket.note}
                                       </div>
                                     )}
                                   </div>
                                   <Button
                                     variant="ghost"
                                     size="icon"
-                                    className="h-8 w-8 text-green-700"
+                                    className="h-6 w-6 text-green-700 -mr-1"
                                     onClick={() => handleCompleteDish(ticket.orderId, ticket.itemId)}
                                   >
-                                    <Check size={16} />
+                                    <Check size={14} />
                                   </Button>
                                 </div>
                               ))}
@@ -1340,7 +1341,7 @@ const RestaurantDashboard = ({ user, onLogout }: RestaurantDashboardProps) => {
                       </CardContent>
                     </Card>
                   ) : (
-                    <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
+                    <div className="grid gap-3 md:grid-cols-3 xl:grid-cols-4">
                       {Object.entries(tableGroups).map(([tableNumber, tickets]) => {
                         const oldestTicket = tickets.reduce((oldest, t) => {
                           return new Date(t.createdAt) < new Date(oldest.createdAt) ? t : oldest
@@ -1349,43 +1350,43 @@ const RestaurantDashboard = ({ user, onLogout }: RestaurantDashboardProps) => {
 
                         return (
                           <Card key={tableNumber} className="border border-border/60 shadow-sm overflow-hidden">
-                            <CardHeader className={`p-4 pb-2 border-b ${waitTime > 20 ? 'bg-red-500/10' : 'bg-muted/30'}`}>
+                            <CardHeader className={`p-3 pb-2 border-b ${waitTime > 20 ? 'bg-red-500/10' : 'bg-muted/30'}`}>
                               <div className="flex justify-between items-center">
-                                <CardTitle className="text-lg">Tavolo {tableNumber}</CardTitle>
-                                <Badge variant={waitTime > 20 ? 'destructive' : 'secondary'}>
+                                <CardTitle className="text-base">Tavolo {tableNumber}</CardTitle>
+                                <Badge variant={waitTime > 20 ? 'destructive' : 'secondary'} className="h-5 px-1.5 text-[10px]">
                                   {waitTime} min
                                 </Badge>
                               </div>
                             </CardHeader>
                             <CardContent className="p-0">
-                              <div className="divide-y divide-border/40">
+                              <div className="divide-y divide-border/40 max-h-[200px] overflow-y-auto">
                                 {tickets.map(ticket => (
-                                  <div key={`${ticket.orderId}-${ticket.itemId}`} className="p-3 flex items-start justify-between gap-2 hover:bg-muted/10">
-                                    <div className="space-y-1 flex-1">
-                                      <div className="flex justify-between font-medium text-sm">
-                                        <span>{ticket.quantity}x {ticket.dish?.name}</span>
+                                  <div key={`${ticket.orderId}-${ticket.itemId}`} className="p-2 flex items-start justify-between gap-2 hover:bg-muted/10">
+                                    <div className="space-y-0.5 flex-1 min-w-0">
+                                      <div className="flex justify-between font-medium text-xs">
+                                        <span className="truncate">{ticket.quantity}x {ticket.dish?.name}</span>
                                       </div>
                                       {ticket.note && (
-                                        <p className="text-xs text-orange-600 italic">Note: {ticket.note}</p>
+                                        <p className="text-[10px] text-orange-600 italic truncate">{ticket.note}</p>
                                       )}
                                       <p className="text-[10px] text-muted-foreground">{getTimeAgo(ticket.createdAt)}</p>
                                     </div>
                                     <Button
                                       variant="ghost"
                                       size="icon"
-                                      className="h-7 w-7 text-green-600 hover:text-green-700 hover:bg-green-50"
+                                      className="h-6 w-6 text-green-600 hover:text-green-700 hover:bg-green-50"
                                       onClick={() => handleCompleteDish(ticket.orderId, ticket.itemId)}
                                     >
-                                      <Check size={14} />
+                                      <Check size={12} />
                                     </Button>
                                   </div>
                                 ))}
                               </div>
-                              <div className="p-3 bg-muted/10 border-t border-border/10">
+                              <div className="p-2 bg-muted/10 border-t border-border/10">
                                 <Button
                                   variant="outline"
                                   size="sm"
-                                  className="w-full text-xs h-8"
+                                  className="w-full text-xs h-7"
                                   onClick={() => handleCompleteDishGroup(tickets)}
                                 >
                                   Completa Tutti ({tickets.length})
@@ -1977,6 +1978,54 @@ const RestaurantDashboard = ({ user, onLogout }: RestaurantDashboardProps) => {
                       }
                     }}
                   />
+                </div>
+
+                <Separator />
+
+                <div className="grid gap-4 md:grid-cols-2">
+                  <div className="space-y-2">
+                    <Label>Username Cameriere</Label>
+                    <div className="p-2 bg-muted rounded-md border text-sm font-mono">
+                      {restaurantSlug}_cameriere
+                    </div>
+                    <p className="text-xs text-muted-foreground">Usa questo username per accedere come cameriere.</p>
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="waiter-password">Password Cameriere</Label>
+                    <div className="flex gap-2">
+                      <Input
+                        id="waiter-password"
+                        type="text"
+                        value={waiterPassword}
+                        onChange={(e) => {
+                          setWaiterPassword(e.target.value)
+                          setWaiterCredentialsDirty(true)
+                        }}
+                        placeholder="Imposta password..."
+                      />
+                      {waiterCredentialsDirty && (
+                        <Button
+                          size="sm"
+                          onClick={async () => {
+                            if (restaurantId) {
+                              try {
+                                await DatabaseService.updateRestaurant({ id: restaurantId, waiter_password: waiterPassword })
+                                toast.success('Password salvata')
+                                setWaiterCredentialsDirty(false)
+                                refreshRestaurants()
+                              } catch (error) {
+                                console.error('Error saving password:', error)
+                                toast.error('Errore nel salvataggio')
+                              }
+                            }
+                          }}
+                        >
+                          Salva
+                        </Button>
+                      )}
+                    </div>
+                    <p className="text-xs text-muted-foreground">Password per l'accesso staff.</p>
+                  </div>
                 </div>
 
                 <Separator />
