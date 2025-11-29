@@ -161,32 +161,15 @@ const WaiterDashboard = ({ user, onLogout }: WaiterDashboardProps) => {
     const getTableStatus = (tableId: string) => {
         const session = sessions.find(s => s.table_id === tableId)
         if (!session) return 'free'
-<<<<<<< HEAD
-
-        const orders = activeOrders.filter(o => o.table_session_id === session.id)
-        const hasIssue = orders.some(o => o.status === 'CANCELLED')
-        if (hasIssue) return 'issue'
-        if (orders.length > 0) return 'occupied'
-
-        return 'occupied-no-orders' // Session open but no active orders (maybe just seated)
-=======
         // Logic for 'payment-requested' could be added here if we had a flag
         return 'occupied'
->>>>>>> 436d588 (Feat: EasyFood v3 - Waiter Mode, Critical Fixes, Settings & Express Flow)
     }
 
     const getStatusColor = (status: string) => {
         switch (status) {
-<<<<<<< HEAD
-            case 'free': return 'bg-white border-gray-200 hover:border-primary/50'
-            case 'occupied': return 'bg-green-50 border-green-500 text-green-700'
-            case 'issue': return 'bg-red-50 border-red-500 text-red-700'
-            case 'occupied-no-orders': return 'bg-blue-50 border-blue-300 text-blue-700'
-=======
             case 'free': return 'bg-white hover:bg-gray-50 border-gray-200'
             case 'occupied': return 'bg-green-100 border-green-300'
             case 'payment-requested': return 'bg-red-100 border-red-300'
->>>>>>> 436d588 (Feat: EasyFood v3 - Waiter Mode, Critical Fixes, Settings & Express Flow)
             default: return 'bg-gray-100'
         }
     }
@@ -288,11 +271,6 @@ const WaiterDashboard = ({ user, onLogout }: WaiterDashboardProps) => {
                                     )}
                                 </div>
 
-<<<<<<< HEAD
-                                {/* Quick Actions for Occupied Tables */}
-                                {(status === 'occupied' || status === 'occupied-no-orders') && restaurant?.allow_waiter_payments && (
-                                    <div className="absolute top-2 right-2">
-=======
                                 {/* Bottom Info */}
                                 <div className="mt-auto p-4 w-full flex items-end justify-between bg-gradient-to-t from-black/5 to-transparent">
                                     <div className="flex items-center gap-1 text-gray-700 font-bold">
@@ -310,7 +288,6 @@ const WaiterDashboard = ({ user, onLogout }: WaiterDashboardProps) => {
                                 {/* Quick Actions */}
                                 {status === 'occupied' && restaurant?.allow_waiter_payments && (
                                     <div className="absolute bottom-3 left-3 z-10">
->>>>>>> 436d588 (Feat: EasyFood v3 - Waiter Mode, Critical Fixes, Settings & Express Flow)
                                         <Button
                                             variant="secondary"
                                             size="icon"
