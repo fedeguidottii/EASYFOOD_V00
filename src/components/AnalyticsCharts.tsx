@@ -7,8 +7,8 @@ import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover'
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, BarChart, Bar, PieChart, Pie, Cell, Area, AreaChart } from 'recharts'
-import { TrendUp, CurrencyEur, Users, ShoppingBag, Clock, ChartLine, CalendarBlank } from '@phosphor-icons/react'
-import type { Order, Dish, Category } from '../services/types'
+import { TrendUp, CurrencyEur, Users, ShoppingBag, Clock, ChartLine, CalendarBlank, List } from '@phosphor-icons/react'
+import type { Order, Dish, Category, OrderItem } from '../services/types'
 
 interface AnalyticsChartsProps {
   orders: Order[]
@@ -44,6 +44,8 @@ interface HourlyData {
   revenue: number
 }
 
+type FilteredOrder = Order & { filteredItems?: OrderItem[]; filteredAmount?: number }
+
 export default function AnalyticsCharts({ orders, completedOrders, dishes, categories }: AnalyticsChartsProps) {
   const [dateFilter, setDateFilter] = useState<DateFilter>('week')
   const [customStartDate, setCustomStartDate] = useState('')
@@ -52,7 +54,7 @@ export default function AnalyticsCharts({ orders, completedOrders, dishes, categ
 
   // Update selected categories when categories change
   useEffect(() => {
-    setSelectedCategories(categories.map(c => c.name))
+    setSelectedCategories(categories.map(c => c.id))
   }, [categories])
 
   // Helper function to get date range
@@ -103,17 +105,36 @@ export default function AnalyticsCharts({ orders, completedOrders, dishes, categ
   // Actually, original code combined `completedOrders` and `orderHistory` (which was empty).
   // Here we just have `completedOrders`.
 
-  const allFilteredOrders = completedOrders.filter(order => {
+  const dateFilteredOrders = completedOrders.filter(order => {
     const orderTime = new Date(order.created_at).getTime()
     return orderTime >= start && orderTime <= end
   })
 
+  const activeCategoryIds = selectedCategories.length > 0 ? selectedCategories : categories.map(c => c.id)
+
+  const categoryFilteredOrders: FilteredOrder[] = dateFilteredOrders.map(order => {
+    const filteredItems = (order.items || []).filter((item: OrderItem) => {
+      const dish = dishes.find(d => d.id === item.dish_id)
+      return dish ? activeCategoryIds.includes(dish.category_id) : false
+    })
+
+    const filteredAmount = filteredItems.reduce((sum, item) => {
+      const dish = dishes.find(d => d.id === item.dish_id)
+      return sum + (dish?.price || 0) * item.quantity
+    }, 0)
+
+    return { ...order, filteredItems, filteredAmount }
+  }).filter(order => (order.filteredItems || []).length > 0)
+
   // Analytics calculations
   const analytics = useMemo(() => {
-    const totalOrders = allFilteredOrders.length
-    const totalRevenue = allFilteredOrders.reduce((sum, order) => sum + (order.total_amount || 0), 0)
+    const totalOrders = categoryFilteredOrders.length
+    const totalRevenue = categoryFilteredOrders.reduce((sum, order) => sum + (order.filteredAmount || order.total_amount || 0), 0)
     const averageOrderValue = totalOrders > 0 ? totalRevenue / totalOrders : 0
-    const activeOrdersCount = orders.length
+    const activeOrdersCount = orders.filter(order => (order.items || []).some(item => {
+      const dish = dishes.find(d => d.id === item.dish_id)
+      return dish ? activeCategoryIds.includes(dish.category_id) : false
+    })).length
 
     // Daily data for charts
     const dailyData: DailyData[] = []
@@ -122,17 +143,18 @@ export default function AnalyticsCharts({ orders, completedOrders, dishes, categ
     for (let i = 0; i < days; i++) {
       const dayStart = start + (i * 24 * 60 * 60 * 1000)
       const dayEnd = dayStart + (24 * 60 * 60 * 1000)
-      const dayOrders = allFilteredOrders.filter(order => {
+      const dayOrders = categoryFilteredOrders.filter(order => {
         const orderTime = new Date(order.created_at).getTime()
         return orderTime >= dayStart && orderTime < dayEnd
       })
 
       const date = new Date(dayStart)
+      const dayRevenue = dayOrders.reduce((sum, order) => sum + (order.filteredAmount || order.total_amount || 0), 0)
       dailyData.push({
         date: date.toLocaleDateString('it-IT', { month: 'short', day: 'numeric' }),
         orders: dayOrders.length,
-        revenue: dayOrders.reduce((sum, order) => sum + (order.total_amount || 0), 0),
-        averageValue: dayOrders.length > 0 ? dayOrders.reduce((sum, order) => sum + (order.total_amount || 0), 0) / dayOrders.length : 0
+        revenue: dayRevenue,
+        averageValue: dayOrders.length > 0 ? dayRevenue / dayOrders.length : 0
       })
     }
 
@@ -145,7 +167,7 @@ export default function AnalyticsCharts({ orders, completedOrders, dishes, categ
         const hourEnd = new Date()
         hourEnd.setHours(hour, 59, 59, 999)
 
-        const hourOrders = allFilteredOrders.filter(order => {
+        const hourOrders = categoryFilteredOrders.filter(order => {
           const orderTime = new Date(order.created_at).getTime()
           return orderTime >= hourStart.getTime() && orderTime <= hourEnd.getTime()
         })
@@ -153,43 +175,42 @@ export default function AnalyticsCharts({ orders, completedOrders, dishes, categ
         hourlyData.push({
           hour: `${hour}:00`,
           orders: hourOrders.length,
-          revenue: hourOrders.reduce((sum, order) => sum + (order.total_amount || 0), 0)
+          revenue: hourOrders.reduce((sum, order) => sum + (order.filteredAmount || order.total_amount || 0), 0)
         })
       }
     }
 
     // Category analysis
-    const categoryStats = categories.map(category => {
-      const categoryOrders = allFilteredOrders.flatMap(order =>
-        (order.items || []).filter(item => {
+    const categoryStats = categories
+      .filter(category => activeCategoryIds.includes(category.id))
+      .map(category => {
+        const categoryOrders = categoryFilteredOrders.flatMap(order =>
+          (order.filteredItems || []).filter(item => {
+            const dish = dishes.find(d => d.id === item.dish_id)
+            return dish?.category_id === category.id
+          })
+        )
+
+        const totalQuantity = categoryOrders.reduce((sum, item) => sum + item.quantity, 0)
+        const totalRevenue = categoryOrders.reduce((sum, item) => {
           const dish = dishes.find(d => d.id === item.dish_id)
-          return dish?.category_id === category.id
-        })
-      )
+          return sum + (dish?.price || 0) * item.quantity
+        }, 0)
 
-      const totalQuantity = categoryOrders.reduce((sum, item) => sum + item.quantity, 0)
-      const totalRevenue = categoryOrders.reduce((sum, item) => {
-        const dish = dishes.find(d => d.id === item.dish_id)
-        return sum + (dish?.price || 0) * item.quantity
-      }, 0)
-
-      return {
-        name: category.name,
-        quantity: totalQuantity,
-        revenue: totalRevenue,
-        percentage: totalOrders > 0 ? (categoryOrders.length / totalOrders) * 100 : 0
-      }
-    }).filter(cat => cat.quantity > 0)
+        return {
+          name: category.name,
+          quantity: totalQuantity,
+          revenue: totalRevenue,
+          percentage: totalOrders > 0 ? (categoryOrders.length / totalOrders) * 100 : 0
+        }
+      }).filter(cat => cat.quantity > 0)
 
     // Most ordered dishes (filtered by selected categories)
     const dishStats = dishes
-      .filter(dish => {
-        const category = categories.find(c => c.id === dish.category_id)
-        return category && selectedCategories.includes(category.name)
-      })
+      .filter(dish => activeCategoryIds.includes(dish.category_id))
       .map(dish => {
-        const dishOrders = allFilteredOrders.flatMap(order =>
-          (order.items || []).filter(item => item.dish_id === dish.id)
+        const dishOrders = categoryFilteredOrders.flatMap(order =>
+          (order.filteredItems || []).filter(item => item.dish_id === dish.id)
         )
 
         const totalQuantity = dishOrders.reduce((sum, item) => sum + item.quantity, 0)
@@ -216,7 +237,7 @@ export default function AnalyticsCharts({ orders, completedOrders, dishes, categ
       categoryStats,
       dishStats
     }
-  }, [allFilteredOrders, orders, categories, dishes, dateFilter, start, end, selectedCategories])
+  }, [categoryFilteredOrders, orders, categories, dishes, dateFilter, start, end, activeCategoryIds])
 
   return (
     <div className="space-y-6">
@@ -224,6 +245,43 @@ export default function AnalyticsCharts({ orders, completedOrders, dishes, categ
       <div className="flex items-center justify-between flex-wrap gap-4">
         <h2 className="text-2xl font-bold text-foreground">Analitiche Dettagliate</h2>
         <div className="flex items-center gap-4">
+          <Popover>
+            <PopoverTrigger asChild>
+              <Button variant="outline" className="gap-2">
+                <List size={16} />
+                Categorie ({activeCategoryIds.length}/{categories.length || 0})
+              </Button>
+            </PopoverTrigger>
+            <PopoverContent className="w-64" align="end">
+              <div className="flex items-center justify-between mb-3">
+                <Button size="sm" variant="ghost" onClick={() => setSelectedCategories(categories.map(c => c.id))}>Tutte</Button>
+                <Button size="sm" variant="ghost" onClick={() => setSelectedCategories([])}>Pulisci</Button>
+              </div>
+              <div className="space-y-2 max-h-64 overflow-y-auto">
+                {categories.map(category => {
+                  const checked = activeCategoryIds.includes(category.id)
+                  return (
+                    <label key={category.id} className="flex items-center gap-2 text-sm font-medium cursor-pointer">
+                      <input
+                        type="checkbox"
+                        checked={checked}
+                        onChange={(e) => {
+                          if (e.target.checked) {
+                            setSelectedCategories(prev => Array.from(new Set([...prev, category.id])))
+                          } else {
+                            setSelectedCategories(prev => prev.filter(id => id !== category.id))
+                          }
+                        }}
+                        className="h-4 w-4 rounded border-border"
+                      />
+                      <span className="truncate">{category.name}</span>
+                    </label>
+                  )
+                })}
+              </div>
+            </PopoverContent>
+          </Popover>
+
           <Select value={dateFilter} onValueChange={(value: DateFilter) => setDateFilter(value)}>
             <SelectTrigger className="w-48">
               <SelectValue />

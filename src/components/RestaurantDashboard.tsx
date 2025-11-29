@@ -45,7 +45,8 @@ import {
   Tag,
   MagnifyingGlass,
   ArrowUp,
-  ArrowDown
+  ArrowDown,
+  Minus
 } from '@phosphor-icons/react'
 import type { User, Table, Dish, Order, Restaurant, Booking, Category, OrderItem, TableSession } from '../services/types'
 import TimelineReservations from './TimelineReservations'
@@ -204,6 +205,7 @@ const RestaurantDashboard = ({ user, onLogout }: RestaurantDashboardProps) => {
   const [settingsInitialized, setSettingsInitialized] = useState(false)
   const [ayceDirty, setAyceDirty] = useState(false)
   const [copertoDirty, setCopertoDirty] = useState(false)
+  const [kitchenZoomLevel, setKitchenZoomLevel] = useState<0 | 1 | 2>(1)
 
   // Waiter Mode Settings
   const [waiterModeEnabled, setWaiterModeEnabled] = useState(false)
@@ -238,11 +240,13 @@ const RestaurantDashboard = ({ user, onLogout }: RestaurantDashboardProps) => {
   })
 
   const dishQueue = sortedActiveOrders.flatMap(order => {
-    const tableNumber = restaurantTables.find(t => t.id === getTableIdFromOrder(order))?.number || 'N/D'
+    const tableId = getTableIdFromOrder(order)
+    const tableNumber = restaurantTables.find(t => t.id === tableId)?.number || 'N/D'
     return (order.items || []).map(item => ({
       orderId: order.id,
       itemId: item.id,
       createdAt: order.created_at,
+      tableId: tableId || 'unknown',
       tableNumber,
       dish: restaurantDishes.find(d => d.id === item.dish_id),
       quantity: item.quantity,
@@ -275,13 +279,22 @@ const RestaurantDashboard = ({ user, onLogout }: RestaurantDashboardProps) => {
       return acc
     }
 
-    const tableKey = entry.tableNumber
+    const tableKey = entry.tableId
     acc[tableKey] = acc[tableKey] || []
     acc[tableKey].push(entry)
     return acc
   }, {})
 
   const totalPendingDishes = dishQueue.reduce((sum, entry) => sum + entry.quantity, 0)
+
+  const kitchenScaleClass = kitchenZoomLevel === 2 ? 'scale-[1.04]' : kitchenZoomLevel === 0 ? 'scale-[0.96]' : 'scale-100'
+  const kitchenTitleClass = kitchenZoomLevel === 2 ? 'text-xl' : kitchenZoomLevel === 0 ? 'text-base' : 'text-lg'
+  const kitchenTextClass = kitchenZoomLevel === 2 ? 'text-sm' : kitchenZoomLevel === 0 ? 'text-[11px]' : 'text-xs'
+  const kitchenBadgeClass = kitchenZoomLevel === 2 ? 'h-6 px-2 text-[11px]' : kitchenZoomLevel === 0 ? 'h-5 px-1.5 text-[10px]' : 'h-5 px-1.5 text-[11px]'
+
+  const adjustKitchenZoom = (delta: number) => {
+    setKitchenZoomLevel((level) => Math.min(2, Math.max(0, level + delta)))
+  }
 
   // Sidebar hover auto-expand handled via onMouseEnter/onMouseLeave directly on the element
   // to avoid issues with element references and cleanup
@@ -1104,6 +1117,30 @@ const RestaurantDashboard = ({ user, onLogout }: RestaurantDashboardProps) => {
                   </Button>
                 </div>
 
+                <div className="flex items-center bg-muted/30 p-1 rounded-lg border border-border/40 gap-1">
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    className="h-8 w-8"
+                    onClick={() => adjustKitchenZoom(-1)}
+                    disabled={kitchenZoomLevel === 0}
+                  >
+                    <Minus size={16} />
+                  </Button>
+                  <Badge variant="secondary" className="px-2 font-semibold">
+                    Zoom {kitchenZoomLevel + 1}/3
+                  </Badge>
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    className="h-8 w-8"
+                    onClick={() => adjustKitchenZoom(1)}
+                    disabled={kitchenZoomLevel === 2}
+                  >
+                    <Plus size={16} />
+                  </Button>
+                </div>
+
                 <div className="flex items-center gap-2">
                   <Dialog>
                     <DialogTrigger asChild>
@@ -1256,7 +1293,7 @@ const RestaurantDashboard = ({ user, onLogout }: RestaurantDashboardProps) => {
                         }, 0) : 0
 
                         return (
-                          <Card key={dishId} className="border border-border/60 shadow-sm">
+                          <Card key={dishId} className={`border border-border/60 shadow-sm ${kitchenScaleClass}`} style={{ transformOrigin: 'top left' }}>
                             <CardContent className="p-3 space-y-3">
                               <div className="flex items-start justify-between gap-2">
                                 <div className="flex items-center gap-3">
@@ -1272,12 +1309,12 @@ const RestaurantDashboard = ({ user, onLogout }: RestaurantDashboardProps) => {
                                     </div>
                                   )}
                                   <div>
-                                    <h3 className="font-bold text-base leading-tight">{dish.name}</h3>
+                                    <h3 className={`font-extrabold leading-tight text-foreground ${kitchenTitleClass}`}>{dish.name}</h3>
                                     <div className="flex flex-wrap gap-1 mt-1 text-[10px]">
-                                      <Badge variant="secondary" className="h-5 px-1.5">Totale {totalQuantity}x</Badge>
+                                      <Badge variant="secondary" className={`${kitchenBadgeClass} font-semibold uppercase tracking-tight`}>Totale {totalQuantity}x</Badge>
                                       {pendingTickets.length > 0 && (
-                                        <Badge variant={longestWait > 20 ? 'destructive' : longestWait > 10 ? 'default' : 'outline'} className="h-5 px-1.5">
-                                          {longestWait} min
+                                        <Badge variant={longestWait > 20 ? 'destructive' : longestWait > 10 ? 'default' : 'outline'} className={`${kitchenBadgeClass} font-semibold`}>
+                                          ⏱️ {longestWait} min
                                         </Badge>
                                       )}
                                       {dish.allergens?.length ? (
@@ -1290,7 +1327,7 @@ const RestaurantDashboard = ({ user, onLogout }: RestaurantDashboardProps) => {
                                 </div>
                                 <Button
                                   size="sm"
-                                  className="h-9 text-xs bg-green-600 hover:bg-green-700 px-3"
+                                  className="h-10 text-sm font-semibold bg-green-600 hover:bg-green-700 px-4 shadow-md"
                                   onClick={() => handleCompleteDishGroup(tickets)}
                                 >
                                   <Check size={16} className="mr-1" />
@@ -1304,18 +1341,16 @@ const RestaurantDashboard = ({ user, onLogout }: RestaurantDashboardProps) => {
                                   return (
                                     <div
                                       key={`${ticket.orderId}-${ticket.itemId}`}
-                                      className={`p-2 rounded-md border border-border/60 flex items-start justify-between gap-1 transition-all duration-300 ${isServed ? 'bg-muted/10 opacity-40' : 'bg-muted/30'}`}
+                                      className={`p-2 rounded-md border border-border/60 flex items-start justify-between gap-2 transition-all duration-300 ${isServed ? 'bg-muted/10 opacity-40' : 'bg-muted/30'}`}
                                     >
                                       <div className="space-y-0.5 min-w-0">
-                                        <div className="flex items-center gap-1 text-xs font-semibold">
-                                          <Badge variant="outline" className="h-4 px-1 text-[10px]">Tav {ticket.tableNumber}</Badge>
-                                          <span>{ticket.quantity}x</span>
+                                        <div className="flex items-center gap-2 text-xs font-semibold">
+                                          <Badge variant="outline" className={`${kitchenBadgeClass} text-[11px]`}>Tav {ticket.tableNumber}</Badge>
+                                          <span className="text-sm font-bold text-foreground">{ticket.quantity}x</span>
                                         </div>
-                                        <div className="text-[10px] text-muted-foreground truncate">
-                                          {getTimeAgo(ticket.createdAt)}
-                                        </div>
+                                        <div className={`${kitchenTextClass} text-muted-foreground font-semibold truncate`}>⏳ {getTimeAgo(ticket.createdAt)}</div>
                                         {ticket.note && (
-                                          <div className="text-[10px] text-orange-600 bg-orange-50 border border-orange-200 rounded px-1 py-0.5 truncate max-w-full">
+                                          <div className="text-[11px] text-orange-700 bg-orange-50 border border-orange-200 rounded px-2 py-1 truncate max-w-full font-semibold">
                                             {ticket.note}
                                           </div>
                                         )}
@@ -1323,7 +1358,7 @@ const RestaurantDashboard = ({ user, onLogout }: RestaurantDashboardProps) => {
                                       <Button
                                         variant={isServed ? "ghost" : "ghost"}
                                         size="icon"
-                                        className={`h-8 w-8 -mr-1 ${isServed ? 'text-muted-foreground' : 'text-green-700 hover:bg-green-100'}`}
+                                        className={`h-9 w-9 -mr-1 ${isServed ? 'text-muted-foreground' : 'text-green-700 hover:bg-green-100 border border-green-200'}`}
                                         onClick={() => handleCompleteDish(ticket.orderId, ticket.itemId)}
                                         disabled={isServed}
                                       >
@@ -1350,7 +1385,8 @@ const RestaurantDashboard = ({ user, onLogout }: RestaurantDashboardProps) => {
                     <div className="grid gap-3 md:grid-cols-3 xl:grid-cols-4">
                       {Object.entries(tableGroups)
                         .filter(([_, tickets]) => !tickets.every(t => t.status === 'SERVED'))
-                        .map(([tableNumber, tickets]) => {
+                        .map(([tableId, tickets]) => {
+                          const tableNumber = restaurantTables.find(t => t.id === tableId)?.number || tickets[0]?.tableNumber || 'N/D'
                           const pendingTickets = tickets.filter(t => t.status !== 'SERVED')
                           const oldestTicket = pendingTickets.length > 0 ? pendingTickets.reduce((oldest, t) => {
                             return new Date(t.createdAt) < new Date(oldest.createdAt) ? t : oldest
@@ -1359,13 +1395,13 @@ const RestaurantDashboard = ({ user, onLogout }: RestaurantDashboardProps) => {
                           const waitTime = pendingTickets.length > 0 ? Math.floor((Date.now() - new Date(oldestTicket.createdAt).getTime()) / 60000) : 0
 
                           return (
-                            <Card key={tableNumber} className="border border-border/60 shadow-sm overflow-hidden">
+                            <Card key={tableId} className={`border border-border/60 shadow-sm overflow-hidden ${kitchenScaleClass}`} style={{ transformOrigin: 'top left' }}>
                               <CardHeader className={`p-3 pb-2 border-b ${waitTime > 20 ? 'bg-red-500/10' : 'bg-muted/30'}`}>
                                 <div className="flex justify-between items-center">
-                                  <CardTitle className="text-base">Tavolo {tableNumber}</CardTitle>
+                                  <CardTitle className="text-lg font-extrabold tracking-tight">Tavolo {tableNumber}</CardTitle>
                                   {pendingTickets.length > 0 && (
-                                    <Badge variant={waitTime > 20 ? 'destructive' : 'secondary'} className="h-5 px-1.5 text-[10px]">
-                                      {waitTime} min
+                                    <Badge variant={waitTime > 20 ? 'destructive' : 'secondary'} className={`${kitchenBadgeClass} font-semibold`}>
+                                      ⏱️ {waitTime} min
                                     </Badge>
                                   )}
                                 </div>
@@ -1375,20 +1411,20 @@ const RestaurantDashboard = ({ user, onLogout }: RestaurantDashboardProps) => {
                                   {tickets.map(ticket => {
                                     const isServed = ticket.status === 'SERVED'
                                     return (
-                                      <div key={`${ticket.orderId}-${ticket.itemId}`} className={`p-2 flex items-start justify-between gap-2 hover:bg-muted/10 transition-opacity ${isServed ? 'opacity-40 bg-muted/5' : ''}`}>
+                                      <div key={`${ticket.orderId}-${ticket.itemId}`} className={`p-2 flex items-start justify-between gap-3 hover:bg-muted/10 transition-opacity ${isServed ? 'opacity-40 bg-muted/5' : ''}`}>
                                         <div className="space-y-0.5 flex-1 min-w-0">
-                                          <div className="flex justify-between font-medium text-xs">
+                                          <div className="flex justify-between font-semibold text-sm text-foreground">
                                             <span className={`truncate ${isServed ? 'line-through' : ''}`}>{ticket.quantity}x {ticket.dish?.name}</span>
                                           </div>
                                           {ticket.note && (
-                                            <p className="text-[10px] text-orange-600 italic truncate">{ticket.note}</p>
+                                            <p className="text-[11px] text-orange-700 italic truncate font-semibold">{ticket.note}</p>
                                           )}
-                                          <p className="text-[10px] text-muted-foreground">{getTimeAgo(ticket.createdAt)}</p>
+                                          <p className={`${kitchenTextClass} text-muted-foreground font-semibold`}>⏳ {getTimeAgo(ticket.createdAt)}</p>
                                         </div>
                                         <Button
                                           variant="ghost"
                                           size="icon"
-                                          className={`h-8 w-8 ${isServed ? 'text-muted-foreground' : 'text-green-600 hover:text-green-700 hover:bg-green-50'}`}
+                                          className={`h-9 w-9 ${isServed ? 'text-muted-foreground' : 'text-green-700 hover:text-green-800 hover:bg-green-50 border border-green-200'}`}
                                           onClick={() => handleCompleteDish(ticket.orderId, ticket.itemId)}
                                           disabled={isServed}
                                         >
@@ -1400,9 +1436,9 @@ const RestaurantDashboard = ({ user, onLogout }: RestaurantDashboardProps) => {
                                 </div>
                                 <div className="p-2 bg-muted/10 border-t border-border/10">
                                   <Button
-                                    variant="outline"
+                                    variant="default"
                                     size="sm"
-                                    className="w-full text-xs h-8"
+                                    className="w-full text-sm h-10 bg-green-600 hover:bg-green-700 text-white font-semibold shadow-md"
                                     onClick={() => handleCompleteDishGroup(tickets)}
                                   >
                                     Completa Tutti ({tickets.length})
