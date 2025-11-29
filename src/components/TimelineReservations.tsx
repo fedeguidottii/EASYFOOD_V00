@@ -16,6 +16,7 @@ interface TimelineReservationsProps {
   tables: Table[]
   bookings: Booking[]
   onRefresh?: () => Promise<void> | void
+  onEditBooking?: (booking: Booking) => void
 }
 
 interface TimeSlot {
@@ -31,7 +32,7 @@ interface ReservationBlock {
   table: Table
 }
 
-const TimelineReservations = ({ user, restaurantId, tables, bookings, onRefresh }: TimelineReservationsProps) => {
+const TimelineReservations = ({ user, restaurantId, tables, bookings, onRefresh, onEditBooking }: TimelineReservationsProps) => {
   const [selectedDate, setSelectedDate] = useState(new Date().toISOString().split('T')[0])
   const [showReservationDialog, setShowReservationDialog] = useState(false)
   const [localBookings, setLocalBookings] = useState<Booking[]>(bookings)
@@ -219,8 +220,11 @@ const TimelineReservations = ({ user, restaurantId, tables, bookings, onRefresh 
         const table = restaurantTables.find(t => t.id === booking.table_id)
         if (!table) return null // Skip if table not found
 
-        const time = booking.date_time.split('T')[1].substring(0, 5)
-        const startMinutes = timeToMinutes(time)
+        // Fix: Use local time instead of UTC string parsing
+        const date = new Date(booking.date_time)
+        const hours = date.getHours()
+        const minutes = date.getMinutes()
+        const startMinutes = hours * 60 + minutes
         const duration = 120 // Default 2 hours
 
         return {
@@ -325,6 +329,10 @@ const TimelineReservations = ({ user, restaurantId, tables, bookings, onRefresh 
                         className="absolute top-1 bottom-1 bg-primary/80 rounded-md border border-primary flex items-center px-2 cursor-pointer hover:bg-primary/90 transition-colors group"
                         style={getBlockStyle(block)}
                         title={`${block.booking.name} - ${block.booking.guests} persone`}
+                        onClick={(e) => {
+                          e.stopPropagation()
+                          onEditBooking?.(block.booking)
+                        }}
                       >
                         <div className="flex-1 min-w-0">
                           <div className="text-xs font-medium text-primary-foreground truncate">
