@@ -69,7 +69,7 @@ const RestaurantDashboard = ({ user, onLogout }: RestaurantDashboardProps) => {
   // For now, let's assume we fetch restaurants and find the one owned by this user.
   // Or simpler: useSupabaseData filters by user.id if we set up RLS correctly, but here we filter client side.
   const [restaurants, , refreshRestaurants] = useSupabaseData<Restaurant>('restaurants', [])
-  const currentRestaurant = restaurants?.find(r => r.owner_id === user.id)
+  const currentRestaurant = restaurants?.find(r => r.owner_id === user.id || r.id === user.restaurant_id)
   // Ensure restaurantId is a string, default to empty string if not found
   const restaurantId = currentRestaurant?.id ? String(currentRestaurant.id) : ''
   const restaurantSlug = currentRestaurant?.name.toLowerCase().replace(/\s+/g, '-') || ''

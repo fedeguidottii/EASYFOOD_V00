@@ -11,6 +11,7 @@ export interface User {
     password_hash?: string
     role: UserRole
     created_at?: string
+    restaurant_id?: string
 }
 
 export interface Restaurant {

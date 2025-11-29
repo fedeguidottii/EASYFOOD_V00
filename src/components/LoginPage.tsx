@@ -9,7 +9,7 @@ import { User, Table } from '../services/types'
 import { Users } from '@phosphor-icons/react'
 
 interface Props {
-  onLogin: (user: User, table?: Table) => void
+  onLogin: (user: User) => void
 }
 
 export default function LoginPage({ onLogin }: Props) {
@@ -35,6 +35,33 @@ export default function LoginPage({ onLogin }: Props) {
 
         return (nameMatch || emailMatch) && passwordMatch
       })
+
+      // Check for Waiter Login (format: restaurantSlug_cameriere)
+      if (!user && username.includes('_cameriere')) {
+        const restaurants = await DatabaseService.getRestaurants()
+        const [slug] = username.split('_cameriere')
+
+        const targetRestaurant = restaurants.find(r =>
+          r.name.toLowerCase().replace(/\s+/g, '-') === slug.toLowerCase()
+        )
+
+        if (targetRestaurant && targetRestaurant.waiter_mode_enabled) {
+          if (targetRestaurant.waiter_password === password) {
+            // Successful Waiter Login
+            const waiterUser: User = {
+              id: `waiter-${targetRestaurant.id}`,
+              name: 'Cameriere',
+              email: `waiter@${slug}.local`,
+              role: 'STAFF',
+              restaurant_id: targetRestaurant.id
+            }
+            onLogin(waiterUser)
+            toast.success(`Benvenuto Staff - ${targetRestaurant.name}`)
+            setIsLoading(false)
+            return
+          }
+        }
+      }
 
       if (user) {
         // If user is OWNER, we might want to fetch their restaurant here to ensure it exists
