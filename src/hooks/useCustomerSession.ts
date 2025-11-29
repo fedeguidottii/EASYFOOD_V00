@@ -184,6 +184,7 @@ export function useCustomerSession(tableId: string) {
 
             // Clear cart after successful order
             await DatabaseService.clearCart(session.id)
+            setCartItems([])
 
             toast.success('Ordine inviato in cucina!')
         } catch (error) {

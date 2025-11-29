@@ -133,9 +133,35 @@ const WaiterDashboard = ({ user, onLogout }: WaiterDashboardProps) => {
         if (ords) setActiveOrders(ords)
     }
 
+    // Fetch restaurant settings
+    const [restaurant, setRestaurant] = useState<any>(null)
+
+    useEffect(() => {
+        if (restaurantId) {
+            supabase.from('restaurants').select('*').eq('id', restaurantId).single()
+                .then(({ data }) => setRestaurant(data))
+        }
+    }, [restaurantId])
+
+    const getTableTotal = (sessionId: string) => {
+        const sessionOrders = activeOrders.filter(o => o.table_session_id === sessionId)
+        return sessionOrders.reduce((sum, order) => sum + (order.total_amount || 0), 0)
+    }
+
+    const getSessionDuration = (openedAt: string) => {
+        const start = new Date(openedAt)
+        const now = new Date()
+        const diff = Math.floor((now.getTime() - start.getTime()) / 60000) // minutes
+        if (diff < 60) return `${diff} min`
+        const hours = Math.floor(diff / 60)
+        const mins = diff % 60
+        return `${hours}h ${mins}m`
+    }
+
     const getTableStatus = (tableId: string) => {
         const session = sessions.find(s => s.table_id === tableId)
         if (!session) return 'free'
+<<<<<<< HEAD
 
         const orders = activeOrders.filter(o => o.table_session_id === session.id)
         const hasIssue = orders.some(o => o.status === 'CANCELLED')
@@ -143,14 +169,24 @@ const WaiterDashboard = ({ user, onLogout }: WaiterDashboardProps) => {
         if (orders.length > 0) return 'occupied'
 
         return 'occupied-no-orders' // Session open but no active orders (maybe just seated)
+=======
+        // Logic for 'payment-requested' could be added here if we had a flag
+        return 'occupied'
+>>>>>>> 436d588 (Feat: EasyFood v3 - Waiter Mode, Critical Fixes, Settings & Express Flow)
     }
 
     const getStatusColor = (status: string) => {
         switch (status) {
+<<<<<<< HEAD
             case 'free': return 'bg-white border-gray-200 hover:border-primary/50'
             case 'occupied': return 'bg-green-50 border-green-500 text-green-700'
             case 'issue': return 'bg-red-50 border-red-500 text-red-700'
             case 'occupied-no-orders': return 'bg-blue-50 border-blue-300 text-blue-700'
+=======
+            case 'free': return 'bg-white hover:bg-gray-50 border-gray-200'
+            case 'occupied': return 'bg-green-100 border-green-300'
+            case 'payment-requested': return 'bg-red-100 border-red-300'
+>>>>>>> 436d588 (Feat: EasyFood v3 - Waiter Mode, Critical Fixes, Settings & Express Flow)
             default: return 'bg-gray-100'
         }
     }
@@ -173,12 +209,9 @@ const WaiterDashboard = ({ user, onLogout }: WaiterDashboardProps) => {
                 // Mark all active orders as PAID
                 const sessionOrders = activeOrders.filter(o => o.table_session_id === session.id)
                 if (sessionOrders.length > 0) {
-                    // We need a way to update multiple orders or loop
-                    // DatabaseService might not have updateOrder status exposed easily for batch
-                    // We can use supabase directly
                     await supabase
                         .from('orders')
-                        .update({ status: 'PAID' }) // Use uppercase if DB expects it, or lowercase. Types say 'PAID' is valid.
+                        .update({ status: 'PAID' })
                         .in('id', sessionOrders.map(o => o.id))
                 }
 
@@ -191,73 +224,101 @@ const WaiterDashboard = ({ user, onLogout }: WaiterDashboardProps) => {
         }
     }
 
-    if (loading) return <div className="flex items-center justify-center h-screen">Caricamento...</div>
+    if (loading) return <div className="flex items-center justify-center h-screen text-2xl font-bold text-muted-foreground">Caricamento...</div>
 
     return (
-        <div className="min-h-screen bg-gray-50/50 p-4 md:p-6">
+        <div className="min-h-screen bg-gray-100 p-4">
             {/* Header */}
-            <header className="flex items-center justify-between mb-8 bg-white p-4 rounded-xl shadow-sm border border-border/40">
-                <div className="flex items-center gap-3">
-                    <div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center text-primary">
-                        <User size={20} weight="duotone" />
+            <header className="flex items-center justify-between mb-6 bg-white p-4 rounded-xl shadow-sm border border-gray-200">
+                <div className="flex items-center gap-4">
+                    <div className="w-12 h-12 rounded-full bg-primary flex items-center justify-center text-primary-foreground shadow-md">
+                        <User size={24} weight="bold" />
                     </div>
                     <div>
-                        <h1 className="text-xl font-bold">Cameriere</h1>
-                        <p className="text-xs text-muted-foreground">Dashboard Tavoli</p>
+                        <h1 className="text-2xl font-black tracking-tight text-gray-900">SALA</h1>
+                        <div className="flex items-center gap-2">
+                            <span className="w-2 h-2 rounded-full bg-green-500 animate-pulse"></span>
+                            <p className="text-sm font-medium text-muted-foreground">Online</p>
+                        </div>
                     </div>
                 </div>
-                <Button variant="ghost" size="icon" onClick={onLogout}>
-                    <SignOut size={20} />
+                <Button variant="destructive" size="lg" className="font-bold" onClick={onLogout}>
+                    <SignOut size={20} className="mr-2" />
+                    ESCI
                 </Button>
             </header>
 
             {/* Grid */}
-            <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-4">
+            <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-4 md:gap-6">
                 {tables.map(table => {
                     const status = getTableStatus(table.id)
                     const session = sessions.find(s => s.table_id === table.id)
+                    const total = session ? getTableTotal(session.id) : 0
+                    const duration = session ? getSessionDuration(session.opened_at) : ''
 
                     return (
                         <Card
                             key={table.id}
-                            className={`cursor-pointer transition-all duration-200 shadow-sm hover:shadow-md border-2 ${getStatusColor(status)}`}
+                            className={`cursor-pointer transition-all duration-200 shadow-sm hover:shadow-xl border-2 relative overflow-hidden ${getStatusColor(status)} h-48`}
                             onClick={() => handleTableClick(table)}
                         >
-                            <CardContent className="p-4 flex flex-col items-center justify-center min-h-[150px] relative">
-                                <div className="text-3xl font-bold mb-2">{table.number}</div>
+                            <CardContent className="p-0 h-full flex flex-col justify-between relative">
+                                {/* Table Number */}
+                                <div className="absolute top-3 left-4">
+                                    <span className="text-5xl font-black text-gray-900 opacity-90">{table.number}</span>
+                                </div>
 
-                                {status === 'free' && (
-                                    <span className="text-xs text-muted-foreground bg-gray-100 px-2 py-1 rounded-full">Libero</span>
-                                )}
-
-                                {status === 'occupied' && (
-                                    <div className="flex flex-col items-center gap-1">
-                                        <Badge variant="outline" className="bg-green-100 text-green-800 border-green-200">
-                                            Occupato
+                                {/* Status Indicators */}
+                                <div className="absolute top-4 right-4 flex flex-col items-end gap-1">
+                                    {status === 'occupied' && (
+                                        <Badge className="bg-green-600 hover:bg-green-700 text-white font-bold px-2 py-1 text-xs shadow-sm">
+                                            OCCUPATO
                                         </Badge>
-                                        <span className="text-xs font-medium mt-1">{session?.customer_count || '?'} Persone</span>
-                                    </div>
-                                )}
-
-                                {status === 'occupied-no-orders' && (
-                                    <div className="flex flex-col items-center gap-1">
-                                        <Badge variant="outline" className="bg-blue-100 text-blue-800 border-blue-200">
-                                            In Attesa
+                                    )}
+                                    {status === 'free' && (
+                                        <Badge variant="outline" className="bg-white text-gray-500 border-gray-300 font-bold px-2 py-1 text-xs">
+                                            LIBERO
                                         </Badge>
-                                    </div>
-                                )}
+                                    )}
+                                    {session && (
+                                        <div className="flex items-center gap-1 text-xs font-bold text-gray-600 bg-white/50 px-2 py-1 rounded-full mt-1">
+                                            <ArrowsClockwise size={14} />
+                                            {duration}
+                                        </div>
+                                    )}
+                                </div>
 
+<<<<<<< HEAD
                                 {/* Quick Actions for Occupied Tables */}
                                 {(status === 'occupied' || status === 'occupied-no-orders') && restaurant?.allow_waiter_payments && (
                                     <div className="absolute top-2 right-2">
+=======
+                                {/* Bottom Info */}
+                                <div className="mt-auto p-4 w-full flex items-end justify-between bg-gradient-to-t from-black/5 to-transparent">
+                                    <div className="flex items-center gap-1 text-gray-700 font-bold">
+                                        <User size={18} weight="fill" />
+                                        <span>{session?.customer_count || '-'}</span>
+                                    </div>
+
+                                    {status === 'occupied' && (
+                                        <div className="text-2xl font-black text-gray-900">
+                                            € {total.toFixed(2)}
+                                        </div>
+                                    )}
+                                </div>
+
+                                {/* Quick Actions */}
+                                {status === 'occupied' && restaurant?.allow_waiter_payments && (
+                                    <div className="absolute bottom-3 left-3 z-10">
+>>>>>>> 436d588 (Feat: EasyFood v3 - Waiter Mode, Critical Fixes, Settings & Express Flow)
                                         <Button
-                                            variant="ghost"
+                                            variant="secondary"
                                             size="icon"
-                                            className="h-8 w-8 bg-white/80 hover:bg-white text-green-600 hover:text-green-700 shadow-sm rounded-full"
+                                            className="h-10 w-10 rounded-full shadow-md bg-white hover:bg-green-50 text-green-700 border border-green-200"
                                             onClick={(e) => handleMarkAsPaid(e, table.id)}
-                                            title="Segna come pagato / Libera"
+                                            title="Incassa"
                                         >
-                                            <CheckCircle size={18} weight="fill" />
+                                            <CheckCircle size={24} weight="fill" />
                                         </Button>
                                     </div>
                                 )}

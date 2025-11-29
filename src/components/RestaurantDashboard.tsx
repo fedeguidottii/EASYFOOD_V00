@@ -67,7 +67,7 @@ const RestaurantDashboard = ({ user, onLogout }: RestaurantDashboardProps) => {
   // Assuming user.owner_id is the restaurant ID if role is OWNER, or we fetch it.
   // For now, let's assume we fetch restaurants and find the one owned by this user.
   // Or simpler: useSupabaseData filters by user.id if we set up RLS correctly, but here we filter client side.
-  const [restaurants] = useSupabaseData<Restaurant>('restaurants', [])
+  const [restaurants, , refreshRestaurants] = useSupabaseData<Restaurant>('restaurants', [])
   const currentRestaurant = restaurants?.find(r => r.owner_id === user.id)
   // Ensure restaurantId is a string, default to empty string if not found
   const restaurantId = currentRestaurant?.id ? String(currentRestaurant.id) : ''
@@ -161,6 +161,10 @@ const RestaurantDashboard = ({ user, onLogout }: RestaurantDashboardProps) => {
   const [ayceDirty, setAyceDirty] = useState(false)
   const [copertoDirty, setCopertoDirty] = useState(false)
 
+  // Waiter Mode Settings
+  const [waiterModeEnabled, setWaiterModeEnabled] = useState(false)
+  const [allowWaiterPayments, setAllowWaiterPayments] = useState(false)
+
   // Reservations Date Filter
   const [reservationsDateFilter, setReservationsDateFilter] = useState<'today' | 'tomorrow' | 'all'>('today')
 
@@ -237,6 +241,10 @@ const RestaurantDashboard = ({ user, onLogout }: RestaurantDashboardProps) => {
         setCopertoEnabled(coverCharge > 0)
       }
       setSettingsInitialized(true)
+
+      // Waiter Mode
+      setWaiterModeEnabled(currentRestaurant.waiter_mode_enabled || false)
+      setAllowWaiterPayments(currentRestaurant.allow_waiter_payments || false)
     }
   }, [currentRestaurant])
 
@@ -1687,6 +1695,69 @@ const RestaurantDashboard = ({ user, onLogout }: RestaurantDashboardProps) => {
                     <p className="text-sm text-muted-foreground">Attiva o disattiva il tema scuro</p>
                   </div>
                   <ModeToggle />
+                </div>
+              </CardContent>
+            </Card>
+
+            <Card>
+              <CardHeader>
+                <CardTitle>Sala & Servizio</CardTitle>
+                <CardDescription>
+                  Gestisci le impostazioni per il personale di sala e la modalità cameriere.
+                </CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-6">
+                <div className="flex items-center justify-between">
+                  <div className="space-y-1">
+                    <Label htmlFor="waiter-mode">Abilita Modalità Cameriere</Label>
+                    <p className="text-sm text-muted-foreground">Permette allo staff di prendere ordini da tablet/telefono dedicato.</p>
+                  </div>
+                  <Switch
+                    id="waiter-mode"
+                    checked={waiterModeEnabled}
+                    onCheckedChange={async (checked) => {
+                      setWaiterModeEnabled(checked)
+                      if (restaurantId) {
+                        try {
+                          await DatabaseService.updateRestaurant({ id: restaurantId, waiter_mode_enabled: checked })
+                          toast.success('Impostazioni salvate')
+                          refreshRestaurants()
+                        } catch (error) {
+                          console.error('Error updating waiter mode:', error)
+                          toast.error('Errore durante il salvataggio')
+                          setWaiterModeEnabled(!checked) // Revert on error
+                        }
+                      }
+                    }}
+                  />
+                </div>
+
+                <Separator />
+
+                <div className="flex items-center justify-between">
+                  <div className="space-y-1">
+                    <Label htmlFor="waiter-payments">Consenti Incasso ai Camerieri</Label>
+                    <p className="text-sm text-muted-foreground">Abilita il tasto 'Segna come Pagato' sull'interfaccia camerieri.</p>
+                  </div>
+                  <Switch
+                    id="waiter-payments"
+                    checked={allowWaiterPayments}
+                    disabled={!waiterModeEnabled}
+                    onCheckedChange={async (checked) => {
+                      setAllowWaiterPayments(checked)
+                      if (restaurantId) {
+                        try {
+                          await DatabaseService.updateRestaurant({ id: restaurantId, allow_waiter_payments: checked })
+                          toast.success('Impostazioni salvate')
+                          refreshRestaurants()
+                        } catch (error) {
+                          console.error('Error updating waiter payments:', error)
+                          toast.error('Errore durante il salvataggio')
+                          setAllowWaiterPayments(!checked) // Revert on error
+                        }
+                      }
+                    }}
+                  />
                 </div>
               </CardContent>
             </Card>
