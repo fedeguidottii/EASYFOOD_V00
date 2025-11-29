@@ -250,7 +250,7 @@ const RestaurantDashboard = ({ user, onLogout }: RestaurantDashboardProps) => {
       status: item.status,
       categoryId: restaurantDishes.find(d => d.id === item.dish_id)?.category_id || ''
     }))
-  }).filter(entry => entry.status !== 'SERVED' && entry.dish)
+  }).filter(entry => entry.dish)
 
   type DishTicket = (typeof dishQueue)[number]
 
@@ -1240,101 +1240,110 @@ const RestaurantDashboard = ({ user, onLogout }: RestaurantDashboardProps) => {
               <div className="space-y-4">
                 {kitchenViewMode === 'dish' ? (
                   // DISH VIEW
-                  Object.keys(dishGroups).length === 0 ? (
+                  Object.keys(dishGroups).filter(id => !dishGroups[id].every(t => t.status === 'SERVED')).length === 0 ? (
                     <Card>
                       <CardContent className="py-10 text-center text-muted-foreground">
                         Nessun piatto in preparazione per i filtri selezionati
                       </CardContent>
                     </Card>
                   ) : (
-                    Object.entries(dishGroups).map(([dishId, tickets]) => {
-                      const dish = tickets[0].dish!
-                      const totalQuantity = tickets.reduce((sum, t) => sum + t.quantity, 0)
-                      const longestWait = tickets.reduce((max, t) => {
-                        const elapsed = Math.floor((Date.now() - new Date(t.createdAt).getTime()) / 60000)
-                        return Math.max(max, elapsed)
-                      }, 0)
+                    Object.entries(dishGroups)
+                      .filter(([_, tickets]) => !tickets.every(t => t.status === 'SERVED'))
+                      .map(([dishId, tickets]) => {
+                        const dish = tickets[0].dish!
+                        const totalQuantity = tickets.reduce((sum, t) => sum + t.quantity, 0)
+                        const pendingTickets = tickets.filter(t => t.status !== 'SERVED')
+                        const longestWait = pendingTickets.length > 0 ? pendingTickets.reduce((max, t) => {
+                          const elapsed = Math.floor((Date.now() - new Date(t.createdAt).getTime()) / 60000)
+                          return Math.max(max, elapsed)
+                        }, 0) : 0
 
-                      return (
-                        <Card key={dishId} className="border border-border/60 shadow-sm">
-                          <CardContent className="p-3 space-y-3">
-                            <div className="flex items-start justify-between gap-2">
-                              <div className="flex items-center gap-3">
-                                {dish.image_url ? (
-                                  <img
-                                    src={dish.image_url}
-                                    alt={dish.name}
-                                    className="w-12 h-12 rounded-lg object-cover border"
-                                  />
-                                ) : (
-                                  <div className="w-12 h-12 rounded-lg bg-muted flex items-center justify-center text-muted-foreground">
-                                    <ForkKnife size={18} />
-                                  </div>
-                                )}
-                                <div>
-                                  <h3 className="font-bold text-base leading-tight">{dish.name}</h3>
-                                  <div className="flex flex-wrap gap-1 mt-1 text-[10px]">
-                                    <Badge variant="secondary" className="h-5 px-1.5">Totale {totalQuantity}x</Badge>
-                                    <Badge variant={longestWait > 20 ? 'destructive' : longestWait > 10 ? 'default' : 'outline'} className="h-5 px-1.5">
-                                      {longestWait} min
-                                    </Badge>
-                                    {dish.allergens?.length ? (
-                                      <Badge variant="outline" className="bg-amber-50 text-amber-700 h-5 px-1.5">
-                                        ⚠️ {dish.allergens.length}
-                                      </Badge>
-                                    ) : null}
+                        return (
+                          <Card key={dishId} className="border border-border/60 shadow-sm">
+                            <CardContent className="p-3 space-y-3">
+                              <div className="flex items-start justify-between gap-2">
+                                <div className="flex items-center gap-3">
+                                  {dish.image_url ? (
+                                    <img
+                                      src={dish.image_url}
+                                      alt={dish.name}
+                                      className="w-12 h-12 rounded-lg object-cover border"
+                                    />
+                                  ) : (
+                                    <div className="w-12 h-12 rounded-lg bg-muted flex items-center justify-center text-muted-foreground">
+                                      <ForkKnife size={18} />
+                                    </div>
+                                  )}
+                                  <div>
+                                    <h3 className="font-bold text-base leading-tight">{dish.name}</h3>
+                                    <div className="flex flex-wrap gap-1 mt-1 text-[10px]">
+                                      <Badge variant="secondary" className="h-5 px-1.5">Totale {totalQuantity}x</Badge>
+                                      {pendingTickets.length > 0 && (
+                                        <Badge variant={longestWait > 20 ? 'destructive' : longestWait > 10 ? 'default' : 'outline'} className="h-5 px-1.5">
+                                          {longestWait} min
+                                        </Badge>
+                                      )}
+                                      {dish.allergens?.length ? (
+                                        <Badge variant="outline" className="bg-amber-50 text-amber-700 h-5 px-1.5">
+                                          ⚠️ {dish.allergens.length}
+                                        </Badge>
+                                      ) : null}
+                                    </div>
                                   </div>
                                 </div>
-                              </div>
-                              <Button
-                                size="sm"
-                                className="h-8 text-xs bg-green-600 hover:bg-green-700"
-                                onClick={() => handleCompleteDishGroup(tickets)}
-                              >
-                                <Check size={12} className="mr-1" />
-                                Pronto
-                              </Button>
-                            </div>
-
-                            <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-2">
-                              {tickets.map(ticket => (
-                                <div
-                                  key={`${ticket.orderId}-${ticket.itemId}`}
-                                  className="p-2 rounded-md border border-border/60 bg-muted/30 flex items-start justify-between gap-1"
+                                <Button
+                                  size="sm"
+                                  className="h-9 text-xs bg-green-600 hover:bg-green-700 px-3"
+                                  onClick={() => handleCompleteDishGroup(tickets)}
                                 >
-                                  <div className="space-y-0.5 min-w-0">
-                                    <div className="flex items-center gap-1 text-xs font-semibold">
-                                      <Badge variant="outline" className="h-4 px-1 text-[10px]">Tav {ticket.tableNumber}</Badge>
-                                      <span>{ticket.quantity}x</span>
-                                    </div>
-                                    <div className="text-[10px] text-muted-foreground truncate">
-                                      {getTimeAgo(ticket.createdAt)}
-                                    </div>
-                                    {ticket.note && (
-                                      <div className="text-[10px] text-orange-600 bg-orange-50 border border-orange-200 rounded px-1 py-0.5 truncate max-w-full">
-                                        {ticket.note}
+                                  <Check size={16} className="mr-1" />
+                                  Pronto
+                                </Button>
+                              </div>
+
+                              <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-2">
+                                {tickets.map(ticket => {
+                                  const isServed = ticket.status === 'SERVED'
+                                  return (
+                                    <div
+                                      key={`${ticket.orderId}-${ticket.itemId}`}
+                                      className={`p-2 rounded-md border border-border/60 flex items-start justify-between gap-1 transition-all duration-300 ${isServed ? 'bg-muted/10 opacity-40' : 'bg-muted/30'}`}
+                                    >
+                                      <div className="space-y-0.5 min-w-0">
+                                        <div className="flex items-center gap-1 text-xs font-semibold">
+                                          <Badge variant="outline" className="h-4 px-1 text-[10px]">Tav {ticket.tableNumber}</Badge>
+                                          <span>{ticket.quantity}x</span>
+                                        </div>
+                                        <div className="text-[10px] text-muted-foreground truncate">
+                                          {getTimeAgo(ticket.createdAt)}
+                                        </div>
+                                        {ticket.note && (
+                                          <div className="text-[10px] text-orange-600 bg-orange-50 border border-orange-200 rounded px-1 py-0.5 truncate max-w-full">
+                                            {ticket.note}
+                                          </div>
+                                        )}
                                       </div>
-                                    )}
-                                  </div>
-                                  <Button
-                                    variant="ghost"
-                                    size="icon"
-                                    className="h-6 w-6 text-green-700 -mr-1"
-                                    onClick={() => handleCompleteDish(ticket.orderId, ticket.itemId)}
-                                  >
-                                    <Check size={14} />
-                                  </Button>
-                                </div>
-                              ))}
-                            </div>
-                          </CardContent>
-                        </Card>
-                      )
-                    })
+                                      <Button
+                                        variant={isServed ? "ghost" : "ghost"}
+                                        size="icon"
+                                        className={`h-8 w-8 -mr-1 ${isServed ? 'text-muted-foreground' : 'text-green-700 hover:bg-green-100'}`}
+                                        onClick={() => handleCompleteDish(ticket.orderId, ticket.itemId)}
+                                        disabled={isServed}
+                                      >
+                                        {isServed ? <CheckCircle size={18} weight="fill" /> : <Check size={18} />}
+                                      </Button>
+                                    </div>
+                                  )
+                                })}
+                              </div>
+                            </CardContent>
+                          </Card>
+                        )
+                      })
                   )
                 ) : (
                   // TABLE VIEW
-                  Object.keys(tableGroups).length === 0 ? (
+                  Object.keys(tableGroups).filter(id => !tableGroups[id].every(t => t.status === 'SERVED')).length === 0 ? (
                     <Card>
                       <CardContent className="py-10 text-center text-muted-foreground">
                         Nessun tavolo in attesa per i filtri selezionati
@@ -1342,60 +1351,70 @@ const RestaurantDashboard = ({ user, onLogout }: RestaurantDashboardProps) => {
                     </Card>
                   ) : (
                     <div className="grid gap-3 md:grid-cols-3 xl:grid-cols-4">
-                      {Object.entries(tableGroups).map(([tableNumber, tickets]) => {
-                        const oldestTicket = tickets.reduce((oldest, t) => {
-                          return new Date(t.createdAt) < new Date(oldest.createdAt) ? t : oldest
-                        }, tickets[0])
-                        const waitTime = Math.floor((Date.now() - new Date(oldestTicket.createdAt).getTime()) / 60000)
+                      {Object.entries(tableGroups)
+                        .filter(([_, tickets]) => !tickets.every(t => t.status === 'SERVED'))
+                        .map(([tableNumber, tickets]) => {
+                          const pendingTickets = tickets.filter(t => t.status !== 'SERVED')
+                          const oldestTicket = pendingTickets.length > 0 ? pendingTickets.reduce((oldest, t) => {
+                            return new Date(t.createdAt) < new Date(oldest.createdAt) ? t : oldest
+                          }, pendingTickets[0]) : tickets[0]
 
-                        return (
-                          <Card key={tableNumber} className="border border-border/60 shadow-sm overflow-hidden">
-                            <CardHeader className={`p-3 pb-2 border-b ${waitTime > 20 ? 'bg-red-500/10' : 'bg-muted/30'}`}>
-                              <div className="flex justify-between items-center">
-                                <CardTitle className="text-base">Tavolo {tableNumber}</CardTitle>
-                                <Badge variant={waitTime > 20 ? 'destructive' : 'secondary'} className="h-5 px-1.5 text-[10px]">
-                                  {waitTime} min
-                                </Badge>
-                              </div>
-                            </CardHeader>
-                            <CardContent className="p-0">
-                              <div className="divide-y divide-border/40 max-h-[200px] overflow-y-auto">
-                                {tickets.map(ticket => (
-                                  <div key={`${ticket.orderId}-${ticket.itemId}`} className="p-2 flex items-start justify-between gap-2 hover:bg-muted/10">
-                                    <div className="space-y-0.5 flex-1 min-w-0">
-                                      <div className="flex justify-between font-medium text-xs">
-                                        <span className="truncate">{ticket.quantity}x {ticket.dish?.name}</span>
+                          const waitTime = pendingTickets.length > 0 ? Math.floor((Date.now() - new Date(oldestTicket.createdAt).getTime()) / 60000) : 0
+
+                          return (
+                            <Card key={tableNumber} className="border border-border/60 shadow-sm overflow-hidden">
+                              <CardHeader className={`p-3 pb-2 border-b ${waitTime > 20 ? 'bg-red-500/10' : 'bg-muted/30'}`}>
+                                <div className="flex justify-between items-center">
+                                  <CardTitle className="text-base">Tavolo {tableNumber}</CardTitle>
+                                  {pendingTickets.length > 0 && (
+                                    <Badge variant={waitTime > 20 ? 'destructive' : 'secondary'} className="h-5 px-1.5 text-[10px]">
+                                      {waitTime} min
+                                    </Badge>
+                                  )}
+                                </div>
+                              </CardHeader>
+                              <CardContent className="p-0">
+                                <div className="divide-y divide-border/40 max-h-[200px] overflow-y-auto">
+                                  {tickets.map(ticket => {
+                                    const isServed = ticket.status === 'SERVED'
+                                    return (
+                                      <div key={`${ticket.orderId}-${ticket.itemId}`} className={`p-2 flex items-start justify-between gap-2 hover:bg-muted/10 transition-opacity ${isServed ? 'opacity-40 bg-muted/5' : ''}`}>
+                                        <div className="space-y-0.5 flex-1 min-w-0">
+                                          <div className="flex justify-between font-medium text-xs">
+                                            <span className={`truncate ${isServed ? 'line-through' : ''}`}>{ticket.quantity}x {ticket.dish?.name}</span>
+                                          </div>
+                                          {ticket.note && (
+                                            <p className="text-[10px] text-orange-600 italic truncate">{ticket.note}</p>
+                                          )}
+                                          <p className="text-[10px] text-muted-foreground">{getTimeAgo(ticket.createdAt)}</p>
+                                        </div>
+                                        <Button
+                                          variant="ghost"
+                                          size="icon"
+                                          className={`h-8 w-8 ${isServed ? 'text-muted-foreground' : 'text-green-600 hover:text-green-700 hover:bg-green-50'}`}
+                                          onClick={() => handleCompleteDish(ticket.orderId, ticket.itemId)}
+                                          disabled={isServed}
+                                        >
+                                          {isServed ? <CheckCircle size={18} weight="fill" /> : <Check size={18} />}
+                                        </Button>
                                       </div>
-                                      {ticket.note && (
-                                        <p className="text-[10px] text-orange-600 italic truncate">{ticket.note}</p>
-                                      )}
-                                      <p className="text-[10px] text-muted-foreground">{getTimeAgo(ticket.createdAt)}</p>
-                                    </div>
-                                    <Button
-                                      variant="ghost"
-                                      size="icon"
-                                      className="h-6 w-6 text-green-600 hover:text-green-700 hover:bg-green-50"
-                                      onClick={() => handleCompleteDish(ticket.orderId, ticket.itemId)}
-                                    >
-                                      <Check size={12} />
-                                    </Button>
-                                  </div>
-                                ))}
-                              </div>
-                              <div className="p-2 bg-muted/10 border-t border-border/10">
-                                <Button
-                                  variant="outline"
-                                  size="sm"
-                                  className="w-full text-xs h-7"
-                                  onClick={() => handleCompleteDishGroup(tickets)}
-                                >
-                                  Completa Tutti ({tickets.length})
-                                </Button>
-                              </div>
-                            </CardContent>
-                          </Card>
-                        )
-                      })}
+                                    )
+                                  })}
+                                </div>
+                                <div className="p-2 bg-muted/10 border-t border-border/10">
+                                  <Button
+                                    variant="outline"
+                                    size="sm"
+                                    className="w-full text-xs h-8"
+                                    onClick={() => handleCompleteDishGroup(tickets)}
+                                  >
+                                    Completa Tutti ({tickets.length})
+                                  </Button>
+                                </div>
+                              </CardContent>
+                            </Card>
+                          )
+                        })}
                     </div>
                   )
                 )}
@@ -1442,20 +1461,67 @@ const RestaurantDashboard = ({ user, onLogout }: RestaurantDashboardProps) => {
                       <DialogDescription>Visualizza le sessioni dei tavoli concluse.</DialogDescription>
                     </DialogHeader>
                     <div className="space-y-4 mt-4">
-                      {sessions?.filter(s => s.status === 'CLOSED').sort((a, b) => new Date(b.closed_at!).getTime() - new Date(a.closed_at!).getTime()).map(session => (
-                        <div key={session.id} className="border rounded-lg p-4 flex justify-between items-center bg-muted/20">
-                          <div>
-                            <p className="font-bold">Tavolo {restaurantTables.find(t => t.id === session.table_id)?.number || 'Unknown'}</p>
-                            <p className="text-xs text-muted-foreground">
-                              Aperto: {new Date(session.created_at).toLocaleString()} <br />
-                              Chiuso: {new Date(session.closed_at!).toLocaleString()}
-                            </p>
+                      {sessions?.filter(s => s.status === 'CLOSED').sort((a, b) => new Date(b.closed_at!).getTime() - new Date(a.closed_at!).getTime()).map(session => {
+                        const sessionOrders = restaurantCompletedOrders.filter(o => o.table_session_id === session.id)
+                        const totalSessionAmount = sessionOrders.reduce((sum, o) => sum + (o.total_amount || 0), 0)
+
+                        return (
+                          <div key={session.id} className="border rounded-lg p-4 bg-muted/20 space-y-3">
+                            <div className="flex justify-between items-start">
+                              <div>
+                                <p className="font-bold text-lg">Tavolo {restaurantTables.find(t => t.id === session.table_id)?.number || 'Unknown'}</p>
+                                <p className="text-xs text-muted-foreground mt-1">
+                                  Aperto: {new Date(session.opened_at || session.created_at).toLocaleString()} <br />
+                                  Chiuso: {new Date(session.closed_at!).toLocaleString()}
+                                </p>
+                              </div>
+                              <div className="text-right">
+                                <Badge variant="secondary" className="mb-1">Chiuso</Badge>
+                                <p className="font-bold text-primary">€{totalSessionAmount.toFixed(2)}</p>
+                              </div>
+                            </div>
+
+                            <Dialog>
+                              <DialogTrigger asChild>
+                                <Button variant="outline" size="sm" className="w-full text-xs h-8">
+                                  <List size={14} className="mr-2" />
+                                  Vedi Dettagli Ordine
+                                </Button>
+                              </DialogTrigger>
+                              <DialogContent className="max-w-2xl max-h-[70vh] overflow-y-auto">
+                                <DialogHeader>
+                                  <DialogTitle>Dettaglio Sessione Tavolo {restaurantTables.find(t => t.id === session.table_id)?.number}</DialogTitle>
+                                  <DialogDescription>
+                                    Lista degli ordini effettuati durante questa sessione.
+                                  </DialogDescription>
+                                </DialogHeader>
+                                <div className="space-y-4 mt-4">
+                                  {sessionOrders.length === 0 ? (
+                                    <p className="text-center text-muted-foreground">Nessun ordine registrato.</p>
+                                  ) : (
+                                    sessionOrders.map(order => (
+                                      <div key={order.id} className="border rounded p-3">
+                                        <div className="flex justify-between text-sm font-semibold mb-2">
+                                          <span>Ordine #{order.id.slice(0, 8)}</span>
+                                          <span>{new Date(order.created_at).toLocaleTimeString()}</span>
+                                        </div>
+                                        <div className="space-y-1">
+                                          {order.items?.map(item => (
+                                            <div key={item.id} className="flex justify-between text-xs">
+                                              <span>{item.quantity}x {restaurantDishes.find(d => d.id === item.dish_id)?.name}</span>
+                                              <span>€{(restaurantDishes.find(d => d.id === item.dish_id)?.price || 0) * item.quantity}</span>
+                                            </div>
+                                          ))}
+                                        </div>
+                                      </div>
+                                    ))
+                                  )}
+                                </div>
+                              </DialogContent>
+                            </Dialog>
                           </div>
-                          <div className="text-right">
-                            <Badge variant="secondary">Chiuso</Badge>
-                          </div>
-                        </div>
-                      ))}
+                        )
+                      })}
                       {(!sessions || sessions.filter(s => s.status === 'CLOSED').length === 0) && (
                         <p className="text-center text-muted-foreground py-8">Nessuna sessione chiusa trovata.</p>
                       )}
