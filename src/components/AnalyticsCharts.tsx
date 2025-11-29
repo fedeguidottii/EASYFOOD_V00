@@ -6,8 +6,8 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover'
-import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, BarChart, Bar, PieChart, Pie, Cell, Area, AreaChart } from 'recharts'
-import { TrendUp, CurrencyEur, Users, ShoppingBag, Clock, ChartLine, CalendarBlank, List } from '@phosphor-icons/react'
+import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, BarChart, Bar, Area, AreaChart } from 'recharts'
+import { TrendUp, CurrencyEur, Users, ShoppingBag, Clock, ChartLine, CalendarBlank, List, CaretDown } from '@phosphor-icons/react'
 import type { Order, Dish, Category, OrderItem } from '../services/types'
 
 interface AnalyticsChartsProps {
@@ -51,6 +51,10 @@ export default function AnalyticsCharts({ orders, completedOrders, dishes, categ
   const [customStartDate, setCustomStartDate] = useState('')
   const [customEndDate, setCustomEndDate] = useState('')
   const [selectedCategories, setSelectedCategories] = useState<string[]>([])
+
+  // Chart Toggles
+  const [timeSeriesMetric, setTimeSeriesMetric] = useState<'orders' | 'revenue' | 'average'>('orders')
+  const [categoryMetric, setCategoryMetric] = useState<'quantity' | 'revenue'>('revenue')
 
   // Update selected categories when categories change
   useEffect(() => {
@@ -98,12 +102,6 @@ export default function AnalyticsCharts({ orders, completedOrders, dishes, categ
 
   const dateRange = getDateRange(dateFilter)
   const { start, end } = dateRange
-
-  // Combine all orders for analysis (completed + active if needed, but usually analytics is on completed)
-  // But the original code combined them.
-  // Let's use completedOrders for revenue and trends, and orders for "Active Orders" KPI.
-  // Actually, original code combined `completedOrders` and `orderHistory` (which was empty).
-  // Here we just have `completedOrders`.
 
   const dateFilteredOrders = completedOrders.filter(order => {
     const orderTime = new Date(order.created_at).getTime()
@@ -158,28 +156,6 @@ export default function AnalyticsCharts({ orders, completedOrders, dishes, categ
       })
     }
 
-    // Hourly data for today
-    const hourlyData: HourlyData[] = []
-    if (dateFilter === 'today') {
-      for (let hour = 0; hour < 24; hour++) {
-        const hourStart = new Date()
-        hourStart.setHours(hour, 0, 0, 0)
-        const hourEnd = new Date()
-        hourEnd.setHours(hour, 59, 59, 999)
-
-        const hourOrders = categoryFilteredOrders.filter(order => {
-          const orderTime = new Date(order.created_at).getTime()
-          return orderTime >= hourStart.getTime() && orderTime <= hourEnd.getTime()
-        })
-
-        hourlyData.push({
-          hour: `${hour}:00`,
-          orders: hourOrders.length,
-          revenue: hourOrders.reduce((sum, order) => sum + (order.filteredAmount || order.total_amount || 0), 0)
-        })
-      }
-    }
-
     // Category analysis
     const categoryStats = categories
       .filter(category => activeCategoryIds.includes(category.id))
@@ -204,6 +180,7 @@ export default function AnalyticsCharts({ orders, completedOrders, dishes, categ
           percentage: totalOrders > 0 ? (categoryOrders.length / totalOrders) * 100 : 0
         }
       }).filter(cat => cat.quantity > 0)
+      .sort((a, b) => categoryMetric === 'revenue' ? b.revenue - a.revenue : b.quantity - a.quantity)
 
     // Most ordered dishes (filtered by selected categories)
     const dishStats = dishes
@@ -225,7 +202,7 @@ export default function AnalyticsCharts({ orders, completedOrders, dishes, categ
         }
       }).filter(dish => dish.quantity > 0)
       .sort((a, b) => b.quantity - a.quantity)
-      .slice(0, 10)
+      .slice(0, 50) // Show top 50
 
     return {
       totalOrders,
@@ -233,35 +210,40 @@ export default function AnalyticsCharts({ orders, completedOrders, dishes, categ
       averageOrderValue,
       activeOrders: activeOrdersCount,
       dailyData,
-      hourlyData,
       categoryStats,
       dishStats
     }
-  }, [categoryFilteredOrders, orders, categories, dishes, dateFilter, start, end, activeCategoryIds])
+  }, [categoryFilteredOrders, orders, categories, dishes, dateFilter, start, end, activeCategoryIds, categoryMetric])
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-8">
       {/* Filter Controls */}
-      <div className="flex items-center justify-between flex-wrap gap-4">
-        <h2 className="text-2xl font-bold text-foreground">Analitiche Dettagliate</h2>
-        <div className="flex items-center gap-4">
+      <div className="flex items-center justify-between flex-wrap gap-4 bg-card/50 p-4 rounded-xl border shadow-sm backdrop-blur-sm">
+        <h2 className="text-2xl font-bold text-foreground">Analitiche</h2>
+        <div className="flex items-center gap-3">
           <Popover>
             <PopoverTrigger asChild>
-              <Button variant="outline" className="gap-2">
+              <Button variant="outline" className="gap-2 h-9 border-dashed">
                 <List size={16} />
-                Categorie ({activeCategoryIds.length}/{categories.length || 0})
+                Categorie
+                <Badge variant="secondary" className="ml-1 h-5 px-1.5 min-w-5">
+                  {activeCategoryIds.length}
+                </Badge>
               </Button>
             </PopoverTrigger>
-            <PopoverContent className="w-64" align="end">
-              <div className="flex items-center justify-between mb-3">
-                <Button size="sm" variant="ghost" onClick={() => setSelectedCategories(categories.map(c => c.id))}>Tutte</Button>
-                <Button size="sm" variant="ghost" onClick={() => setSelectedCategories([])}>Pulisci</Button>
+            <PopoverContent className="w-64 p-3" align="end">
+              <div className="flex items-center justify-between mb-3 pb-2 border-b">
+                <span className="text-xs font-medium text-muted-foreground">Filtra per categoria</span>
+                <div className="flex gap-1">
+                  <Button size="sm" variant="ghost" className="h-6 px-2 text-xs" onClick={() => setSelectedCategories(categories.map(c => c.id))}>Tutte</Button>
+                  <Button size="sm" variant="ghost" className="h-6 px-2 text-xs" onClick={() => setSelectedCategories([])}>Nessuna</Button>
+                </div>
               </div>
-              <div className="space-y-2 max-h-64 overflow-y-auto">
+              <div className="space-y-1 max-h-64 overflow-y-auto">
                 {categories.map(category => {
                   const checked = activeCategoryIds.includes(category.id)
                   return (
-                    <label key={category.id} className="flex items-center gap-2 text-sm font-medium cursor-pointer">
+                    <label key={category.id} className="flex items-center gap-2 text-sm px-2 py-1.5 rounded-md hover:bg-muted cursor-pointer transition-colors">
                       <input
                         type="checkbox"
                         checked={checked}
@@ -272,7 +254,7 @@ export default function AnalyticsCharts({ orders, completedOrders, dishes, categ
                             setSelectedCategories(prev => prev.filter(id => id !== category.id))
                           }
                         }}
-                        className="h-4 w-4 rounded border-border"
+                        className="h-4 w-4 rounded border-primary text-primary focus:ring-primary"
                       />
                       <span className="truncate">{category.name}</span>
                     </label>
@@ -282,8 +264,10 @@ export default function AnalyticsCharts({ orders, completedOrders, dishes, categ
             </PopoverContent>
           </Popover>
 
+          <div className="h-6 w-px bg-border mx-1" />
+
           <Select value={dateFilter} onValueChange={(value: DateFilter) => setDateFilter(value)}>
-            <SelectTrigger className="w-48">
+            <SelectTrigger className="w-40 h-9">
               <SelectValue />
             </SelectTrigger>
             <SelectContent>
@@ -298,9 +282,9 @@ export default function AnalyticsCharts({ orders, completedOrders, dishes, categ
           {dateFilter === 'custom' && (
             <Popover>
               <PopoverTrigger asChild>
-                <Button variant="outline" className="gap-2">
+                <Button variant="outline" className="gap-2 h-9">
                   <CalendarBlank size={16} />
-                  Scegli Date
+                  Date
                 </Button>
               </PopoverTrigger>
               <PopoverContent className="w-80" align="end">
@@ -332,354 +316,235 @@ export default function AnalyticsCharts({ orders, completedOrders, dishes, categ
 
       {/* KPI Cards */}
       <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
-        <Card className="shadow-professional">
+        <Card className="shadow-sm hover:shadow-md transition-shadow border-none bg-gradient-to-br from-blue-50 to-white dark:from-blue-950/20 dark:to-background">
           <CardContent className="p-6">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm font-medium text-muted-foreground">Ordini Totali</p>
-                <p className="text-2xl font-bold text-primary">{analytics.totalOrders}</p>
+                <p className="text-sm font-medium text-muted-foreground mb-1">Ordini Totali</p>
+                <p className="text-3xl font-bold text-foreground">{analytics.totalOrders}</p>
               </div>
-              <ShoppingBag size={24} className="text-primary" />
+              <div className="p-3 bg-blue-100 dark:bg-blue-900/30 rounded-full text-blue-600 dark:text-blue-400">
+                <ShoppingBag size={24} weight="duotone" />
+              </div>
             </div>
           </CardContent>
         </Card>
 
-        <Card className="shadow-professional">
+        <Card className="shadow-sm hover:shadow-md transition-shadow border-none bg-gradient-to-br from-green-50 to-white dark:from-green-950/20 dark:to-background">
           <CardContent className="p-6">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm font-medium text-muted-foreground">Ricavi</p>
-                <p className="text-2xl font-bold text-primary">€{analytics.totalRevenue.toFixed(2)}</p>
+                <p className="text-sm font-medium text-muted-foreground mb-1">Ricavi Totali</p>
+                <p className="text-3xl font-bold text-foreground">€{analytics.totalRevenue.toFixed(2)}</p>
               </div>
-              <CurrencyEur size={24} className="text-primary" />
+              <div className="p-3 bg-green-100 dark:bg-green-900/30 rounded-full text-green-600 dark:text-green-400">
+                <CurrencyEur size={24} weight="duotone" />
+              </div>
             </div>
           </CardContent>
         </Card>
 
-        <Card className="shadow-professional">
+        <Card className="shadow-sm hover:shadow-md transition-shadow border-none bg-gradient-to-br from-amber-50 to-white dark:from-amber-950/20 dark:to-background">
           <CardContent className="p-6">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm font-medium text-muted-foreground">Scontrino Medio</p>
-                <p className="text-2xl font-bold text-primary">€{analytics.averageOrderValue.toFixed(2)}</p>
+                <p className="text-sm font-medium text-muted-foreground mb-1">Scontrino Medio</p>
+                <p className="text-3xl font-bold text-foreground">€{analytics.averageOrderValue.toFixed(2)}</p>
               </div>
-              <TrendUp size={24} className="text-primary" />
+              <div className="p-3 bg-amber-100 dark:bg-amber-900/30 rounded-full text-amber-600 dark:text-amber-400">
+                <TrendUp size={24} weight="duotone" />
+              </div>
             </div>
           </CardContent>
         </Card>
 
-        <Card className="shadow-professional">
+        <Card className="shadow-sm hover:shadow-md transition-shadow border-none bg-gradient-to-br from-purple-50 to-white dark:from-purple-950/20 dark:to-background">
           <CardContent className="p-6">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm font-medium text-muted-foreground">Ordini in Corso</p>
-                <p className="text-2xl font-bold text-primary">{analytics.activeOrders}</p>
+                <p className="text-sm font-medium text-muted-foreground mb-1">Ordini in Corso</p>
+                <p className="text-3xl font-bold text-foreground">{analytics.activeOrders}</p>
               </div>
-              <Clock size={24} className="text-primary" />
+              <div className="p-3 bg-purple-100 dark:bg-purple-900/30 rounded-full text-purple-600 dark:text-purple-400">
+                <Clock size={24} weight="duotone" />
+              </div>
             </div>
           </CardContent>
         </Card>
       </div>
 
       {/* Charts Grid */}
-      <div className="grid gap-6 md:grid-cols-2">
-        {/* Orders Trend Chart */}
-        <Card className="shadow-professional">
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <ChartLine size={20} />
-              Andamento Ordini
+      <div className="grid gap-8 md:grid-cols-2">
+        {/* Consolidated Time Series Chart */}
+        <Card className="shadow-lg border-none overflow-hidden">
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-6 bg-muted/10">
+            <CardTitle className="flex items-center gap-2 text-lg">
+              <ChartLine size={20} className="text-primary" />
+              Andamento Temporale
             </CardTitle>
+            <Select value={timeSeriesMetric} onValueChange={(v: any) => setTimeSeriesMetric(v)}>
+              <SelectTrigger className="w-40 h-8 text-xs">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="orders">Numero Ordini</SelectItem>
+                <SelectItem value="revenue">Ricavi (€)</SelectItem>
+                <SelectItem value="average">Valore Medio (€)</SelectItem>
+              </SelectContent>
+            </Select>
           </CardHeader>
-          <CardContent>
-            <ResponsiveContainer width="100%" height={300}>
-              {analytics.dailyData.length === 1 ? (
-                // Single day - use bar chart instead of line/area
-                <BarChart data={analytics.dailyData}>
-                  <CartesianGrid strokeDasharray="3 3" />
-                  <XAxis dataKey="date" />
-                  <YAxis />
-                  <Tooltip />
-                  <Bar dataKey="orders" fill="#C9A152" radius={[4, 4, 0, 0]} />
-                </BarChart>
-              ) : (
-                <AreaChart data={analytics.dailyData}>
-                  <CartesianGrid strokeDasharray="3 3" />
-                  <XAxis dataKey="date" />
-                  <YAxis />
-                  <Tooltip />
-                  <Area type="monotone" dataKey="orders" stroke="#C9A152" fill="#C9A152" fillOpacity={0.3} />
-                </AreaChart>
-              )}
+          <CardContent className="pt-6">
+            <ResponsiveContainer width="100%" height={350}>
+              <AreaChart data={analytics.dailyData} margin={{ top: 10, right: 10, left: 0, bottom: 0 }}>
+                <defs>
+                  <linearGradient id="colorMetric" x1="0" y1="0" x2="0" y2="1">
+                    <stop offset="5%" stopColor="#C9A152" stopOpacity={0.3} />
+                    <stop offset="95%" stopColor="#C9A152" stopOpacity={0} />
+                  </linearGradient>
+                </defs>
+                <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="var(--border)" />
+                <XAxis
+                  dataKey="date"
+                  axisLine={false}
+                  tickLine={false}
+                  tick={{ fontSize: 12, fill: 'var(--muted-foreground)' }}
+                  dy={10}
+                />
+                <YAxis
+                  axisLine={false}
+                  tickLine={false}
+                  tick={{ fontSize: 12, fill: 'var(--muted-foreground)' }}
+                  tickFormatter={(value) => timeSeriesMetric === 'orders' ? value : `€${value}`}
+                />
+                <Tooltip
+                  contentStyle={{ borderRadius: '8px', border: 'none', boxShadow: '0 4px 12px rgba(0,0,0,0.1)' }}
+                  formatter={(value: number) => [
+                    timeSeriesMetric === 'orders' ? value : `€${value.toFixed(2)}`,
+                    timeSeriesMetric === 'orders' ? 'Ordini' : timeSeriesMetric === 'revenue' ? 'Ricavi' : 'Valore Medio'
+                  ]}
+                />
+                <Area
+                  type="monotone"
+                  dataKey={timeSeriesMetric === 'orders' ? 'orders' : timeSeriesMetric === 'revenue' ? 'revenue' : 'averageValue'}
+                  stroke="#C9A152"
+                  strokeWidth={3}
+                  fillOpacity={1}
+                  fill="url(#colorMetric)"
+                />
+              </AreaChart>
             </ResponsiveContainer>
           </CardContent>
         </Card>
 
-        {/* Revenue Trend Chart */}
-        <Card className="shadow-professional">
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <CurrencyEur size={20} />
-              Andamento Ricavi
+        {/* Consolidated Category Chart */}
+        <Card className="shadow-lg border-none overflow-hidden">
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-6 bg-muted/10">
+            <CardTitle className="flex items-center gap-2 text-lg">
+              <List size={20} className="text-primary" />
+              Performance Categorie
             </CardTitle>
+            <Select value={categoryMetric} onValueChange={(v: any) => setCategoryMetric(v)}>
+              <SelectTrigger className="w-40 h-8 text-xs">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="revenue">Per Ricavi (€)</SelectItem>
+                <SelectItem value="quantity">Per Quantità</SelectItem>
+              </SelectContent>
+            </Select>
           </CardHeader>
-          <CardContent>
-            <ResponsiveContainer width="100%" height={300}>
-              {analytics.dailyData.length === 1 ? (
-                // Single day - use bar chart instead of line/area
-                <BarChart data={analytics.dailyData}>
-                  <CartesianGrid strokeDasharray="3 3" />
-                  <XAxis dataKey="date" />
-                  <YAxis />
-                  <Tooltip formatter={(value: number) => [`€${value.toFixed(2)}`, 'Ricavi']} />
-                  <Bar dataKey="revenue" fill="#8B7355" radius={[4, 4, 0, 0]} />
-                </BarChart>
-              ) : (
-                <AreaChart data={analytics.dailyData}>
-                  <CartesianGrid strokeDasharray="3 3" />
-                  <XAxis dataKey="date" />
-                  <YAxis />
-                  <Tooltip formatter={(value: number) => [`€${value.toFixed(2)}`, 'Ricavi']} />
-                  <Area type="monotone" dataKey="revenue" stroke="#8B7355" fill="#8B7355" fillOpacity={0.3} />
-                </AreaChart>
-              )}
-            </ResponsiveContainer>
-          </CardContent>
-        </Card>
-
-        {/* Hourly Orders (Today only) */}
-        {dateFilter === 'today' && (
-          <Card className="shadow-professional">
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <Clock size={20} />
-                Ordini per Ora (Oggi)
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
-              <ResponsiveContainer width="100%" height={300}>
-                <BarChart data={analytics.hourlyData}>
-                  <CartesianGrid strokeDasharray="3 3" />
-                  <XAxis dataKey="hour" />
-                  <YAxis />
-                  <Tooltip />
-                  <Bar dataKey="orders" fill="#C9A152" />
-                </BarChart>
-              </ResponsiveContainer>
-            </CardContent>
-          </Card>
-        )}
-
-        {/* Average Order Value */}
-        <Card className="shadow-professional">
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <TrendUp size={20} />
-              Valore Medio Ordine
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <ResponsiveContainer width="100%" height={300}>
-              {analytics.dailyData.length === 1 ? (
-                // Single day - use bar chart
-                <BarChart data={analytics.dailyData}>
-                  <CartesianGrid strokeDasharray="3 3" />
-                  <XAxis dataKey="date" />
-                  <YAxis />
-                  <Tooltip formatter={(value: number) => [`€${value.toFixed(2)}`, 'Valore Medio']} />
-                  <Bar dataKey="averageValue" fill="#D4B366" radius={[4, 4, 0, 0]} />
-                </BarChart>
-              ) : (
-                <LineChart data={analytics.dailyData}>
-                  <CartesianGrid strokeDasharray="3 3" />
-                  <XAxis dataKey="date" />
-                  <YAxis />
-                  <Tooltip formatter={(value: number) => [`€${value.toFixed(2)}`, 'Valore Medio']} />
-                  <Line type="monotone" dataKey="averageValue" stroke="#D4B366" strokeWidth={3} dot={{ r: 6 }} />
-                </LineChart>
-              )}
-            </ResponsiveContainer>
-          </CardContent>
-        </Card>
-      </div>
-
-      {/* Category Analysis */}
-      <div className="grid gap-6 md:grid-cols-2">
-        <Card className="shadow-professional">
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <ChartLine size={20} />
-              Vendite per Categoria
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <ResponsiveContainer width="100%" height={300}>
-              <PieChart>
-                <Pie
-                  data={analytics.categoryStats}
-                  cx="50%"
-                  cy="50%"
-                  labelLine={false}
-                  label={({ name, percentage }) => `${name} ${percentage.toFixed(1)}%`}
-                  outerRadius={80}
-                  fill="#8884d8"
-                  dataKey="quantity"
-                >
-                  {analytics.categoryStats.map((entry, index) => (
-                    <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
-                  ))}
-                </Pie>
-                <Tooltip />
-              </PieChart>
-            </ResponsiveContainer>
-          </CardContent>
-        </Card>
-
-        {/* Category Revenue */}
-        <Card className="shadow-professional">
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <CurrencyEur size={20} />
-              Ricavi per Categoria
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <ResponsiveContainer width="100%" height={300}>
-              <BarChart data={analytics.categoryStats} layout="horizontal">
-                <CartesianGrid strokeDasharray="3 3" />
-                <XAxis type="number" />
-                <YAxis dataKey="name" type="category" />
-                <Tooltip formatter={(value: number) => [`€${value.toFixed(2)}`, 'Ricavi']} />
-                <Bar dataKey="revenue" fill="#C9A152" />
+          <CardContent className="pt-6">
+            <ResponsiveContainer width="100%" height={350}>
+              <BarChart
+                data={analytics.categoryStats}
+                layout="vertical"
+                margin={{ top: 0, right: 30, left: 40, bottom: 0 }}
+              >
+                <CartesianGrid strokeDasharray="3 3" horizontal={false} stroke="var(--border)" />
+                <XAxis type="number" hide />
+                <YAxis
+                  dataKey="name"
+                  type="category"
+                  width={100}
+                  axisLine={false}
+                  tickLine={false}
+                  tick={{ fontSize: 12, fill: 'var(--foreground)', fontWeight: 500 }}
+                />
+                <Tooltip
+                  cursor={{ fill: 'var(--muted)', opacity: 0.2 }}
+                  contentStyle={{ borderRadius: '8px', border: 'none', boxShadow: '0 4px 12px rgba(0,0,0,0.1)' }}
+                  formatter={(value: number) => [
+                    categoryMetric === 'revenue' ? `€${value.toFixed(2)}` : value,
+                    categoryMetric === 'revenue' ? 'Ricavi' : 'Quantità'
+                  ]}
+                />
+                <Bar
+                  dataKey={categoryMetric}
+                  fill="#C9A152"
+                  radius={[0, 4, 4, 0]}
+                  barSize={32}
+                />
               </BarChart>
             </ResponsiveContainer>
           </CardContent>
         </Card>
       </div>
 
-      {/* Most Ordered Dishes Pie Chart */}
-      {analytics.dishStats.length > 0 && (
-        <Card className="shadow-professional">
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <ShoppingBag size={20} />
-              Top 10 Piatti - Grafico a Torta
-              <Badge variant="outline" className="ml-2">
-                Categorie: {selectedCategories.length > 0 ? selectedCategories.join(', ') : 'Nessuna'}
-              </Badge>
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <ResponsiveContainer width="100%" height={400}>
-              <PieChart>
-                <Pie
-                  data={analytics.dishStats.slice(0, 8)} // Limit to top 8 for readability
-                  cx="50%"
-                  cy="50%"
-                  labelLine={false}
-                  label={({ name, quantity }) => `${name} (${quantity}x)`}
-                  outerRadius={120}
-                  fill="#8884d8"
-                  dataKey="quantity"
-                >
-                  {analytics.dishStats.slice(0, 8).map((entry, index) => (
-                    <Cell key={`dish-${index}`} fill={COLORS[index % COLORS.length]} />
-                  ))}
-                </Pie>
-                <Tooltip formatter={(value: number, name: string) => [`${value}x`, 'Quantità']} />
-              </PieChart>
-            </ResponsiveContainer>
-          </CardContent>
-        </Card>
-      )}
-
-      {/* Top Dishes */}
-      <Card className="shadow-professional">
-        <CardHeader>
+      {/* Best Selling Dishes List */}
+      <Card className="shadow-lg border-none">
+        <CardHeader className="bg-muted/10 pb-6">
           <div className="flex items-center justify-between">
-            <CardTitle className="flex items-center gap-2">
-              <Users size={20} />
-              Piatti Più Ordinati
+            <CardTitle className="flex items-center gap-2 text-lg">
+              <Users size={20} className="text-primary" />
+              Classifica Piatti
             </CardTitle>
-            <Popover>
-              <PopoverTrigger asChild>
-                <Button variant="outline" size="sm">
-                  Filtra Categorie ({selectedCategories.length})
-                </Button>
-              </PopoverTrigger>
-              <PopoverContent className="w-64">
-                <div className="space-y-3">
-                  <div className="flex items-center justify-between">
-                    <Label className="text-sm font-medium">Categorie</Label>
-                    <div className="flex gap-2">
-                      <Button
-                        size="sm"
-                        variant="ghost"
-                        onClick={() => setSelectedCategories(categories.map(c => c.name))}
-                        className="h-6 px-2 text-xs"
-                      >
-                        Tutte
-                      </Button>
-                      <Button
-                        size="sm"
-                        variant="ghost"
-                        onClick={() => setSelectedCategories([])}
-                        className="h-6 px-2 text-xs"
-                      >
-                        Nessuna
-                      </Button>
-                    </div>
-                  </div>
-                  <div className="space-y-2 max-h-48 overflow-y-auto">
-                    {categories.map((category) => (
-                      <div key={category.id} className="flex items-center space-x-2">
-                        <input
-                          type="checkbox"
-                          id={`cat-${category.id}`}
-                          checked={selectedCategories.includes(category.name)}
-                          onChange={(e) => {
-                            if (e.target.checked) {
-                              setSelectedCategories([...selectedCategories, category.name])
-                            } else {
-                              setSelectedCategories(selectedCategories.filter(c => c !== category.name))
-                            }
-                          }}
-                          className="rounded"
-                        />
-                        <label htmlFor={`cat-${category.id}`} className="text-sm font-medium">
-                          {category.name}
-                        </label>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              </PopoverContent>
-            </Popover>
+            <Badge variant="outline" className="font-normal">
+              Top {analytics.dishStats.length}
+            </Badge>
           </div>
         </CardHeader>
-        <CardContent>
-          <div className="space-y-4">
-            {analytics.dishStats.map((dish, index) => (
-              <div key={dish.name} className="flex items-center justify-between p-4 bg-muted/30 rounded-lg">
-                <div className="flex items-center gap-4">
-                  <Badge variant="secondary" className="w-8 h-8 rounded-full flex items-center justify-center">
-                    {index + 1}
-                  </Badge>
-                  <div>
-                    <p className="font-semibold">{dish.name}</p>
-                    <p className="text-sm text-muted-foreground">{dish.category}</p>
-                  </div>
-                </div>
-                <div className="text-right">
-                  <p className="font-bold text-primary">{dish.quantity}x</p>
-                  <p className="text-sm text-muted-foreground">€{dish.revenue.toFixed(2)}</p>
-                </div>
+        <CardContent className="pt-6">
+          <div className="space-y-1">
+            {analytics.dishStats.length === 0 ? (
+              <div className="text-center py-12 text-muted-foreground">
+                <ShoppingBag size={48} className="mx-auto mb-4 opacity-20" />
+                <p>Nessun dato disponibile per i filtri selezionati</p>
               </div>
-            ))}
-            {analytics.dishStats.length === 0 && (
-              <p className="text-center text-muted-foreground py-8">
-                Nessun dato disponibile per il periodo selezionato
-              </p>
+            ) : (
+              <div className="grid gap-2">
+                {analytics.dishStats.map((dish, index) => (
+                  <div
+                    key={dish.name}
+                    className="flex items-center justify-between p-3 rounded-lg hover:bg-muted/50 transition-colors group"
+                  >
+                    <div className="flex items-center gap-4">
+                      <div className={`
+                        w-8 h-8 rounded-full flex items-center justify-center font-bold text-sm
+                        ${index === 0 ? 'bg-yellow-100 text-yellow-700' :
+                          index === 1 ? 'bg-gray-100 text-gray-700' :
+                            index === 2 ? 'bg-orange-100 text-orange-700' :
+                              'bg-muted text-muted-foreground'}
+                      `}>
+                        {index + 1}
+                      </div>
+                      <div>
+                        <p className="font-semibold text-foreground group-hover:text-primary transition-colors">{dish.name}</p>
+                        <p className="text-xs text-muted-foreground">{dish.category}</p>
+                      </div>
+                    </div>
+                    <div className="text-right flex items-center gap-6">
+                      <div className="hidden sm:block">
+                        <p className="text-xs text-muted-foreground uppercase tracking-wider">Venduti</p>
+                        <p className="font-bold">{dish.quantity}</p>
+                      </div>
+                      <div className="min-w-[80px]">
+                        <p className="text-xs text-muted-foreground uppercase tracking-wider">Incasso</p>
+                        <p className="font-bold text-primary">€{dish.revenue.toFixed(2)}</p>
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
             )}
           </div>
         </CardContent>

@@ -195,6 +195,7 @@ const RestaurantDashboard = ({ user, onLogout }: RestaurantDashboardProps) => {
   const [showTableQrDialog, setShowTableQrDialog] = useState(false)
   const [showTableBillDialog, setShowTableBillDialog] = useState(false)
   const [selectedTableForActions, setSelectedTableForActions] = useState<Table | null>(null)
+  const [kitchenViewMode, setKitchenViewMode] = useState<'table' | 'dish'>('table')
 
   // AYCE and Coperto Settings
   const [ayceEnabled, setAyceEnabled] = useState(false)
@@ -214,12 +215,17 @@ const RestaurantDashboard = ({ user, onLogout }: RestaurantDashboardProps) => {
   const [waiterCredentialsDirty, setWaiterCredentialsDirty] = useState(false)
 
   // Reservations Date Filter
-  const [reservationsDateFilter, setReservationsDateFilter] = useState<'today' | 'tomorrow' | 'all'>('today')
+  const [selectedReservationDate, setSelectedReservationDate] = useState<Date>(new Date())
 
   const [tableSearchTerm, setTableSearchTerm] = useState('')
 
   const restaurantDishes = dishes || []
-  const restaurantCategories = (categories || []).sort((a, b) => (a.order ?? Number.MAX_SAFE_INTEGER) - (b.order ?? Number.MAX_SAFE_INTEGER))
+  const restaurantCategories = (categories || []).sort((a, b) => {
+    const orderA = a.order ?? 9999
+    const orderB = b.order ?? 9999
+    if (orderA !== orderB) return orderA - orderB
+    return a.name.localeCompare(b.name)
+  })
   const restaurantTables = (tables || []).filter(t =>
     t.number.toLowerCase().includes(tableSearchTerm.toLowerCase())
   )
@@ -1095,6 +1101,24 @@ const RestaurantDashboard = ({ user, onLogout }: RestaurantDashboardProps) => {
                 </div>
               </div>
               <div className="flex items-center gap-2">
+                <div className="flex bg-muted p-1 rounded-lg mr-2">
+                  <Button
+                    variant={kitchenViewMode === 'table' ? 'default' : 'ghost'}
+                    size="sm"
+                    onClick={() => setKitchenViewMode('table')}
+                    className="h-7 text-xs font-bold"
+                  >
+                    Tavoli
+                  </Button>
+                  <Button
+                    variant={kitchenViewMode === 'dish' ? 'default' : 'ghost'}
+                    size="sm"
+                    onClick={() => setKitchenViewMode('dish')}
+                    className="h-7 text-xs font-bold"
+                  >
+                    Piatti
+                  </Button>
+                </div>
                 <Dialog>
                   <DialogTrigger asChild>
                     <Button variant="outline" size="sm" className="h-9 border-dashed">
@@ -1221,6 +1245,7 @@ const RestaurantDashboard = ({ user, onLogout }: RestaurantDashboardProps) => {
                 tables={tables || []}
                 dishes={dishes || []}
                 selectedCategoryIds={selectedCategoryIds}
+                viewMode={kitchenViewMode}
                 onCompleteDish={(orderId, itemId) => handleCompleteDish(orderId, itemId)}
                 onCompleteOrder={handleCompleteOrder}
               />
@@ -1740,37 +1765,62 @@ const RestaurantDashboard = ({ user, onLogout }: RestaurantDashboardProps) => {
           {/* Reservations Tab */}
           < TabsContent value="reservations" className="space-y-6 p-6" >
             {/* Date Filter */}
-            < div className="flex gap-2 mb-4" >
+            {/* Date Filter */}
+            <div className="flex flex-wrap gap-2 mb-4 items-center">
               <Button
-                variant={reservationsDateFilter === 'today' ? 'default' : 'outline'}
-                onClick={() => setReservationsDateFilter('today')}
+                variant={selectedReservationDate.toDateString() === new Date().toDateString() ? 'default' : 'outline'}
+                onClick={() => setSelectedReservationDate(new Date())}
                 size="sm"
               >
                 <Calendar size={16} className="mr-2" />
-                Oggi
+                Oggi ({new Date().toLocaleDateString('it-IT', { day: 'numeric', month: 'short' })})
               </Button>
               <Button
-                variant={reservationsDateFilter === 'tomorrow' ? 'default' : 'outline'}
-                onClick={() => setReservationsDateFilter('tomorrow')}
+                variant={selectedReservationDate.toDateString() === new Date(new Date().setDate(new Date().getDate() + 1)).toDateString() ? 'default' : 'outline'}
+                onClick={() => {
+                  const d = new Date()
+                  d.setDate(d.getDate() + 1)
+                  setSelectedReservationDate(d)
+                }}
                 size="sm"
               >
                 <Calendar size={16} className="mr-2" />
-                Domani
+                Domani ({new Date(new Date().setDate(new Date().getDate() + 1)).toLocaleDateString('it-IT', { day: 'numeric', month: 'short' })})
               </Button>
               <Button
-                variant={reservationsDateFilter === 'all' ? 'default' : 'outline'}
-                onClick={() => setReservationsDateFilter('all')}
+                variant={selectedReservationDate.toDateString() === new Date(new Date().setDate(new Date().getDate() + 2)).toDateString() ? 'default' : 'outline'}
+                onClick={() => {
+                  const d = new Date()
+                  d.setDate(d.getDate() + 2)
+                  setSelectedReservationDate(d)
+                }}
                 size="sm"
               >
-                Tutte
+                <Calendar size={16} className="mr-2" />
+                {new Date(new Date().setDate(new Date().getDate() + 2)).toLocaleDateString('it-IT', { weekday: 'short', day: 'numeric', month: 'short' })}
               </Button>
-            </div >
+
+              <div className="flex items-center gap-2 ml-2">
+                <Label htmlFor="custom-date" className="whitespace-nowrap text-sm">Data:</Label>
+                <Input
+                  id="custom-date"
+                  type="date"
+                  className="w-auto h-9"
+                  value={selectedReservationDate.toISOString().split('T')[0]}
+                  onChange={(e) => {
+                    if (e.target.value) {
+                      setSelectedReservationDate(new Date(e.target.value))
+                    }
+                  }}
+                />
+              </div>
+            </div>
             <ReservationsManager
               user={user}
               restaurantId={restaurantId}
               tables={restaurantTables}
               bookings={bookings || []}
-              dateFilter={reservationsDateFilter}
+              selectedDate={selectedReservationDate}
               onRefresh={refreshBookings}
             />
           </TabsContent >

@@ -10,16 +10,14 @@ interface KitchenViewProps {
     tables: Table[]
     dishes: Dish[]
     selectedCategoryIds?: string[]
+    viewMode: 'table' | 'dish'
     onCompleteDish: (orderId: string, itemId: string) => void
     onCompleteOrder: (orderId: string) => void
 }
 
-type ViewMode = 'table' | 'dish'
-
-export function KitchenView({ orders, tables, dishes, selectedCategoryIds = [], onCompleteDish, onCompleteOrder }: KitchenViewProps) {
+export function KitchenView({ orders, tables, dishes, selectedCategoryIds = [], viewMode, onCompleteDish, onCompleteOrder }: KitchenViewProps) {
     const [now, setNow] = useState(new Date())
     const [columns, setColumns] = useState(3)
-    const [viewMode, setViewMode] = useState<ViewMode>('table')
 
     useEffect(() => {
         const interval = setInterval(() => setNow(new Date()), 1000 * 60)
@@ -77,22 +75,7 @@ export function KitchenView({ orders, tables, dishes, selectedCategoryIds = [], 
         <div className="p-2 h-screen flex flex-col bg-background">
             <div className="flex items-center justify-between mb-4 bg-muted/20 p-2 rounded-lg border">
                 <div className="flex items-center gap-4">
-                    <div className="flex gap-2">
-                        <Button
-                            variant={viewMode === 'table' ? "default" : "outline"}
-                            onClick={() => setViewMode('table')}
-                            className="font-bold text-lg"
-                        >
-                            PER TAVOLO
-                        </Button>
-                        <Button
-                            variant={viewMode === 'dish' ? "default" : "outline"}
-                            onClick={() => setViewMode('dish')}
-                            className="font-bold text-lg"
-                        >
-                            PER PIATTO
-                        </Button>
-                    </div>
+                    {/* View Mode controls moved to parent */}
                 </div>
 
                 <div className="flex items-center gap-4">

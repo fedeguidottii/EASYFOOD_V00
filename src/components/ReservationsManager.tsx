@@ -10,7 +10,7 @@ import { Badge } from '@/components/ui/badge'
 import { Separator } from '@/components/ui/separator'
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover'
 import { toast } from 'sonner'
-import { Calendar, Clock, Users, PencilSimple, Trash, Phone, User as UserIcon, CalendarBlank } from '@phosphor-icons/react'
+import { Calendar, Clock, Users, PencilSimple, Trash, Phone, User as UserIcon, CalendarBlank, ArrowsLeftRight } from '@phosphor-icons/react'
 import type { User, Booking, Table } from '../services/types'
 import TimelineReservations from './TimelineReservations'
 
@@ -19,19 +19,16 @@ interface ReservationsManagerProps {
   restaurantId: string
   tables: Table[]
   bookings: Booking[]
-  dateFilter?: 'today' | 'tomorrow' | 'all'
+  selectedDate: Date
   onRefresh?: () => void
 }
 
-export default function ReservationsManager({ user, restaurantId, tables, bookings, dateFilter = 'today', onRefresh }: ReservationsManagerProps) {
+export default function ReservationsManager({ user, restaurantId, tables, bookings, selectedDate, onRefresh }: ReservationsManagerProps) {
   const [selectedBooking, setSelectedBooking] = useState<Booking | null>(null)
   const [showEditDialog, setShowEditDialog] = useState(false)
   const [showDeleteDialog, setShowDeleteDialog] = useState(false)
   const [showHistoryDialog, setShowHistoryDialog] = useState(false)
-
-  // Filter states for future reservations
-  const [futureFilter, setFutureFilter] = useState<string>('all')
-  const [customFutureDate, setCustomFutureDate] = useState('')
+  const [showMoveDialog, setShowMoveDialog] = useState(false)
 
   // Helper for date comparison (ignoring time)
   const isSameDay = (d1: Date, d2: Date) => {
@@ -39,17 +36,6 @@ export default function ReservationsManager({ user, restaurantId, tables, bookin
       d1.getMonth() === d2.getMonth() &&
       d1.getDate() === d2.getDate()
   }
-
-  // Sync prop with internal state when it changes
-  useEffect(() => {
-    if (dateFilter === 'today') {
-      setFutureFilter('today')
-    } else if (dateFilter === 'tomorrow') {
-      setFutureFilter('tomorrow')
-    } else {
-      setFutureFilter('all')
-    }
-  }, [dateFilter])
 
   // Filter states for history
   const [historyFilter, setHistoryFilter] = useState<string>('all')
@@ -66,6 +52,12 @@ export default function ReservationsManager({ user, restaurantId, tables, bookin
     guests: 1
   })
 
+  // Move form state
+  const [moveForm, setMoveForm] = useState({
+    date: '',
+    time: ''
+  })
+
   // Filter bookings for this restaurant
   const restaurantBookings = bookings.filter(b => b.restaurant_id === restaurantId)
   const restaurantTables = tables.filter(t => t.restaurant_id === restaurantId)
@@ -75,10 +67,8 @@ export default function ReservationsManager({ user, restaurantId, tables, bookin
 
   const activeBookings = restaurantBookings.filter(b => {
     const bookingDate = new Date(b.date_time)
-    // Active if in the future OR today (even if time passed, keep it visible for the day)
-    // OR if status is not final
-    const isFutureOrToday = bookingDate >= now || isSameDay(bookingDate, now)
-    return isFutureOrToday && b.status !== 'COMPLETED' && b.status !== 'CANCELLED'
+    // Filter by selectedDate
+    return isSameDay(bookingDate, selectedDate) && b.status !== 'CANCELLED'
   })
 
   const historyBookings = restaurantBookings.filter(b => {
@@ -86,8 +76,6 @@ export default function ReservationsManager({ user, restaurantId, tables, bookin
     const isPast = bookingDate < now && !isSameDay(bookingDate, now)
     return isPast || b.status === 'COMPLETED' || b.status === 'CANCELLED'
   })
-
-
 
   // Initialize edit form when reservation is selected
   const handleEditBooking = (booking: Booking) => {
@@ -102,6 +90,17 @@ export default function ReservationsManager({ user, restaurantId, tables, bookin
       guests: booking.guests
     })
     setShowEditDialog(true)
+  }
+
+  // Initialize move form
+  const handleMoveBooking = (booking: Booking) => {
+    setSelectedBooking(booking)
+    const [date, time] = booking.date_time.split('T')
+    setMoveForm({
+      date: date,
+      time: time.substring(0, 5)
+    })
+    setShowMoveDialog(true)
   }
 
   // Save edited reservation
@@ -129,6 +128,37 @@ export default function ReservationsManager({ user, restaurantId, tables, bookin
         setShowEditDialog(false)
         setSelectedBooking(null)
         toast.success('Prenotazione modificata con successo')
+        onRefresh?.()
+      })
+  }
+
+  // Save moved reservation
+  const handleSaveMove = () => {
+    if (!selectedBooking || !moveForm.date || !moveForm.time) {
+      toast.error('Seleziona data e ora')
+      return
+    }
+
+    const dateTime = `${moveForm.date}T${moveForm.time}:00`
+
+    // Check if date changed
+    const originalDate = selectedBooking.date_time.split('T')[0]
+    if (originalDate !== moveForm.date) {
+      // Confirmation is implicit in the dialog action, but we could add another step if needed.
+      // The user asked for a confirmation message.
+      if (!confirm(`Sei sicuro di voler spostare la prenotazione al ${formatDate(moveForm.date)} alle ${moveForm.time}?`)) {
+        return
+      }
+    }
+
+    DatabaseService.updateBooking({
+      id: selectedBooking.id,
+      date_time: dateTime
+    })
+      .then(() => {
+        setShowMoveDialog(false)
+        setSelectedBooking(null)
+        toast.success('Prenotazione spostata con successo')
         onRefresh?.()
       })
   }
@@ -182,46 +212,6 @@ export default function ReservationsManager({ user, restaurantId, tables, bookin
     return dateStr === today
   }
 
-  // Get suggested future dates
-  const getFutureDateSuggestions = () => {
-    const today = new Date()
-    const suggestions: Array<{ value: string; label: string }> = []
-
-    // Today
-    suggestions.push({
-      value: today.toISOString().split('T')[0],
-      label: 'Oggi'
-    })
-
-    // Tomorrow
-    const tomorrow = new Date(today)
-    tomorrow.setDate(tomorrow.getDate() + 1)
-    suggestions.push({
-      value: tomorrow.toISOString().split('T')[0],
-      label: 'Domani'
-    })
-
-    // Day after tomorrow
-    const dayAfterTomorrow = new Date(today)
-    dayAfterTomorrow.setDate(dayAfterTomorrow.getDate() + 2)
-    suggestions.push({
-      value: dayAfterTomorrow.toISOString().split('T')[0],
-      label: 'Dopodomani'
-    })
-
-    // Next 7 days
-    for (let i = 3; i <= 7; i++) {
-      const date = new Date(today)
-      date.setDate(date.getDate() + i)
-      suggestions.push({
-        value: date.toISOString().split('T')[0],
-        label: date.toLocaleDateString('it-IT', { weekday: 'long', day: 'numeric', month: 'short' })
-      })
-    }
-
-    return suggestions
-  }
-
   // Get history date filters
   const getHistoryDateFilters = () => {
     const filters: Array<{ value: string; label: string }> = []
@@ -232,21 +222,6 @@ export default function ReservationsManager({ user, restaurantId, tables, bookin
     filters.push({ value: 'lastMonth', label: 'Ultimo mese' })
     filters.push({ value: 'custom', label: 'Personalizzato' })
     return filters
-  }
-
-  // Filter future reservations
-  const getFilteredActiveBookings = () => {
-    let filtered = activeBookings
-
-    if (futureFilter !== 'all') {
-      if (futureFilter === 'custom' && customFutureDate) {
-        filtered = filtered.filter(res => res.date_time.startsWith(customFutureDate))
-      } else {
-        filtered = filtered.filter(res => res.date_time.startsWith(futureFilter))
-      }
-    }
-
-    return filtered
   }
 
   // Filter history reservations
@@ -306,9 +281,7 @@ export default function ReservationsManager({ user, restaurantId, tables, bookin
     return filtered
   }
 
-  const futureDateSuggestions = getFutureDateSuggestions()
   const historyDateFilters = getHistoryDateFilters()
-  const filteredActiveBookings = getFilteredActiveBookings()
   const filteredHistoryBookings = getFilteredHistoryBookings()
 
   return (
@@ -316,7 +289,7 @@ export default function ReservationsManager({ user, restaurantId, tables, bookin
       {/* Header with Timeline */}
       <div className="space-y-4">
         <div className="flex items-center justify-between flex-wrap gap-4">
-          <h2 className="text-2xl font-bold text-foreground">Prenotazioni</h2>
+          <h2 className="text-2xl font-bold text-foreground">Prenotazioni del {selectedDate.toLocaleDateString('it-IT')}</h2>
           <div className="flex gap-2 flex-wrap">
             <Button
               variant="outline"
@@ -333,6 +306,7 @@ export default function ReservationsManager({ user, restaurantId, tables, bookin
           restaurantId={restaurantId}
           tables={tables}
           bookings={bookings}
+          selectedDate={`${selectedDate.getFullYear()}-${String(selectedDate.getMonth() + 1).padStart(2, '0')}-${String(selectedDate.getDate()).padStart(2, '0')}`}
           onRefresh={onRefresh}
           onEditBooking={handleEditBooking}
         />
@@ -342,78 +316,31 @@ export default function ReservationsManager({ user, restaurantId, tables, bookin
       <div className="space-y-4">
         <div className="flex items-center justify-between flex-wrap gap-4">
           <h3 className="text-xl font-semibold text-foreground">Lista Prenotazioni</h3>
-
-          {/* Future Reservations Filter - Buttons */}
-          <div className="flex items-center gap-2 flex-wrap">
-            <Button
-              variant={futureFilter === 'all' ? 'default' : 'outline'}
-              size="sm"
-              onClick={() => setFutureFilter('all')}
-            >
-              Tutte
-            </Button>
-            {futureDateSuggestions.slice(0, 3).map(suggestion => (
-              <Button
-                key={suggestion.value}
-                variant={futureFilter === suggestion.value ? 'default' : 'outline'}
-                size="sm"
-                onClick={() => setFutureFilter(suggestion.value)}
-              >
-                {suggestion.label}
-              </Button>
-            ))}
-
-            <Popover>
-              <PopoverTrigger asChild>
-                <Button
-                  variant={futureFilter === 'custom' || (!['all', ...futureDateSuggestions.slice(0, 3).map(s => s.value)].includes(futureFilter)) ? 'default' : 'outline'}
-                  size="sm"
-                  className="gap-2"
-                >
-                  <CalendarBlank size={16} />
-                  {futureFilter === 'custom' || (!['all', ...futureDateSuggestions.slice(0, 3).map(s => s.value)].includes(futureFilter)) ? (customFutureDate ? formatDate(customFutureDate) : 'Data') : 'Altro'}
-                </Button>
-              </PopoverTrigger>
-              <PopoverContent className="w-auto p-0" align="end">
-                <div className="p-3">
-                  <Label htmlFor="custom-future-date" className="mb-2 block">Seleziona data</Label>
-                  <Input
-                    id="custom-future-date"
-                    type="date"
-                    value={customFutureDate}
-                    onChange={(e) => {
-                      setCustomFutureDate(e.target.value)
-                      setFutureFilter('custom')
-                    }}
-                  />
-                </div>
-              </PopoverContent>
-            </Popover>
-          </div>
         </div>
 
-        {filteredActiveBookings.length === 0 ? (
+        {activeBookings.length === 0 ? (
           <Card className="shadow-professional">
             <CardContent className="text-center py-8">
               <Calendar size={48} className="mx-auto text-muted-foreground mb-4" />
               <p className="text-muted-foreground">
-                {futureFilter === 'all' ? 'Nessuna prenotazione attiva' : 'Nessuna prenotazione per la data selezionata'}
+                Nessuna prenotazione per questa data
               </p>
             </CardContent>
           </Card>
         ) : (
           <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-            {filteredActiveBookings
+            {activeBookings
               .sort((a, b) => new Date(a.date_time).getTime() - new Date(b.date_time).getTime())
               .map(booking => {
                 const dateStr = booking.date_time.split('T')[0]
                 const timeStr = booking.date_time.split('T')[1].substring(0, 5)
                 const today = isToday(dateStr)
+                const isCompleted = booking.status === 'COMPLETED'
 
                 return (
                   <Card
                     key={booking.id}
-                    className={`shadow-professional hover:shadow-professional-lg transition-all duration-300 cursor-pointer ${today ? 'border-l-4 border-l-primary' : ''}`}
+                    className={`shadow-professional hover:shadow-professional-lg transition-all duration-300 cursor-pointer ${today ? 'border-l-4 border-l-primary' : ''} ${isCompleted ? 'opacity-50' : ''}`}
                     onClick={() => handleEditBooking(booking)}
                   >
                     <CardHeader className="pb-3">
@@ -424,6 +351,7 @@ export default function ReservationsManager({ user, restaurantId, tables, bookin
                         </CardTitle>
                         <div className="flex gap-1">
                           {today && <Badge variant="default">Oggi</Badge>}
+                          {isCompleted && <Badge variant="secondary">Completata</Badge>}
                         </div>
                       </div>
                     </CardHeader>
@@ -458,24 +386,26 @@ export default function ReservationsManager({ user, restaurantId, tables, bookin
                           size="sm"
                           onClick={(e) => {
                             e.stopPropagation()
-                            handleEditBooking(booking)
+                            handleMoveBooking(booking)
                           }}
                           className="flex-1"
                         >
-                          <PencilSimple size={14} className="mr-1" />
-                          Modifica
+                          <ArrowsLeftRight size={14} className="mr-1" />
+                          Sposta
                         </Button>
-                        <Button
-                          variant="default"
-                          size="sm"
-                          onClick={(e) => {
-                            e.stopPropagation()
-                            handleCompleteBooking(booking)
-                          }}
-                          className="bg-green-600 hover:bg-green-700"
-                        >
-                          Completata
-                        </Button>
+                        {!isCompleted && (
+                          <Button
+                            variant="default"
+                            size="sm"
+                            onClick={(e) => {
+                              e.stopPropagation()
+                              handleCompleteBooking(booking)
+                            }}
+                            className="bg-green-600 hover:bg-green-700"
+                          >
+                            Completata
+                          </Button>
+                        )}
                         <Button
                           variant="outline"
                           size="sm"
@@ -592,6 +522,51 @@ export default function ReservationsManager({ user, restaurantId, tables, bookin
                 className="bg-primary hover:bg-primary/90"
               >
                 Salva Modifiche
+              </Button>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* Move Reservation Dialog */}
+      <Dialog open={showMoveDialog} onOpenChange={setShowMoveDialog}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle>Sposta Prenotazione</DialogTitle>
+            <DialogDescription>
+              Seleziona la nuova data e ora per la prenotazione di {selectedBooking?.name}
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4 py-4">
+            <div className="space-y-2">
+              <Label htmlFor="move-date">Nuova Data</Label>
+              <Input
+                id="move-date"
+                type="date"
+                value={moveForm.date}
+                onChange={(e) => setMoveForm(prev => ({ ...prev, date: e.target.value }))}
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="move-time">Nuovo Orario</Label>
+              <Input
+                id="move-time"
+                type="time"
+                value={moveForm.time}
+                onChange={(e) => setMoveForm(prev => ({ ...prev, time: e.target.value }))}
+              />
+            </div>
+            <div className="flex gap-3 justify-end pt-4">
+              <Button
+                variant="outline"
+                onClick={() => setShowMoveDialog(false)}
+              >
+                Annulla
+              </Button>
+              <Button
+                onClick={handleSaveMove}
+              >
+                Conferma Spostamento
               </Button>
             </div>
           </div>

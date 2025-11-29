@@ -524,7 +524,6 @@ export default function CustomerMenu({ tableId, onExit, interfaceMode = 'custome
       </Dialog>
 
       <Dialog open={showCart} onOpenChange={setShowCart}>
-        <div className="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm" aria-hidden="true" onClick={() => setShowCart(false)} />
         <DialogContent className="fixed z-50 left-[50%] top-[50%] translate-x-[-50%] translate-y-[-50%] w-full max-w-md h-[80vh] flex flex-col p-0 gap-0 border shadow-lg duration-200 sm:rounded-lg">
           <DialogHeader className="p-6 pb-2">
             <DialogTitle>Il Tuo Ordine</DialogTitle>
