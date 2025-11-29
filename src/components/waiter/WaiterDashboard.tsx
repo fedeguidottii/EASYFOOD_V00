@@ -4,7 +4,7 @@ import { DatabaseService } from '../../services/DatabaseService'
 import { Table, Order, TableSession } from '../../services/types'
 import { toast } from 'sonner'
 import { useNavigate } from 'react-router-dom'
-import { LogOut, RefreshCw, User, Utensils, CheckCircle, AlertCircle } from '@phosphor-icons/react'
+import { SignOut, ArrowsClockwise, User, ForkKnife, CheckCircle, WarningCircle } from '@phosphor-icons/react'
 import { Button } from '../ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '../ui/card'
 import { Badge } from '../ui/badge'
@@ -196,7 +196,7 @@ const WaiterDashboard = ({ user, onLogout }: WaiterDashboardProps) => {
                     </div>
                 </div>
                 <Button variant="ghost" size="icon" onClick={onLogout}>
-                    <LogOut size={20} />
+                    <SignOut size={20} />
                 </Button>
             </header>
 
