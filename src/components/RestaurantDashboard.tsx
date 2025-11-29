@@ -50,7 +50,6 @@ import type { User, Table, Dish, Order, Restaurant, Booking, Category, OrderItem
 import TimelineReservations from './TimelineReservations'
 import ReservationsManager from './ReservationsManager'
 import AnalyticsCharts from './AnalyticsCharts'
-import { KitchenView } from './KitchenView'
 import { useRestaurantLogic } from '../hooks/useRestaurantLogic'
 import { ModeToggle } from './mode-toggle'
 
@@ -138,7 +137,6 @@ const RestaurantDashboard = ({ user, onLogout }: RestaurantDashboardProps) => {
     allergens: [],
     imageFile: undefined
   })
-  const [orderViewMode, setOrderViewMode] = useState<'table' | 'dish'>('table')
   const [showCompletedOrders, setShowCompletedOrders] = useState(false)
   const [showQrDialog, setShowQrDialog] = useState(false)
   const [customerCount, setCustomerCount] = useState('')
@@ -217,6 +215,8 @@ const RestaurantDashboard = ({ user, onLogout }: RestaurantDashboardProps) => {
     acc[entry.dish.id].push(entry)
     return acc
   }, {})
+
+  const totalPendingDishes = dishQueue.reduce((sum, entry) => sum + entry.quantity, 0)
 
   // Sidebar hover auto-expand handled via onMouseEnter/onMouseLeave directly on the element
   // to avoid issues with element references and cleanup
@@ -1011,48 +1011,28 @@ const RestaurantDashboard = ({ user, onLogout }: RestaurantDashboardProps) => {
                 </div>
               </div>
               <div className="flex flex-wrap items-center gap-2">
-                <div className="flex items-center gap-2 bg-card rounded-lg p-1 shadow-sm border border-border/30">
-                  <Button
-                    variant={orderViewMode === 'table' ? 'default' : 'ghost'}
-                    size="sm"
-                    onClick={() => setOrderViewMode('table')}
-                    className="h-8 px-3 whitespace-nowrap"
-                  >
-                    <MapPin size={14} className="mr-1.5" />
-                    <span className="text-xs font-medium">Tavoli</span>
-                  </Button>
-                  <Button
-                    variant={orderViewMode === 'dish' ? 'default' : 'ghost'}
-                    size="sm"
-                    onClick={() => setOrderViewMode('dish')}
-                    className="h-8 px-3 whitespace-nowrap"
-                  >
-                    <List size={14} className="mr-1.5" />
-                    <span className="text-xs font-medium">Piatti</span>
-                  </Button>
-                </div>
-                {/* Category filter shown solo in vista piatti */
-                  orderViewMode === 'dish' && (
-                    <Select value={selectedCategoryFilter} onValueChange={setSelectedCategoryFilter}>
-                      <SelectTrigger className="w-[200px] h-8 shadow-sm hover:shadow-md border hover:border-primary/30 transition-all duration-200">
-                        <SelectValue placeholder="Tutte le categorie" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="all">
-                          <div className="flex items-center gap-2">
-                            <BookOpen size={14} />
-                            <span className="text-sm whitespace-nowrap">Tutte le categorie</span>
-                          </div>
+                <Badge variant="outline" className="bg-primary/5 text-primary border-primary/20 px-3 py-1 text-xs">
+                  Vista piatti attiva
+                </Badge>
+                <Select value={selectedCategoryFilter} onValueChange={setSelectedCategoryFilter}>
+                  <SelectTrigger className="w-[200px] h-8 shadow-sm hover:shadow-md border hover:border-primary/30 transition-all duration-200">
+                    <SelectValue placeholder="Tutte le categorie" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">
+                      <div className="flex items-center gap-2">
+                        <BookOpen size={14} />
+                        <span className="text-sm whitespace-nowrap">Tutte le categorie</span>
+                      </div>
+                    </SelectItem>
+                    {restaurantCategories
+                      .map(category => (
+                        <SelectItem key={category.id} value={category.name}>
+                          <span className="text-sm whitespace-nowrap">{category.name}</span>
                         </SelectItem>
-                        {restaurantCategories
-                          .map(category => (
-                            <SelectItem key={category.id} value={category.name}>
-                              <span className="text-sm whitespace-nowrap">{category.name}</span>
-                            </SelectItem>
-                          ))}
-                      </SelectContent>
-                    </Select>
-                  )}
+                      ))}
+                  </SelectContent>
+                </Select>
                 <Select value={orderSortMode} onValueChange={(value: 'oldest' | 'newest') => setOrderSortMode(value)}>
                   <SelectTrigger className="w-[160px] h-8 shadow-sm hover:shadow-md border hover:border-primary/30 transition-all duration-200">
                     <SelectValue />
@@ -1075,9 +1055,9 @@ const RestaurantDashboard = ({ user, onLogout }: RestaurantDashboardProps) => {
                 <div className="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-gradient-to-br from-primary/5 to-accent/5 border border-primary/20 shadow-sm">
                   <Clock size={16} className="text-primary" weight="duotone" />
                   <div className="text-right">
-                    <div className="text-xl font-bold text-primary">{restaurantOrders.length}</div>
+                    <div className="text-xl font-bold text-primary">{totalPendingDishes}</div>
                     <div className="text-[10px] text-muted-foreground font-medium leading-none whitespace-nowrap">
-                      {restaurantOrders.length === 1 ? 'ordine' : 'ordini'}
+                      {totalPendingDishes === 1 ? 'piatto in attesa' : 'piatti in attesa'}
                     </div>
                   </div>
                 </div>
@@ -1091,100 +1071,6 @@ const RestaurantDashboard = ({ user, onLogout }: RestaurantDashboardProps) => {
                 </div>
                 <p className="text-lg font-semibold text-muted-foreground">Nessun ordine attivo</p>
                 <p className="text-xs text-muted-foreground mt-1">Gli ordini appariranno qui non appena arrivano</p>
-              </div>
-            ) : orderViewMode === 'table' ? (
-              <div className="grid gap-6 md:grid-cols-2 xl:grid-cols-3">
-                {/* Group orders by Table */}
-                {restaurantTables
-                  .filter(table => sortedActiveOrders.some(o => getTableIdFromOrder(o) === table.id))
-                  .map(table => {
-                    const tableOrders = sortedActiveOrders.filter(o => getTableIdFromOrder(o) === table.id)
-                    const allItems = tableOrders.flatMap(o => o.items || [])
-                    const totalItems = allItems.reduce((sum, item) => sum + item.quantity, 0)
-                    const completedItems = allItems.reduce((sum, item) => sum + (item.status === 'SERVED' ? item.quantity : 0), 0)
-                    const progress = totalItems > 0 ? (completedItems / totalItems) * 100 : 0
-                    const lastOrderTime = tableOrders.sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime())[0]?.created_at
-
-                    return (
-                      <Card key={table.id} className="overflow-hidden border-border/50 shadow-md hover:shadow-lg transition-all">
-                        <div className="bg-muted/30 p-4 border-b border-border/10 flex justify-between items-center">
-                          <div className="flex items-center gap-3">
-                            <div className="w-12 h-12 rounded-xl bg-primary text-primary-foreground flex items-center justify-center font-bold text-xl shadow-md">
-                              {table.number}
-                            </div>
-                            <div>
-                              <h3 className="font-bold text-lg">Tavolo {table.number}</h3>
-                              <div className="flex items-center gap-2 text-xs text-muted-foreground">
-                                <Clock size={12} />
-                                <span>Ultimo ordine: {lastOrderTime ? getTimeAgo(lastOrderTime) : 'N/A'} fa</span>
-                              </div>
-                            </div>
-                          </div>
-                          <div className="text-right">
-                            <span className="text-2xl font-bold text-primary">{totalItems - completedItems}</span>
-                            <p className="text-[10px] uppercase font-bold text-muted-foreground">In attesa</p>
-                          </div>
-                        </div>
-
-                        <div className="px-4 py-2 bg-muted/10 border-b border-border/10">
-                          <div className="flex justify-between text-xs mb-1">
-                            <span>Completamento</span>
-                            <span>{Math.round(progress)}%</span>
-                          </div>
-                          <Progress value={progress} className="h-1.5" />
-                        </div>
-
-                        <div className="p-0 max-h-[350px] overflow-y-auto divide-y divide-border/10">
-                          {(() => {
-                            const activeItems = tableOrders.flatMap(order =>
-                              (order.items || [])
-                                .filter(item => item.status !== 'SERVED')
-                                .map(item => ({ ...item, orderCreatedAt: order.created_at, orderId: order.id }))
-                            ).sort((a, b) => new Date(a.orderCreatedAt).getTime() - new Date(b.orderCreatedAt).getTime())
-
-                            if (activeItems.length === 0) {
-                              return (
-                                <div className="p-8 text-center text-muted-foreground">
-                                  <p className="text-sm">Nessun ordine in attesa</p>
-                                </div>
-                              )
-                            }
-
-                            return activeItems.map((item, idx) => {
-                              const dish = dishes?.find(d => d.id === item.dish_id)
-                              return (
-                                <div key={`${item.orderId}-${item.id}-${idx}`} className="p-3 flex justify-between items-start hover:bg-muted/5 transition-colors">
-                                  <div className="flex-1 min-w-0 pr-3">
-                                    <div className="flex items-center gap-2 mb-1">
-                                      <Badge variant="outline" className="text-[10px] h-5 px-1.5 bg-background/50">
-                                        {getTimeAgo(item.orderCreatedAt)}
-                                      </Badge>
-                                      <span className="font-bold text-primary text-sm">{item.quantity}x</span>
-                                      <span className="font-medium text-sm truncate block flex-1">
-                                        {dish?.name || 'Piatto sconosciuto'}
-                                      </span>
-                                    </div>
-                                    {item.note && (
-                                      <p className="text-xs text-orange-500 italic truncate pl-1 border-l-2 border-orange-200 ml-1">
-                                        {item.note}
-                                      </p>
-                                    )}
-                                  </div>
-                                  <Button
-                                    size="sm"
-                                    className="h-8 w-8 rounded-full bg-green-100 text-green-700 hover:bg-green-600 hover:text-white shadow-sm flex-shrink-0"
-                                    onClick={() => handleCompleteDish(item.orderId, item.id)}
-                                  >
-                                    <Check size={16} weight="bold" />
-                                  </Button>
-                                </div>
-                              )
-                            })
-                          })()}
-                        </div>
-                      </Card>
-                    )
-                  })}
               </div>
             ) : (
               <div className="space-y-4">
