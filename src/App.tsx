@@ -125,7 +125,7 @@ function App() {
         <WaiterDashboard user={currentUser} onLogout={handleLogout} />
       )}
       {currentUser.role === 'CUSTOMER' && (
-        <CustomerMenu tableId={currentTable || ''} onExit={handleLogout} />
+        <CustomerMenu tableId={currentTable || ''} onExit={handleLogout} interfaceMode="customer" />
       )}
 
       {/* Waiter Mode Routing - Basic Implementation */}
@@ -140,7 +140,7 @@ function App() {
               <CustomerMenu
                 tableId={waiterTableMatch[1]}
                 onExit={() => window.history.back()}
-                mode="waiter"
+                interfaceMode="waiter"
               />
             </div>
           )
