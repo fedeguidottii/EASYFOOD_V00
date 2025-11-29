@@ -326,6 +326,15 @@ export const DatabaseService = {
     },
 
     // Tables
+    async updateSession(session: Partial<TableSession> & { id: string }) {
+        const { error } = await supabase
+            .from('table_sessions')
+            .update(session)
+            .eq('id', session.id)
+
+        if (error) throw error
+    },
+
     async getTables(restaurantId: string) {
         const { data, error } = await supabase
             .from('tables')
