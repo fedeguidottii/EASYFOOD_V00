@@ -54,6 +54,7 @@ import ReservationsManager from './ReservationsManager'
 import AnalyticsCharts from './AnalyticsCharts'
 import { useRestaurantLogic } from '../hooks/useRestaurantLogic'
 import { ModeToggle } from './mode-toggle'
+import { KitchenView } from './KitchenView'
 
 interface RestaurantDashboardProps {
   user: User
@@ -186,7 +187,6 @@ const RestaurantDashboard = ({ user, onLogout }: RestaurantDashboardProps) => {
 
   const [selectedCategoryFilter, setSelectedCategoryFilter] = useState<string>('all')
   const [selectedCategoryIds, setSelectedCategoryIds] = useState<string[]>([])
-  const [kitchenViewMode, setKitchenViewMode] = useState<'dish' | 'table'>('dish')
   const [showOrderHistory, setShowOrderHistory] = useState(false)
   const [orderSortMode, setOrderSortMode] = useState<'oldest' | 'newest'>('oldest')
   const [isAddItemDialogOpen, setIsAddItemDialogOpen] = useState(false)
@@ -205,7 +205,7 @@ const RestaurantDashboard = ({ user, onLogout }: RestaurantDashboardProps) => {
   const [settingsInitialized, setSettingsInitialized] = useState(false)
   const [ayceDirty, setAyceDirty] = useState(false)
   const [copertoDirty, setCopertoDirty] = useState(false)
-  const [kitchenZoomLevel, setKitchenZoomLevel] = useState<number>(3) // Default to middle zoom (scale 1-5)
+
 
   // Waiter Mode Settings
   const [waiterModeEnabled, setWaiterModeEnabled] = useState(false)
@@ -291,47 +291,7 @@ const RestaurantDashboard = ({ user, onLogout }: RestaurantDashboardProps) => {
   // 1 = Smallest (Most columns, smallest text) -> "Zoom Out"
   // 5 = Largest (Fewest columns, largest text) -> "Zoom In"
 
-  const getGridColsClass = (level: number) => {
-    switch (level) {
-      case 1: return 'grid-cols-4 xl:grid-cols-5 2xl:grid-cols-6' // High density
-      case 2: return 'grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5'
-      case 3: return 'grid-cols-2 lg:grid-cols-3 xl:grid-cols-4' // Default
-      case 4: return 'grid-cols-2 lg:grid-cols-2 xl:grid-cols-3'
-      case 5: return 'grid-cols-1 md:grid-cols-2 xl:grid-cols-2' // Low density, huge cards
-      default: return 'grid-cols-2 lg:grid-cols-3 xl:grid-cols-4'
-    }
-  }
 
-  const getFontSizeClass = (level: number, type: 'title' | 'item' | 'meta') => {
-    switch (level) {
-      case 1: // Smallest
-        if (type === 'title') return 'text-base'
-        if (type === 'item') return 'text-sm'
-        return 'text-[10px]'
-      case 2:
-        if (type === 'title') return 'text-lg'
-        if (type === 'item') return 'text-base'
-        return 'text-xs'
-      case 3: // Default
-        if (type === 'title') return 'text-xl'
-        if (type === 'item') return 'text-lg'
-        return 'text-sm'
-      case 4:
-        if (type === 'title') return 'text-2xl'
-        if (type === 'item') return 'text-xl'
-        return 'text-base'
-      case 5: // Largest
-        if (type === 'title') return 'text-3xl'
-        if (type === 'item') return 'text-2xl'
-        return 'text-lg'
-      default:
-        return 'text-base'
-    }
-  }
-
-  const adjustKitchenZoom = (delta: number) => {
-    setKitchenZoomLevel((level) => Math.min(5, Math.max(1, level + delta)))
-  }
 
   // Sidebar hover auto-expand handled via onMouseEnter/onMouseLeave directly on the element
   // to avoid issues with element references and cleanup
@@ -1134,95 +1094,51 @@ const RestaurantDashboard = ({ user, onLogout }: RestaurantDashboardProps) => {
                   <p className="text-xs text-muted-foreground mt-0.5">Gestisci gli ordini in tempo reale</p>
                 </div>
               </div>
-              <div className="flex flex-wrap items-center gap-2 w-full md:w-auto">
-                <div className="flex items-center bg-muted/30 p-1 rounded-lg border border-border/40">
-                  <Button
-                    variant={kitchenViewMode === 'dish' ? 'secondary' : 'ghost'}
-                    size="sm"
-                    onClick={() => setKitchenViewMode('dish')}
-                    className="h-7 text-xs"
-                  >
-                    Per Piatto
-                  </Button>
-                  <Button
-                    variant={kitchenViewMode === 'table' ? 'secondary' : 'ghost'}
-                    size="sm"
-                    onClick={() => setKitchenViewMode('table')}
-                    className="h-7 text-xs"
-                  >
-                    Per Tavolo
-                  </Button>
-                </div>
-
-                <div className="flex items-center bg-muted/30 p-1 rounded-lg border border-border/40 gap-1">
-                  <Button
-                    variant="ghost"
-                    size="icon"
-                    className="h-8 w-8"
-                    onClick={() => adjustKitchenZoom(-1)}
-                    disabled={kitchenZoomLevel === 0}
-                  >
-                    <Minus size={16} />
-                  </Button>
-                  <Badge variant="secondary" className="px-2 font-semibold">
-                    Zoom {kitchenZoomLevel + 1}/3
-                  </Badge>
-                  <Button
-                    variant="ghost"
-                    size="icon"
-                    className="h-8 w-8"
-                    onClick={() => adjustKitchenZoom(1)}
-                    disabled={kitchenZoomLevel === 2}
-                  >
-                    <Plus size={16} />
-                  </Button>
-                </div>
-
-                <div className="flex items-center gap-2">
-                  <Dialog>
-                    <DialogTrigger asChild>
-                      <Button variant="outline" size="sm" className="h-9 border-dashed">
-                        <Plus size={14} className="mr-1" />
-                        Categorie ({selectedCategoryIds.length})
-                      </Button>
-                    </DialogTrigger>
-                    <DialogContent className="sm:max-w-[425px]">
-                      <DialogHeader>
-                        <DialogTitle>Filtra per Categoria</DialogTitle>
-                        <DialogDescription>Seleziona le categorie da visualizzare in cucina.</DialogDescription>
-                      </DialogHeader>
-                      <div className="grid gap-2 py-4 max-h-[60vh] overflow-y-auto">
-                        <div className="flex items-center space-x-2 p-2 hover:bg-muted/50 rounded-lg cursor-pointer" onClick={() => setSelectedCategoryIds([])}>
-                          <div className={`w-4 h-4 rounded border flex items-center justify-center ${selectedCategoryIds.length === 0 ? 'bg-primary border-primary text-primary-foreground' : 'border-muted-foreground'}`}>
-                            {selectedCategoryIds.length === 0 && <Check size={10} />}
-                          </div>
-                          <span className="text-sm font-medium">Tutte le categorie</span>
+              <div className="flex items-center gap-2">
+                <Dialog>
+                  <DialogTrigger asChild>
+                    <Button variant="outline" size="sm" className="h-9 border-dashed">
+                      <Plus size={14} className="mr-1" />
+                      Categorie ({selectedCategoryIds.length})
+                    </Button>
+                  </DialogTrigger>
+                  <DialogContent className="sm:max-w-[425px]">
+                    <DialogHeader>
+                      <DialogTitle>Filtra per Categoria</DialogTitle>
+                      <DialogDescription>Seleziona le categorie da visualizzare in cucina.</DialogDescription>
+                    </DialogHeader>
+                    <div className="grid gap-2 py-4 max-h-[60vh] overflow-y-auto">
+                      <div className="flex items-center space-x-2 p-2 hover:bg-muted/50 rounded-lg cursor-pointer" onClick={() => setSelectedCategoryIds([])}>
+                        <div className={`w-4 h-4 rounded border flex items-center justify-center ${selectedCategoryIds.length === 0 ? 'bg-primary border-primary text-primary-foreground' : 'border-muted-foreground'}`}>
+                          {selectedCategoryIds.length === 0 && <Check size={10} />}
                         </div>
-                        {restaurantCategories.map((category) => {
-                          const isSelected = selectedCategoryIds.includes(category.id)
-                          return (
-                            <div
-                              key={category.id}
-                              className="flex items-center space-x-2 p-2 hover:bg-muted/50 rounded-lg cursor-pointer"
-                              onClick={() => {
-                                if (isSelected) {
-                                  setSelectedCategoryIds(prev => prev.filter(id => id !== category.id))
-                                } else {
-                                  setSelectedCategoryIds(prev => [...prev, category.id])
-                                }
-                              }}
-                            >
-                              <div className={`w-4 h-4 rounded border flex items-center justify-center ${isSelected ? 'bg-primary border-primary text-primary-foreground' : 'border-muted-foreground'}`}>
-                                {isSelected && <Check size={10} />}
-                              </div>
-                              <span className="text-sm">{category.name}</span>
-                            </div>
-                          )
-                        })}
+                        <span className="text-sm font-medium">Tutte le categorie</span>
                       </div>
-                    </DialogContent>
-                  </Dialog>
-                </div>
+                      {restaurantCategories.map((category) => {
+                        const isSelected = selectedCategoryIds.includes(category.id)
+                        return (
+                          <div
+                            key={category.id}
+                            className="flex items-center space-x-2 p-2 hover:bg-muted/50 rounded-lg cursor-pointer"
+                            onClick={() => {
+                              if (isSelected) {
+                                setSelectedCategoryIds(prev => prev.filter(id => id !== category.id))
+                              } else {
+                                setSelectedCategoryIds(prev => [...prev, category.id])
+                              }
+                            }}
+                          >
+                            <div className={`w-4 h-4 rounded border flex items-center justify-center ${isSelected ? 'bg-primary border-primary text-primary-foreground' : 'border-muted-foreground'}`}>
+                              {isSelected && <Check size={10} />}
+                            </div>
+                            <span className="text-sm">{category.name}</span>
+                          </div>
+                        )
+                      })}
+                    </div>
+                  </DialogContent>
+                </Dialog>
+
 
                 <Select value={orderSortMode} onValueChange={(value: 'oldest' | 'newest') => setOrderSortMode(value)}>
                   <SelectTrigger className="w-[140px] h-9 shadow-sm hover:shadow-md border hover:border-primary/30 transition-all duration-200">
@@ -1244,15 +1160,7 @@ const RestaurantDashboard = ({ user, onLogout }: RestaurantDashboardProps) => {
                   </SelectContent>
                 </Select>
 
-                <div className="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-gradient-to-br from-primary/5 to-accent/5 border border-primary/20 shadow-sm ml-auto md:ml-0">
-                  <Clock size={16} className="text-primary" weight="duotone" />
-                  <div className="text-right">
-                    <div className="text-xl font-bold text-primary">{totalPendingDishes}</div>
-                    <div className="text-[10px] text-muted-foreground font-medium leading-none whitespace-nowrap">
-                      in attesa
-                    </div>
-                  </div>
-                </div>
+
 
                 <Button
                   variant={showOrderHistory ? "default" : "outline"}
@@ -1308,192 +1216,18 @@ const RestaurantDashboard = ({ user, onLogout }: RestaurantDashboardProps) => {
                 <p className="text-xs text-muted-foreground mt-1">Gli ordini appariranno qui non appena arrivano</p>
               </div>
             ) : (
-              <div className="space-y-4">
-                {kitchenViewMode === 'dish' ? (
-                  // DISH VIEW
-                  Object.keys(dishGroups).filter(id => !dishGroups[id].every(t => t.status === 'SERVED')).length === 0 ? (
-                    <Card>
-                      <CardContent className="py-10 text-center text-muted-foreground">
-                        Nessun piatto in preparazione per i filtri selezionati
-                      </CardContent>
-                    </Card>
-                  ) : (
-                    <div className={`grid gap-4 ${getGridColsClass(kitchenZoomLevel)} transition-all duration-300`}>
-                      {Object.entries(dishGroups)
-                        .filter(([_, tickets]) => !tickets.every(t => t.status === 'SERVED'))
-                        .map(([dishId, tickets]) => {
-                          const dish = tickets[0].dish!
-                          const totalQuantity = tickets.reduce((sum, t) => sum + t.quantity, 0)
-                          const pendingTickets = tickets.filter(t => t.status !== 'SERVED')
-                          const longestWait = pendingTickets.length > 0 ? pendingTickets.reduce((max, t) => {
-                            const elapsed = Math.floor((Date.now() - new Date(t.createdAt).getTime()) / 60000)
-                            return Math.max(max, elapsed)
-                          }, 0) : 0
-
-                          return (
-                            <Card key={dishId} className={`border border-border/60 shadow-sm flex flex-col h-full`}>
-                              <CardContent className="p-4 space-y-3 flex-1 flex flex-col">
-                                <div className="flex items-start justify-between gap-2">
-                                  <div className="flex items-center gap-3 flex-1 min-w-0">
-                                    {dish.image_url ? (
-                                      <img
-                                        src={dish.image_url}
-                                        alt={dish.name}
-                                        className="w-12 h-12 rounded-lg object-cover border shrink-0"
-                                      />
-                                    ) : (
-                                      <div className="w-12 h-12 rounded-lg bg-muted flex items-center justify-center text-muted-foreground shrink-0">
-                                        <ForkKnife size={18} />
-                                      </div>
-                                    )}
-                                    <div className="min-w-0">
-                                      <h3 className={`font-extrabold leading-tight text-foreground truncate ${getFontSizeClass(kitchenZoomLevel, 'title')}`}>{dish.name}</h3>
-                                      <div className="flex flex-wrap gap-1 mt-1">
-                                        <Badge variant="secondary" className={`font-semibold uppercase tracking-tight ${getFontSizeClass(kitchenZoomLevel, 'meta')}`}>Totale {totalQuantity}x</Badge>
-                                        {pendingTickets.length > 0 && (
-                                          <Badge variant={longestWait > 20 ? 'destructive' : longestWait > 10 ? 'default' : 'outline'} className={`font-semibold ${getFontSizeClass(kitchenZoomLevel, 'meta')}`}>
-                                            ⏱️ {longestWait} min
-                                          </Badge>
-                                        )}
-                                        {dish.allergens?.length ? (
-                                          <Badge variant="outline" className={`bg-amber-50 text-amber-700 px-1.5 ${getFontSizeClass(kitchenZoomLevel, 'meta')}`}>
-                                            ⚠️ {dish.allergens.length}
-                                          </Badge>
-                                        ) : null}
-                                      </div>
-                                    </div>
-                                  </div>
-                                </div>
-
-                                <div className={`grid gap-2 ${kitchenZoomLevel <= 2 ? 'grid-cols-1' : 'grid-cols-1'}`}>
-                                  {tickets.map(ticket => {
-                                    const isServed = ticket.status === 'SERVED'
-                                    return (
-                                      <div
-                                        key={`${ticket.orderId}-${ticket.itemId}`}
-                                        className={`p-2 rounded-md border border-border/60 flex items-start justify-between gap-2 transition-all duration-300 ${isServed ? 'bg-muted/10 opacity-40' : 'bg-muted/30'}`}
-                                      >
-                                        <div className="space-y-0.5 min-w-0 flex-1">
-                                          <div className="flex items-center gap-2 font-semibold">
-                                            <Badge variant="outline" className={`text-xs ${getFontSizeClass(kitchenZoomLevel, 'meta')}`}>Tav {ticket.tableNumber}</Badge>
-                                            <span className={`font-bold text-foreground ${getFontSizeClass(kitchenZoomLevel, 'item')}`}>{ticket.quantity}x</span>
-                                          </div>
-                                          <div className={`text-muted-foreground font-semibold truncate ${getFontSizeClass(kitchenZoomLevel, 'meta')}`}>⏳ {getTimeAgo(ticket.createdAt)}</div>
-                                          {ticket.note && (
-                                            <div className={`text-orange-700 bg-orange-50 border border-orange-200 rounded px-2 py-1 truncate max-w-full font-semibold ${getFontSizeClass(kitchenZoomLevel, 'meta')}`}>
-                                              {ticket.note}
-                                            </div>
-                                          )}
-                                        </div>
-                                        <Button
-                                          variant={isServed ? "ghost" : "ghost"}
-                                          size="icon"
-                                          className={`shrink-0 ${isServed ? 'text-muted-foreground' : 'text-green-700 hover:bg-green-100 border border-green-200'}`}
-                                          style={{ width: kitchenZoomLevel >= 4 ? '3rem' : '2.25rem', height: kitchenZoomLevel >= 4 ? '3rem' : '2.25rem' }}
-                                          onClick={() => handleCompleteDish(ticket.orderId, ticket.itemId)}
-                                          disabled={isServed}
-                                        >
-                                          {isServed ? <CheckCircle size={kitchenZoomLevel >= 4 ? 28 : 18} weight="fill" /> : <Check size={kitchenZoomLevel >= 4 ? 28 : 18} />}
-                                        </Button>
-                                      </div>
-                                    )
-                                  })}
-                                </div>
-                              </CardContent>
-                            </Card>
-                          )
-                        })}
-                    </div>
-                  )
-                ) : (
-                  // TABLE VIEW
-                  // Show all tables with active tickets, even if served (they will be transparent)
-                  Object.keys(tableGroups).length === 0 ? (
-                    <Card>
-                      <CardContent className="py-10 text-center text-muted-foreground">
-                        Nessun tavolo in attesa per i filtri selezionati
-                      </CardContent>
-                    </Card>
-                  ) : (
-                    <div className={`grid gap-4 ${getGridColsClass(kitchenZoomLevel)} transition-all duration-300`}>
-                      {Object.entries(tableGroups)
-                        // .filter(([_, tickets]) => !tickets.every(t => t.status === 'SERVED')) // REMOVED: Keep served tables visible
-                        .map(([tableId, tickets]) => {
-                          const tableNumber = restaurantTables.find(t => t.id === tableId)?.number || tickets[0]?.tableNumber || 'N/D'
-                          const pendingTickets = tickets.filter(t => t.status !== 'SERVED')
-                          const oldestTicket = pendingTickets.length > 0 ? pendingTickets.reduce((oldest, t) => {
-                            return new Date(t.createdAt) < new Date(oldest.createdAt) ? t : oldest
-                          }, pendingTickets[0]) : tickets[0]
-
-                          const waitTime = pendingTickets.length > 0 ? Math.floor((Date.now() - new Date(oldestTicket.createdAt).getTime()) / 60000) : 0
-
-                          return (
-                            <Card key={tableId} className={`border border-border/60 shadow-sm overflow-hidden flex flex-col h-full ${tickets.every(t => t.status === 'SERVED') ? 'opacity-50 grayscale' : ''}`}>
-                              <CardHeader className={`p-4 pb-3 border-b ${waitTime > 20 && !tickets.every(t => t.status === 'SERVED') ? 'bg-red-500/10' : 'bg-muted/30'}`}>
-                                <div className="flex justify-between items-center">
-                                  <CardTitle className={`${getFontSizeClass(kitchenZoomLevel, 'title')} font-black tracking-tight text-4xl md:text-5xl`}>
-                                    {tableNumber}
-                                  </CardTitle>
-                                  {pendingTickets.length > 0 && (
-                                    <Badge variant={waitTime > 20 ? 'destructive' : 'secondary'} className={`font-bold px-2 py-1 ${getFontSizeClass(kitchenZoomLevel, 'meta')}`}>
-                                      ⏱️ {waitTime} min
-                                    </Badge>
-                                  )}
-                                </div>
-                              </CardHeader>
-                              <CardContent className="p-0 flex-1 flex flex-col">
-                                <div className="divide-y divide-border/40 overflow-y-auto flex-1 min-h-[150px]">
-                                  {tickets.map(ticket => {
-                                    const isServed = ticket.status === 'SERVED'
-                                    return (
-                                      <div key={`${ticket.orderId}-${ticket.itemId}`} className={`p-3 flex items-start justify-between gap-3 hover:bg-muted/10 transition-opacity ${isServed ? 'opacity-40 bg-muted/5' : ''}`}>
-                                        <div className="space-y-1 flex-1 min-w-0">
-                                          <div className={`flex justify-between font-bold text-foreground ${getFontSizeClass(kitchenZoomLevel, 'item')}`}>
-                                            <span className={`truncate ${isServed ? 'line-through' : ''}`}>{ticket.quantity}x {ticket.dish?.name}</span>
-                                          </div>
-                                          {ticket.note && (
-                                            <p className={`text-orange-600 italic font-semibold ${getFontSizeClass(kitchenZoomLevel, 'meta')}`}>{ticket.note}</p>
-                                          )}
-                                          <p className={`text-muted-foreground font-medium ${getFontSizeClass(kitchenZoomLevel, 'meta')}`}>⏳ {getTimeAgo(ticket.createdAt)}</p>
-                                        </div>
-                                        <Button
-                                          variant="ghost"
-                                          size="icon"
-                                          className={`shrink-0 ${isServed ? 'text-muted-foreground' : 'text-green-600 hover:text-green-700 hover:bg-green-50'}`}
-                                          style={{ width: kitchenZoomLevel >= 4 ? '3rem' : '2.25rem', height: kitchenZoomLevel >= 4 ? '3rem' : '2.25rem' }}
-                                          onClick={() => handleCompleteDish(ticket.orderId, ticket.itemId)}
-                                          disabled={isServed}
-                                        >
-                                          {isServed ? <CheckCircle size={kitchenZoomLevel >= 4 ? 32 : 24} weight="fill" /> : <Check size={kitchenZoomLevel >= 4 ? 32 : 24} />}
-                                        </Button>
-                                      </div>
-                                    )
-                                  })}
-                                </div>
-                                <div className="p-3 bg-muted/10 border-t border-border/10 mt-auto">
-                                  <Button
-                                    variant="default"
-                                    size="sm"
-                                    className={`w-full bg-green-600 hover:bg-green-700 text-white font-bold shadow-sm ${kitchenZoomLevel >= 4 ? 'h-14 text-lg' : 'h-10 text-sm'}`}
-                                    onClick={() => handleCompleteDishGroup(tickets)}
-                                  >
-                                    Completa Tutti ({tickets.length})
-                                  </Button>
-                                </div>
-                              </CardContent>
-                            </Card>
-                          )
-                        })}
-                    </div>
-                  )
-                )
-                }
-              </div>
+              <KitchenView
+                orders={orders}
+                tables={tables || []}
+                dishes={dishes || []}
+                onCompleteDish={(orderId, itemId) => handleCompleteDish(orderId, itemId)}
+                onCompleteOrder={handleCompleteOrder}
+              />
             )}
-          </TabsContent>
+          </TabsContent >
 
           {/* Tables Tab */}
-          <TabsContent value="tables" className="space-y-6">
+          < TabsContent value="tables" className="space-y-6" >
             <div className="flex items-center justify-between mb-6">
               <div className="flex items-center gap-3">
                 <div className="w-11 h-11 rounded-xl bg-gradient-to-br from-primary to-accent flex items-center justify-center text-white shadow-gold">
@@ -1686,10 +1420,10 @@ const RestaurantDashboard = ({ user, onLogout }: RestaurantDashboardProps) => {
                 )
               })}
             </div>
-          </TabsContent>
+          </TabsContent >
 
           {/* Menu Tab */}
-          <TabsContent value="menu" className="space-y-6">
+          < TabsContent value="menu" className="space-y-6" >
             <div className="flex items-center justify-between mb-6">
               <div className="flex items-center gap-3">
                 <div className="w-11 h-11 rounded-xl bg-gradient-to-br from-primary to-accent flex items-center justify-center text-white shadow-gold">
@@ -2000,12 +1734,12 @@ const RestaurantDashboard = ({ user, onLogout }: RestaurantDashboardProps) => {
                 )
               })}
             </div>
-          </TabsContent>
+          </TabsContent >
 
           {/* Reservations Tab */}
-          <TabsContent value="reservations" className="space-y-6 p-6">
+          < TabsContent value="reservations" className="space-y-6 p-6" >
             {/* Date Filter */}
-            <div className="flex gap-2 mb-4">
+            < div className="flex gap-2 mb-4" >
               <Button
                 variant={reservationsDateFilter === 'today' ? 'default' : 'outline'}
                 onClick={() => setReservationsDateFilter('today')}
@@ -2029,7 +1763,7 @@ const RestaurantDashboard = ({ user, onLogout }: RestaurantDashboardProps) => {
               >
                 Tutte
               </Button>
-            </div>
+            </div >
             <ReservationsManager
               user={user}
               restaurantId={restaurantId}
@@ -2038,20 +1772,20 @@ const RestaurantDashboard = ({ user, onLogout }: RestaurantDashboardProps) => {
               dateFilter={reservationsDateFilter}
               onRefresh={refreshBookings}
             />
-          </TabsContent>
+          </TabsContent >
 
           {/* Analytics Tab */}
-          <TabsContent value="analytics" className="space-y-6">
+          < TabsContent value="analytics" className="space-y-6" >
             <AnalyticsCharts
               orders={restaurantOrders}
               completedOrders={restaurantCompletedOrders}
               dishes={restaurantDishes}
               categories={restaurantCategories}
             />
-          </TabsContent>
+          </TabsContent >
 
           {/* Settings Tab */}
-          <TabsContent value="settings" className="space-y-6">
+          < TabsContent value="settings" className="space-y-6" >
             <div className="flex items-center justify-between mb-6">
               <div className="flex items-center gap-3">
                 <div className="w-11 h-11 rounded-xl bg-gradient-to-br from-primary to-accent flex items-center justify-center text-white shadow-gold">
@@ -2279,12 +2013,12 @@ const RestaurantDashboard = ({ user, onLogout }: RestaurantDashboardProps) => {
             </div>
 
 
-          </TabsContent>
+          </TabsContent >
         </Tabs >
       </div >
 
       {/* Table Activation Dialog */}
-      <Dialog open={showTableDialog && !!selectedTable} onOpenChange={(open) => { if (!open) { setSelectedTable(null); setShowTableDialog(false) } }}>
+      < Dialog open={showTableDialog && !!selectedTable} onOpenChange={(open) => { if (!open) { setSelectedTable(null); setShowTableDialog(false) } }}>
         <DialogContent>
           <DialogHeader>
             <DialogTitle>Attiva Tavolo {selectedTable?.number}</DialogTitle>
@@ -2311,10 +2045,10 @@ const RestaurantDashboard = ({ user, onLogout }: RestaurantDashboardProps) => {
             </Button>
           </div>
         </DialogContent>
-      </Dialog>
+      </Dialog >
 
       {/* Create Table Dialog */}
-      <Dialog open={showCreateTableDialog} onOpenChange={setShowCreateTableDialog}>
+      < Dialog open={showCreateTableDialog} onOpenChange={setShowCreateTableDialog} >
         <DialogContent>
           <DialogHeader>
             <DialogTitle>Nuovo Tavolo</DialogTitle>
@@ -2334,10 +2068,10 @@ const RestaurantDashboard = ({ user, onLogout }: RestaurantDashboardProps) => {
             <Button onClick={handleCreateTable} className="w-full">Crea Tavolo</Button>
           </div>
         </DialogContent>
-      </Dialog>
+      </Dialog >
 
       {/* QR Code Dialog */}
-      <Dialog open={showQrDialog} onOpenChange={(open) => setShowQrDialog(open)}>
+      < Dialog open={showQrDialog} onOpenChange={(open) => setShowQrDialog(open)}>
         <DialogContent className="sm:max-w-md">
           <DialogHeader>
             <DialogTitle>Tavolo Attivato!</DialogTitle>
@@ -2363,10 +2097,10 @@ const RestaurantDashboard = ({ user, onLogout }: RestaurantDashboardProps) => {
             Chiudi
           </Button>
         </DialogContent>
-      </Dialog>
+      </Dialog >
 
       {/* Edit Category Dialog */}
-      <Dialog open={!!editingCategory} onOpenChange={(open) => { if (!open) handleCancelEdit() }}>
+      < Dialog open={!!editingCategory} onOpenChange={(open) => { if (!open) handleCancelEdit() }}>
         <DialogContent>
           <DialogHeader>
             <DialogTitle>Modifica Categoria</DialogTitle>
@@ -2385,10 +2119,10 @@ const RestaurantDashboard = ({ user, onLogout }: RestaurantDashboardProps) => {
             <Button onClick={handleSaveCategory} className="w-full">Salva Modifiche</Button>
           </div>
         </DialogContent>
-      </Dialog>
+      </Dialog >
 
       {/* Edit Dish Dialog */}
-      <Dialog open={!!editingDish} onOpenChange={(open) => { if (!open) handleCancelDishEdit() }}>
+      < Dialog open={!!editingDish} onOpenChange={(open) => { if (!open) handleCancelDishEdit() }}>
         <DialogContent>
           <DialogHeader>
             <DialogTitle>Modifica Piatto</DialogTitle>
@@ -2486,10 +2220,10 @@ const RestaurantDashboard = ({ user, onLogout }: RestaurantDashboardProps) => {
             <Button onClick={handleSaveDish} className="w-full">Salva Modifiche</Button>
           </div>
         </DialogContent>
-      </Dialog>
+      </Dialog >
 
       {/* Table QR & PIN Dialog */}
-      <Dialog open={showTableQrDialog} onOpenChange={(open) => setShowTableQrDialog(open)}>
+      < Dialog open={showTableQrDialog} onOpenChange={(open) => setShowTableQrDialog(open)}>
         <DialogContent className="sm:max-w-md">
           <DialogHeader>
             <DialogTitle>QR Code & PIN - Tavolo {selectedTableForActions?.number}</DialogTitle>
@@ -2517,10 +2251,10 @@ const RestaurantDashboard = ({ user, onLogout }: RestaurantDashboardProps) => {
             Chiudi
           </Button>
         </DialogContent>
-      </Dialog>
+      </Dialog >
 
       {/* Table Bill Dialog */}
-      <Dialog open={showTableBillDialog} onOpenChange={(open) => setShowTableBillDialog(open)}>
+      < Dialog open={showTableBillDialog} onOpenChange={(open) => setShowTableBillDialog(open)}>
         <DialogContent className="sm:max-w-lg">
           <DialogHeader>
             <DialogTitle>Conto - Tavolo {selectedTableForActions?.number}</DialogTitle>
@@ -2610,7 +2344,7 @@ const RestaurantDashboard = ({ user, onLogout }: RestaurantDashboardProps) => {
             })()}
           </div>
         </DialogContent>
-      </Dialog>
+      </Dialog >
 
     </div >
   )
