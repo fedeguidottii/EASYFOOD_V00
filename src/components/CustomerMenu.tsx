@@ -1,6 +1,6 @@
 import { useState, useMemo } from 'react'
 import { Button } from '@/components/ui/button'
-import { Card, CardContent } from '@/components/ui/card'
+import { Card } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
 import { Badge } from '@/components/ui/badge'
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog'
@@ -16,11 +16,12 @@ import {
   X,
   Clock,
   MagnifyingGlass,
-
-  Info,
-  ForkKnife
+  ForkKnife,
+  Trash,
+  ListBullets,
+  Receipt
 } from '@phosphor-icons/react'
-import { toast } from 'sonner'
+import { cn } from '@/lib/utils'
 
 interface Props {
   tableId: string
@@ -39,11 +40,13 @@ export default function CustomerMenu({ tableId, onExit, interfaceMode = 'custome
     addToCart,
     removeFromCart,
     updateCartItem,
-    placeOrder
+    placeOrder,
+    cancelOrderItem,
+    cancelOrder
   } = useCustomerSession(tableId)
 
-  const isWaiterMode = interfaceMode === 'waiter'
   const mode = interfaceMode
+  const [activeTab, setActiveTab] = useState<'menu' | 'orders'>('menu')
 
   const [selectedCategory, setSelectedCategory] = useState<string>('all')
   const [searchTerm, setSearchTerm] = useState('')
@@ -128,7 +131,11 @@ export default function CustomerMenu({ tableId, onExit, interfaceMode = 'custome
 
   const handleSendOrder = async () => {
     await placeOrder()
-    onExit() // Go back to dashboard
+    if (mode === 'waiter') {
+      setActiveTab('orders') // Switch to orders tab to show progress
+    } else {
+      onExit()
+    }
   }
 
   const getElapsedLabel = (timestamp?: string | null) => {
@@ -153,9 +160,9 @@ export default function CustomerMenu({ tableId, onExit, interfaceMode = 'custome
   }
 
   return (
-    <div className={`min-h-screen ${mode === 'waiter' ? 'bg-gray-50 pb-32' : 'bg-background pb-24'}`}>
+    <div className={`min-h-screen ${mode === 'waiter' ? 'bg-gray-100 pb-32' : 'bg-background pb-24'}`}>
       {/* Header */}
-      <header className="sticky top-0 z-40 w-full bg-background/80 backdrop-blur-md border-b shadow-sm">
+      <header className="sticky top-0 z-40 w-full bg-background/95 backdrop-blur-md border-b shadow-sm">
         <div className="container mx-auto px-4 h-16 flex items-center justify-between">
           {mode === 'customer' ? (
             <div className="flex items-center gap-2">
@@ -173,33 +180,60 @@ export default function CustomerMenu({ tableId, onExit, interfaceMode = 'custome
             </div>
           )}
 
-
+          {/* Waiter Mode Tabs */}
+          {mode === 'waiter' && (
+            <div className="flex gap-2">
+              <Button
+                variant={activeTab === 'menu' ? 'default' : 'ghost'}
+                size="sm"
+                onClick={() => setActiveTab('menu')}
+                className="font-bold"
+              >
+                <ListBullets size={18} className="mr-2" />
+                MENU
+              </Button>
+              <Button
+                variant={activeTab === 'orders' ? 'default' : 'ghost'}
+                size="sm"
+                onClick={() => setActiveTab('orders')}
+                className="font-bold relative"
+              >
+                <Receipt size={18} className="mr-2" />
+                IN CORSO
+                {orders.filter(o => o.status !== 'completed' && o.status !== 'PAID' && o.status !== 'CANCELLED').length > 0 && (
+                  <span className="absolute -top-1 -right-1 w-3 h-3 bg-red-500 rounded-full animate-pulse" />
+                )}
+              </Button>
+            </div>
+          )}
         </div>
 
-        {/* Categories */}
-        <div className="w-full overflow-x-auto no-scrollbar border-b bg-background/50">
-          <div className="container mx-auto px-4 flex gap-2 py-3">
-            <Button
-              variant={selectedCategory === 'all' ? 'default' : 'outline'}
-              size="sm"
-              onClick={() => setSelectedCategory('all')}
-              className="rounded-full whitespace-nowrap shadow-sm"
-            >
-              Tutti
-            </Button>
-            {sortedCategories.map(category => (
+        {/* Categories (Only in Menu Tab) */}
+        {activeTab === 'menu' && (
+          <div className="w-full overflow-x-auto no-scrollbar border-b bg-background/50">
+            <div className="container mx-auto px-4 flex gap-2 py-3">
               <Button
-                key={category.id}
-                variant={selectedCategory === category.id ? 'default' : 'outline'}
+                variant={selectedCategory === 'all' ? 'default' : 'outline'}
                 size="sm"
-                onClick={() => setSelectedCategory(category.id)}
+                onClick={() => setSelectedCategory('all')}
                 className="rounded-full whitespace-nowrap shadow-sm"
               >
-                {category.name}
+                Tutti
               </Button>
-            ))}
+              {sortedCategories.map(category => (
+                <Button
+                  key={category.id}
+                  variant={selectedCategory === category.id ? 'default' : 'outline'}
+                  size="sm"
+                  onClick={() => setSelectedCategory(category.id)}
+                  className="rounded-full whitespace-nowrap shadow-sm"
+                >
+                  {category.name}
+                </Button>
+              ))}
+            </div>
           </div>
-        </div>
+        )}
       </header>
 
       {mode === 'customer' && (
@@ -217,115 +251,191 @@ export default function CustomerMenu({ tableId, onExit, interfaceMode = 'custome
       )}
 
       <main className="container mx-auto px-4 py-2">
-        {mode === 'waiter' ? (
-          // WAITER MODE LIST VIEW
-          <div className="space-y-2">
-            {filteredItems.map(dish => {
-              const cartItem = cartItems.find(i => i.dish_id === dish.id)
-              const quantity = cartItem?.quantity || 0
+        {activeTab === 'menu' ? (
+          // MENU VIEW
+          mode === 'waiter' ? (
+            // WAITER MODE LIST VIEW
+            <div className="space-y-2">
+              {filteredItems.map(dish => {
+                const cartItem = cartItems.find(i => i.dish_id === dish.id)
+                const quantity = cartItem?.quantity || 0
 
-              return (
-                <div key={dish.id} className="flex items-center justify-between p-4 bg-white rounded-lg border border-gray-200 shadow-sm active:scale-[0.99] transition-transform">
-                  <div className="flex-1" onClick={() => openAddDialog(dish)}>
-                    <div className="flex justify-between items-start">
-                      <h3 className="font-bold text-lg text-gray-900">{dish.name}</h3>
-                      <span className="font-bold text-lg ml-2 text-gray-900">€{dish.price.toFixed(2)}</span>
-                    </div>
-                    {quantity > 0 && (
-                      <Badge className="mt-1 bg-green-100 text-green-800 hover:bg-green-100 border-green-200">
-                        {quantity} nel carrello
-                      </Badge>
-                    )}
-                  </div>
-
-                  <div className="flex items-center gap-3 ml-4">
-                    <Button
-                      variant="outline"
-                      size="icon"
-                      className="h-12 w-12 rounded-full border-2"
-                      onClick={(e) => handleQuickRemove(e, dish)}
-                      disabled={quantity === 0}
-                    >
-                      <Minus size={24} weight="bold" />
-                    </Button>
-                    <span className="w-8 text-center font-bold text-xl">{quantity}</span>
-                    <Button
-                      variant="default"
-                      size="icon"
-                      className="h-12 w-12 rounded-full shadow-md"
-                      onClick={(e) => handleQuickAdd(e, dish)}
-                    >
-                      <Plus size={24} weight="bold" />
-                    </Button>
-                  </div>
-                </div>
-              )
-            })}
-          </div>
-        ) : (
-          // CUSTOMER MODE CARD VIEW
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-            {filteredItems.map(dish => (
-              <Card
-                key={dish.id}
-                className="overflow-hidden cursor-pointer hover:shadow-md transition-all duration-300 border-0 shadow-sm bg-card/50 backdrop-blur-sm"
-                onClick={() => openAddDialog(dish)}
-              >
-                <div className="flex h-32">
-                  {/* Image */}
-                  <div className="w-32 h-full shrink-0 bg-muted relative">
-                    {dish.image_url ? (
-                      <img
-                        src={dish.image_url}
-                        alt={dish.name}
-                        className="w-full h-full object-cover"
-                        loading="lazy"
-                      />
-                    ) : (
-                      <div className="w-full h-full flex items-center justify-center text-muted-foreground/20">
-                        <ForkKnife size={32} weight="duotone" />
+                return (
+                  <div key={dish.id} className="flex items-center justify-between p-4 bg-white rounded-lg border border-gray-200 shadow-sm active:scale-[0.99] transition-transform">
+                    <div className="flex-1" onClick={() => openAddDialog(dish)}>
+                      <div className="flex justify-between items-start">
+                        <h3 className="font-bold text-lg text-gray-900">{dish.name}</h3>
+                        <span className="font-bold text-lg ml-2 text-gray-900">€{dish.price.toFixed(2)}</span>
                       </div>
-                    )}
-                    {cartItems.some(i => i.dish_id === dish.id) && (
-                      <div className="absolute top-2 left-2 bg-primary text-primary-foreground text-xs font-bold px-2 py-1 rounded-full shadow-lg">
-                        {cartItems.find(i => i.dish_id === dish.id)?.quantity}x
-                      </div>
-                    )}
-                  </div>
-
-                  {/* Content */}
-                  <div className="flex-1 p-3 flex flex-col justify-between">
-                    <div>
-                      <div className="flex justify-between items-start gap-2">
-                        <h3 className="font-semibold line-clamp-1">{dish.name}</h3>
-                        <span className="font-bold text-primary">€{dish.price.toFixed(2)}</span>
-                      </div>
-                      <p className="text-xs text-muted-foreground line-clamp-2 mt-1">{dish.description}</p>
+                      {quantity > 0 && (
+                        <Badge className="mt-1 bg-green-100 text-green-800 hover:bg-green-100 border-green-200">
+                          {quantity} nel carrello
+                        </Badge>
+                      )}
                     </div>
 
-                    <div className="flex items-center justify-between mt-2">
-                      <div className="flex gap-1">
-                        {dish.allergens?.slice(0, 2).map((allergen, i) => (
-                          <Badge key={i} variant="secondary" className="text-[10px] px-1 h-5">
-                            {allergen}
-                          </Badge>
-                        ))}
-                        {(dish.allergens?.length || 0) > 2 && (
-                          <Badge variant="secondary" className="text-[10px] px-1 h-5">+{dish.allergens!.length - 2}</Badge>
-                        )}
-                      </div>
-                      <Button size="sm" className="h-8 w-8 p-0 rounded-full shadow-sm">
-                        <Plus size={16} />
+                    <div className="flex items-center gap-3 ml-4">
+                      <Button
+                        variant="outline"
+                        size="icon"
+                        className="h-12 w-12 rounded-full border-2"
+                        onClick={(e) => handleQuickRemove(e, dish)}
+                        disabled={quantity === 0}
+                      >
+                        <Minus size={24} weight="bold" />
+                      </Button>
+                      <span className="w-8 text-center font-bold text-xl">{quantity}</span>
+                      <Button
+                        variant="default"
+                        size="icon"
+                        className="h-12 w-12 rounded-full shadow-md"
+                        onClick={(e) => handleQuickAdd(e, dish)}
+                      >
+                        <Plus size={24} weight="bold" />
                       </Button>
                     </div>
                   </div>
-                </div>
-              </Card>
-            ))}
+                )
+              })}
+            </div>
+          ) : (
+            // CUSTOMER MODE CARD VIEW
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+              {filteredItems.map(dish => (
+                <Card
+                  key={dish.id}
+                  className="overflow-hidden cursor-pointer hover:shadow-md transition-all duration-300 border-0 shadow-sm bg-card/50 backdrop-blur-sm"
+                  onClick={() => openAddDialog(dish)}
+                >
+                  <div className="flex h-32">
+                    {/* Image */}
+                    <div className="w-32 h-full shrink-0 bg-muted relative">
+                      {dish.image_url ? (
+                        <img
+                          src={dish.image_url}
+                          alt={dish.name}
+                          className="w-full h-full object-cover"
+                          loading="lazy"
+                        />
+                      ) : (
+                        <div className="w-full h-full flex items-center justify-center text-muted-foreground/20">
+                          <ForkKnife size={32} weight="duotone" />
+                        </div>
+                      )}
+                      {cartItems.some(i => i.dish_id === dish.id) && (
+                        <div className="absolute top-2 left-2 bg-primary text-primary-foreground text-xs font-bold px-2 py-1 rounded-full shadow-lg">
+                          {cartItems.find(i => i.dish_id === dish.id)?.quantity}x
+                        </div>
+                      )}
+                    </div>
+
+                    {/* Content */}
+                    <div className="flex-1 p-3 flex flex-col justify-between">
+                      <div>
+                        <div className="flex justify-between items-start gap-2">
+                          <h3 className="font-semibold line-clamp-1">{dish.name}</h3>
+                          <span className="font-bold text-primary">€{dish.price.toFixed(2)}</span>
+                        </div>
+                        <p className="text-xs text-muted-foreground line-clamp-2 mt-1">{dish.description}</p>
+                      </div>
+
+                      <div className="flex items-center justify-between mt-2">
+                        <div className="flex gap-1">
+                          {dish.allergens?.slice(0, 2).map((allergen, i) => (
+                            <Badge key={i} variant="secondary" className="text-[10px] px-1 h-5">
+                              {allergen}
+                            </Badge>
+                          ))}
+                          {(dish.allergens?.length || 0) > 2 && (
+                            <Badge variant="secondary" className="text-[10px] px-1 h-5">+{dish.allergens!.length - 2}</Badge>
+                          )}
+                        </div>
+                        <Button size="sm" className="h-8 w-8 p-0 rounded-full shadow-sm">
+                          <Plus size={16} />
+                        </Button>
+                      </div>
+                    </div>
+                  </div>
+                </Card>
+              ))}
+            </div>
+          )
+        ) : (
+          // ORDERS VIEW (IN CORSO)
+          <div className="space-y-4">
+            {orders.filter(o => o.status !== 'completed' && o.status !== 'PAID' && o.status !== 'CANCELLED').length === 0 ? (
+              <div className="text-center py-12 text-muted-foreground">
+                <p className="text-lg font-medium">Nessun ordine in corso</p>
+              </div>
+            ) : (
+              orders
+                .filter(o => o.status !== 'completed' && o.status !== 'PAID' && o.status !== 'CANCELLED')
+                .map(order => (
+                  <Card key={order.id} className="border-2 border-primary/20 shadow-sm overflow-hidden">
+                    <div className="bg-muted/30 p-3 border-b flex justify-between items-center">
+                      <div className="flex items-center gap-2">
+                        <Badge variant="outline" className="bg-white">
+                          Ordine #{order.id.slice(0, 4)}
+                        </Badge>
+                        <span className="text-xs text-muted-foreground flex items-center gap-1">
+                          <Clock size={12} />
+                          {getElapsedLabel(order.created_at)}
+                        </span>
+                      </div>
+                      <Button
+                        variant="destructive"
+                        size="sm"
+                        className="h-8 text-xs font-bold"
+                        onClick={() => {
+                          if (confirm('Sei sicuro di voler annullare l\'intero ordine?')) {
+                            cancelOrder(order.id)
+                          }
+                        }}
+                      >
+                        ANNULLA ORDINE
+                      </Button>
+                    </div>
+                    <div className="p-3 space-y-3">
+                      {order.items?.map(item => (
+                        <div key={item.id} className="flex justify-between items-center bg-white p-2 rounded border">
+                          <div className="flex items-center gap-3">
+                            <span className="font-black text-lg w-6 text-center">{item.quantity}</span>
+                            <div>
+                              <p className="font-bold text-gray-900">{item.dish?.name}</p>
+                              {item.note && <p className="text-xs text-red-500 font-medium">Note: {item.note}</p>}
+                            </div>
+                          </div>
+
+                          <div className="flex items-center gap-2">
+                            <Badge variant={item.status === 'SERVED' ? 'default' : 'secondary'} className={item.status === 'SERVED' ? 'bg-green-600' : ''}>
+                              {item.status === 'SERVED' ? 'SERVITO' : item.status === 'ready' ? 'PRONTO' : 'IN PREP.'}
+                            </Badge>
+
+                            {item.status !== 'SERVED' && item.status !== 'CANCELLED' && (
+                              <Button
+                                variant="ghost"
+                                size="icon"
+                                className="h-8 w-8 text-red-500 hover:bg-red-50 hover:text-red-700"
+                                onClick={() => {
+                                  if (confirm('Annullare questo piatto?')) {
+                                    cancelOrderItem(order.id, item.id)
+                                  }
+                                }}
+                              >
+                                <Trash size={18} weight="bold" />
+                              </Button>
+                            )}
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </Card>
+                ))
+            )}
           </div>
         )}
 
-        {filteredItems.length === 0 && (
+        {filteredItems.length === 0 && activeTab === 'menu' && (
           <div className="text-center py-12 text-muted-foreground">
             <p>Nessun piatto trovato</p>
           </div>
@@ -333,7 +443,7 @@ export default function CustomerMenu({ tableId, onExit, interfaceMode = 'custome
       </main>
 
       {/* Footer Actions */}
-      {mode === 'waiter' ? (
+      {mode === 'waiter' && activeTab === 'menu' ? (
         <div className="fixed bottom-0 left-0 right-0 p-4 bg-white border-t shadow-[0_-4px_6px_-1px_rgba(0,0,0,0.1)] z-50">
           <div className="container mx-auto max-w-md flex flex-col gap-3">
             <div className="flex items-center justify-between px-2">
@@ -348,7 +458,7 @@ export default function CustomerMenu({ tableId, onExit, interfaceMode = 'custome
             </div>
             <Button
               size="lg"
-              className="w-full h-14 text-xl font-black shadow-lg"
+              className="w-full h-14 text-xl font-black shadow-lg bg-primary hover:bg-primary/90 text-primary-foreground"
               onClick={handleSendOrder}
               disabled={cartItemCount === 0}
             >
@@ -356,7 +466,7 @@ export default function CustomerMenu({ tableId, onExit, interfaceMode = 'custome
             </Button>
           </div>
         </div>
-      ) : (
+      ) : mode === 'customer' ? (
         // Customer Floating Cart
         (cartItemCount > 0 || orders.length > 0) && (
           <div className="fixed bottom-6 left-0 right-0 px-4 flex justify-center z-50">
@@ -374,7 +484,7 @@ export default function CustomerMenu({ tableId, onExit, interfaceMode = 'custome
             </Button>
           </div>
         )
-      )}
+      ) : null}
 
       {/* Add Dish Dialog (Shared) */}
       <Dialog open={showAddDialog} onOpenChange={setShowAddDialog}>
@@ -490,6 +600,13 @@ export default function CustomerMenu({ tableId, onExit, interfaceMode = 'custome
                 {orders.map(order => {
                   const allServed = order.items?.every(i => i.status === 'SERVED')
                   const isCompleted = order.status === 'completed' || order.status === 'PAID' || allServed
+                  const isCancelled = order.status === 'CANCELLED'
+
+                  if (isCancelled) return null // Hide cancelled orders from history? Or show them? 
+                  // Usually hide or show as cancelled. Let's show as cancelled if we want history.
+                  // But for "Inviati alla Cucina" maybe we only want active ones?
+                  // The user said "In Corso" section for active.
+                  // This is the cart drawer history.
 
                   return (
                     <div key={order.id} className="border rounded-xl p-4 space-y-3">
@@ -505,9 +622,15 @@ export default function CustomerMenu({ tableId, onExit, interfaceMode = 'custome
                       <div className="space-y-2">
                         {order.items?.map(item => (
                           <div key={item.id} className="flex justify-between text-sm">
-                            <span className="text-muted-foreground">{item.quantity}x {item.dish?.name}</span>
-                            <span className={item.status === 'SERVED' ? 'text-green-600 font-medium' : 'text-muted-foreground'}>
-                              {item.status === 'SERVED' ? 'Pronto' : 'In arrivo...'}
+                            <span className={item.status === 'CANCELLED' ? 'text-muted-foreground line-through' : 'text-muted-foreground'}>
+                              {item.quantity}x {item.dish?.name}
+                            </span>
+                            <span className={
+                              item.status === 'SERVED' ? 'text-green-600 font-medium' :
+                                item.status === 'CANCELLED' ? 'text-red-500 font-medium' :
+                                  'text-muted-foreground'
+                            }>
+                              {item.status === 'SERVED' ? 'Pronto' : item.status === 'CANCELLED' ? 'Annullato' : 'In arrivo...'}
                             </span>
                           </div>
                         ))}

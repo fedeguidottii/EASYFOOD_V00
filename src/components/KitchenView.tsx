@@ -1,48 +1,34 @@
 import { useState, useEffect, useMemo } from 'react'
 import { Order, OrderItem, Table, Dish } from '../services/types'
 import { Button } from '@/components/ui/button'
-import { Badge } from '@/components/ui/badge'
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
-import { Check, Clock, Minus, Plus, Archive, X } from '@phosphor-icons/react'
-import { formatDistanceToNow } from 'date-fns'
-import { it } from 'date-fns/locale'
+import { Card, CardContent, CardHeader } from '@/components/ui/card'
+import { Clock, Minus, Plus } from '@phosphor-icons/react'
 import { cn } from '@/lib/utils'
 
 interface KitchenViewProps {
     orders: Order[]
     tables: Table[]
     dishes: Dish[]
+    selectedCategoryIds?: string[]
     onCompleteDish: (orderId: string, itemId: string) => void
     onCompleteOrder: (orderId: string) => void
 }
 
-export function KitchenView({ orders, tables, dishes, onCompleteDish, onCompleteOrder }: KitchenViewProps) {
+type ViewMode = 'table' | 'dish'
+
+export function KitchenView({ orders, tables, dishes, selectedCategoryIds = [], onCompleteDish, onCompleteOrder }: KitchenViewProps) {
     const [now, setNow] = useState(new Date())
-    const [columns, setColumns] = useState(3) // Default 3 columns
+    const [columns, setColumns] = useState(3)
+    const [viewMode, setViewMode] = useState<ViewMode>('table')
 
     useEffect(() => {
         const interval = setInterval(() => setNow(new Date()), 1000 * 60)
         return () => clearInterval(interval)
     }, [])
 
-    // Filter active orders (OPEN, pending, preparing, ready)
-    // We KEEP 'ready' orders visible until they are manually archived (which might mean setting them to SERVED or CLOSED)
-    // The user wants "Stop Reordering", so we sort strictly by time.
-    const activeOrders = useMemo(() => {
-        return orders
-            .filter(o => ['OPEN', 'pending', 'preparing', 'ready'].includes(o.status))
-            .sort((a, b) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime())
-    }, [orders])
-
     const getTableName = (tableId?: string, sessionId?: string) => {
-        // Try to find by session first
         const tableBySession = tables.find(t => t.current_session_id === sessionId)
-        if (tableBySession) return tableBySession.number
-
-        // Fallback to table_id if available (though type says table_session_id is the link)
-        // Some legacy data might have table_id directly on order? The type definition usually has table_session_id.
-        // We'll stick to finding the table that has this session.
-        return tableBySession ? tableBySession.number : '?'
+        return tableBySession ? `Tavolo ${tableBySession.number}` : 'Tavolo ?'
     }
 
     const getDish = (dishId: string) => dishes.find(d => d.id === dishId)
@@ -50,34 +36,84 @@ export function KitchenView({ orders, tables, dishes, onCompleteDish, onComplete
     const handleZoomIn = () => setColumns(prev => Math.max(1, prev - 1))
     const handleZoomOut = () => setColumns(prev => Math.min(5, prev + 1))
 
-    // Helper to check if all items in an order are completed (SERVED or ready)
-    // Actually, we are using local state for visual completion if we want to avoid re-renders moving things?
-    // No, the user said "Stop Reordering". If we change status to 'ready', and we sort by 'created_at', it won't move.
-    // So we can rely on the real status.
+    // Helper to check if order is complete
     const isOrderComplete = (order: Order) => {
         return order.items?.every(item => item.status === 'SERVED' || item.status === 'ready')
     }
 
+    // Helper to check if item matches category filter
+    const itemMatchesCategory = (item: OrderItem) => {
+        if (!selectedCategoryIds || selectedCategoryIds.length === 0) return true
+        const dish = getDish(item.dish_id)
+        return dish && selectedCategoryIds.includes(dish.category_id)
+    }
+
+    // Filter active orders:
+    // 1. Must be in active status
+    // 2. Must NOT be fully complete (Auto-Archive)
+    // 3. Must have at least one item matching the category filter
+    const activeOrders = useMemo(() => {
+        return orders
+            .filter(o => ['OPEN', 'pending', 'preparing', 'ready'].includes(o.status))
+            .filter(o => !isOrderComplete(o)) // Auto-archive
+            .filter(o => {
+                // Check if order has any item matching the category
+                if (!selectedCategoryIds || selectedCategoryIds.length === 0) return true
+                return o.items?.some(item => itemMatchesCategory(item))
+            })
+            .sort((a, b) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime())
+    }, [orders, selectedCategoryIds, dishes])
+
+    // Group by Dish Logic
+    const dishesViewData = useMemo(() => {
+        const dishMap = new Map<string, { dish: Dish | undefined, items: { order: Order, item: OrderItem }[] }>()
+
+        activeOrders.forEach(order => {
+            order.items?.forEach(item => {
+                // Filter by status AND category
+                if (item.status !== 'SERVED' && item.status !== 'ready' && itemMatchesCategory(item)) {
+                    const existing = dishMap.get(item.dish_id) || { dish: getDish(item.dish_id), items: [] }
+                    existing.items.push({ order, item })
+                    dishMap.set(item.dish_id, existing)
+                }
+            })
+        })
+
+        return Array.from(dishMap.values())
+    }, [activeOrders, dishes, selectedCategoryIds])
+
     return (
-        <div className="p-4 h-screen flex flex-col bg-background">
+        <div className="p-2 h-screen flex flex-col bg-background">
             {/* Header / Controls */}
-            <div className="flex items-center justify-between mb-6 bg-muted/20 p-4 rounded-xl border">
-                <div className="flex items-center gap-6">
-                    <h2 className="text-3xl font-black tracking-tight">CUCINA (KDS)</h2>
-                    <Badge variant="secondary" className="text-xl px-4 py-1">
-                        {activeOrders.length} Comande
-                    </Badge>
+            <div className="flex items-center justify-between mb-4 bg-muted/20 p-2 rounded-lg border">
+                <div className="flex items-center gap-4">
+                    <div className="flex gap-2">
+                        <Button
+                            variant={viewMode === 'table' ? "default" : "outline"}
+                            onClick={() => setViewMode('table')}
+                            className="font-bold text-lg"
+                        >
+                            PER TAVOLO
+                        </Button>
+                        <Button
+                            variant={viewMode === 'dish' ? "default" : "outline"}
+                            onClick={() => setViewMode('dish')}
+                            className="font-bold text-lg"
+                        >
+                            PER PIATTO
+                        </Button>
+                    </div>
                 </div>
 
                 <div className="flex items-center gap-4">
                     <span className="text-sm font-medium text-muted-foreground uppercase tracking-wider">Zoom</span>
                     <div className="flex items-center gap-2 bg-card border rounded-lg p-1 shadow-sm">
-                        <Button variant="ghost" size="icon" onClick={handleZoomOut} className="h-12 w-12 rounded-md hover:bg-muted">
-                            <Minus weight="bold" className="h-6 w-6" />
+                        <Button variant="ghost" size="icon" onClick={handleZoomOut} className="h-10 w-10 rounded-md hover:bg-muted">
+                            <Minus weight="bold" className="h-5 w-5" />
                         </Button>
                         <span className="w-8 text-center font-bold text-lg">{columns}</span>
-                        <Button variant="ghost" size="icon" onClick={handleZoomIn} className="h-12 w-12 rounded-md hover:bg-muted">
-                            <Plus weight="bold" className="h-6 w-6" />
+                        <Button variant="ghost" size="icon" onClick={handleZoomIn} className="h-10 w-10 rounded-md hover:bg-muted">
+                            <Plus weight="bold" className="h-5 w-5" />
                         </Button>
                     </div>
                 </div>
@@ -85,99 +121,65 @@ export function KitchenView({ orders, tables, dishes, onCompleteDish, onComplete
 
             {/* Grid */}
             <div
-                className="grid gap-4 overflow-y-auto pb-20"
+                className="grid gap-4 overflow-y-auto pb-20 content-start"
                 style={{
                     gridTemplateColumns: `repeat(${columns}, minmax(0, 1fr))`
                 }}
             >
-                {activeOrders.map(order => {
-                    const tableName = getTableName(undefined, order.table_session_id)
-                    const timeDiff = (now.getTime() - new Date(order.created_at).getTime()) / 1000 / 60
-                    const isLate = timeDiff > 20
-                    const isNew = timeDiff < 5
-                    const allDone = isOrderComplete(order)
+                {viewMode === 'table' ? (
+                    // TABLE VIEW
+                    activeOrders.map(order => {
+                        const tableName = getTableName(undefined, order.table_session_id)
+                        const timeDiff = (now.getTime() - new Date(order.created_at).getTime()) / 1000 / 60
 
-                    return (
-                        <Card
-                            key={order.id}
-                            className={cn(
-                                "flex flex-col shadow-md border-2 transition-colors duration-300",
-                                isLate && !allDone ? "border-red-500 bg-red-50/10" : "border-border",
-                                isNew && !allDone ? "border-yellow-400 bg-yellow-50/10" : "",
-                                allDone ? "border-green-500/50 bg-green-50/20 opacity-90" : ""
-                            )}
-                        >
-                            {/* Card Header */}
-                            <CardHeader className={cn(
-                                "pb-2 border-b",
-                                isLate && !allDone ? "bg-red-100/50 dark:bg-red-900/20" : "",
-                                isNew && !allDone ? "bg-yellow-100/50 dark:bg-yellow-900/20" : "",
-                                allDone ? "bg-green-100/50 dark:bg-green-900/20" : "bg-muted/30"
-                            )}>
-                                <div className="flex justify-between items-center w-full">
-                                    <span className="text-4xl font-black text-foreground">
-                                        {tableName}
-                                    </span>
+                        // Filter items for display
+                        const visibleItems = order.items?.filter(item => itemMatchesCategory(item)) || []
+                        if (visibleItems.length === 0) return null
 
-                                    <div className="flex items-center gap-4">
-                                        <span className="text-3xl font-bold text-muted-foreground">
-                                            x{order.items?.reduce((acc, item) => acc + (item.quantity || 1), 0)}
+                        return (
+                            <Card
+                                key={order.id}
+                                className="flex flex-col shadow-sm border-2 border-border bg-card overflow-hidden"
+                            >
+                                <CardHeader className="pb-2 border-b bg-muted/30 p-3">
+                                    <div className="flex justify-between items-center w-full">
+                                        <span className="text-3xl font-black text-foreground">
+                                            {tableName.replace('Tavolo ', '')}
                                         </span>
-                                        <div className={cn(
-                                            "flex items-center gap-1 px-3 py-1 rounded-md font-bold text-xl",
-                                            isLate ? "text-red-600 bg-red-100" : "text-muted-foreground bg-background/50"
-                                        )}>
-                                            <Clock weight="fill" className="h-5 w-5" />
-                                            {Math.floor(timeDiff)}'
+
+                                        <div className="flex items-center gap-2">
+                                            <div className="flex items-center gap-1 px-2 py-1 rounded-md font-bold text-2xl bg-background border">
+                                                <Clock weight="fill" className="h-6 w-6 text-muted-foreground" />
+                                                {Math.floor(timeDiff)}'
+                                            </div>
                                         </div>
                                     </div>
-                                </div>
-                            </CardHeader>
+                                </CardHeader>
 
-                            {/* Card Body */}
-                            <CardContent className="flex-1 p-4 flex flex-col gap-3">
-                                <div className="space-y-3 flex-1">
-                                    {order.items?.map((item, idx) => {
+                                <CardContent className="flex-1 p-3 flex flex-col gap-2">
+                                    {visibleItems.map((item, idx) => {
                                         const dish = getDish(item.dish_id)
                                         const isItemDone = item.status === 'SERVED' || item.status === 'ready'
+
+                                        if (isItemDone) return null
 
                                         return (
                                             <div
                                                 key={`${item.id}-${idx}`}
-                                                className={cn(
-                                                    "flex items-start gap-3 p-2 rounded-lg transition-all cursor-pointer select-none",
-                                                    isItemDone
-                                                        ? "bg-muted/50 text-muted-foreground decoration-slate-400"
-                                                        : "bg-card hover:bg-accent/50",
-                                                )}
+                                                className="flex items-start gap-3 p-2 rounded-md hover:bg-accent cursor-pointer select-none border border-transparent hover:border-border transition-all"
                                                 onClick={() => onCompleteDish(order.id, item.id)}
                                             >
-                                                <div className={cn(
-                                                    "h-8 w-8 flex items-center justify-center rounded-full border-2 shrink-0 mt-0.5",
-                                                    isItemDone
-                                                        ? "border-green-500 bg-green-500 text-white"
-                                                        : "border-muted-foreground/30"
-                                                )}>
-                                                    {isItemDone && <Check weight="bold" className="h-5 w-5" />}
-                                                </div>
-
                                                 <div className="flex-1">
                                                     <div className="flex items-baseline gap-2">
-                                                        <span className={cn(
-                                                            "text-2xl font-black",
-                                                            isItemDone ? "text-muted-foreground/70" : "text-primary"
-                                                        )}>
+                                                        <span className="text-3xl font-black text-primary">
                                                             {item.quantity}
                                                         </span>
-                                                        <span className={cn(
-                                                            "text-xl font-bold leading-tight",
-                                                            isItemDone ? "line-through opacity-70" : ""
-                                                        )}>
+                                                        <span className="text-2xl font-bold leading-tight text-foreground">
                                                             {dish?.name || '???'}
                                                         </span>
                                                     </div>
                                                     {item.note && (
-                                                        <div className="mt-1 text-red-600 font-bold text-lg bg-red-50 inline-block px-2 rounded">
+                                                        <div className="mt-1 text-red-600 font-bold text-xl bg-red-50 inline-block px-2 rounded border border-red-200">
                                                             NOTE: {item.note}
                                                         </div>
                                                     )}
@@ -185,22 +187,55 @@ export function KitchenView({ orders, tables, dishes, onCompleteDish, onComplete
                                             </div>
                                         )
                                     })}
+                                </CardContent>
+                            </Card>
+                        )
+                    })
+                ) : (
+                    // DISH VIEW
+                    dishesViewData.map((data, idx) => (
+                        <Card
+                            key={`dish-view-${idx}`}
+                            className="flex flex-col shadow-sm border-2 border-border bg-card overflow-hidden"
+                        >
+                            <CardHeader className="pb-2 border-b bg-muted/30 p-3">
+                                <div className="flex justify-between items-center w-full">
+                                    <span className="text-3xl font-black text-foreground leading-tight">
+                                        {data.dish?.name}
+                                    </span>
                                 </div>
+                            </CardHeader>
 
-                                {/* Archive Button (Only visible if all done) */}
-                                {allDone && (
-                                    <Button
-                                        className="w-full h-14 text-xl font-bold bg-slate-800 hover:bg-slate-900 text-white mt-4 animate-in fade-in zoom-in duration-300"
-                                        onClick={() => onCompleteOrder(order.id)}
-                                    >
-                                        <Archive className="mr-3 h-6 w-6" />
-                                        ARCHIVIA
-                                    </Button>
-                                )}
+                            <CardContent className="flex-1 p-3 flex flex-col gap-2">
+                                {data.items.map(({ order, item }, itemIdx) => {
+                                    const tableName = getTableName(undefined, order.table_session_id)
+                                    const timeDiff = (now.getTime() - new Date(order.created_at).getTime()) / 1000 / 60
+
+                                    return (
+                                        <div
+                                            key={`dv-${item.id}-${itemIdx}`}
+                                            className="flex items-center justify-between p-2 rounded-md hover:bg-accent cursor-pointer select-none border border-transparent hover:border-border transition-all"
+                                            onClick={() => onCompleteDish(order.id, item.id)}
+                                        >
+                                            <div className="flex items-center gap-3">
+                                                <span className="text-3xl font-black text-primary">
+                                                    {item.quantity}
+                                                </span>
+                                                <span className="text-2xl font-bold text-foreground">
+                                                    {tableName.replace('Tavolo ', '')}
+                                                </span>
+                                            </div>
+
+                                            <div className="font-bold text-xl text-muted-foreground">
+                                                {Math.floor(timeDiff)}'
+                                            </div>
+                                        </div>
+                                    )
+                                })}
                             </CardContent>
                         </Card>
-                    )
-                })}
+                    ))
+                )}
             </div>
         </div>
     )

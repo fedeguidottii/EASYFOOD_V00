@@ -3,10 +3,12 @@ import { supabase } from '../../lib/supabase'
 import { DatabaseService } from '../../services/DatabaseService'
 import { Table, Order, TableSession, Restaurant } from '../../services/types'
 import { toast } from 'sonner'
-import { SignOut, User, CheckCircle, ArrowsClockwise } from '@phosphor-icons/react'
+import { SignOut, User, CheckCircle, ArrowsClockwise, Receipt, Trash } from '@phosphor-icons/react'
 import { Button } from '../ui/button'
-import { Card, CardContent, CardHeader, CardTitle } from '../ui/card'
+import { Card, CardContent } from '../ui/card'
 import { Badge } from '../ui/badge'
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '../ui/dialog'
+import { ScrollArea } from '../ui/scroll-area'
 
 interface WaiterDashboardProps {
     user: any
@@ -21,35 +23,27 @@ const WaiterDashboard = ({ user, onLogout }: WaiterDashboardProps) => {
     const [restaurantId, setRestaurantId] = useState<string | null>(null)
     const [restaurant, setRestaurant] = useState<Restaurant | null>(null)
 
+    // Payment Dialog State
+    const [selectedTableForPayment, setSelectedTableForPayment] = useState<Table | null>(null)
+    const [isPaymentDialogOpen, setIsPaymentDialogOpen] = useState(false)
+
     // Fetch initial data
     useEffect(() => {
         const initDashboard = async () => {
             try {
                 setLoading(true)
-                // Assuming user is staff, find their restaurant
-                // For now, we might need a way to get restaurant_id from user metadata or a staff table query
-                // If we don't have it easily, we might need to ask the user to select or fetch from 'restaurant_staff'
-
-                // Fallback: fetch the first restaurant owned by this user if they are owner too, 
-                // or query restaurant_staff.
-
-                // Let's try to get restaurant_id from a direct query if possible
-                // Use restaurant_id from user object if available (set by LoginPage)
                 let rId = user.restaurant_id
 
                 if (!rId) {
-                    // Fallback: fetch from restaurant_staff or restaurants (only if needed)
                     const { data: staffData } = await supabase
                         .from('restaurant_staff')
                         .select('restaurant_id')
                         .eq('user_id', user.id)
                         .single()
-
                     rId = staffData?.restaurant_id
                 }
 
                 if (!rId) {
-                    // Fallback for Owner testing as Waiter
                     const { data: restData } = await supabase
                         .from('restaurants')
                         .select('id')
@@ -74,28 +68,21 @@ const WaiterDashboard = ({ user, onLogout }: WaiterDashboardProps) => {
                     setRestaurant(restMeta as Restaurant)
                 }
 
-                // Fetch Tables
                 const tbs = await DatabaseService.getTables(rId)
                 setTables(tbs)
 
-                // Fetch Active Sessions
-                // We need a method for this, or just query directly
                 const { data: sess } = await supabase
                     .from('table_sessions')
                     .select('*')
                     .eq('restaurant_id', rId)
                     .eq('status', 'OPEN')
-
                 if (sess) setSessions(sess)
 
-                // Fetch Active Orders
-                // We want orders that are not completed/paid/cancelled
                 const { data: ords } = await supabase
                     .from('orders')
                     .select('*, items:order_items(*)')
                     .eq('restaurant_id', rId)
                     .in('status', ['pending', 'preparing', 'ready', 'served', 'CANCELLED'])
-
                 if (ords) setActiveOrders(ords)
 
             } catch (error) {
@@ -115,14 +102,8 @@ const WaiterDashboard = ({ user, onLogout }: WaiterDashboardProps) => {
 
         const channel = supabase
             .channel(`waiter-dashboard:${restaurantId}`)
-            .on('postgres_changes', { event: '*', schema: 'public', table: 'table_sessions', filter: `restaurant_id=eq.${restaurantId}` }, (payload) => {
-                // Refresh sessions
-                refreshData()
-            })
-            .on('postgres_changes', { event: '*', schema: 'public', table: 'orders', filter: `restaurant_id=eq.${restaurantId}` }, (payload) => {
-                // Refresh orders
-                refreshData()
-            })
+            .on('postgres_changes', { event: '*', schema: 'public', table: 'table_sessions', filter: `restaurant_id=eq.${restaurantId}` }, () => refreshData())
+            .on('postgres_changes', { event: '*', schema: 'public', table: 'orders', filter: `restaurant_id=eq.${restaurantId}` }, () => refreshData())
             .subscribe()
 
         return () => {
@@ -139,17 +120,15 @@ const WaiterDashboard = ({ user, onLogout }: WaiterDashboardProps) => {
         if (ords) setActiveOrders(ords)
     }
 
-
-
     const getTableTotal = (sessionId: string) => {
-        const sessionOrders = activeOrders.filter(o => o.table_session_id === sessionId)
+        const sessionOrders = activeOrders.filter(o => o.table_session_id === sessionId && o.status !== 'CANCELLED')
         return sessionOrders.reduce((sum, order) => sum + (order.total_amount || 0), 0)
     }
 
     const getSessionDuration = (openedAt: string) => {
         const start = new Date(openedAt)
         const now = new Date()
-        const diff = Math.floor((now.getTime() - start.getTime()) / 60000) // minutes
+        const diff = Math.floor((now.getTime() - start.getTime()) / 60000)
         if (diff < 60) return `${diff} min`
         const hours = Math.floor(diff / 60)
         const mins = diff % 60
@@ -159,7 +138,6 @@ const WaiterDashboard = ({ user, onLogout }: WaiterDashboardProps) => {
     const getTableStatus = (tableId: string) => {
         const session = sessions.find(s => s.table_id === tableId)
         if (!session) return 'free'
-        // Logic for 'payment-requested' could be added here if we had a flag
         return 'occupied'
     }
 
@@ -167,52 +145,59 @@ const WaiterDashboard = ({ user, onLogout }: WaiterDashboardProps) => {
         switch (status) {
             case 'free': return 'bg-white hover:bg-gray-50 border-gray-200'
             case 'occupied': return 'bg-green-100 border-green-300'
-            case 'payment-requested': return 'bg-red-100 border-red-300'
             default: return 'bg-gray-100'
         }
     }
 
     const handleTableClick = (table: Table) => {
-        // Navigate to order taking mode
         window.location.href = `/waiter/table/${table.id}`
     }
 
-    const handleMarkAsPaid = async (e: React.MouseEvent, tableId: string) => {
+    const openPaymentDialog = (e: React.MouseEvent, table: Table) => {
         e.stopPropagation()
-        const session = sessions.find(s => s.table_id === tableId)
+        setSelectedTableForPayment(table)
+        setIsPaymentDialogOpen(true)
+    }
+
+    const handleCloseTable = async (markAsPaid: boolean) => {
+        if (!selectedTableForPayment) return
+
+        const session = sessions.find(s => s.table_id === selectedTableForPayment.id)
         if (!session) return
 
-        if (confirm('Confermi che il tavolo ha pagato e vuoi liberarlo?')) {
-            try {
-                // Close session explicitly
-                await DatabaseService.updateSession({
-                    ...session,
-                    status: 'CLOSED',
-                    closed_at: new Date().toISOString()
-                })
+        try {
+            // Close session
+            await DatabaseService.updateSession({
+                ...session,
+                status: 'CLOSED',
+                closed_at: new Date().toISOString()
+            })
 
-                // Mark all active orders as PAID
-                const sessionOrders = activeOrders.filter(o => o.table_session_id === session.id)
-                if (sessionOrders.length > 0) {
-                    await supabase
-                        .from('orders')
-                        .update({ status: 'PAID' })
-                        .in('id', sessionOrders.map(o => o.id))
-                }
+            // Update orders if marking as paid
+            const sessionOrders = activeOrders.filter(o => o.table_session_id === session.id)
+            if (sessionOrders.length > 0) {
+                const status = markAsPaid ? 'PAID' : 'completed' // Or just 'completed' if not paid? User said "Segna come Pagato" -> PAID. "Libera Tavolo" -> maybe just closed?
+                // Actually "Libera Tavolo" usually implies payment is handled or skipped. 
+                // Let's assume "Segna come Pagato" sets status='PAID'.
+                // "Libera Tavolo" just closes session. But what about orders? They should probably be closed too.
 
-                // Svuota eventuali carrelli residui per evitare confusione tra tavoli
-                await DatabaseService.clearCart(session.id)
-
-                // Force refresh
-                setSessions(prev => prev.filter(s => s.id !== session.id))
-                setActiveOrders(prev => prev.filter(o => o.table_session_id !== session.id))
-
-                toast.success('Tavolo liberato e ordini pagati')
-                refreshData()
-            } catch (error) {
-                console.error('Error closing table:', error)
-                toast.error('Errore durante la chiusura del tavolo')
+                await supabase
+                    .from('orders')
+                    .update({ status: markAsPaid ? 'PAID' : 'completed' })
+                    .in('id', sessionOrders.map(o => o.id))
             }
+
+            await DatabaseService.clearCart(session.id)
+
+            setSessions(prev => prev.filter(s => s.id !== session.id))
+            setActiveOrders(prev => prev.filter(o => o.table_session_id !== session.id))
+
+            toast.success(markAsPaid ? 'Tavolo pagato e liberato' : 'Tavolo liberato')
+            setIsPaymentDialogOpen(false)
+            refreshData()
+        } catch (error) {
+            console.error('Error closing table:', error)
+            toast.error('Errore durante la chiusura del tavolo')
         }
     }
 
@@ -294,17 +279,17 @@ const WaiterDashboard = ({ user, onLogout }: WaiterDashboardProps) => {
                                     )}
                                 </div>
 
-                                {/* Quick Actions */}
+                                {/* Quick Actions - Payment Button */}
                                 {status === 'occupied' && restaurant?.allow_waiter_payments && (
                                     <div className="absolute bottom-3 left-3 z-10">
                                         <Button
                                             variant="secondary"
                                             size="icon"
-                                            className="h-10 w-10 rounded-full shadow-md bg-white hover:bg-green-50 text-green-700 border border-green-200"
-                                            onClick={(e) => handleMarkAsPaid(e, table.id)}
-                                            title="Incassa"
+                                            className="h-12 w-12 rounded-full shadow-md bg-white hover:bg-blue-50 text-blue-700 border-2 border-blue-100 hover:border-blue-300 transition-colors"
+                                            onClick={(e) => openPaymentDialog(e, table)}
+                                            title="Conto / Chiudi Tavolo"
                                         >
-                                            <CheckCircle size={24} weight="fill" />
+                                            <Receipt size={24} weight="fill" />
                                         </Button>
                                     </div>
                                 )}
@@ -313,6 +298,52 @@ const WaiterDashboard = ({ user, onLogout }: WaiterDashboardProps) => {
                     )
                 })}
             </div>
+
+            {/* Payment Dialog */}
+            <Dialog open={isPaymentDialogOpen} onOpenChange={setIsPaymentDialogOpen}>
+                <DialogContent className="sm:max-w-md">
+                    <DialogHeader>
+                        <DialogTitle className="text-2xl font-black">
+                            Tavolo {selectedTableForPayment?.number} - Conto
+                        </DialogTitle>
+                        <DialogDescription>
+                            Gestisci il pagamento e la chiusura del tavolo.
+                        </DialogDescription>
+                    </DialogHeader>
+
+                    <div className="py-4">
+                        <div className="flex justify-between items-center mb-4 p-4 bg-muted/30 rounded-lg border">
+                            <span className="text-lg font-medium">Totale da Pagare</span>
+                            <span className="text-3xl font-black text-primary">
+                                € {selectedTableForPayment && sessions.find(s => s.table_id === selectedTableForPayment.id)
+                                    ? getTableTotal(sessions.find(s => s.table_id === selectedTableForPayment.id)!.id).toFixed(2)
+                                    : '0.00'}
+                            </span>
+                        </div>
+
+                        {/* Order Summary could go here if needed */}
+                    </div>
+
+                    <DialogFooter className="flex-col gap-3 sm:flex-col">
+                        <Button
+                            className="w-full h-12 text-lg font-bold bg-green-600 hover:bg-green-700 text-white"
+                            onClick={() => handleCloseTable(true)}
+                        >
+                            <CheckCircle className="mr-2 h-5 w-5" weight="fill" />
+                            SEGNA COME PAGATO
+                        </Button>
+
+                        <Button
+                            variant="outline"
+                            className="w-full h-12 text-lg font-bold border-2"
+                            onClick={() => handleCloseTable(false)}
+                        >
+                            <Trash className="mr-2 h-5 w-5" />
+                            LIBERA TAVOLO (Senza Pagamento)
+                        </Button>
+                    </DialogFooter>
+                </DialogContent>
+            </Dialog>
         </div>
     )
 }

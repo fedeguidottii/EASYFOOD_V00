@@ -186,11 +186,57 @@ export function useCustomerSession(tableId: string) {
             await DatabaseService.clearCart(session.id)
             setCartItems([])
 
-            toast.success('Ordine inviato in cucina!')
+            toast.success('Ordine inviato in cucina!', {
+                style: {
+                    background: '#22c55e', // Green-500
+                    color: 'white',
+                    fontWeight: 'bold',
+                    fontSize: '1.1rem'
+                },
+                duration: 3000
+            })
         } catch (error) {
             console.error('Place order error:', error)
             const message = (error as any)?.message || 'Errore durante l\'invio dell\'ordine'
             toast.error(message)
+        }
+    }
+
+    const cancelOrderItem = async (orderId: string, itemId: string) => {
+        try {
+            await supabase
+                .from('order_items')
+                .update({ status: 'CANCELLED' })
+                .eq('id', itemId)
+
+            toast.success('Piatto annullato')
+            // Refresh orders
+            if (session) {
+                const updatedOrders = await DatabaseService.getSessionOrders(session.id)
+                setOrders(updatedOrders)
+            }
+        } catch (error) {
+            console.error('Error cancelling item:', error)
+            toast.error('Errore durante l\'annullamento')
+        }
+    }
+
+    const cancelOrder = async (orderId: string) => {
+        try {
+            await supabase
+                .from('orders')
+                .update({ status: 'CANCELLED' })
+                .eq('id', orderId)
+
+            toast.success('Ordine annullato')
+            // Refresh orders
+            if (session) {
+                const updatedOrders = await DatabaseService.getSessionOrders(session.id)
+                setOrders(updatedOrders)
+            }
+        } catch (error) {
+            console.error('Error cancelling order:', error)
+            toast.error('Errore durante l\'annullamento')
         }
     }
 
@@ -205,6 +251,8 @@ export function useCustomerSession(tableId: string) {
         addToCart,
         removeFromCart,
         updateCartItem,
-        placeOrder
+        placeOrder,
+        cancelOrderItem,
+        cancelOrder
     }
 }

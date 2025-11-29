@@ -1220,6 +1220,7 @@ const RestaurantDashboard = ({ user, onLogout }: RestaurantDashboardProps) => {
                 orders={orders}
                 tables={tables || []}
                 dishes={dishes || []}
+                selectedCategoryIds={selectedCategoryIds}
                 onCompleteDish={(orderId, itemId) => handleCompleteDish(orderId, itemId)}
                 onCompleteOrder={handleCompleteOrder}
               />
