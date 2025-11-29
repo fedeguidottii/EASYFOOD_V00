@@ -2457,12 +2457,13 @@ const RestaurantDashboard = ({ user, onLogout }: RestaurantDashboardProps) => {
           </DialogHeader>
           <div className="space-y-4">
             {selectedTableForActions && (() => {
-              const tableOrders = restaurantOrders.filter(o => getTableIdFromOrder(o) === selectedTableForActions.id)
-              const completedOrders = restaurantCompletedOrders.filter(o => getTableIdFromOrder(o) === selectedTableForActions.id)
-              const allOrders = [...tableOrders, ...completedOrders]
-
               const session = sessions?.find(s => s.table_id === selectedTableForActions.id && s.status === 'OPEN')
               const customerCount = session?.customer_count || 1
+
+              // Filter orders to ONLY those belonging to the current active session
+              const tableOrders = restaurantOrders.filter(o => o.table_session_id === session?.id)
+              const completedOrders = restaurantCompletedOrders.filter(o => o.table_session_id === session?.id)
+              const allOrders = [...tableOrders, ...completedOrders]
 
               let subtotal = 0
               const coverCharge = (currentRestaurant?.cover_charge_per_person || 0) * customerCount
