@@ -207,6 +207,10 @@ const RestaurantDashboard = ({ user, onLogout }: RestaurantDashboardProps) => {
   const [ayceDirty, setAyceDirty] = useState(false)
   const [copertoDirty, setCopertoDirty] = useState(false)
 
+  // Operating Hours State
+  const [openingTime, setOpeningTime] = useState('10:00')
+  const [closingTime, setClosingTime] = useState('23:00')
+
 
   // Waiter Mode Settings
   const [waiterModeEnabled, setWaiterModeEnabled] = useState(false)
@@ -1371,11 +1375,11 @@ const RestaurantDashboard = ({ user, onLogout }: RestaurantDashboardProps) => {
                   <Card key={table.id} className={`relative overflow-hidden transition-all duration-300 hover:shadow-lg border-border/40 hover:border-primary/30 group ${isActive ? 'ring-1 ring-primary/20' : ''}`}>
                     <CardContent className="p-0 flex flex-col h-full">
                       {/* Header */}
-                      <div className={`p-4 flex items-center justify-between border-b border-border/10 ${isActive ? 'bg-primary/5' : 'bg-muted/30'}`}>
+                      <div className={`p-4 flex items-center justify-between border-b border-border/10 ${isActive ? 'bg-orange-500/10' : 'bg-green-500/10'}`}>
                         <span className="text-xl font-bold text-foreground">
                           {table.number}
                         </span>
-                        <Badge variant={isActive ? 'default' : 'secondary'} className={`${isActive ? 'bg-green-500 hover:bg-green-600' : ''}`}>
+                        <Badge variant={isActive ? 'default' : 'secondary'} className={`${isActive ? 'bg-orange-600 hover:bg-orange-700 text-white' : 'bg-green-600 hover:bg-green-700 text-white'}`}>
                           {isActive ? 'Occupato' : 'Libero'}
                         </Badge>
                       </div>
@@ -1622,7 +1626,7 @@ const RestaurantDashboard = ({ user, onLogout }: RestaurantDashboardProps) => {
                                 // setCategories(restaurantCategories) 
                               }
                             }}
-                            className="flex items-center justify-between p-3 bg-card border border-border/40 rounded-xl shadow-sm hover:shadow-md transition-all group cursor-move active:cursor-grabbing"
+                            className="flex items-center justify-between p-3 bg-card border border-border rounded-xl shadow-sm hover:shadow-md transition-all group cursor-move active:cursor-grabbing"
                           >
                             <div className="flex items-center gap-3">
                               <div className="w-8 h-8 rounded-lg bg-primary/10 flex items-center justify-center text-primary">
@@ -1633,20 +1637,20 @@ const RestaurantDashboard = ({ user, onLogout }: RestaurantDashboardProps) => {
                             <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
                               {/* Removed Up/Down buttons, added Edit/Delete */}
                               <Button
-                                variant="ghost"
+                                variant="secondary"
                                 size="icon"
-                                className="h-8 w-8 text-muted-foreground hover:text-primary"
+                                className="h-10 w-10 text-muted-foreground hover:text-primary bg-background border border-border/50 shadow-sm"
                                 onClick={() => handleEditCategory(cat)}
                               >
-                                <PencilSimple size={16} />
+                                <PencilSimple size={20} />
                               </Button>
                               <Button
-                                variant="ghost"
+                                variant="secondary"
                                 size="icon"
-                                className="h-8 w-8 text-muted-foreground hover:text-destructive"
+                                className="h-10 w-10 text-destructive hover:bg-destructive/10 bg-background border border-border/50 shadow-sm"
                                 onClick={() => handleDeleteCategory(cat.id)}
                               >
-                                <Trash size={16} />
+                                <Trash size={20} />
                               </Button>
                             </div>
                           </div>
@@ -1726,29 +1730,29 @@ const RestaurantDashboard = ({ user, onLogout }: RestaurantDashboardProps) => {
                               <div className="flex items-center justify-between mt-4 pt-4 border-t border-border/10">
                                 <div className="flex gap-2">
                                   <Button
-                                    variant="ghost"
+                                    variant="secondary"
                                     size="icon"
-                                    className="h-8 w-8"
+                                    className="h-10 w-10 bg-muted/50 hover:bg-primary/10 hover:text-primary"
                                     onClick={() => handleEditDish(dish)}
                                   >
-                                    <PencilSimple size={14} />
+                                    <PencilSimple size={20} />
                                   </Button>
                                   <Button
-                                    variant="ghost"
+                                    variant="secondary"
                                     size="icon"
-                                    className={`h-8 w-8 ${!dish.is_active ? 'text-muted-foreground' : 'text-green-600'}`}
+                                    className={`h-10 w-10 bg-muted/50 ${!dish.is_active ? 'text-muted-foreground' : 'text-green-600 hover:bg-green-50'}`}
                                     onClick={() => handleToggleDish(dish.id)}
                                   >
-                                    {dish.is_active ? <Eye size={14} /> : <EyeSlash size={14} />}
+                                    {dish.is_active ? <Eye size={20} /> : <EyeSlash size={20} />}
                                   </Button>
                                 </div>
                                 <Button
-                                  variant="ghost"
+                                  variant="secondary"
                                   size="icon"
-                                  className="h-8 w-8 text-destructive hover:bg-destructive/10"
+                                  className="h-10 w-10 text-destructive bg-muted/50 hover:bg-destructive/10"
                                   onClick={() => handleDeleteDish(dish.id)}
                                 >
-                                  <Trash size={14} />
+                                  <Trash size={20} />
                                 </Button>
                               </div>
                             </div>
@@ -1821,6 +1825,8 @@ const RestaurantDashboard = ({ user, onLogout }: RestaurantDashboardProps) => {
               tables={restaurantTables}
               bookings={bookings || []}
               selectedDate={selectedReservationDate}
+              openingTime={openingTime}
+              closingTime={closingTime}
               onRefresh={refreshBookings}
             />
           </TabsContent >
@@ -1976,7 +1982,7 @@ const RestaurantDashboard = ({ user, onLogout }: RestaurantDashboardProps) => {
             </Card>
 
             <div className="space-y-6">
-              <Card>
+              <Card className="bg-gradient-to-br from-card to-muted/30 border-primary/10 shadow-sm">
                 <CardHeader>
                   <CardTitle>Impostazioni All You Can Eat</CardTitle>
                   <CardDescription>
@@ -2026,44 +2032,80 @@ const RestaurantDashboard = ({ user, onLogout }: RestaurantDashboardProps) => {
                 </CardContent>
               </Card>
 
-              <Card>
-                <CardHeader>
-                  <CardTitle>Impostazioni Coperto</CardTitle>
-                  <CardDescription>
-                    Configura il costo del coperto per persona. Le modifiche vengono salvate automaticamente.
-                  </CardDescription>
-                </CardHeader>
-                <CardContent className="space-y-4">
-                  <div className="flex items-center justify-between">
-                    <Label htmlFor="coperto-enabled">Abilita Coperto</Label>
-                    <Switch
-                      id="coperto-enabled"
-                      checked={copertoEnabled}
-                      onCheckedChange={(checked) => {
-                        setCopertoEnabled(checked)
-                        setCopertoDirty(true)
-                      }}
-                    />
-                  </div>
-                  {copertoEnabled && (
-                    <div className="space-y-2">
-                      <Label htmlFor="coperto-price">Costo Coperto (€)</Label>
-                      <Input
-                        id="coperto-price"
-                        type="number"
-                        value={copertoPrice}
-                        onChange={(e) => {
-                          setCopertoPrice(parseFloat(e.target.value) || 0)
+              <div className="grid gap-6 md:grid-cols-2">
+                <Card className="bg-gradient-to-br from-card to-muted/30 border-primary/10 shadow-sm">
+                  <CardHeader>
+                    <CardTitle>Impostazioni Coperto</CardTitle>
+                    <CardDescription>Gestisci il costo del coperto</CardDescription>
+                  </CardHeader>
+                  <CardContent className="space-y-4">
+                    <div className="flex items-center justify-between">
+                      <div className="space-y-0.5">
+                        <Label>Abilita Coperto</Label>
+                        <p className="text-sm text-muted-foreground">
+                          Aggiungi automaticamente il coperto al conto
+                        </p>
+                      </div>
+                      <Switch
+                        checked={copertoEnabled}
+                        onCheckedChange={(checked) => {
+                          setCopertoEnabled(checked)
                           setCopertoDirty(true)
                         }}
                       />
                     </div>
-                  )}
-                </CardContent>
-              </Card>
+                    {copertoEnabled && (
+                      <div className="space-y-2">
+                        <Label htmlFor="coperto-price">Costo Coperto (€)</Label>
+                        <Input
+                          id="coperto-price"
+                          type="number"
+                          value={copertoPrice}
+                          onChange={(e) => {
+                            setCopertoPrice(parseFloat(e.target.value) || 0)
+                            setCopertoDirty(true)
+                          }}
+                        />
+                      </div>
+                    )}
+                    {copertoDirty && (
+                      <Button onClick={saveCopertoSettings} className="w-full">
+                        Salva Impostazioni Coperto
+                      </Button>
+                    )}
+                  </CardContent>
+                </Card>
+
+                <Card className="bg-gradient-to-br from-card to-muted/30 border-primary/10 shadow-sm">
+                  <CardHeader>
+                    <CardTitle>Orari di Apertura</CardTitle>
+                    <CardDescription>Imposta gli orari per le prenotazioni</CardDescription>
+                  </CardHeader>
+                  <CardContent className="space-y-4">
+                    <div className="grid grid-cols-2 gap-4">
+                      <div className="space-y-2">
+                        <Label htmlFor="opening-time">Apertura</Label>
+                        <Input
+                          id="opening-time"
+                          type="time"
+                          value={openingTime}
+                          onChange={(e) => setOpeningTime(e.target.value)}
+                        />
+                      </div>
+                      <div className="space-y-2">
+                        <Label htmlFor="closing-time">Chiusura</Label>
+                        <Input
+                          id="closing-time"
+                          type="time"
+                          value={closingTime}
+                          onChange={(e) => setClosingTime(e.target.value)}
+                        />
+                      </div>
+                    </div>
+                  </CardContent>
+                </Card>
+              </div>
             </div>
-
-
           </TabsContent >
         </Tabs >
       </div >
@@ -2324,8 +2366,12 @@ const RestaurantDashboard = ({ user, onLogout }: RestaurantDashboardProps) => {
               const allOrders = [...tableOrders, ...completedOrders]
 
               let subtotal = 0
-              const coverCharge = (currentRestaurant?.cover_charge_per_person || 0) * customerCount
-              const ayceCharge = (currentRestaurant?.all_you_can_eat?.enabled ? (currentRestaurant.all_you_can_eat.pricePerPerson || 0) : 0) * customerCount
+              // Use local state for immediate feedback
+              const isAyceActive = ayceEnabled
+              const isCoverActive = copertoEnabled
+
+              const coverCharge = (isCoverActive ? (copertoPrice || 0) : 0) * customerCount
+              const ayceCharge = (isAyceActive ? (aycePrice || 0) : 0) * customerCount
 
               return (
                 <>

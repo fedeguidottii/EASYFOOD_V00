@@ -17,6 +17,8 @@ interface TimelineReservationsProps {
   tables: Table[]
   bookings: Booking[]
   selectedDate: string // Passed from parent
+  openingTime?: string
+  closingTime?: string
   onRefresh?: () => void
   onEditBooking?: (booking: Booking) => void
 }
@@ -34,7 +36,7 @@ interface ReservationBlock {
   table: Table
 }
 
-export default function TimelineReservations({ user, restaurantId, tables, bookings, selectedDate, onRefresh, onEditBooking }: TimelineReservationsProps) {
+export default function TimelineReservations({ user, restaurantId, tables, bookings, selectedDate, openingTime = '10:00', closingTime = '23:00', onRefresh, onEditBooking }: TimelineReservationsProps) {
   const [showReservationDialog, setShowReservationDialog] = useState(false)
   const [selectedTimeSlot, setSelectedTimeSlot] = useState<{ tableId: string, time: string } | null>(null)
 
@@ -60,21 +62,21 @@ export default function TimelineReservations({ user, restaurantId, tables, booki
   }) || []
 
   // Timeline configuration
-  const TIMELINE_START_MINUTES = 10 * 60 // 10:00
-  const TIMELINE_END_MINUTES = 24 * 60 // 24:00
+  const startHour = parseInt(openingTime.split(':')[0])
+  const endHour = parseInt(closingTime.split(':')[0])
+
+  const TIMELINE_START_MINUTES = startHour * 60
+  const TIMELINE_END_MINUTES = endHour * 60
   const TIMELINE_DURATION = TIMELINE_END_MINUTES - TIMELINE_START_MINUTES
 
-  // Generate time slots (every 30 mins)
+  // Generate time slots (every 60 mins)
   const timeSlots: TimeSlot[] = []
-  for (let hour = 10; hour <= 23; hour++) {
-    for (let minute = 0; minute < 60; minute += 30) {
-      if (hour === 23 && minute > 30) break // Stop at 23:30
-      timeSlots.push({
-        time: `${hour.toString().padStart(2, '0')}:${minute.toString().padStart(2, '0')}`,
-        hour,
-        minute
-      })
-    }
+  for (let hour = startHour; hour < endHour; hour++) {
+    timeSlots.push({
+      time: `${hour.toString().padStart(2, '0')}:00`,
+      hour,
+      minute: 0
+    })
   }
 
   const timelineRef = useRef<HTMLDivElement>(null)
@@ -156,14 +158,12 @@ export default function TimelineReservations({ user, restaurantId, tables, booki
     const clickX = e.clientX - rect.left
     const percentage = (clickX / rect.width) * 100
 
-    const startMinutes = TIMELINE_START_MINUTES
-    const endMinutes = TIMELINE_END_MINUTES
-    const totalMinutes = endMinutes - startMinutes
+    const totalMinutes = TIMELINE_DURATION
 
-    const clickedMinutes = startMinutes + (percentage / 100) * totalMinutes
+    const clickedMinutes = TIMELINE_START_MINUTES + (percentage / 100) * totalMinutes
 
-    // Round to nearest 30 minutes
-    const roundedMinutes = Math.round(clickedMinutes / 30) * 30
+    // Round to nearest 60 minutes
+    const roundedMinutes = Math.round(clickedMinutes / 60) * 60
     const clickedTime = minutesToTime(roundedMinutes)
 
     // Check for conflicts

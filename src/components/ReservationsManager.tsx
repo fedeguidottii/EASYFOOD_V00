@@ -20,10 +20,12 @@ interface ReservationsManagerProps {
   tables: Table[]
   bookings: Booking[]
   selectedDate: Date
+  openingTime?: string
+  closingTime?: string
   onRefresh?: () => void
 }
 
-export default function ReservationsManager({ user, restaurantId, tables, bookings, selectedDate, onRefresh }: ReservationsManagerProps) {
+export default function ReservationsManager({ user, restaurantId, tables, bookings, selectedDate, openingTime = '10:00', closingTime = '23:00', onRefresh }: ReservationsManagerProps) {
   const [selectedBooking, setSelectedBooking] = useState<Booking | null>(null)
   const [showEditDialog, setShowEditDialog] = useState(false)
   const [showDeleteDialog, setShowDeleteDialog] = useState(false)
@@ -307,6 +309,8 @@ export default function ReservationsManager({ user, restaurantId, tables, bookin
           tables={tables}
           bookings={bookings}
           selectedDate={`${selectedDate.getFullYear()}-${String(selectedDate.getMonth() + 1).padStart(2, '0')}-${String(selectedDate.getDate()).padStart(2, '0')}`}
+          openingTime={openingTime}
+          closingTime={closingTime}
           onRefresh={onRefresh}
           onEditBooking={handleEditBooking}
         />
