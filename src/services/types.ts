@@ -98,14 +98,25 @@ export interface TableSession {
 export interface Order {
     id: string
     restaurant_id: string
-    table_session_id: string
-    status: OrderStatus
-    total_amount: number
-    created_at: string
-    closed_at?: string
-    // Frontend helper
-    items?: OrderItem[]
-    table_id?: string // Helper
+}
+
+export interface RestaurantStaff {
+    id: string
+    restaurant_id: string
+    user_id?: string
+    name: string
+    role: 'waiter' | 'manager' | 'chef'
+    pin_code?: string
+    created_at?: string
+}
+table_session_id: string
+status: OrderStatus
+total_amount: number
+created_at: string
+closed_at ?: string
+// Frontend helper
+items ?: OrderItem[]
+table_id ?: string // Helper
 }
 
 export interface OrderItem {

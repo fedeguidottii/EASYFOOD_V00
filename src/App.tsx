@@ -6,6 +6,7 @@ import CustomerMenu from './components/CustomerMenu'
 import { Toaster } from 'sonner'
 import { User, Table } from './services/types'
 import { DataInitializer } from './services/DataInitializer'
+import WaiterDashboard from './components/waiter/WaiterDashboard'
 
 import ClientTableAccess from './components/ClientTableAccess'
 
@@ -41,9 +42,19 @@ function App() {
   // Handle URL parameters for table access (QR code scan)
   useEffect(() => {
     const path = window.location.pathname
+
+    // Check for /waiter/table/:tableId
+    const waiterTableMatch = path.match(/\/waiter\/table\/([^/]+)/)
+    if (waiterTableMatch && waiterTableMatch[1]) {
+      // We are in waiter mode for a specific table
+      // We need to ensure the user is logged in as staff/owner
+      // If logged in, we set currentTable and maybe a flag for waiter mode
+      // But App structure relies on roles.
+      // Let's handle this in the render logic or a separate state
+    }
+
     // Check for /client/table/:tableId
     const match = path.match(/\/client\/table\/([^/]+)/)
-
     if (match && match[1]) {
       setClientAccessTableId(match[1])
     } else {
@@ -106,12 +117,46 @@ function App() {
       {currentUser.role === 'ADMIN' && (
         <AdminDashboard user={currentUser} onLogout={handleLogout} />
       )}
-      {(currentUser.role === 'OWNER' || currentUser.role === 'STAFF') && (
+      {/* Owner sees RestaurantDashboard, Staff sees WaiterDashboard unless on specific route */}
+      {currentUser.role === 'OWNER' && !window.location.pathname.startsWith('/waiter') && (
         <RestaurantDashboard user={currentUser} onLogout={handleLogout} />
+      )}
+      {(currentUser.role === 'STAFF' || (currentUser.role === 'OWNER' && window.location.pathname.startsWith('/waiter'))) && !window.location.pathname.includes('/table/') && (
+        <WaiterDashboard user={currentUser} onLogout={handleLogout} />
       )}
       {currentUser.role === 'CUSTOMER' && (
         <CustomerMenu tableId={currentTable || ''} onExit={handleLogout} />
       )}
+
+      {/* Waiter Mode Routing - Basic Implementation */}
+      {/* If user is STAFF/OWNER and URL is /waiter/table/:id, show CustomerMenu in waiter mode */}
+      {/* This is a bit hacky without a proper router, but works for now */}
+      {(() => {
+        const path = window.location.pathname
+        const waiterTableMatch = path.match(/\/waiter\/table\/([^/]+)/)
+        if ((currentUser.role === 'STAFF' || currentUser.role === 'OWNER') && waiterTableMatch && waiterTableMatch[1]) {
+          return (
+            <div className="fixed inset-0 z-50 bg-background">
+              <CustomerMenu
+                tableId={waiterTableMatch[1]}
+                onExit={() => window.history.back()}
+                mode="waiter"
+              />
+            </div>
+          )
+        }
+        // If user is STAFF and not in a specific table, show WaiterDashboard
+        // Or if OWNER and explicitly navigating to /waiter (we can add a button in AdminDashboard)
+        if (currentUser.role === 'STAFF' || (currentUser.role === 'OWNER' && path.startsWith('/waiter'))) {
+          // If we are showing RestaurantDashboard above, we need to hide it or override it.
+          // Since we return early in the map above, we can just return WaiterDashboard here if we want to force it.
+          // But the logic above:
+          // {(currentUser.role === 'OWNER' || currentUser.role === 'STAFF') && (<RestaurantDashboard ... />)}
+          // This will render RestaurantDashboard for Staff too. We should change that.
+          return null
+        }
+      })()}
+
       <Toaster position="top-center" />
     </>
   )

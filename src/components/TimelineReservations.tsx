@@ -223,9 +223,15 @@ const TimelineReservations = ({ user, restaurantId, tables, bookings, onRefresh,
         if (!table) return null // Skip if table not found
 
         // Fix: Use local time instead of UTC string parsing
-        const date = new Date(booking.date_time)
-        const hours = date.getHours()
-        const minutes = date.getMinutes()
+        // We parse the string manually to ignore timezone conversions
+        // Expected format: YYYY-MM-DDTHH:MM:SS or similar ISO
+        const timePart = booking.date_time.split('T')[1] // Get HH:MM:SS...
+        if (!timePart) return null
+
+        const [hoursStr, minutesStr] = timePart.split(':')
+        const hours = parseInt(hoursStr, 10)
+        const minutes = parseInt(minutesStr, 10)
+
         const startMinutes = hours * 60 + minutes
         const duration = 120 // Default 2 hours
 
