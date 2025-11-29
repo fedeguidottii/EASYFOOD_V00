@@ -1407,7 +1407,8 @@ const RestaurantDashboard = ({ user, onLogout }: RestaurantDashboardProps) => {
                   )
                 ) : (
                   // TABLE VIEW
-                  Object.keys(tableGroups).filter(id => !tableGroups[id].every(t => t.status === 'SERVED')).length === 0 ? (
+                  // Show all tables with active tickets, even if served (they will be transparent)
+                  Object.keys(tableGroups).length === 0 ? (
                     <Card>
                       <CardContent className="py-10 text-center text-muted-foreground">
                         Nessun tavolo in attesa per i filtri selezionati
@@ -1416,7 +1417,7 @@ const RestaurantDashboard = ({ user, onLogout }: RestaurantDashboardProps) => {
                   ) : (
                     <div className={`grid gap-4 ${getGridColsClass(kitchenZoomLevel)} transition-all duration-300`}>
                       {Object.entries(tableGroups)
-                        .filter(([_, tickets]) => !tickets.every(t => t.status === 'SERVED'))
+                        // .filter(([_, tickets]) => !tickets.every(t => t.status === 'SERVED')) // REMOVED: Keep served tables visible
                         .map(([tableId, tickets]) => {
                           const tableNumber = restaurantTables.find(t => t.id === tableId)?.number || tickets[0]?.tableNumber || 'N/D'
                           const pendingTickets = tickets.filter(t => t.status !== 'SERVED')
@@ -1427,11 +1428,11 @@ const RestaurantDashboard = ({ user, onLogout }: RestaurantDashboardProps) => {
                           const waitTime = pendingTickets.length > 0 ? Math.floor((Date.now() - new Date(oldestTicket.createdAt).getTime()) / 60000) : 0
 
                           return (
-                            <Card key={tableId} className={`border border-border/60 shadow-sm overflow-hidden flex flex-col h-full`}>
-                              <CardHeader className={`p-4 pb-3 border-b ${waitTime > 20 ? 'bg-red-500/10' : 'bg-muted/30'}`}>
+                            <Card key={tableId} className={`border border-border/60 shadow-sm overflow-hidden flex flex-col h-full ${tickets.every(t => t.status === 'SERVED') ? 'opacity-50 grayscale' : ''}`}>
+                              <CardHeader className={`p-4 pb-3 border-b ${waitTime > 20 && !tickets.every(t => t.status === 'SERVED') ? 'bg-red-500/10' : 'bg-muted/30'}`}>
                                 <div className="flex justify-between items-center">
-                                  <CardTitle className={`${getFontSizeClass(kitchenZoomLevel, 'title')} font-extrabold tracking-tight`}>
-                                    Tavolo {tableNumber}
+                                  <CardTitle className={`${getFontSizeClass(kitchenZoomLevel, 'title')} font-black tracking-tight text-4xl md:text-5xl`}>
+                                    {tableNumber}
                                   </CardTitle>
                                   {pendingTickets.length > 0 && (
                                     <Badge variant={waitTime > 20 ? 'destructive' : 'secondary'} className={`font-bold px-2 py-1 ${getFontSizeClass(kitchenZoomLevel, 'meta')}`}>

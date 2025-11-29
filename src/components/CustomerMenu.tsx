@@ -153,7 +153,7 @@ export default function CustomerMenu({ tableId, onExit, interfaceMode = 'custome
   }
 
   return (
-    <div className={`min-h-screen bg-background ${mode === 'waiter' ? 'pb-32' : 'pb-24'}`}>
+    <div className={`min-h-screen ${mode === 'waiter' ? 'bg-gray-50 pb-32' : 'bg-background pb-24'}`}>
       {/* Header */}
       <header className="sticky top-0 z-40 w-full bg-background/80 backdrop-blur-md border-b shadow-sm">
         <div className="container mx-auto px-4 h-16 flex items-center justify-between">
@@ -225,11 +225,11 @@ export default function CustomerMenu({ tableId, onExit, interfaceMode = 'custome
               const quantity = cartItem?.quantity || 0
 
               return (
-                <div key={dish.id} className="flex items-center justify-between p-4 bg-white rounded-lg border shadow-sm active:scale-[0.99] transition-transform">
+                <div key={dish.id} className="flex items-center justify-between p-4 bg-white rounded-lg border border-gray-200 shadow-sm active:scale-[0.99] transition-transform">
                   <div className="flex-1" onClick={() => openAddDialog(dish)}>
                     <div className="flex justify-between items-start">
-                      <h3 className="font-bold text-lg">{dish.name}</h3>
-                      <span className="font-bold text-lg ml-2">€{dish.price.toFixed(2)}</span>
+                      <h3 className="font-bold text-lg text-gray-900">{dish.name}</h3>
+                      <span className="font-bold text-lg ml-2 text-gray-900">€{dish.price.toFixed(2)}</span>
                     </div>
                     {quantity > 0 && (
                       <Badge className="mt-1 bg-green-100 text-green-800 hover:bg-green-100 border-green-200">
@@ -337,8 +337,14 @@ export default function CustomerMenu({ tableId, onExit, interfaceMode = 'custome
         <div className="fixed bottom-0 left-0 right-0 p-4 bg-white border-t shadow-[0_-4px_6px_-1px_rgba(0,0,0,0.1)] z-50">
           <div className="container mx-auto max-w-md flex flex-col gap-3">
             <div className="flex items-center justify-between px-2">
-              <span className="text-sm font-medium text-muted-foreground">{cartItemCount} articoli</span>
-              <span className="text-2xl font-black">€{cartTotal.toFixed(2)}</span>
+              <Button variant="outline" size="sm" onClick={() => setShowCart(true)} className="border-gray-300 text-gray-700">
+                <Clock size={18} className="mr-2" />
+                Storico / Modifica
+              </Button>
+              <div className="text-right">
+                <span className="text-sm font-medium text-gray-500 block">{cartItemCount} articoli</span>
+                <span className="text-2xl font-black text-gray-900">€{cartTotal.toFixed(2)}</span>
+              </div>
             </div>
             <Button
               size="lg"

@@ -184,8 +184,12 @@ const WaiterDashboard = ({ user, onLogout }: WaiterDashboardProps) => {
 
         if (confirm('Confermi che il tavolo ha pagato e vuoi liberarlo?')) {
             try {
-                // Close session
-                await DatabaseService.updateSession({ ...session, status: 'CLOSED', closed_at: new Date().toISOString() })
+                // Close session explicitly
+                await DatabaseService.updateSession({
+                    ...session,
+                    status: 'CLOSED',
+                    closed_at: new Date().toISOString()
+                })
 
                 // Mark all active orders as PAID
                 const sessionOrders = activeOrders.filter(o => o.table_session_id === session.id)
@@ -198,6 +202,10 @@ const WaiterDashboard = ({ user, onLogout }: WaiterDashboardProps) => {
 
                 // Svuota eventuali carrelli residui per evitare confusione tra tavoli
                 await DatabaseService.clearCart(session.id)
+
+                // Force refresh
+                setSessions(prev => prev.filter(s => s.id !== session.id))
+                setActiveOrders(prev => prev.filter(o => o.table_session_id !== session.id))
 
                 toast.success('Tavolo liberato e ordini pagati')
                 refreshData()
