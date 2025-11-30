@@ -5,6 +5,8 @@ import { Card, CardContent, CardHeader } from '@/components/ui/card'
 import { Check, Clock, Minus, Plus } from '@phosphor-icons/react'
 import { cn } from '@/lib/utils'
 
+import { TableSession } from '../services/types'
+
 interface KitchenViewProps {
     orders: Order[]
     tables: Table[]
@@ -14,9 +16,10 @@ interface KitchenViewProps {
     columns: number
     onCompleteDish: (orderId: string, itemId: string) => void
     onCompleteOrder: (orderId: string) => void
+    sessions: TableSession[]
 }
 
-export function KitchenView({ orders, tables, dishes, selectedCategoryIds = [], viewMode, columns, onCompleteDish, onCompleteOrder }: KitchenViewProps) {
+export function KitchenView({ orders, tables, dishes, selectedCategoryIds = [], viewMode, columns, onCompleteDish, onCompleteOrder, sessions }: KitchenViewProps) {
     const [now, setNow] = useState(new Date())
 
     useEffect(() => {
@@ -25,14 +28,27 @@ export function KitchenView({ orders, tables, dishes, selectedCategoryIds = [], 
     }, [])
 
     const getTableName = (tableId?: string, sessionId?: string) => {
-        const tableBySession = tables.find(t => t.current_session_id === sessionId)
-        return tableBySession ? `Tavolo ${tableBySession.number}` : 'Tavolo ?'
+        // Try to find session
+        if (sessionId) {
+            const session = sessions.find(s => s.id === sessionId)
+            if (session) {
+                const table = tables.find(t => t.id === session.table_id)
+                if (table) return `Tavolo ${table.number}`
+            }
+        }
+        // Fallback if tableId is provided directly (legacy)
+        if (tableId) {
+            const table = tables.find(t => t.id === tableId)
+            if (table) return `Tavolo ${table.number}`
+        }
+
+        return 'Tavolo ?'
     }
 
     const getDish = (dishId: string) => dishes.find(d => d.id === dishId)
 
     const isOrderComplete = (order: Order) => {
-        return order.items?.every(item => item.status === 'SERVED' || item.status === 'ready')
+        return order.items?.every(item => item.status === 'SERVED' || item.status === 'READY')
     }
 
     const itemMatchesCategory = (item: OrderItem) => {
@@ -111,7 +127,7 @@ export function KitchenView({ orders, tables, dishes, selectedCategoryIds = [], 
                                 <CardContent className="flex-1 p-3 flex flex-col gap-2">
                                     {visibleItems.map((item, idx) => {
                                         const dish = getDish(item.dish_id)
-                                        const isItemDone = item.status === 'SERVED' || item.status === 'ready'
+                                        const isItemDone = item.status === 'SERVED' || item.status === 'READY'
 
                                         return (
                                             <div
@@ -160,7 +176,7 @@ export function KitchenView({ orders, tables, dishes, selectedCategoryIds = [], 
                     })
                 ) : (
                     dishesViewData.map((data, idx) => {
-                        const allItemsDone = data.items.every(({ item }) => item.status === 'SERVED' || item.status === 'ready')
+                        const allItemsDone = data.items.every(({ item }) => item.status === 'SERVED' || item.status === 'READY')
                         if (allItemsDone) return null
 
                         return (
@@ -180,7 +196,7 @@ export function KitchenView({ orders, tables, dishes, selectedCategoryIds = [], 
                                     {data.items.map(({ order, item }, itemIdx) => {
                                         const tableName = getTableName(undefined, order.table_session_id)
                                         const timeDiff = (now.getTime() - new Date(order.created_at).getTime()) / 1000 / 60
-                                        const isItemDone = item.status === 'SERVED' || item.status === 'ready'
+                                        const isItemDone = item.status === 'SERVED' || item.status === 'READY'
 
                                         return (
                                             <div

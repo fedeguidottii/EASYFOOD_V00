@@ -629,21 +629,8 @@ const RestaurantDashboard = ({ user, onLogout }: RestaurantDashboardProps) => {
   const handleCompleteDish = async (orderId: string, itemId: string, showToast = true) => {
     await updateOrderItemStatus(orderId, itemId, 'SERVED')
 
-    const targetOrder = orders?.find(o => o.id === orderId)
-    if (targetOrder?.items) {
-      const updatedItems = targetOrder.items.map(item =>
-        item.id === itemId ? { ...item, status: 'SERVED' } : item
-      )
-      const allServed = updatedItems.every(item => item.status === 'SERVED')
-      if (allServed) {
-        await updateOrderStatus(orderId, 'completed')
-      }
-    }
-
-    if (showToast) {
-      toast.success('Piatto segnato come pronto')
-    }
   }
+
 
   const handleCreateCategory = () => {
     if (!newCategory.trim()) {
@@ -868,11 +855,11 @@ const RestaurantDashboard = ({ user, onLogout }: RestaurantDashboardProps) => {
 
                 <div className="flex items-center gap-2 bg-muted p-1 rounded-lg mr-2">
                   <span className="text-[10px] font-bold uppercase text-muted-foreground px-2">Zoom</span>
-                  <Button variant="ghost" size="sm" onClick={() => setKitchenColumns(prev => Math.max(1, prev - 1))} className="h-7 w-7 p-0">
+                  <Button variant="ghost" size="sm" onClick={() => setKitchenColumns(prev => prev + 1)} className="h-7 w-7 p-0">
                     <Minus size={14} />
                   </Button>
                   <span className="w-4 text-center text-xs font-bold">{kitchenColumns}</span>
-                  <Button variant="ghost" size="sm" onClick={() => setKitchenColumns(prev => prev + 1)} className="h-7 w-7 p-0">
+                  <Button variant="ghost" size="sm" onClick={() => setKitchenColumns(prev => Math.max(1, prev - 1))} className="h-7 w-7 p-0">
                     <Plus size={14} />
                   </Button>
                 </div>
@@ -950,6 +937,7 @@ const RestaurantDashboard = ({ user, onLogout }: RestaurantDashboardProps) => {
                 columns={kitchenColumns}
                 onCompleteDish={(orderId, itemId) => handleCompleteDish(orderId, itemId)}
                 onCompleteOrder={handleCompleteOrder}
+                sessions={sessions || []}
               />
             )}
           </TabsContent >

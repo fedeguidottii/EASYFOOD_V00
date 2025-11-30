@@ -190,6 +190,7 @@ export default function CustomerMenu({ tableId: propTableId, onExit, interfaceMo
     const channel = supabase
       .channel(`public:orders:table-${tableId}`)
       .on('postgres_changes', { event: '*', schema: 'public', table: 'orders' }, () => fetchSessionAndOrders())
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'order_items' }, () => fetchSessionAndOrders())
       .subscribe()
 
     return () => { supabase.removeChannel(channel) }
@@ -433,7 +434,7 @@ export default function CustomerMenu({ tableId: propTableId, onExit, interfaceMo
                         className="h-7 w-7 rounded-full p-0 shadow-sm bg-primary/10 hover:bg-primary text-primary hover:text-primary-foreground transition-all"
                         onClick={(e) => {
                           e.stopPropagation()
-                          addToCart(dish)
+                          setSelectedDish(dish)
                         }}
                       >
                         <Plus className="w-4 h-4" />
@@ -469,7 +470,7 @@ export default function CustomerMenu({ tableId: propTableId, onExit, interfaceMo
             <Drawer open={isCartOpen} onOpenChange={setIsCartOpen}>
               <DrawerTrigger asChild>
                 <Button
-                  className="w-full h-14 rounded-2xl shadow-xl bg-primary text-primary-foreground hover:bg-primary/90 flex items-center justify-between px-5 transition-all active:scale-95 border border-white/10"
+                  className="w-full h-14 rounded-2xl shadow-xl bg-zinc-900 text-white hover:bg-zinc-800 flex items-center justify-between px-5 transition-all active:scale-95 border border-white/10"
                 >
                   <div className="flex items-center gap-3">
                     <div className="bg-white/20 backdrop-blur-md w-8 h-8 rounded-full flex items-center justify-center font-bold text-sm text-white border border-white/20">
@@ -650,8 +651,9 @@ export default function CustomerMenu({ tableId: propTableId, onExit, interfaceMo
           >
             <Drawer>
               <DrawerTrigger asChild>
-                <Button size="icon" className="h-14 w-14 rounded-full shadow-xl bg-background border border-border text-foreground hover:bg-muted active:scale-95 transition-transform">
-                  <Clock className="w-6 h-6 text-primary" />
+                <Button className="h-14 rounded-full shadow-xl bg-zinc-900 text-white border border-white/10 hover:bg-zinc-800 active:scale-95 transition-transform px-6 flex items-center gap-3">
+                  <Clock className="w-5 h-5 text-white" />
+                  <span className="font-bold text-sm">Stato Ordine</span>
                 </Button>
               </DrawerTrigger>
               <DrawerContent className="max-w-lg mx-auto max-h-[80vh]">
