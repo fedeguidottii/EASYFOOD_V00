@@ -552,6 +552,12 @@ export default function AnalyticsCharts({ orders, completedOrders, dishes, categ
           </CardContent>
         </Card>
       </div>
+
+      <AIAnalyticsSection
+        orders={dateFilteredOrders}
+        dishes={dishes}
+        categories={categories}
+      />
     </>
   )
 }

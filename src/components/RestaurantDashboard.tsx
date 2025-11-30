@@ -1395,7 +1395,7 @@ const RestaurantDashboard = ({ user, onLogout }: RestaurantDashboardProps) => {
                   >
                     <CardContent className="p-0 flex flex-col h-full">
                       <div className={`p-4 flex items-center justify-between border-b border-border/10 ${isActive ? 'bg-amber-500/5' : 'bg-muted/30'}`}>
-                        <span className={`text-xl font-bold ${isActive ? 'text-amber-500' : 'text-foreground'}`}>
+                        <span className={`text-2xl font-serif tracking-widest font-medium drop-shadow-sm ${isActive ? 'text-amber-500' : 'text-foreground'}`}>
                           {table.number}
                         </span>
                         <Badge variant={isActive ? 'default' : 'outline'} className={`${isActive ? 'bg-amber-500/15 text-amber-600 border-amber-500/40 hover:bg-amber-500/25' : 'text-muted-foreground border-border'}`}>
