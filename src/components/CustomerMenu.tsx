@@ -239,17 +239,16 @@ export default function CustomerMenu({ tableId: propTableId, onExit, interfaceMo
       const orderItems = cart.map(item => ({
         dish_id: item.id,
         quantity: item.quantity,
-        notes: item.notes || '',
-        price_at_time: item.price
+        note: item.notes || '',
+        status: 'PENDING' as const
       }))
 
       await DatabaseService.createOrder({
         restaurant_id: restaurantId,
         table_session_id: session.id,
-        status: 'pending',
-        total_amount: cartTotal,
-        items: orderItems
-      })
+        status: 'OPEN',
+        total_amount: cartTotal
+      }, orderItems)
 
       setCart([])
       setIsCartOpen(false)
