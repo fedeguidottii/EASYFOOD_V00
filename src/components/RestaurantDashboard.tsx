@@ -1382,7 +1382,6 @@ const RestaurantDashboard = ({ user, onLogout }: RestaurantDashboardProps) => {
             <div className="grid gap-6 grid-cols-[repeat(auto-fill,minmax(220px,1fr))]">
               {restaurantTables.map(table => {
                 const session = getOpenSessionForTable(table.id)
-                const session = getOpenSessionForTable(table.id)
                 const isActive = session?.status === 'OPEN'
                 const activeOrder = restaurantOrders.find(o => getTableIdFromOrder(o) === table.id)
 
@@ -1390,8 +1389,8 @@ const RestaurantDashboard = ({ user, onLogout }: RestaurantDashboardProps) => {
                   <Card
                     key={table.id}
                     className={`relative overflow-hidden transition-all duration-300 group ${isActive
-                        ? 'bg-gradient-to-br from-card via-card to-amber-50/30 shadow-sm hover:shadow-md border-amber-200/30'
-                        : 'bg-card shadow-sm hover:shadow-md border-border/50'
+                      ? 'bg-gradient-to-br from-card via-card to-amber-50/30 shadow-sm hover:shadow-md border-amber-200/30'
+                      : 'bg-card shadow-sm hover:shadow-md border-border/50'
                       }`}
                   >
                     <CardContent className="p-0 flex flex-col h-full">
