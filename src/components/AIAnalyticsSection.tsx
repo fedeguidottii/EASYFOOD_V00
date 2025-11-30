@@ -87,7 +87,7 @@ export default function AIAnalyticsSection({ orders, dishes, categories, tables 
         }
 
         try {
-            const model = genAI.getGenerativeModel({ model: 'gemini-pro' })
+            const model = genAI.getGenerativeModel({ model: 'gemini-1.5-flash' })
             const context = buildRestaurantContext()
 
             const prompt = isInitial
@@ -134,63 +134,59 @@ Rispondi in modo professionale e conciso, usando emoji quando appropriato.`
         }
     }, [isOpen, hasInitialized, orders.length])
 
-    if (!isOpen) {
-        return (
-            <div className="fixed bottom-0 left-0 right-0 z-50">
-                <div className="container mx-auto px-4 pb-4">
-                    <Card
-                        className="bg-gradient-to-r from-slate-950 via-violet-950/50 to-slate-950 border-2 border-cyan-500/50 cursor-pointer hover:border-cyan-400 transition-all duration-300 shadow-[0_0_30px_rgba(6,182,212,0.3)] hover:shadow-[0_0_40px_rgba(6,182,212,0.5)]"
-                        onClick={() => setIsOpen(true)}
-                    >
-                        <div className="p-4 flex items-center justify-between">
-                            <div className="flex items-center gap-3">
-                                <div className="relative">
-                                    <Bot className="w-8 h-8 text-cyan-400 animate-pulse" />
-                                    <Sparkles className="w-4 h-4 text-violet-400 absolute -top-1 -right-1" />
-                                </div>
-                                <div>
-                                    <h3 className="text-lg font-bold text-transparent bg-clip-text bg-gradient-to-r from-cyan-400 to-violet-400">
-                                        ✨ AI RESTAURANT MANAGER
-                                    </h3>
-                                    <p className="text-sm text-cyan-300/70">Clicca per analisi completa</p>
-                                </div>
-                            </div>
-                            <ChevronUp className="w-6 h-6 text-cyan-400" />
-                        </div>
-                    </Card>
-                </div>
-            </div>
-        )
-    }
-
     return (
-        <div className="fixed bottom-0 left-0 right-0 z-50 animate-in slide-in-from-bottom duration-300">
-            <div className="container mx-auto px-4 pb-4">
-                <Card className="bg-slate-950/95 backdrop-blur-xl border-2 border-cyan-500/50 shadow-[0_0_50px_rgba(6,182,212,0.4)] max-h-[600px] flex flex-col">
-                    <div className="p-4 border-b border-cyan-500/30 flex items-center justify-between bg-gradient-to-r from-slate-900/50 to-violet-900/30">
+        <section className="mt-12">
+            {!isOpen ? (
+                <Card
+                    className="max-w-xl mx-auto bg-gradient-to-r from-slate-900 via-violet-900/60 to-slate-900 border border-cyan-500/30 cursor-pointer hover:border-cyan-400/70 transition-all duration-300 shadow-[0_10px_45px_rgba(67,56,202,0.25)]"
+                    onClick={() => setIsOpen(true)}
+                >
+                    <div className="p-4 flex items-center justify-between">
                         <div className="flex items-center gap-3">
                             <div className="relative">
-                                <Bot className="w-8 h-8 text-cyan-400" />
+                                <Bot className="w-7 h-7 text-cyan-300" />
+                                <Sparkles className="w-4 h-4 text-violet-300 absolute -top-1 -right-1" />
+                            </div>
+                            <div>
+                                <p className="text-[11px] uppercase tracking-[0.2em] text-cyan-200/80">Assistant</p>
+                                <h3 className="text-lg font-bold text-transparent bg-clip-text bg-gradient-to-r from-cyan-200 to-violet-200">
+                                    AI Restaurant Manager
+                                </h3>
+                                <p className="text-xs text-cyan-100/70">Apri il pannello di suggerimenti</p>
+                            </div>
+                        </div>
+                        <Button size="sm" variant="outline" className="h-9 px-3 text-cyan-100 border-cyan-500/40 bg-white/5 hover:bg-white/10">
+                            <ChevronUp className="w-4 h-4" />
+                        </Button>
+                    </div>
+                </Card>
+            ) : (
+                <Card className="max-w-5xl mx-auto bg-slate-950/90 backdrop-blur-xl border border-cyan-500/30 shadow-[0_20px_60px_rgba(6,182,212,0.35)] flex flex-col">
+                    <div className="p-4 border-b border-cyan-500/20 flex items-center justify-between bg-gradient-to-r from-slate-900/60 to-violet-900/40 rounded-t-xl">
+                        <div className="flex items-center gap-3">
+                            <div className="relative">
+                                <Bot className="w-8 h-8 text-cyan-300" />
                                 <div className="absolute -top-1 -right-1 w-3 h-3 bg-green-400 rounded-full animate-pulse" />
                             </div>
                             <div>
-                                <h3 className="text-lg font-bold text-transparent bg-clip-text bg-gradient-to-r from-cyan-400 to-violet-400">
-                                    AI RESTAURANT MANAGER
+                                <p className="text-[11px] uppercase tracking-[0.3em] text-cyan-200/70">Insight</p>
+                                <h3 className="text-lg font-bold text-transparent bg-clip-text bg-gradient-to-r from-cyan-200 to-violet-200">
+                                    AI Restaurant Manager
                                 </h3>
-                                <p className="text-xs text-cyan-300/70">Powered by Gemini Pro</p>
+                                <p className="text-xs text-cyan-100/70">Powered by Gemini 1.5 Flash</p>
                             </div>
                         </div>
                         <Button
                             variant="ghost"
                             size="sm"
                             onClick={() => setIsOpen(false)}
-                            className="text-cyan-400 hover:text-cyan-300 hover:bg-cyan-500/10"
+                            className="text-cyan-200 hover:text-cyan-100 hover:bg-cyan-500/10"
                         >
                             <ChevronDown className="w-5 h-5" />
                         </Button>
                     </div>
 
-                    <ScrollArea className="flex-1 p-6 min-h-[300px] max-h-[400px]">
+                    <ScrollArea className="flex-1 p-6 min-h-[320px] max-h-[420px]">
                         <div className="space-y-4">
                             {messages.map((message, index) => (
                                 <div
@@ -199,17 +195,17 @@ Rispondi in modo professionale e conciso, usando emoji quando appropriato.`
                                 >
                                     <div
                                         className={`max-w-[80%] rounded-lg p-4 ${message.role === 'user'
-                                                ? 'bg-gradient-to-br from-cyan-600 to-violet-600 text-white'
-                                                : 'bg-slate-800/50 backdrop-blur border border-cyan-500/20 text-cyan-50'
+                                                ? 'bg-gradient-to-br from-cyan-600 to-violet-600 text-white shadow-[0_10px_35px_rgba(99,102,241,0.3)]'
+                                                : 'bg-slate-900/70 backdrop-blur border border-cyan-500/20 text-cyan-50'
                                             }`}
                                     >
-                                        <p className="text-sm whitespace-pre-wrap">{message.content}</p>
+                                        <p className="text-sm whitespace-pre-wrap leading-relaxed">{message.content}</p>
                                     </div>
                                 </div>
                             ))}
                             {isLoading && (
                                 <div className="flex justify-start">
-                                    <div className="bg-slate-800/50 backdrop-blur border border-cyan-500/20 rounded-lg p-4">
+                                    <div className="bg-slate-900/70 backdrop-blur border border-cyan-500/20 rounded-lg p-4">
                                         <div className="flex items-center gap-2">
                                             <div className="w-2 h-2 bg-cyan-400 rounded-full animate-bounce" style={{ animationDelay: '0ms' }} />
                                             <div className="w-2 h-2 bg-cyan-400 rounded-full animate-bounce" style={{ animationDelay: '150ms' }} />
@@ -221,7 +217,7 @@ Rispondi in modo professionale e conciso, usando emoji quando appropriato.`
                         </div>
                     </ScrollArea>
 
-                    <div className="p-4 border-t border-cyan-500/30 bg-slate-900/30">
+                    <div className="p-4 border-t border-cyan-500/20 bg-slate-900/60 rounded-b-xl">
                         <form
                             onSubmit={(e) => {
                                 e.preventDefault()
@@ -233,20 +229,20 @@ Rispondi in modo professionale e conciso, usando emoji quando appropriato.`
                                 value={input}
                                 onChange={(e) => setInput(e.target.value)}
                                 placeholder="Chiedi all'AI manager..."
-                                className="flex-1 bg-slate-800/50 border-cyan-500/30 text-cyan-50 placeholder:text-cyan-300/50 focus-visible:ring-cyan-400"
+                                className="flex-1 bg-slate-950/70 border-cyan-500/30 text-cyan-50 placeholder:text-cyan-200/50 focus-visible:ring-cyan-400"
                                 disabled={isLoading}
                             />
                             <Button
                                 type="submit"
                                 disabled={isLoading || !input.trim()}
-                                className="bg-gradient-to-r from-cyan-600 to-violet-600 hover:from-cyan-500 hover:to-violet-500 text-white"
+                                className="h-10 w-10 rounded-full bg-gradient-to-r from-cyan-600 to-violet-600 hover:from-cyan-500 hover:to-violet-500 text-white shadow-lg"
                             >
                                 <Send className="w-4 h-4" />
                             </Button>
                         </form>
                     </div>
                 </Card>
-            </div>
-        </div>
+            )}
+        </section>
     )
 }
