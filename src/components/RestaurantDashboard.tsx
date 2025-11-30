@@ -1378,84 +1378,95 @@ const RestaurantDashboard = ({ user, onLogout }: RestaurantDashboardProps) => {
               </div>
             </div>
 
-            <div className="grid gap-6 grid-cols-[repeat(auto-fill,minmax(220px,1fr))]">
+            <div className="grid gap-6 grid-cols-[repeat(auto-fill,minmax(240px,1fr))]">
               {restaurantTables.map(table => {
                 const session = getOpenSessionForTable(table.id)
                 const isActive = session?.status === 'OPEN'
                 const activeOrder = restaurantOrders.find(o => getTableIdFromOrder(o) === table.id)
 
                 return (
-                  <Card key={table.id} className={`relative overflow-hidden transition-all duration-300 hover:shadow-lg border-border/40 hover:border-primary/30 group ${isActive ? 'ring-1 ring-primary/20' : ''}`}>
-                    <CardContent className="p-0 flex flex-col h-full">
+                  <Card key={table.id} className="relative overflow-hidden transition-all duration-500 hover:shadow-2xl border-0 shadow-lg bg-gradient-to-br from-white to-slate-50 dark:from-slate-900 dark:to-slate-950 rounded-3xl group">
+                    {/* Status Indicator Bar */}
+                    <div className={`absolute top-0 left-0 right-0 h-1.5 ${isActive ? 'bg-orange-500 shadow-[0_0_15px_rgba(249,115,22,0.6)]' : 'bg-emerald-500 shadow-[0_0_15px_rgba(16,185,129,0.6)]'}`} />
+
+                    <CardContent className="p-6 flex flex-col h-full justify-between gap-6">
                       {/* Header */}
-                      <div className={`p-4 flex items-center justify-between border-b border-border/10 ${isActive ? 'bg-orange-500/10' : 'bg-green-500/10'}`}>
-                        <span className="text-xl font-bold text-foreground">
-                          {table.number}
-                        </span>
-                        <Badge variant={isActive ? 'default' : 'secondary'} className={`${isActive ? 'bg-orange-600 hover:bg-orange-700 text-white' : 'bg-green-600 hover:bg-green-700 text-white'}`}>
+                      <div className="flex justify-between items-start">
+                        <div>
+                          <span className="text-4xl font-black tracking-tighter text-slate-800 dark:text-slate-100">
+                            {table.number}
+                          </span>
+                          <p className="text-xs font-bold text-slate-400 uppercase tracking-widest mt-1">
+                            {table.seats} Posti
+                          </p>
+                        </div>
+                        <div className={`px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-widest shadow-sm ${isActive ? 'bg-orange-100 text-orange-600 dark:bg-orange-900/30 dark:text-orange-400' : 'bg-emerald-100 text-emerald-600 dark:bg-emerald-900/30 dark:text-emerald-400'}`}>
                           {isActive ? 'Occupato' : 'Libero'}
-                        </Badge>
+                        </div>
                       </div>
 
                       {/* Body */}
-                      <div className="flex-1 p-6 flex flex-col items-center justify-center gap-4">
+                      <div className="flex-1 flex flex-col items-center justify-center">
                         {isActive ? (
-                          <>
-                            <div className="text-center">
-                              <p className="text-sm text-muted-foreground mb-1">PIN Tavolo</p>
-                              <span className="text-3xl font-mono font-bold tracking-widest text-primary">
+                          <div className="text-center w-full space-y-4">
+                            <div className="bg-slate-100 dark:bg-slate-800/50 rounded-2xl p-4 border border-slate-200 dark:border-slate-700">
+                              <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1">PIN Accesso</p>
+                              <span className="text-3xl font-mono font-black tracking-widest text-slate-700 dark:text-slate-200">
                                 {session?.session_pin || '...'}
                               </span>
                             </div>
                             {activeOrder && (
-                              <Badge variant="outline" className="bg-background">
-                                {activeOrder.items?.filter(i => i.status === 'SERVED').length || 0} ordini completati
-                              </Badge>
+                              <div className="flex items-center justify-center gap-2 text-xs font-medium text-slate-500">
+                                <span className="w-2 h-2 rounded-full bg-blue-500 animate-pulse"></span>
+                                {activeOrder.items?.filter(i => i.status === 'SERVED').length || 0} piatti serviti
+                              </div>
                             )}
-                          </>
+                          </div>
                         ) : (
-                          <div className="text-center text-muted-foreground">
-                            <MapPin size={32} className="mx-auto mb-2 opacity-20" />
-                            <p className="text-sm">Pronto per clienti</p>
+                          <div className="text-center text-slate-300 dark:text-slate-700">
+                            <MapPin weight="duotone" size={48} className="mx-auto mb-3 opacity-50" />
+                            <p className="text-xs font-medium uppercase tracking-widest">Pronto</p>
                           </div>
                         )}
                       </div>
 
                       {/* Actions */}
-                      <div className="p-4 bg-muted/10 border-t border-border/10 grid gap-2">
+                      <div className="grid gap-3">
                         {isActive ? (
-                          <>
-                            <div className="grid grid-cols-2 gap-2">
-                              <Button variant="outline" size="sm" onClick={() => handleShowTableQr(table)}>
-                                <QrCode size={16} className="mr-2" />
-                                QR
-                              </Button>
-                              <Button
-                                className="shadow-sm hover:shadow-md transition-all"
-                                onClick={() => { setSelectedTableForActions(table); setShowTableBillDialog(true); }}
-                              >
-                                <Receipt size={16} className="mr-2" />
-                                Conto
-                              </Button>
-                            </div>
-                          </>
+                          <div className="grid grid-cols-2 gap-3">
+                            <Button
+                              variant="outline"
+                              className="rounded-xl border-slate-200 dark:border-slate-700 hover:bg-slate-100 dark:hover:bg-slate-800 font-semibold"
+                              onClick={() => handleShowTableQr(table)}
+                            >
+                              <QrCode size={18} className="mr-2" />
+                              QR
+                            </Button>
+                            <Button
+                              className="rounded-xl bg-slate-900 text-white hover:bg-slate-800 shadow-lg shadow-slate-900/20 font-semibold"
+                              onClick={() => { setSelectedTableForActions(table); setShowTableBillDialog(true); }}
+                            >
+                              <Receipt size={18} className="mr-2" />
+                              Conto
+                            </Button>
+                          </div>
                         ) : (
                           <Button
-                            className="w-full bg-primary hover:bg-primary/90 shadow-sm hover:shadow-md transition-all"
+                            className="w-full rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white shadow-lg shadow-emerald-600/20 font-bold tracking-wide py-6"
                             onClick={() => handleToggleTable(table.id)}
                           >
-                            Attiva Tavolo
+                            APRI TAVOLO
                           </Button>
                         )}
                       </div>
 
-                      {/* Management Actions (Hover) */}
-                      <div className="absolute top-2 right-12 opacity-0 group-hover:opacity-100 transition-opacity flex gap-1">
-                        <Button variant="ghost" size="icon" className="h-8 w-8 hover:bg-background/80" onClick={() => handleEditTable(table)}>
-                          <PencilSimple size={14} />
+                      {/* Edit/Delete (Hover) */}
+                      <div className="absolute top-4 right-4 opacity-0 group-hover:opacity-100 transition-all duration-300 flex flex-col gap-2 translate-x-4 group-hover:translate-x-0">
+                        <Button variant="secondary" size="icon" className="h-8 w-8 rounded-full shadow-md bg-white dark:bg-slate-800 hover:text-blue-500" onClick={() => handleEditTable(table)}>
+                          <PencilSimple size={14} weight="bold" />
                         </Button>
-                        <Button variant="ghost" size="icon" className="h-8 w-8 text-destructive hover:bg-destructive/10" onClick={() => handleDeleteTable(table.id)}>
-                          <Trash size={14} />
+                        <Button variant="secondary" size="icon" className="h-8 w-8 rounded-full shadow-md bg-white dark:bg-slate-800 hover:text-red-500" onClick={() => handleDeleteTable(table.id)}>
+                          <Trash size={14} weight="bold" />
                         </Button>
                       </div>
                     </CardContent>
@@ -1639,7 +1650,7 @@ const RestaurantDashboard = ({ user, onLogout }: RestaurantDashboardProps) => {
                                 // setCategories(restaurantCategories) 
                               }
                             }}
-                            className="flex items-center justify-between p-3 bg-card border border-border rounded-xl shadow-sm hover:shadow-md transition-all group cursor-move active:cursor-grabbing"
+                            className="flex items-center justify-between p-4 bg-white dark:bg-slate-900 rounded-2xl shadow-sm hover:shadow-md transition-all group cursor-move active:cursor-grabbing mb-2 border-0"
                           >
                             <div className="flex items-center gap-3">
                               <div className="w-8 h-8 rounded-lg bg-primary/10 flex items-center justify-center text-primary">
@@ -1690,82 +1701,83 @@ const RestaurantDashboard = ({ user, onLogout }: RestaurantDashboardProps) => {
                     </div>
                     <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
                       {categoryDishes.map(dish => (
-                        <Card key={dish.id} className={`group hover:shadow-md transition-all ${!dish.is_active ? 'opacity-40' : 'opacity-100'
-                          }`}>
-                          <CardContent className="p-0">
-                            {dish.image_url && (
-                              <div className="relative h-48 w-full overflow-hidden">
+                        <Card key={dish.id} className={`group relative overflow-hidden border-0 shadow-lg bg-white dark:bg-slate-900 rounded-3xl transition-all duration-500 hover:shadow-2xl hover:-translate-y-1 ${!dish.is_active ? 'opacity-60 grayscale' : ''}`}>
+                          <CardContent className="p-0 h-full flex flex-col">
+                            {dish.image_url ? (
+                              <div className="relative h-56 w-full overflow-hidden">
                                 <img
                                   src={dish.image_url}
                                   alt={dish.name}
-                                  className="w-full h-full object-cover transition-transform duration-300 group-hover:scale-105"
+                                  className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-110"
                                   onError={(e) => {
                                     (e.target as HTMLImageElement).style.display = 'none'
                                   }}
                                 />
-                                <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent" />
-                                <div className="absolute bottom-2 right-2 bg-black/60 backdrop-blur-md px-2 py-1 rounded-md text-white font-bold">
+                                <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/20 to-transparent opacity-60 group-hover:opacity-80 transition-opacity" />
+
+                                <div className="absolute bottom-4 right-4 bg-white/10 backdrop-blur-md border border-white/20 text-white px-4 py-2 rounded-xl font-bold text-lg shadow-lg">
                                   €{dish.price.toFixed(2)}
                                 </div>
-                              </div>
-                            )}
-                            <div className="p-4">
-                              <div className="space-y-3">
-                                <div>
-                                  <div className="flex items-start justify-between gap-2">
-                                    <h4 className="font-bold text-lg">{dish.name}</h4>
-                                    {!dish.image_url && <span className="font-bold text-primary text-lg">€{dish.price.toFixed(2)}</span>}
-                                  </div>
-                                  <p className="text-sm text-muted-foreground mt-1">{dish.description}</p>
-                                </div>
-
-                                <div className="flex flex-wrap gap-2">
-                                  <Badge variant="outline" className="text-xs">
-                                    {category.name}
-                                  </Badge>
-                                  {dish.is_ayce && (
-                                    <Badge className="bg-orange-500 hover:bg-orange-600 text-xs">
-                                      🍽️ AYCE
-                                    </Badge>
-                                  )}
-                                </div>
-
-                                {dish.allergens && dish.allergens.length > 0 && (
-                                  <div className="flex flex-wrap gap-1">
-                                    {dish.allergens.map((allergen, idx) => (
-                                      <Badge key={idx} variant="secondary" className="text-xs bg-red-100 text-red-700">
-                                        ⚠️ {allergen}
-                                      </Badge>
-                                    ))}
+                                {dish.is_ayce && (
+                                  <div className="absolute top-4 left-4 bg-orange-500/90 backdrop-blur-sm text-white px-3 py-1 rounded-lg text-xs font-bold uppercase tracking-wider shadow-lg">
+                                    AYCE
                                   </div>
                                 )}
                               </div>
-                              <div className="flex items-center justify-between mt-4 pt-4 border-t border-border/10">
+                            ) : (
+                              <div className="h-32 bg-gradient-to-br from-slate-100 to-slate-200 dark:from-slate-800 dark:to-slate-900 flex items-center justify-center relative overflow-hidden">
+                                <div className="absolute inset-0 opacity-10 pattern-grid-lg" />
+                                <span className="text-3xl font-black text-slate-300 dark:text-slate-700">€{dish.price.toFixed(2)}</span>
+                                {dish.is_ayce && (
+                                  <div className="absolute top-4 left-4 bg-orange-500/90 backdrop-blur-sm text-white px-3 py-1 rounded-lg text-xs font-bold uppercase tracking-wider shadow-lg">
+                                    AYCE
+                                  </div>
+                                )}
+                              </div>
+                            )}
+
+                            <div className="p-6 flex-1 flex flex-col">
+                              <div className="mb-4 flex-1">
+                                <h4 className="text-xl font-bold text-slate-800 dark:text-slate-100 mb-2 leading-tight">{dish.name}</h4>
+                                <p className="text-sm text-slate-500 dark:text-slate-400 line-clamp-2 leading-relaxed">{dish.description}</p>
+                              </div>
+
+                              {dish.allergens && dish.allergens.length > 0 && (
+                                <div className="flex flex-wrap gap-1 mb-6">
+                                  {dish.allergens.map((allergen, idx) => (
+                                    <span key={idx} className="text-[10px] uppercase font-bold text-red-500 bg-red-50 dark:bg-red-900/20 px-2 py-1 rounded-md">
+                                      {allergen}
+                                    </span>
+                                  ))}
+                                </div>
+                              )}
+
+                              <div className="flex items-center justify-between pt-4 border-t border-slate-100 dark:border-slate-800 mt-auto">
                                 <div className="flex gap-2">
                                   <Button
-                                    variant="secondary"
+                                    variant="ghost"
                                     size="icon"
-                                    className="h-10 w-10 bg-muted/50 hover:bg-primary/10 hover:text-primary"
+                                    className="h-10 w-10 rounded-full hover:bg-blue-50 hover:text-blue-600 dark:hover:bg-blue-900/20 dark:hover:text-blue-400 transition-colors"
                                     onClick={() => handleEditDish(dish)}
                                   >
-                                    <PencilSimple size={20} />
+                                    <PencilSimple size={20} weight="bold" />
                                   </Button>
                                   <Button
-                                    variant="secondary"
+                                    variant="ghost"
                                     size="icon"
-                                    className={`h-10 w-10 bg-muted/50 ${!dish.is_active ? 'text-muted-foreground' : 'text-green-600 hover:bg-green-50'}`}
+                                    className={`h-10 w-10 rounded-full transition-colors ${!dish.is_active ? 'text-slate-400' : 'text-emerald-600 hover:bg-emerald-50 dark:hover:bg-emerald-900/20'}`}
                                     onClick={() => handleToggleDish(dish.id)}
                                   >
-                                    {dish.is_active ? <Eye size={20} /> : <EyeSlash size={20} />}
+                                    {dish.is_active ? <Eye size={20} weight="bold" /> : <EyeSlash size={20} weight="bold" />}
                                   </Button>
                                 </div>
                                 <Button
-                                  variant="secondary"
+                                  variant="ghost"
                                   size="icon"
-                                  className="h-10 w-10 text-destructive bg-muted/50 hover:bg-destructive/10"
+                                  className="h-10 w-10 rounded-full text-slate-400 hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-900/20 transition-colors"
                                   onClick={() => handleDeleteDish(dish.id)}
                                 >
-                                  <Trash size={20} />
+                                  <Trash size={20} weight="bold" />
                                 </Button>
                               </div>
                             </div>

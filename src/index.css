@@ -102,34 +102,34 @@
 }
 
 :root {
-  /* Light Theme */
-  --background: #f8fafc;
-  --foreground: #0b1220;
+  /* Light Theme - Elegant Gold */
+  --background: #ffffff;
+  --foreground: #0a0a0a;
 
   --card: #ffffff;
-  --card-foreground: #0b1220;
+  --card-foreground: #0a0a0a;
 
   --popover: #ffffff;
-  --popover-foreground: #0b1220;
+  --popover-foreground: #0a0a0a;
 
-  --primary: #f97316;
-  --primary-foreground: #0b1220;
+  --primary: #C9A152; /* Gold */
+  --primary-foreground: #ffffff;
 
-  --secondary: #e2e8f0;
-  --secondary-foreground: #0b1220;
+  --secondary: #f4f4f5;
+  --secondary-foreground: #18181b;
 
-  --muted: #e2e8f0;
-  --muted-foreground: #475569;
+  --muted: #f4f4f5;
+  --muted-foreground: #71717a;
 
-  --accent: #fff1e6;
-  --accent-foreground: #9a3412;
+  --accent: #fdf6e7; /* Light Gold Tint */
+  --accent-foreground: #C9A152;
 
   --destructive: #ef4444;
   --destructive-foreground: #ffffff;
 
-  --border: #e2e8f0;
-  --input: #e2e8f0;
-  --ring: #fb923c;
+  --border: #e4e4e7;
+  --input: #e4e4e7;
+  --ring: #C9A152;
 
   --glass-soft: rgba(255, 255, 255, 0.82);
   --glass-strong: rgba(255, 255, 255, 0.88);
@@ -138,37 +138,37 @@
 }
 
 .dark {
-  /* Professional Dark Theme */
-  --background: #0b1220;
-  --foreground: #e2e8f0;
+  /* Futuristic Gold Dark Theme (Analytics Style) */
+  --background: #0a0a0a; /* Deep Black */
+  --foreground: #ededed;
 
-  --card: #0f172a;
-  --card-foreground: #e2e8f0;
+  --card: #111111; /* Dark Grey */
+  --card-foreground: #ededed;
 
-  --popover: #111827;
-  --popover-foreground: #e2e8f0;
+  --popover: #111111;
+  --popover-foreground: #ededed;
 
-  --primary: #fb923c;
-  --primary-foreground: #231104;
+  --primary: #C9A152; /* Gold */
+  --primary-foreground: #000000;
 
-  --secondary: #1f2937;
-  --secondary-foreground: #e5e7eb;
+  --secondary: #1a1a1a;
+  --secondary-foreground: #ededed;
 
-  --muted: #111827;
-  --muted-foreground: #9ca3af;
+  --muted: #1a1a1a;
+  --muted-foreground: #a1a1aa;
 
-  --accent: #f97316;
-  --accent-foreground: #0b1220;
+  --accent: #1a1a1a;
+  --accent-foreground: #C9A152;
 
-  --destructive: #f87171;
-  --destructive-foreground: #0b1220;
+  --destructive: #7f1d1d;
+  --destructive-foreground: #ededed;
 
-  --border: #1f2937;
-  --input: #1f2937;
-  --ring: #fb923c;
+  --border: #27272a;
+  --input: #27272a;
+  --ring: #C9A152;
 
-  --glass-soft: rgba(15, 23, 42, 0.76);
-  --glass-strong: rgba(17, 24, 39, 0.84);
+  --glass-soft: rgba(10, 10, 10, 0.76);
+  --glass-strong: rgba(10, 10, 10, 0.84);
 }
 
 @theme {
