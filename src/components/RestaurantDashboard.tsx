@@ -1126,6 +1126,7 @@ const RestaurantDashboard = ({ user, onLogout }: RestaurantDashboardProps) => {
                 </div>
 
                 <div className="flex items-center gap-2 bg-muted p-1 rounded-lg mr-2">
+                  <span className="text-[10px] font-bold uppercase text-muted-foreground px-2">Zoom</span>
                   <Button variant="ghost" size="sm" onClick={() => setKitchenColumns(prev => Math.max(1, prev - 1))} className="h-7 w-7 p-0">
                     <Minus size={14} />
                   </Button>
@@ -1385,14 +1386,14 @@ const RestaurantDashboard = ({ user, onLogout }: RestaurantDashboardProps) => {
                 const activeOrder = restaurantOrders.find(o => getTableIdFromOrder(o) === table.id)
 
                 return (
-                  <Card key={table.id} className={`relative overflow-hidden transition-all duration-300 hover:shadow-lg border-border/40 hover:border-primary/30 group ${isActive ? 'ring-1 ring-primary/20' : ''}`}>
+                  <Card key={table.id} className={`relative overflow-hidden transition-all duration-300 hover:shadow-xl border-border/40 group ${isActive ? 'bg-gradient-to-br from-card to-orange-950/20 border-orange-500/30' : 'bg-card hover:border-primary/30'}`}>
                     <CardContent className="p-0 flex flex-col h-full">
                       {/* Header */}
-                      <div className={`p-4 flex items-center justify-between border-b border-border/10 ${isActive ? 'bg-orange-500/10' : 'bg-green-500/10'}`}>
-                        <span className="text-xl font-bold text-foreground">
+                      <div className={`p-4 flex items-center justify-between border-b border-border/10 ${isActive ? 'bg-orange-500/10' : 'bg-muted/30'}`}>
+                        <span className={`text-xl font-bold ${isActive ? 'text-orange-400' : 'text-foreground'}`}>
                           {table.number}
                         </span>
-                        <Badge variant={isActive ? 'default' : 'secondary'} className={`${isActive ? 'bg-orange-600 hover:bg-orange-700 text-white' : 'bg-green-600 hover:bg-green-700 text-white'}`}>
+                        <Badge variant={isActive ? 'default' : 'outline'} className={`${isActive ? 'bg-orange-500/20 text-orange-400 border-orange-500/50 hover:bg-orange-500/30' : 'text-muted-foreground border-border'}`}>
                           {isActive ? 'Occupato' : 'Libero'}
                         </Badge>
                       </div>
@@ -1402,36 +1403,36 @@ const RestaurantDashboard = ({ user, onLogout }: RestaurantDashboardProps) => {
                         {isActive ? (
                           <>
                             <div className="text-center">
-                              <p className="text-sm text-muted-foreground mb-1">PIN Tavolo</p>
-                              <span className="text-3xl font-mono font-bold tracking-widest text-primary">
+                              <p className="text-xs text-muted-foreground mb-1 uppercase tracking-widest">PIN Tavolo</p>
+                              <span className="text-4xl font-mono font-bold tracking-widest text-orange-400 drop-shadow-sm">
                                 {session?.session_pin || '...'}
                               </span>
                             </div>
                             {activeOrder && (
-                              <Badge variant="outline" className="bg-background">
+                              <Badge variant="outline" className="bg-background/50 border-orange-500/20 text-orange-300">
                                 {activeOrder.items?.filter(i => i.status === 'SERVED').length || 0} ordini completati
                               </Badge>
                             )}
                           </>
                         ) : (
-                          <div className="text-center text-muted-foreground">
-                            <MapPin size={32} className="mx-auto mb-2 opacity-20" />
-                            <p className="text-sm">Pronto per clienti</p>
+                          <div className="text-center text-muted-foreground/50 group-hover:text-muted-foreground transition-colors">
+                            <MapPin size={32} className="mx-auto mb-2" />
+                            <p className="text-sm font-medium">Pronto per clienti</p>
                           </div>
                         )}
                       </div>
 
                       {/* Actions */}
-                      <div className="p-4 bg-muted/10 border-t border-border/10 grid gap-2">
+                      <div className="p-4 bg-black/20 border-t border-border/10 grid gap-2">
                         {isActive ? (
                           <>
                             <div className="grid grid-cols-2 gap-2">
-                              <Button variant="outline" size="sm" onClick={() => handleShowTableQr(table)}>
+                              <Button variant="outline" size="sm" onClick={() => handleShowTableQr(table)} className="border-orange-500/20 hover:bg-orange-500/10 hover:text-orange-400">
                                 <QrCode size={16} className="mr-2" />
                                 QR
                               </Button>
                               <Button
-                                className="shadow-sm hover:shadow-md transition-all"
+                                className="bg-orange-600 hover:bg-orange-700 text-white shadow-lg shadow-orange-900/20"
                                 onClick={() => { setSelectedTableForActions(table); setShowTableBillDialog(true); }}
                               >
                                 <Receipt size={16} className="mr-2" />
@@ -1441,7 +1442,7 @@ const RestaurantDashboard = ({ user, onLogout }: RestaurantDashboardProps) => {
                           </>
                         ) : (
                           <Button
-                            className="w-full bg-primary hover:bg-primary/90 shadow-sm hover:shadow-md transition-all"
+                            className="w-full bg-primary/90 hover:bg-primary shadow-lg transition-all"
                             onClick={() => handleToggleTable(table.id)}
                           >
                             Attiva Tavolo
@@ -1995,16 +1996,19 @@ const RestaurantDashboard = ({ user, onLogout }: RestaurantDashboardProps) => {
             </Card>
 
             <div className="space-y-6">
-              <Card className="bg-gradient-to-br from-card to-muted/30 border-primary/10 shadow-sm">
+              <Card className="bg-gradient-to-br from-card to-orange-950/10 border-orange-500/20 shadow-lg">
                 <CardHeader>
-                  <CardTitle>Impostazioni All You Can Eat</CardTitle>
+                  <CardTitle className="text-orange-400 flex items-center gap-2">
+                    <ForkKnife size={20} />
+                    Impostazioni All You Can Eat
+                  </CardTitle>
                   <CardDescription>
                     Configura le opzioni per la modalità All You Can Eat. Le modifiche vengono salvate automaticamente.
                   </CardDescription>
                 </CardHeader>
                 <CardContent className="space-y-4">
-                  <div className="flex items-center justify-between">
-                    <Label htmlFor="ayce-enabled">Abilita All You Can Eat</Label>
+                  <div className="flex items-center justify-between p-4 bg-black/20 rounded-lg border border-white/5">
+                    <Label htmlFor="ayce-enabled" className="text-base font-medium">Abilita All You Can Eat</Label>
                     <Switch
                       id="ayce-enabled"
                       checked={ayceEnabled}
@@ -2012,24 +2016,29 @@ const RestaurantDashboard = ({ user, onLogout }: RestaurantDashboardProps) => {
                         setAyceEnabled(checked)
                         setAyceDirty(true)
                       }}
+                      className="data-[state=checked]:bg-orange-600"
                     />
                   </div>
                   {ayceEnabled && (
-                    <div className="grid gap-4 md:grid-cols-2">
+                    <div className="grid gap-4 md:grid-cols-2 animate-in fade-in slide-in-from-top-2">
                       <div className="space-y-2">
-                        <Label htmlFor="ayce-price">Prezzo a persona (€)</Label>
-                        <Input
-                          id="ayce-price"
-                          type="number"
-                          value={aycePrice}
-                          onChange={(e) => {
-                            setAycePrice(parseFloat(e.target.value) || 0)
-                            setAyceDirty(true)
-                          }}
-                        />
+                        <Label htmlFor="ayce-price" className="text-muted-foreground">Prezzo a persona (€)</Label>
+                        <div className="relative">
+                          <Input
+                            id="ayce-price"
+                            type="number"
+                            value={aycePrice}
+                            onChange={(e) => {
+                              setAycePrice(parseFloat(e.target.value) || 0)
+                              setAyceDirty(true)
+                            }}
+                            className="pl-8 border-orange-500/30 focus-visible:ring-orange-500/50"
+                          />
+                          <span className="absolute left-3 top-2.5 text-muted-foreground">€</span>
+                        </div>
                       </div>
                       <div className="space-y-2">
-                        <Label htmlFor="ayce-max-orders">Max Ordini per persona</Label>
+                        <Label htmlFor="ayce-max-orders" className="text-muted-foreground">Max Ordini per persona</Label>
                         <Input
                           id="ayce-max-orders"
                           type="number"
@@ -2038,6 +2047,7 @@ const RestaurantDashboard = ({ user, onLogout }: RestaurantDashboardProps) => {
                             setAyceMaxOrders(parseInt(e.target.value) || 0)
                             setAyceDirty(true)
                           }}
+                          className="border-orange-500/30 focus-visible:ring-orange-500/50"
                         />
                       </div>
                     </div>
@@ -2046,16 +2056,19 @@ const RestaurantDashboard = ({ user, onLogout }: RestaurantDashboardProps) => {
               </Card>
 
               <div className="grid gap-6 md:grid-cols-2">
-                <Card className="bg-gradient-to-br from-card to-muted/30 border-primary/10 shadow-sm">
+                <Card className="bg-gradient-to-br from-card to-orange-950/10 border-orange-500/20 shadow-lg">
                   <CardHeader>
-                    <CardTitle>Impostazioni Coperto</CardTitle>
+                    <CardTitle className="text-orange-400 flex items-center gap-2">
+                      <Receipt size={20} />
+                      Impostazioni Coperto
+                    </CardTitle>
                     <CardDescription>Gestisci il costo del coperto</CardDescription>
                   </CardHeader>
                   <CardContent className="space-y-4">
-                    <div className="flex items-center justify-between">
+                    <div className="flex items-center justify-between p-4 bg-black/20 rounded-lg border border-white/5">
                       <div className="space-y-0.5">
-                        <Label>Abilita Coperto</Label>
-                        <p className="text-sm text-muted-foreground">
+                        <Label className="text-base font-medium">Abilita Coperto</Label>
+                        <p className="text-xs text-muted-foreground">
                           Aggiungi automaticamente il coperto al conto
                         </p>
                       </div>
@@ -2065,33 +2078,41 @@ const RestaurantDashboard = ({ user, onLogout }: RestaurantDashboardProps) => {
                           setCopertoEnabled(checked)
                           setCopertoDirty(true)
                         }}
+                        className="data-[state=checked]:bg-orange-600"
                       />
                     </div>
                     {copertoEnabled && (
-                      <div className="space-y-2">
-                        <Label htmlFor="coperto-price">Costo Coperto (€)</Label>
-                        <Input
-                          id="coperto-price"
-                          type="number"
-                          value={copertoPrice}
-                          onChange={(e) => {
-                            setCopertoPrice(parseFloat(e.target.value) || 0)
-                            setCopertoDirty(true)
-                          }}
-                        />
+                      <div className="space-y-2 animate-in fade-in slide-in-from-top-2">
+                        <Label htmlFor="coperto-price" className="text-muted-foreground">Costo Coperto (€)</Label>
+                        <div className="relative">
+                          <Input
+                            id="coperto-price"
+                            type="number"
+                            value={copertoPrice}
+                            onChange={(e) => {
+                              setCopertoPrice(parseFloat(e.target.value) || 0)
+                              setCopertoDirty(true)
+                            }}
+                            className="pl-8 border-orange-500/30 focus-visible:ring-orange-500/50"
+                          />
+                          <span className="absolute left-3 top-2.5 text-muted-foreground">€</span>
+                        </div>
                       </div>
                     )}
                     {copertoDirty && (
-                      <Button onClick={saveCopertoSettings} className="w-full">
+                      <Button onClick={saveCopertoSettings} className="w-full bg-orange-600 hover:bg-orange-700 text-white">
                         Salva Impostazioni Coperto
                       </Button>
                     )}
                   </CardContent>
                 </Card>
 
-                <Card className="bg-gradient-to-br from-card to-muted/30 border-primary/10 shadow-sm">
+                <Card className="bg-gradient-to-br from-card to-orange-950/10 border-orange-500/20 shadow-lg">
                   <CardHeader>
-                    <CardTitle>Orari di Apertura</CardTitle>
+                    <CardTitle className="text-orange-400 flex items-center gap-2">
+                      <Clock size={20} />
+                      Orari di Apertura
+                    </CardTitle>
                     <CardDescription>Imposta gli orari per le prenotazioni</CardDescription>
                   </CardHeader>
                   <CardContent className="space-y-4">

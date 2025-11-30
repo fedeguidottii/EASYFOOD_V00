@@ -119,12 +119,9 @@ export default function TimelineReservations({ user, restaurantId, tables, booki
         // Fix: Use local time instead of UTC string parsing
         // We parse the string manually to ignore timezone conversions
         // Expected format: YYYY-MM-DDTHH:MM:SS or similar ISO
-        const timePart = booking.date_time.split('T')[1] // Get HH:MM:SS...
-        if (!timePart) return null
-
-        const [hoursStr, minutesStr] = timePart.split(':')
-        const hours = parseInt(hoursStr, 10)
-        const minutes = parseInt(minutesStr, 10)
+        const date = new Date(booking.date_time)
+        const hours = date.getHours()
+        const minutes = date.getMinutes()
 
         const startMinutes = hours * 60 + minutes
         const duration = 120 // Default 2 hours
@@ -276,7 +273,7 @@ export default function TimelineReservations({ user, restaurantId, tables, booki
               <div key={table.id} className="relative">
                 {/* Table Name */}
                 <div className="absolute left-0 top-0 bottom-0 w-32 flex items-center justify-center border-r border-border/50 bg-muted/10 z-10">
-                  <span className="font-medium text-sm">Tavolo {table.number}</span>
+                  <span className="font-medium text-sm">{table.number}</span>
                   <span className="text-xs text-muted-foreground ml-2">({table.seats}p)</span>
                 </div>
 

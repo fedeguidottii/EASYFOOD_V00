@@ -166,11 +166,12 @@ export default function ReservationsManager({ user, restaurantId, tables, bookin
   }
 
   // Delete reservation
-  const handleDeleteBooking = async () => {
-    if (!selectedBooking) return
+  const handleDeleteBooking = async (bookingId?: string) => {
+    const id = bookingId || selectedBooking?.id
+    if (!id) return
 
     try {
-      await DatabaseService.deleteBooking(selectedBooking.id)
+      await DatabaseService.deleteBooking(id)
       setShowDeleteDialog(false)
       setSelectedBooking(null)
       toast.success('Prenotazione eliminata')
@@ -317,121 +318,7 @@ export default function ReservationsManager({ user, restaurantId, tables, bookin
         />
       </div>
 
-      {/* Reservations List */}
-      <div className="space-y-4">
-        <div className="flex items-center justify-between flex-wrap gap-4">
-          <h3 className="text-xl font-semibold text-foreground">Lista Prenotazioni</h3>
-        </div>
-
-        {activeBookings.length === 0 ? (
-          <Card className="shadow-professional">
-            <CardContent className="text-center py-8">
-              <Calendar size={48} className="mx-auto text-muted-foreground mb-4" />
-              <p className="text-muted-foreground">
-                Nessuna prenotazione per questa data
-              </p>
-            </CardContent>
-          </Card>
-        ) : (
-          <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-            {activeBookings
-              .sort((a, b) => new Date(a.date_time).getTime() - new Date(b.date_time).getTime())
-              .map(booking => {
-                const dateStr = booking.date_time.split('T')[0]
-                const timeStr = booking.date_time.split('T')[1].substring(0, 5)
-                const today = isToday(dateStr)
-                const isCompleted = booking.status === 'COMPLETED'
-
-                return (
-                  <Card
-                    key={booking.id}
-                    className={`shadow-professional hover:shadow-professional-lg transition-all duration-300 cursor-pointer ${today ? 'border-l-4 border-l-primary' : ''} ${isCompleted ? 'opacity-50' : ''}`}
-                    onClick={() => handleEditBooking(booking)}
-                  >
-                    <CardHeader className="pb-3">
-                      <div className="flex items-center justify-between">
-                        <CardTitle className="text-lg flex items-center gap-2">
-                          <UserIcon size={18} />
-                          {booking.name}
-                        </CardTitle>
-                        <div className="flex gap-1">
-                          {today && <Badge variant="default">Oggi</Badge>}
-                          {isCompleted && <Badge variant="secondary">Completata</Badge>}
-                        </div>
-                      </div>
-                    </CardHeader>
-                    <CardContent className="space-y-3">
-                      <div className="space-y-2">
-                        <div className="flex items-center gap-2 text-sm">
-                          <Phone size={16} className="text-muted-foreground" />
-                          <span>{booking.phone}</span>
-                        </div>
-                        <div className="flex items-center gap-2 text-sm">
-                          <Calendar size={16} className="text-muted-foreground" />
-                          <span>{formatDate(dateStr)}</span>
-                        </div>
-                        <div className="flex items-center gap-2 text-sm">
-                          <Clock size={16} className="text-muted-foreground" />
-                          <span>{timeStr}</span>
-                        </div>
-                        <div className="flex items-center gap-2 text-sm">
-                          <Users size={16} className="text-muted-foreground" />
-                          <span>{booking.guests} {booking.guests === 1 ? 'persona' : 'persone'}</span>
-                        </div>
-                        <div className="text-sm font-medium text-primary">
-                          {getTableName(booking.table_id)}
-                        </div>
-                      </div>
-
-                      <Separator />
-
-                      <div className="flex gap-2">
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          onClick={(e) => {
-                            e.stopPropagation()
-                            handleMoveBooking(booking)
-                          }}
-                          className="flex-1"
-                        >
-                          <ArrowsLeftRight size={14} className="mr-1" />
-                          Sposta
-                        </Button>
-                        {!isCompleted && (
-                          <Button
-                            variant="default"
-                            size="sm"
-                            onClick={(e) => {
-                              e.stopPropagation()
-                              handleCompleteBooking(booking)
-                            }}
-                            className="bg-green-600 hover:bg-green-700"
-                          >
-                            Completata
-                          </Button>
-                        )}
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          onClick={(e) => {
-                            e.stopPropagation()
-                            setSelectedBooking(booking)
-                            setShowDeleteDialog(true)
-                          }}
-                          className="text-destructive hover:bg-destructive/10"
-                        >
-                          <Trash size={14} />
-                        </Button>
-                      </div>
-                    </CardContent>
-                  </Card>
-                )
-              })
-            }
-          </div>
-        )}
-      </div>
+      {/* Reservations List Removed */}
 
       {/* Edit Reservation Dialog */}
       <Dialog open={showEditDialog} onOpenChange={setShowEditDialog}>
@@ -533,13 +420,13 @@ export default function ReservationsManager({ user, restaurantId, tables, bookin
         </DialogContent>
       </Dialog>
 
-      {/* Move Reservation Dialog */}
+      {/* Manage Reservation Dialog */}
       <Dialog open={showMoveDialog} onOpenChange={setShowMoveDialog}>
         <DialogContent className="max-w-md">
           <DialogHeader>
-            <DialogTitle>Sposta Prenotazione</DialogTitle>
+            <DialogTitle>Gestisci Prenotazione</DialogTitle>
             <DialogDescription>
-              Seleziona la nuova data e ora per la prenotazione di {selectedBooking?.name}
+              Gestisci la prenotazione di {selectedBooking?.name}
             </DialogDescription>
           </DialogHeader>
           <div className="space-y-4 py-4">
@@ -561,17 +448,33 @@ export default function ReservationsManager({ user, restaurantId, tables, bookin
                 onChange={(e) => setMoveForm(prev => ({ ...prev, time: e.target.value }))}
               />
             </div>
-            <div className="flex gap-3 justify-end pt-4">
+
+            <div className="flex flex-col gap-3 pt-4">
+              <Button
+                onClick={handleSaveMove}
+                className="w-full"
+              >
+                Conferma Spostamento
+              </Button>
+
+              {selectedBooking && selectedBooking.status !== 'COMPLETED' && (
+                <Button
+                  onClick={() => {
+                    handleCompleteBooking(selectedBooking)
+                    setShowMoveDialog(false)
+                  }}
+                  className="w-full bg-green-600 hover:bg-green-700 text-white"
+                >
+                  Segna come Completata
+                </Button>
+              )}
+
               <Button
                 variant="outline"
                 onClick={() => setShowMoveDialog(false)}
+                className="w-full"
               >
-                Annulla
-              </Button>
-              <Button
-                onClick={handleSaveMove}
-              >
-                Conferma Spostamento
+                Chiudi
               </Button>
             </div>
           </div>
@@ -604,7 +507,7 @@ export default function ReservationsManager({ user, restaurantId, tables, bookin
             </Button>
             <Button
               variant="destructive"
-              onClick={handleDeleteBooking}
+              onClick={() => handleDeleteBooking()}
             >
               Elimina Prenotazione
             </Button>
