@@ -36,11 +36,17 @@ interface CartItem extends Dish {
   notes?: string
 }
 
-export default function CustomerMenu() {
+interface CustomerMenuProps {
+  tableId?: string
+  onExit?: () => void
+  interfaceMode?: 'customer' | 'waiter'
+}
+
+export default function CustomerMenu({ tableId: propTableId, onExit, interfaceMode = 'customer' }: CustomerMenuProps = {}) {
   // FIX: Recuperiamo i parametri in modo generico per gestire sia :tableId che :id
   const params = useParams()
   // Cerca l'ID in params.tableId O params.id O params.table_id
-  const tableId = params.tableId || params.id || params.table_id
+  const tableId = propTableId || params.tableId || params.id || params.table_id
 
   const [restaurantId, setRestaurantId] = useState<string | null>(null)
   const [error, setError] = useState<string | null>(null)
