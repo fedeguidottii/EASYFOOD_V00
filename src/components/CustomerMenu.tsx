@@ -1,529 +1,655 @@
-import { useState, useMemo } from 'react'
+import { useState, useEffect, useMemo } from 'react'
+import { useParams } from 'react-router-dom'
+import { useSupabaseData } from '../hooks/useSupabaseData'
+import { DatabaseService } from '../services/DatabaseService'
+import { supabase } from '../lib/supabase'
 import { Button } from '@/components/ui/button'
-import { Card } from '@/components/ui/card'
-import { Input } from '@/components/ui/input'
+import { Card, CardContent } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
-import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog'
+import { Drawer, DrawerContent, DrawerHeader, DrawerTitle, DrawerTrigger, DrawerFooter, DrawerDescription } from '@/components/ui/drawer'
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '@/components/ui/dialog'
+import { ScrollArea } from '@/components/ui/scroll-area'
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
+import { Input } from '@/components/ui/input'
 import { Textarea } from '@/components/ui/textarea'
-import { Label } from '@/components/ui/label'
-import { useCustomerSession } from '../hooks/useCustomerSession'
-import { Dish } from '../services/types'
+import { toast } from 'sonner'
 import {
-  ChefHat,
+  ShoppingBasket,
   Plus,
   Minus,
-  ShoppingCart,
-  X,
+  Utensils,
   Clock,
-  MagnifyingGlass,
-  ForkKnife,
-  Trash,
-  ListBullets,
-  Receipt
-} from '@phosphor-icons/react'
-import { cn } from '@/lib/utils'
+  CheckCircle,
+  ChefHat,
+  Search,
+  Info,
+  X
+} from 'lucide-react'
+import { motion, AnimatePresence } from 'framer-motion'
+import type { Category, Dish, Order, TableSession } from '../services/types'
 
-interface Props {
-  tableId: string
-  onExit: () => void
-  interfaceMode?: 'customer' | 'waiter'
+// Interfaccia estesa per gestire note e ID univoci nel carrello
+interface CartItem extends Dish {
+  cartId: string
+  quantity: number
+  notes?: string
 }
 
-export default function CustomerMenu({ tableId, onExit, interfaceMode = 'customer' }: Props) {
-  const {
-    restaurant,
-    categories,
-    dishes,
-    cartItems,
-    orders,
-    loading,
-    addToCart,
-    removeFromCart,
-    updateCartItem,
-    placeOrder,
-    cancelOrderItem,
-    cancelOrder
-  } = useCustomerSession(tableId)
-
-  const mode = interfaceMode
-  const [activeTab, setActiveTab] = useState<'menu' | 'orders'>('menu')
-
-  const [selectedCategory, setSelectedCategory] = useState<string>('all')
+export default function CustomerMenu() {
+  const { restaurantId, tableId } = useParams<{ restaurantId: string; tableId: string }>()
+  const [activeCategory, setActiveCategory] = useState<string>('all')
+  const [cart, setCart] = useState<CartItem[]>([])
+  const [isCartOpen, setIsCartOpen] = useState(false)
+  const [session, setSession] = useState<TableSession | null>(null)
+  const [previousOrders, setPreviousOrders] = useState<Order[]>([])
+  const [isOrderSubmitting, setIsOrderSubmitting] = useState(false)
   const [searchTerm, setSearchTerm] = useState('')
-  const [showCart, setShowCart] = useState(false)
+  const [selectedDish, setSelectedDish] = useState<Dish | null>(null) // Per il popup dettagli
+  const [dishNote, setDishNote] = useState('') // Nota temporanea nel popup
 
-  const [selectedDish, setSelectedDish] = useState<Dish | null>(null)
-  const [itemQuantity, setItemQuantity] = useState(1)
-  const [itemNotes, setItemNotes] = useState('')
-  const [showAddDialog, setShowAddDialog] = useState(false)
+  // Recupero Dati
+  const [categories] = useSupabaseData<Category>('categories', [], { column: 'restaurant_id', value: restaurantId })
+  const [dishes] = useSupabaseData<Dish>('dishes', [], { column: 'restaurant_id', value: restaurantId })
 
-  const filteredItems = useMemo(() => {
-    const normalizedSearch = searchTerm.toLowerCase()
-    return dishes.filter(item => {
-      const matchesCategory = selectedCategory === 'all'
-        ? true
-        : item.category_id === selectedCategory
-
-      const matchesSearch = !normalizedSearch
-        || item.name.toLowerCase().includes(normalizedSearch)
-        || item.description?.toLowerCase().includes(normalizedSearch)
-
-      return matchesCategory && matchesSearch && item.is_active
-    })
-  }, [dishes, categories, selectedCategory, searchTerm])
-
+  // 1. Ordinamento Categorie (Cruciale: rispetta l'ordine del backend)
   const sortedCategories = useMemo(() => {
-    return [...categories].sort((a, b) => {
-      const orderA = a.order ?? 9999
-      const orderB = b.order ?? 9999
-      if (orderA !== orderB) return orderA - orderB
-      return a.name.localeCompare(b.name)
-    })
+    return [...(categories || [])].sort((a, b) => (a.order || 0) - (b.order || 0))
   }, [categories])
 
+  // 2. Filtro Piatti (Categoria + Ricerca + Attivi)
+  const filteredDishes = useMemo(() => {
+    let d = dishes || []
+    d = d.filter(dish => dish.is_active !== false) // Mostra solo piatti attivi
+
+    if (activeCategory !== 'all') {
+      d = d.filter(dish => dish.category_id === activeCategory)
+    }
+
+    if (searchTerm.trim()) {
+      const lowerTerm = searchTerm.toLowerCase()
+      d = d.filter(dish =>
+        dish.name.toLowerCase().includes(lowerTerm) ||
+        dish.description?.toLowerCase().includes(lowerTerm)
+      )
+    }
+    return d
+  }, [dishes, activeCategory, searchTerm])
+
+  // Totali
   const cartTotal = useMemo(() => {
-    return cartItems.reduce((total, item) => {
-      const dish = dishes.find(d => d.id === item.dish_id)
-      return total + (dish?.price || 0) * item.quantity
-    }, 0)
-  }, [cartItems, dishes])
+    return cart.reduce((total, item) => total + (item.price * item.quantity), 0)
+  }, [cart])
 
-  const cartItemCount = cartItems.reduce((acc, item) => acc + item.quantity, 0)
+  const cartCount = useMemo(() => {
+    return cart.reduce((count, item) => count + item.quantity, 0)
+  }, [cart])
 
-  const openAddDialog = (dish: Dish) => {
-    setSelectedDish(dish)
-    setItemQuantity(1)
-    setItemNotes('')
-    setShowAddDialog(true)
+  // Inizializzazione Sessione
+  useEffect(() => {
+    if (!tableId) return
+
+    const fetchSession = async () => {
+      // Cerca sessione aperta
+      const { data: sessions } = await supabase
+        .from('table_sessions')
+        .select('*')
+        .eq('table_id', tableId)
+        .eq('status', 'OPEN')
+        .limit(1)
+
+      if (sessions && sessions.length > 0) {
+        setSession(sessions[0])
+
+        // Carica ordini precedenti
+        const { data: orders } = await supabase
+          .from('orders')
+          .select('*, items:order_items(*)')
+          .eq('table_session_id', sessions[0].id)
+          .order('created_at', { ascending: false })
+
+        if (orders) setPreviousOrders(orders as any[])
+      }
+    }
+
+    fetchSession()
+
+    // Realtime: Ascolta cambiamenti sugli ordini (es. cucina accetta ordine)
+    const channel = supabase
+      .channel(`public:orders:table-${tableId}`)
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'orders' }, () => fetchSession())
+      .subscribe()
+
+    return () => { supabase.removeChannel(channel) }
+  }, [tableId])
+
+  // --- Gestione Carrello ---
+
+  const addToCart = (dish: Dish, quantity: number = 1, notes: string = '') => {
+    setCart(prev => {
+      // Se esiste già lo stesso piatto SENZA note, aumenta quantità
+      const existingIndex = prev.findIndex(item => item.id === dish.id && item.notes === notes)
+
+      if (existingIndex >= 0) {
+        const newCart = [...prev]
+        newCart[existingIndex].quantity += quantity
+        return newCart
+      }
+
+      // Altrimenti aggiungi nuovo item
+      return [...prev, {
+        ...dish,
+        cartId: crypto.randomUUID(),
+        quantity,
+        notes
+      }]
+    })
+
+    if (quantity > 0) {
+      toast.success(`Aggiunto: ${dish.name}`, {
+        position: 'top-center',
+        duration: 1500,
+        style: { background: '#10B981', color: '#fff', border: 'none' }
+      })
+    }
+    setSelectedDish(null) // Chiudi popup se aperto
+    setDishNote('')
   }
 
-  const handleAddToCart = async () => {
-    if (!selectedDish) return
-    await addToCart(selectedDish.id, itemQuantity, itemNotes)
-    setShowAddDialog(false)
-    setSelectedDish(null)
+  const updateCartItemQuantity = (cartId: string, delta: number) => {
+    setCart(prev => prev.map(item => {
+      if (item.cartId === cartId) {
+        return { ...item, quantity: Math.max(0, item.quantity + delta) }
+      }
+      return item
+    }).filter(item => item.quantity > 0))
   }
 
-  if (loading) {
-    return (
-      <div className="min-h-screen bg-white flex items-center justify-center">
-        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary"></div>
-      </div>
-    )
+  const removeCartItem = (cartId: string) => {
+    setCart(prev => prev.filter(item => item.cartId !== cartId))
   }
+
+  const submitOrder = async () => {
+    if (!session || cart.length === 0) return
+
+    setIsOrderSubmitting(true)
+    try {
+      const orderItems = cart.map(item => ({
+        dish_id: item.id,
+        quantity: item.quantity,
+        notes: item.notes || '',
+        price_at_time: item.price
+      }))
+
+      await DatabaseService.createOrder({
+        restaurant_id: restaurantId,
+        table_session_id: session.id,
+        status: 'pending',
+        total_amount: cartTotal,
+        items: orderItems
+      })
+
+      setCart([])
+      setIsCartOpen(false)
+      toast.success('Ordine inviato in cucina! 👨‍🍳', {
+        duration: 3000,
+        style: { background: '#10B981', color: 'white' }
+      })
+    } catch (error) {
+      console.error(error)
+      toast.error('Errore invio ordine')
+    } finally {
+      setIsOrderSubmitting(false)
+    }
+  }
+
+  // --- UI Components ---
 
   return (
-    <div className="min-h-screen bg-gradient-to-b from-slate-950 via-slate-900 to-slate-950 text-slate-50 font-sans">
-      {/* Header */}
-      <header className="sticky top-0 z-40 bg-slate-950/80 backdrop-blur border-b border-white/10 shadow-lg">
-        <div className="max-w-3xl mx-auto px-5 h-16 flex items-center justify-between">
-          <div className="flex items-center gap-3">
-            {restaurant?.logo_url ? (
-              <img src={restaurant.logo_url} alt="Logo" className="w-10 h-10 rounded-full object-cover border border-white/10" />
-            ) : (
-              <div className="w-10 h-10 rounded-full bg-white/10 text-cyan-200 flex items-center justify-center shadow-inner">
-                <ChefHat size={20} weight="duotone" />
+    <div className="min-h-screen bg-muted/5 pb-28 font-sans select-none">
+
+      {/* Header Fisso: Titolo + Ricerca + Categorie */}
+      <header className="sticky top-0 z-20 bg-background/95 backdrop-blur-md border-b border-border/10 shadow-sm">
+        <div className="px-4 pt-3 pb-2">
+          <div className="flex items-center justify-between mb-3">
+            <div className="flex items-center gap-2">
+              <div className="bg-primary p-1.5 rounded-lg shadow-sm">
+                <Utensils className="w-4 h-4 text-primary-foreground" />
               </div>
-            )}
-            <div>
-              <p className="text-[11px] uppercase tracking-[0.18em] text-slate-300/80">Benvenuto</p>
-              <h1 className="font-semibold text-slate-50 leading-tight truncate max-w-[200px]">
-                {restaurant?.name || 'Menu'}
-              </h1>
+              <div>
+                <h1 className="font-bold text-base leading-none">Menu Digitale</h1>
+                {session && <span className="text-[10px] text-muted-foreground">Tavolo connesso</span>}
+              </div>
+            </div>
+
+            {/* Barra Ricerca Compatta */}
+            <div className="relative w-32 sm:w-48 transition-all focus-within:w-40 sm:focus-within:w-56">
+              <Search className="absolute left-2 top-1.5 w-3.5 h-3.5 text-muted-foreground" />
+              <Input
+                placeholder="Cerca..."
+                className="h-7 pl-7 text-xs bg-muted/20 border-none focus-visible:ring-1"
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+              />
             </div>
           </div>
 
-          <div className="flex items-center gap-2">
-            {activeTab === 'menu' && (
-              <Button
-                variant="ghost"
-                size="icon"
-                className="relative text-slate-200 hover:text-white hover:bg-white/10"
-                onClick={() => setShowCart(true)}
+          {/* Categorie Scrollabili */}
+          <ScrollArea className="w-full -mx-4 px-4">
+            <div className="flex gap-2 pb-2 min-w-max">
+              <button
+                onClick={() => setActiveCategory('all')}
+                className={`px-3 py-1.5 rounded-full text-xs font-semibold transition-all duration-200 border ${activeCategory === 'all'
+                    ? 'bg-foreground text-background border-foreground'
+                    : 'bg-background text-muted-foreground border-border/40 hover:bg-muted'
+                  }`}
               >
-                <ShoppingCart size={22} weight="duotone" />
-                {cartItemCount > 0 && (
-                  <span className="absolute -top-1 -right-1 bg-gradient-to-r from-cyan-500 to-indigo-500 text-white text-[10px] font-bold w-5 h-5 flex items-center justify-center rounded-full shadow-lg">
-                    {cartItemCount}
-                  </span>
-                )}
-              </Button>
-            )}
-            {mode === 'waiter' && (
-              <Button variant="ghost" size="icon" onClick={onExit} className="text-slate-300 hover:text-red-400 hover:bg-red-500/10">
-                <X size={22} />
-              </Button>
-            )}
-          </div>
-        </div>
-
-        {/* Navigation Tabs */}
-        <div className="max-w-3xl mx-auto px-5 flex border-t border-white/10">
-          <button
-            onClick={() => setActiveTab('menu')}
-            className={cn(
-              "flex-1 py-3 text-sm font-semibold border-b-2 transition-colors",
-              activeTab === 'menu'
-                ? "border-cyan-400 text-white"
-                : "border-transparent text-slate-300/80 hover:text-white",
-            )}
-          >
-            Menu
-          </button>
-          <button
-            onClick={() => setActiveTab('orders')}
-            className={cn(
-              "flex-1 py-3 text-sm font-semibold border-b-2 transition-colors",
-              activeTab === 'orders'
-                ? "border-cyan-400 text-white"
-                : "border-transparent text-slate-300/80 hover:text-white",
-            )}
-          >
-            I Miei Ordini
-          </button>
+                Tutti
+              </button>
+              {sortedCategories.map(cat => (
+                <button
+                  key={cat.id}
+                  onClick={() => setActiveCategory(cat.id)}
+                  className={`px-3 py-1.5 rounded-full text-xs font-semibold transition-all duration-200 border ${activeCategory === cat.id
+                      ? 'bg-foreground text-background border-foreground shadow-sm'
+                      : 'bg-background text-muted-foreground border-border/40 hover:bg-muted'
+                    }`}
+                >
+                  {cat.name}
+                </button>
+              ))}
+            </div>
+          </ScrollArea>
         </div>
       </header>
 
-      <main className="max-w-3xl mx-auto pb-24 px-5">
-        {activeTab === 'menu' ? (
-          <div className="pt-6 space-y-6">
-            {/* Search */}
-            <div className="relative">
-              <MagnifyingGlass className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-300/70" size={18} />
-              <Input
-                placeholder="Cerca piatti..."
-                value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
-                className="pl-11 bg-white/5 border-white/10 text-slate-50 placeholder:text-slate-300/70 focus-visible:ring-cyan-400"
-              />
-            </div>
-
-            {/* Categories */}
-            <div className="flex gap-2 overflow-x-auto pb-2 scrollbar-hide -mx-5 px-5">
-              <Button
-                variant={selectedCategory === 'all' ? 'default' : 'outline'}
-                size="sm"
-                onClick={() => setSelectedCategory('all')}
-                className={cn(
-                  "rounded-full whitespace-nowrap shadow-sm border",
-                  selectedCategory === 'all'
-                    ? "bg-gradient-to-r from-cyan-500 to-indigo-500 text-white border-transparent"
-                    : "bg-white/5 text-slate-100 border-white/10 hover:bg-white/10",
-                )}
+      {/* Lista Piatti */}
+      <main className="p-4 space-y-3 max-w-lg mx-auto">
+        <AnimatePresence mode="popLayout">
+          {filteredDishes.map((dish) => (
+            <motion.div
+              key={dish.id}
+              initial={{ opacity: 0, y: 10 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.95 }}
+              transition={{ duration: 0.15 }}
+            >
+              <Card
+                className="overflow-hidden border-none shadow-sm bg-card hover:bg-muted/10 transition-colors cursor-pointer group"
+                onClick={() => setSelectedDish(dish)}
               >
-                Tutti
-              </Button>
-              {sortedCategories.map(cat => (
-                <Button
-                  key={cat.id}
-                  variant={selectedCategory === cat.id ? 'default' : 'outline'}
-                  size="sm"
-                  onClick={() => setSelectedCategory(cat.id)}
-                  className={cn(
-                    "rounded-full whitespace-nowrap shadow-sm border",
-                    selectedCategory === cat.id
-                      ? "bg-gradient-to-r from-cyan-500 to-indigo-500 text-white border-transparent"
-                      : "bg-white/5 text-slate-100 border-white/10 hover:bg-white/10",
-                  )}
-                >
-                  {cat.name}
-                </Button>
-              ))}
-            </div>
+                <div className="flex p-2 gap-3 h-[90px]"> {/* Altezza ridotta fissa */}
 
-            {/* Dish List */}
-            <div className="space-y-4">
-              {filteredItems.map(dish => (
-                <Card
-                  key={dish.id}
-                  className="overflow-hidden border border-white/10 shadow-xl shadow-black/20 bg-white/5 backdrop-blur cursor-pointer transition hover:border-cyan-400/40"
-                  onClick={() => openAddDialog(dish)}
-                >
-                  <div className="flex h-28">
-                    {dish.image_url && (
-                      <div className="w-28 h-full shrink-0">
-                        <img
-                          src={dish.image_url}
-                          alt={dish.name}
-                          className="w-full h-full object-cover"
-                        />
+                  {/* Immagine (1:1 o quasi, arrotondata) */}
+                  <div className="w-[85px] h-full shrink-0 relative rounded-lg overflow-hidden bg-muted/20">
+                    {dish.image_url ? (
+                      <img
+                        src={dish.image_url}
+                        alt={dish.name}
+                        className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
+                        loading="lazy"
+                      />
+                    ) : (
+                      <div className="w-full h-full flex items-center justify-center">
+                        <Utensils className="w-6 h-6 text-muted-foreground/30" />
                       </div>
                     )}
-                    <div className="flex-1 p-3 flex flex-col justify-between min-w-0">
-                      <div>
-                        <div className="flex justify-between items-start gap-2">
-                          <h3 className="font-bold text-slate-50 line-clamp-2 leading-tight">
-                            {dish.name}
-                          </h3>
-                          <span className="font-bold text-cyan-300 whitespace-nowrap">
-                            €{dish.price.toFixed(2)}
-                          </span>
-                        </div>
-                        {dish.description && (
-                          <p className="text-xs text-slate-200/80 mt-1 line-clamp-2">
-                            {dish.description}
-                          </p>
-                        )}
+                    {/* Badge Allergeni Mini */}
+                    {dish.allergens && dish.allergens.length > 0 && (
+                      <div className="absolute bottom-1 right-1 bg-black/50 backdrop-blur-[2px] p-0.5 rounded text-[8px] text-white">
+                        <Info className="w-2.5 h-2.5" />
                       </div>
-                      <div className="flex items-center justify-between mt-2">
-                        <div className="flex gap-1">
-                          {dish.allergens && dish.allergens.length > 0 && (
-                            <Badge variant="outline" className="text-[10px] h-5 px-1 text-slate-100 border-white/20 bg-white/10">
-                              {dish.allergens.length} allergeni
-                            </Badge>
-                          )}
-                          {dish.is_ayce && (
-                            <Badge variant="secondary" className="text-[10px] h-5 px-1 bg-emerald-500/20 text-emerald-100 border-transparent">
-                              AYCE
-                            </Badge>
-                          )}
-                        </div>
-                        <Button
-                          size="sm"
-                          className="h-8 w-8 rounded-full p-0 bg-gradient-to-r from-cyan-500 to-indigo-500 text-white shadow-md"
-                        >
-                          <Plus size={14} weight="bold" />
-                        </Button>
-                      </div>
+                    )}
+                  </div>
+
+                  {/* Info Piatto */}
+                  <div className="flex-1 flex flex-col justify-between min-w-0 py-0.5">
+                    <div>
+                      <h3 className="font-bold text-sm leading-tight text-foreground truncate pr-4">
+                        {dish.name}
+                      </h3>
+                      <p className="text-[11px] text-muted-foreground line-clamp-2 mt-1 leading-relaxed">
+                        {dish.description}
+                      </p>
                     </div>
-                  </div>
-                </Card>
-              ))}
 
-              {filteredItems.length === 0 && (
-                <div className="text-center py-12 bg-white/5 border border-white/10 rounded-2xl">
-                  <div className="w-16 h-16 bg-white/10 rounded-full flex items-center justify-center mx-auto mb-4 text-slate-300">
-                    <ForkKnife size={32} />
-                  </div>
-                  <p className="text-slate-100 font-medium">Nessun piatto trovato</p>
-                  <p className="text-sm text-slate-300/80 mt-1">Prova a cambiare categoria o ricerca</p>
-                </div>
-              )}
-            </div>
-          </div>
-        ) : (
-          <div className="pt-6 space-y-6">
-            <div className="flex items-center justify-between mb-2">
-              <h2 className="text-xl font-bold text-slate-50">I tuoi ordini</h2>
-              <Badge variant="outline" className="text-slate-100 border-white/20 bg-white/5">
-                Tavolo {tableId}
-              </Badge>
-            </div>
+                    <div className="flex items-end justify-between">
+                      <span className="font-bold text-sm text-foreground">
+                        € {dish.price.toFixed(2)}
+                      </span>
 
-            {orders.length === 0 ? (
-              <div className="text-center py-12 bg-white/5 rounded-2xl border border-white/10 shadow-lg">
-                <div className="w-16 h-16 bg-white/10 rounded-full flex items-center justify-center mx-auto mb-4 text-slate-300">
-                  <Receipt size={32} />
-                </div>
-                <p className="text-slate-100 font-medium">Nessun ordine effettuato</p>
-                <Button
-                  variant="link"
-                  className="text-cyan-300 mt-2"
-                  onClick={() => setActiveTab('menu')}
-                >
-                  Vai al menu
-                </Button>
-              </div>
-            ) : (
-              <div className="space-y-4">
-                {orders.map((order) => (
-                  <Card key={order.id} className="border border-white/10 shadow-lg bg-white/5 overflow-hidden">
-                    <div className="bg-white/10 px-4 py-3 border-b border-white/10 flex justify-between items-center">
-                      <div className="flex items-center gap-2 text-slate-100">
-                        <Clock size={16} className="text-cyan-300" />
-                        <span className="text-sm font-medium">
-                          {new Date(order.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
-                        </span>
-                      </div>
-                      <Badge
-                        variant={order.status === 'completed' ? 'default' : 'secondary'}
-                        className={cn(
-                          order.status === 'completed' ? "bg-emerald-500/20 text-emerald-100" : "bg-amber-500/20 text-amber-100",
-                        )}
+                      {/* Tasto Quick Add (+), senza aprire dettagli se uno vuole fare veloce */}
+                      <Button
+                        size="sm"
+                        variant="secondary"
+                        className="h-7 w-7 rounded-full p-0 shadow-sm bg-primary/10 hover:bg-primary text-primary hover:text-primary-foreground transition-all"
+                        onClick={(e) => {
+                          e.stopPropagation() // Non aprire popup dettagli
+                          addToCart(dish)
+                        }}
                       >
-                        {order.status === 'completed' ? 'Completato' : 'In preparazione'}
-                      </Badge>
+                        <Plus className="w-4 h-4" />
+                      </Button>
                     </div>
-                    <div className="p-4 space-y-3 text-slate-100">
-                      {order.items?.map((item: any) => {
-                        const dish = dishes.find(d => d.id === item.dish_id)
-                        return (
-                          <div key={item.id} className="flex justify-between items-start text-sm">
-                            <div className="flex gap-3">
-                              <span className="font-bold min-w-[20px]">{item.quantity}x</span>
-                              <div>
-                                <span>{dish?.name}</span>
-                                {item.notes && (
-                                  <p className="text-xs text-slate-300 mt-0.5 italic">Note: {item.notes}</p>
-                                )}
-                              </div>
-                            </div>
-                            <span className="font-medium text-cyan-200">
-                              €{((dish?.price || 0) * item.quantity).toFixed(2)}
-                            </span>
-                          </div>
-                        )
-                      })}
-                      <div className="pt-3 mt-3 border-t border-white/10 flex justify-between items-center">
-                        <span className="font-semibold">Totale Ordine</span>
-                        <span className="font-bold text-cyan-300 text-lg">
-                          €{(order.total_amount || 0).toFixed(2)}
-                        </span>
-                      </div>
-                    </div>
-                  </Card>
-                ))}
-              </div>
-            )}
+                  </div>
+                </div>
+              </Card>
+            </motion.div>
+          ))}
+        </AnimatePresence>
+
+        {filteredDishes.length === 0 && (
+          <div className="text-center py-12 opacity-60">
+            <div className="w-16 h-16 bg-muted rounded-full flex items-center justify-center mx-auto mb-3">
+              <Utensils className="w-8 h-8 text-muted-foreground" />
+            </div>
+            <p className="text-sm font-medium">Nessun piatto trovato</p>
+            <p className="text-xs text-muted-foreground">Prova a cambiare categoria o ricerca</p>
           </div>
         )}
       </main>
-      <Dialog open={showCart} onOpenChange={setShowCart}>
-        <DialogContent className="max-w-md h-[80vh] flex flex-col p-0 gap-0 bg-slate-950 text-slate-50 border border-white/10">
-          <DialogHeader className="px-6 py-4 border-b border-white/10">
-            <DialogTitle className="text-xl font-bold flex items-center gap-2 text-slate-50">
-              <ShoppingCart size={24} className="text-cyan-300" />
-              Il tuo carrello
-            </DialogTitle>
-            <DialogDescription className="text-slate-300/80">
-              Riepilogo dei piatti selezionati
-            </DialogDescription>
-          </DialogHeader>
 
-          <div className="flex-1 overflow-y-auto p-6 space-y-4 bg-gradient-to-b from-slate-900/60 to-slate-950">
-            {cartItems.length === 0 ? (
-              <div className="h-full flex flex-col items-center justify-center text-center space-y-4">
-                <div className="w-16 h-16 bg-white/10 rounded-full flex items-center justify-center text-slate-300">
-                  <ShoppingCart size={32} className="" />
-                </div>
-                <p className="text-slate-100 font-medium">Il carrello è vuoto</p>
-                <Button variant="outline" onClick={() => setShowCart(false)} className="mt-2 border-white/20 text-slate-100 hover:bg-white/10">
-                  Torna al menu
-                </Button>
-              </div>
-            ) : (
-              cartItems.map(item => {
-                const dish = dishes.find(d => d.id === item.dish_id)
-                if (!dish) return null
-                return (
-                  <div key={item.id} className="flex gap-4 p-4 bg-white/5 rounded-xl border border-white/10">
-                    <div className="flex-1 space-y-1">
-                      <div className="flex justify-between">
-                        <h4 className="font-bold text-slate-50">{dish.name}</h4>
-                        <span className="font-bold text-cyan-300">€{(dish.price * item.quantity).toFixed(2)}</span>
-                      </div>
-                      {item.notes && (
-                        <p className="text-xs text-slate-300 italic">Note: {item.notes}</p>
-                      )}
-                      <div className="flex items-center gap-3 mt-2">
-                        <div className="flex items-center bg-white/5 rounded-lg border border-white/10 shadow-sm h-8">
-                          <button
-                            className="w-8 h-full flex items-center justify-center text-slate-200 hover:text-cyan-300 hover:bg-white/10 rounded-l-lg transition-colors"
-                            onClick={() => updateCartItem(item.id, { quantity: Math.max(0, item.quantity - 1) })}
-                          >
-                            <Minus size={14} weight="bold" />
-                          </button>
-                          <span className="w-8 text-center text-sm font-bold text-slate-100">{item.quantity}</span>
-                          <button
-                            className="w-8 h-full flex items-center justify-center text-slate-200 hover:text-cyan-300 hover:bg-white/10 rounded-r-lg transition-colors"
-                            onClick={() => updateCartItem(item.id, { quantity: item.quantity + 1 })}
-                          >
-                            <Plus size={14} weight="bold" />
-                          </button>
-                        </div>
-                        <Button
-                          variant="ghost"
-                          size="icon"
-                          className="h-8 w-8 text-slate-300 hover:text-red-400 hover:bg-red-500/10 ml-auto"
-                          onClick={() => removeFromCart(item.id)}
-                        >
-                          <Trash size={16} />
-                        </Button>
-                      </div>
+      {/* Floating Bottom Bar (Carrello & Storico Unificati) */}
+      <AnimatePresence>
+        {cart.length > 0 && (
+          <motion.div
+            initial={{ y: 100, opacity: 0 }}
+            animate={{ y: 0, opacity: 1 }}
+            exit={{ y: 100, opacity: 0 }}
+            className="fixed bottom-4 left-4 right-4 z-40 max-w-lg mx-auto"
+          >
+            <Drawer open={isCartOpen} onOpenChange={setIsCartOpen}>
+              <DrawerTrigger asChild>
+                <Button
+                  className="w-full h-14 rounded-2xl shadow-xl bg-primary text-primary-foreground hover:bg-primary/90 flex items-center justify-between px-5 transition-all active:scale-95 border border-white/10"
+                >
+                  <div className="flex items-center gap-3">
+                    <div className="bg-background/20 backdrop-blur-md w-8 h-8 rounded-full flex items-center justify-center font-bold text-sm text-white">
+                      {cartCount}
+                    </div>
+                    <div className="flex flex-col items-start">
+                      <span className="font-bold text-sm">Vedi ordine</span>
+                      <span className="text-[10px] opacity-80 font-normal">Clicca per completare</span>
                     </div>
                   </div>
-                )
-              })
-            )}
-          </div>
+                  <span className="font-bold text-lg">€ {cartTotal.toFixed(2)}</span>
+                </Button>
+              </DrawerTrigger>
 
-          {cartItems.length > 0 && (
-            <div className="p-6 border-t border-white/10 bg-slate-900/60">
-              <div className="flex justify-between items-center mb-4">
-                <span className="text-slate-200 font-medium">Totale stimato</span>
-                <span className="text-2xl font-bold text-cyan-300">€{cartTotal.toFixed(2)}</span>
+              <DrawerContent className="max-w-lg mx-auto max-h-[90vh] bg-background">
+                <div className="flex flex-col h-full max-h-[85vh]">
+                  <DrawerHeader className="border-b border-border/10 pb-2 shrink-0">
+                    <DrawerTitle className="text-center text-lg font-bold">Riepilogo Ordine</DrawerTitle>
+                    <DrawerDescription className="text-center text-xs">Controlla prima di inviare</DrawerDescription>
+                  </DrawerHeader>
+
+                  <Tabs defaultValue="current" className="flex-1 overflow-hidden flex flex-col w-full">
+                    <div className="px-4 pt-2 shrink-0">
+                      <TabsList className="grid w-full grid-cols-2">
+                        <TabsTrigger value="current" className="text-xs">
+                          Carrello ({cartCount})
+                        </TabsTrigger>
+                        <TabsTrigger value="history" className="text-xs">
+                          Storico ({previousOrders.length})
+                        </TabsTrigger>
+                      </TabsList>
+                    </div>
+
+                    {/* Tab: Carrello Attuale */}
+                    <TabsContent value="current" className="flex-1 overflow-hidden flex flex-col data-[state=active]:flex mt-0">
+                      <ScrollArea className="flex-1 px-4 py-4">
+                        {cart.length === 0 ? (
+                          <div className="text-center py-10 text-muted-foreground flex flex-col items-center">
+                            <ShoppingBasket className="w-12 h-12 mb-2 opacity-20" />
+                            <p className="text-sm">Il carrello è vuoto</p>
+                          </div>
+                        ) : (
+                          <div className="space-y-3">
+                            {cart.map((item) => (
+                              <div key={item.cartId} className="flex flex-col bg-card border border-border/40 rounded-xl p-3 shadow-sm gap-2">
+                                <div className="flex items-center justify-between gap-3">
+                                  <div className="flex items-center gap-3 overflow-hidden">
+                                    {/* Quantità Badge */}
+                                    <div className="bg-primary/10 text-primary w-6 h-6 rounded-md flex items-center justify-center font-bold text-xs shrink-0">
+                                      {item.quantity}x
+                                    </div>
+                                    <div className="min-w-0">
+                                      <p className="font-semibold text-sm truncate">{item.name}</p>
+                                      <p className="text-xs text-muted-foreground">€ {(item.price * item.quantity).toFixed(2)}</p>
+                                    </div>
+                                  </div>
+
+                                  {/* Controlli Quantità */}
+                                  <div className="flex items-center bg-muted/50 rounded-lg p-0.5 border border-border/10">
+                                    <Button
+                                      variant="ghost"
+                                      size="sm"
+                                      className="h-7 w-7 rounded-md p-0 hover:bg-background text-muted-foreground"
+                                      onClick={() => updateCartItemQuantity(item.cartId, -1)}
+                                    >
+                                      <Minus className="w-3 h-3" />
+                                    </Button>
+                                    <Button
+                                      variant="ghost"
+                                      size="sm"
+                                      className="h-7 w-7 rounded-md p-0 hover:bg-background text-primary"
+                                      onClick={() => updateCartItemQuantity(item.cartId, 1)}
+                                    >
+                                      <Plus className="w-3 h-3" />
+                                    </Button>
+                                  </div>
+                                </div>
+                                {item.notes && (
+                                  <div className="text-[10px] text-orange-600 bg-orange-50 px-2 py-1 rounded flex items-start gap-1">
+                                    <Info className="w-3 h-3 shrink-0 mt-0.5" />
+                                    Nota: {item.notes}
+                                  </div>
+                                )}
+                              </div>
+                            ))}
+                          </div>
+                        )}
+                      </ScrollArea>
+
+                      <div className="p-4 border-t border-border/10 bg-background/50 backdrop-blur-sm shrink-0 safe-area-bottom">
+                        <div className="flex justify-between items-end mb-4">
+                          <span className="text-muted-foreground text-xs font-medium uppercase tracking-wider">Totale</span>
+                          <span className="text-2xl font-bold text-primary">€ {cartTotal.toFixed(2)}</span>
+                        </div>
+                        <Button
+                          className="w-full h-12 text-base font-bold shadow-lg bg-green-600 hover:bg-green-700 text-white rounded-xl"
+                          onClick={submitOrder}
+                          disabled={isOrderSubmitting}
+                        >
+                          {isOrderSubmitting ? (
+                            <div className="flex items-center gap-2">
+                              <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                              Invio in corso...
+                            </div>
+                          ) : 'Conferma e Invia Ordine'}
+                        </Button>
+                      </div>
+                    </TabsContent>
+
+                    {/* Tab: Storico Ordini (Ex "Miei Ordini") */}
+                    <TabsContent value="history" className="flex-1 overflow-hidden flex flex-col mt-0">
+                      <ScrollArea className="flex-1 px-4 py-4 h-full">
+                        {previousOrders.length === 0 ? (
+                          <div className="text-center py-10 text-muted-foreground flex flex-col items-center">
+                            <Clock className="w-12 h-12 mb-2 opacity-20" />
+                            <p className="text-sm">Nessun ordine precedente</p>
+                          </div>
+                        ) : (
+                          <div className="space-y-6 pb-6">
+                            {previousOrders.map((order) => (
+                              <div key={order.id} className="relative pl-4 border-l-2 border-primary/20">
+                                <div className="absolute -left-[9px] top-0 w-4 h-4 rounded-full bg-background border-2 border-primary" />
+                                <div className="mb-3 flex justify-between items-center bg-muted/20 p-2 rounded-lg">
+                                  <span className="text-xs font-bold text-foreground">
+                                    Ore {new Date(order.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                                  </span>
+                                  <Badge
+                                    variant={order.status === 'completed' ? 'secondary' : 'outline'}
+                                    className={`text-[10px] h-5 ${order.status === 'completed' ? 'bg-green-100 text-green-700 hover:bg-green-100 border-none' : 'border-primary/30 text-primary'}`}
+                                  >
+                                    {order.status === 'completed' ? 'Completato' : 'In preparazione'}
+                                  </Badge>
+                                </div>
+
+                                <div className="space-y-2">
+                                  {(order as any).items?.map((item: any, idx: number) => {
+                                    const dishDetails = dishes?.find(d => d.id === item.dish_id)
+                                    return (
+                                      <div key={idx} className="flex justify-between items-center text-sm pl-2">
+                                        <div className="flex items-center gap-2">
+                                          <span className="font-bold text-xs bg-muted px-1.5 py-0.5 rounded text-muted-foreground">{item.quantity}x</span>
+                                          <span className="text-sm text-foreground/80">{dishDetails?.name || 'Piatto'}</span>
+                                        </div>
+                                        {item.status === 'SERVED' ? (
+                                          <CheckCircle className="w-3.5 h-3.5 text-green-500" />
+                                        ) : (
+                                          <ChefHat className="w-3.5 h-3.5 text-orange-400 opacity-60" />
+                                        )}
+                                      </div>
+                                    )
+                                  })}
+                                </div>
+                              </div>
+                            ))}
+                          </div>
+                        )}
+                      </ScrollArea>
+                    </TabsContent>
+                  </Tabs>
+                </div>
+              </DrawerContent>
+            </Drawer>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* Floating Button Solo Storico (se carrello vuoto ma esistono ordini) */}
+      <AnimatePresence>
+        {cart.length === 0 && previousOrders.length > 0 && (
+          <motion.div
+            initial={{ scale: 0 }}
+            animate={{ scale: 1 }}
+            className="fixed bottom-4 right-4 z-30"
+          >
+            <Drawer>
+              <DrawerTrigger asChild>
+                <Button size="icon" className="h-12 w-12 rounded-full shadow-lg bg-background border border-border text-foreground hover:bg-muted">
+                  <Clock className="w-5 h-5" />
+                </Button>
+              </DrawerTrigger>
+              <DrawerContent className="max-w-lg mx-auto max-h-[80vh]">
+                <DrawerHeader>
+                  <DrawerTitle>I tuoi ordini precedenti</DrawerTitle>
+                </DrawerHeader>
+                <ScrollArea className="p-4 h-[60vh]">
+                  {previousOrders.map((order) => (
+                    <div key={order.id} className="mb-6 pb-4 border-b border-border/10 last:border-0">
+                      <div className="flex justify-between text-sm mb-2 font-medium">
+                        <span>Ore {new Date(order.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>
+                        <span className={order.status === 'completed' ? 'text-green-600' : 'text-orange-500'}>
+                          {order.status === 'completed' ? 'Servito' : 'In attesa'}
+                        </span>
+                      </div>
+                      <div className="space-y-1">
+                        {(order as any).items?.map((item: any) => {
+                          const dish = dishes?.find(d => d.id === item.dish_id)
+                          return (
+                            <div key={item.id} className="text-sm text-muted-foreground flex justify-between">
+                              <span>{item.quantity}x {dish?.name}</span>
+                              {item.status === 'SERVED' && <CheckCircle className="w-3 h-3 text-green-500" />}
+                            </div>
+                          )
+                        })}
+                      </div>
+                    </div>
+                  ))}
+                </ScrollArea>
+              </DrawerContent>
+            </Drawer>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* Popup Dettagli Piatto */}
+      <Dialog open={!!selectedDish} onOpenChange={(open) => !open && setSelectedDish(null)}>
+        <DialogContent className="sm:max-w-md p-0 overflow-hidden bg-card border-none">
+          {selectedDish && (
+            <>
+              <div className="relative h-56 w-full">
+                {selectedDish.image_url ? (
+                  <img src={selectedDish.image_url} alt={selectedDish.name} className="w-full h-full object-cover" />
+                ) : (
+                  <div className="w-full h-full bg-muted flex items-center justify-center">
+                    <Utensils className="w-12 h-12 text-muted-foreground/20" />
+                  </div>
+                )}
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="absolute top-2 right-2 bg-black/40 hover:bg-black/60 text-white rounded-full h-8 w-8 backdrop-blur-sm"
+                  onClick={() => setSelectedDish(null)}
+                >
+                  <X className="w-4 h-4" />
+                </Button>
+                <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/80 to-transparent p-4 pt-12">
+                  <h2 className="text-xl font-bold text-white leading-tight">{selectedDish.name}</h2>
+                  <p className="text-white/90 font-medium mt-1">€ {selectedDish.price.toFixed(2)}</p>
+                </div>
               </div>
-              <Button
-                className="w-full h-12 text-lg font-bold shadow-md bg-gradient-to-r from-cyan-500 to-indigo-500 hover:from-cyan-400 hover:to-indigo-400 text-white"
-                onClick={async () => {
-                  await placeOrder()
-                  setShowCart(false)
-                  setActiveTab('orders')
-                }}
-              >
-                Invia Ordine
-              </Button>
-            </div>
+
+              <div className="p-5 space-y-4">
+                <div className="space-y-2">
+                  <h3 className="font-semibold text-sm">Descrizione</h3>
+                  <p className="text-sm text-muted-foreground leading-relaxed">
+                    {selectedDish.description || "Nessuna descrizione disponibile."}
+                  </p>
+                </div>
+
+                {selectedDish.allergens && selectedDish.allergens.length > 0 && (
+                  <div className="space-y-2">
+                    <h3 className="font-semibold text-sm flex items-center gap-2">
+                      <Info className="w-4 h-4 text-orange-500" />
+                      Allergeni
+                    </h3>
+                    <div className="flex flex-wrap gap-1.5">
+                      {selectedDish.allergens.map(allergen => (
+                        <Badge key={allergen} variant="outline" className="text-xs font-normal border-orange-200 text-orange-700 bg-orange-50">
+                          {allergen}
+                        </Badge>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                <div className="space-y-2 pt-2">
+                  <label className="text-xs font-semibold uppercase text-muted-foreground tracking-wider">Note per la cucina</label>
+                  <Textarea
+                    placeholder="Es. Niente prezzemolo, cottura media..."
+                    className="resize-none text-sm bg-muted/20"
+                    rows={2}
+                    value={dishNote}
+                    onChange={(e) => setDishNote(e.target.value)}
+                  />
+                </div>
+              </div>
+
+              <DialogFooter className="p-4 bg-muted/10">
+                <Button
+                  className="w-full h-11 text-base font-bold shadow-md"
+                  onClick={() => addToCart(selectedDish, 1, dishNote)}
+                >
+                  Aggiungi all'ordine - € {selectedDish.price.toFixed(2)}
+                </Button>
+              </DialogFooter>
+            </>
           )}
         </DialogContent>
       </Dialog>
 
-      {/* Add Item Dialog */}
-      <Dialog open={showAddDialog} onOpenChange={setShowAddDialog}>
-        <DialogContent className="sm:max-w-md bg-slate-950 border border-white/10 text-slate-50">
-          <DialogHeader>
-            <DialogTitle className="text-xl font-bold text-slate-50">{selectedDish?.name}</DialogTitle>
-            <DialogDescription className="text-slate-300/80">
-              Personalizza il tuo ordine
-            </DialogDescription>
-          </DialogHeader>
-
-          <div className="space-y-6 py-4">
-            <div className="flex items-center justify-center gap-6">
-              <Button
-                variant="outline"
-                size="icon"
-                className="h-12 w-12 rounded-full border-white/20 bg-white/5 hover:bg-white/10 hover:text-cyan-300"
-                onClick={() => setItemQuantity(Math.max(1, itemQuantity - 1))}
-              >
-                <Minus size={20} weight="bold" />
-              </Button>
-              <span className="text-3xl font-bold text-slate-50 w-12 text-center">
-                {itemQuantity}
-              </span>
-              <Button
-                variant="outline"
-                size="icon"
-                className="h-12 w-12 rounded-full border-white/20 bg-white/5 hover:bg-white/10 hover:text-cyan-300"
-                onClick={() => setItemQuantity(itemQuantity + 1)}
-              >
-                <Plus size={20} weight="bold" />
-              </Button>
-            </div>
-
-            <div className="space-y-2">
-              <Label htmlFor="notes" className="text-slate-100 font-medium">Note per la cucina</Label>
-              <Textarea
-                id="notes"
-                placeholder="Es. Senza cipolla, ben cotto..."
-                value={itemNotes}
-                onChange={(e) => setItemNotes(e.target.value)}
-                className="resize-none bg-white/5 border-white/10 focus-visible:ring-cyan-400"
-                rows={3}
-              />
-            </div>
-          </div>
-
-          <DialogFooter className="gap-2 sm:gap-0">
-            <Button variant="outline" onClick={() => setShowAddDialog(false)} className="border-white/20 text-slate-100 hover:bg-white/10">
-              Annulla
-            </Button>
-            <Button onClick={handleAddToCart} className="bg-gradient-to-r from-cyan-500 to-indigo-500 hover:from-cyan-400 hover:to-indigo-400 text-white font-bold shadow-sm">
-              Aggiungi • €{((selectedDish?.price || 0) * itemQuantity).toFixed(2)}
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
     </div>
   )
 }
