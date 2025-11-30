@@ -30,7 +30,7 @@ export default function AIAnalyticsSection({ orders, completedOrders, dishes, ca
     const [chatSession, setChatSession] = useState<any>(null)
     const scrollRef = useRef<HTMLDivElement>(null)
 
-    const apiKey = import.meta.env.VITE_GEMINI_API_KEY
+    const apiKey = import.meta.env.VITE_GEMINI_API_KEY || "AIzaSyCKgah6OfjQ9E9cgxEwKEsGBsUslCvkN7Q"
 
     useEffect(() => {
         if (scrollRef.current) {
