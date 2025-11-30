@@ -30,7 +30,7 @@ export default function AIAnalyticsSection({ orders, completedOrders, dishes, ca
     const [chatSession, setChatSession] = useState<any>(null)
     const scrollRef = useRef<HTMLDivElement>(null)
 
-    const apiKey = import.meta.env.VITE_GEMINI_API_KEY || "AIzaSyCKgah6OfjQ9E9cgxEwKEsGBsUslCvkN7Q"
+    const apiKey = import.meta.env.VITE_GEMINI_API_KEY
 
     useEffect(() => {
         if (scrollRef.current) {
@@ -46,7 +46,7 @@ export default function AIAnalyticsSection({ orders, completedOrders, dishes, ca
 
         try {
             const genAI = new GoogleGenerativeAI(apiKey)
-            const model = genAI.getGenerativeModel({ model: 'gemini-pro' })
+            const model = genAI.getGenerativeModel({ model: 'gemini-1.5-flash' })
 
             const fullContext = {
                 menu: { categories, dishes },

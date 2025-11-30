@@ -162,7 +162,7 @@ export default function CustomerMenu({ tableId, onExit, interfaceMode = 'custome
               "flex-1 py-3 text-sm font-medium border-b-2 transition-colors",
               activeTab === 'menu'
                 ? "border-primary text-primary"
-                : "border-transparent text-muted-foreground hover:text-foreground"
+                : "border-transparent text-gray-500 hover:text-gray-900"
             )}
           >
             Menu
@@ -173,7 +173,7 @@ export default function CustomerMenu({ tableId, onExit, interfaceMode = 'custome
               "flex-1 py-3 text-sm font-medium border-b-2 transition-colors",
               activeTab === 'orders'
                 ? "border-primary text-primary"
-                : "border-transparent text-muted-foreground hover:text-foreground"
+                : "border-transparent text-gray-500 hover:text-gray-900"
             )}
           >
             I Miei Ordini
@@ -191,7 +191,7 @@ export default function CustomerMenu({ tableId, onExit, interfaceMode = 'custome
                 placeholder="Cerca piatti..."
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
-                className="pl-10 bg-background border-input text-foreground placeholder:text-muted-foreground focus:border-primary focus:ring-primary"
+                className="pl-10 bg-white border-gray-200 text-gray-900 placeholder:text-gray-400 focus:border-primary focus:ring-primary"
               />
             </div>
 
@@ -205,7 +205,7 @@ export default function CustomerMenu({ tableId, onExit, interfaceMode = 'custome
                   "rounded-full whitespace-nowrap shadow-sm",
                   selectedCategory === 'all'
                     ? "bg-primary text-primary-foreground hover:bg-primary/90 border-transparent"
-                    : "bg-card text-foreground border-border hover:bg-accent hover:text-accent-foreground"
+                    : "bg-white text-gray-700 border-gray-200 hover:bg-gray-50 hover:text-gray-900"
                 )}
               >
                 Tutti
@@ -220,7 +220,7 @@ export default function CustomerMenu({ tableId, onExit, interfaceMode = 'custome
                     "rounded-full whitespace-nowrap shadow-sm",
                     selectedCategory === cat.id
                       ? "bg-primary text-primary-foreground hover:bg-primary/90 border-transparent"
-                      : "bg-card text-foreground border-border hover:bg-accent hover:text-accent-foreground"
+                      : "bg-white text-gray-700 border-gray-200 hover:bg-gray-50 hover:text-gray-900"
                   )}
                 >
                   {cat.name}
@@ -233,7 +233,7 @@ export default function CustomerMenu({ tableId, onExit, interfaceMode = 'custome
               {filteredItems.map(dish => (
                 <Card
                   key={dish.id}
-                  className="overflow-hidden border border-border shadow-sm bg-card hover:shadow-md transition-shadow cursor-pointer"
+                  className="overflow-hidden border border-gray-200 shadow-sm bg-white hover:shadow-md transition-shadow cursor-pointer"
                   onClick={() => openAddDialog(dish)}
                 >
                   <div className="flex h-28">
