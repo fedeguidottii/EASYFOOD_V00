@@ -1272,112 +1272,116 @@ const RestaurantDashboard = ({ user, onLogout }: RestaurantDashboardProps) => {
 
           {/* Tables Tab */}
           < TabsContent value="tables" className="space-y-6" >
-            <div className="flex items-center justify-between mb-6">
-              <div className="flex items-center gap-3">
-                <div className="w-11 h-11 rounded-xl bg-gradient-to-br from-primary to-accent flex items-center justify-center text-white shadow-gold">
-                  <MapPin size={20} weight="duotone" />
-                </div>
-                <div>
-                  <h2 className="text-2xl font-bold text-foreground">Gestione Tavoli</h2>
-                  <p className="text-xs text-muted-foreground mt-0.5">Gestisci la sala e i tavoli</p>
-                </div>
-              </div>
-              <div className="flex items-center gap-2">
-                <div className="relative">
-                  <MagnifyingGlass className="absolute left-2 top-1/2 -translate-y-1/2 text-muted-foreground" size={16} />
-                  <Input
-                    placeholder="Cerca tavolo..."
-                    value={tableSearchTerm}
-                    onChange={(e) => setTableSearchTerm(e.target.value)}
-                    className="pl-8 h-9 w-[150px] lg:w-[200px]"
-                  />
-                </div>
-                <Button onClick={() => setShowCreateTableDialog(true)} size="sm">
-                  <Plus size={16} className="mr-2" />
-                  Nuovo Tavolo
-                </Button>
-                <Dialog>
-                  <DialogTrigger asChild>
-                    <Button variant="outline" size="sm">
-                      <ClockCounterClockwise size={16} className="mr-2" />
-                      Storico Tavoli
-                    </Button>
-                  </DialogTrigger>
-                  <DialogContent className="max-w-3xl max-h-[80vh] overflow-y-auto">
-                    <DialogHeader>
-                      <DialogTitle>Storico Tavoli Chiusi</DialogTitle>
-                      <DialogDescription>Visualizza le sessioni dei tavoli concluse.</DialogDescription>
-                    </DialogHeader>
-                    <div className="space-y-4 mt-4">
-                      {sessions?.filter(s => s.status === 'CLOSED').sort((a, b) => new Date(b.closed_at!).getTime() - new Date(a.closed_at!).getTime()).map(session => {
-                        const sessionOrders = restaurantCompletedOrders.filter(o => o.table_session_id === session.id)
-                        const totalSessionAmount = sessionOrders.reduce((sum, o) => sum + (o.total_amount || 0), 0)
-
-                        return (
-                          <div key={session.id} className="border rounded-lg p-4 bg-muted/20 space-y-3">
-                            <div className="flex justify-between items-start">
-                              <div>
-                                <p className="font-bold text-lg">Tavolo {restaurantTables.find(t => t.id === session.table_id)?.number || 'Unknown'}</p>
-                                <p className="text-xs text-muted-foreground mt-1">
-                                  Aperto: {new Date(session.opened_at || session.created_at).toLocaleString()} <br />
-                                  Chiuso: {new Date(session.closed_at!).toLocaleString()}
-                                </p>
-                              </div>
-                              <div className="text-right">
-                                <Badge variant="secondary" className="mb-1">Chiuso</Badge>
-                                <p className="font-bold text-primary">€{totalSessionAmount.toFixed(2)}</p>
-                              </div>
-                            </div>
-
-                            <Dialog>
-                              <DialogTrigger asChild>
-                                <Button variant="outline" size="sm" className="w-full text-xs h-8">
-                                  <List size={14} className="mr-2" />
-                                  Vedi Dettagli Ordine
-                                </Button>
-                              </DialogTrigger>
-                              <DialogContent className="max-w-2xl max-h-[70vh] overflow-y-auto">
-                                <DialogHeader>
-                                  <DialogTitle>Dettaglio Sessione Tavolo {restaurantTables.find(t => t.id === session.table_id)?.number}</DialogTitle>
-                                  <DialogDescription>
-                                    Lista degli ordini effettuati durante questa sessione.
-                                  </DialogDescription>
-                                </DialogHeader>
-                                <div className="space-y-4 mt-4">
-                                  {sessionOrders.length === 0 ? (
-                                    <p className="text-center text-muted-foreground">Nessun ordine registrato.</p>
-                                  ) : (
-                                    sessionOrders.map(order => (
-                                      <div key={order.id} className="border rounded p-3">
-                                        <div className="flex justify-between text-sm font-semibold mb-2">
-                                          <span>Ordine #{order.id.slice(0, 8)}</span>
-                                          <span>{new Date(order.created_at).toLocaleTimeString()}</span>
-                                        </div>
-                                        <div className="space-y-1">
-                                          {order.items?.map(item => (
-                                            <div key={item.id} className="flex justify-between text-xs">
-                                              <span>{item.quantity}x {restaurantDishes.find(d => d.id === item.dish_id)?.name}</span>
-                                              <span>€{(restaurantDishes.find(d => d.id === item.dish_id)?.price || 0) * item.quantity}</span>
-                                            </div>
-                                          ))}
-                                        </div>
-                                      </div>
-                                    ))
-                                  )}
-                                </div>
-                              </DialogContent>
-                            </Dialog>
-                          </div>
-                        )
-                      })}
-                      {(!sessions || sessions.filter(s => s.status === 'CLOSED').length === 0) && (
-                        <p className="text-center text-muted-foreground py-8">Nessuna sessione chiusa trovata.</p>
-                      )}
+            <Card className="border border-primary/15 bg-gradient-to-r from-slate-950 via-slate-900 to-indigo-900 text-slate-50 shadow-xl">
+              <CardContent className="p-5">
+                <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
+                  <div className="flex items-center gap-3">
+                    <div className="w-11 h-11 rounded-xl bg-gradient-to-br from-cyan-500 to-indigo-500 flex items-center justify-center text-white shadow-lg shadow-cyan-500/30">
+                      <MapPin size={20} weight="duotone" />
                     </div>
-                  </DialogContent>
-                </Dialog>
-              </div>
-            </div>
+                    <div>
+                      <h2 className="text-2xl font-bold">Gestione Tavoli</h2>
+                      <p className="text-xs text-slate-200/80 mt-0.5">Gestisci la sala e i tavoli</p>
+                    </div>
+                  </div>
+                  <div className="flex flex-wrap items-center gap-2">
+                    <div className="relative">
+                      <MagnifyingGlass className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-300/70" size={16} />
+                      <Input
+                        placeholder="Cerca tavolo..."
+                        value={tableSearchTerm}
+                        onChange={(e) => setTableSearchTerm(e.target.value)}
+                        className="pl-9 h-10 w-[180px] lg:w-[230px] bg-white/5 border-white/10 text-slate-50 placeholder:text-slate-200/60 focus-visible:ring-cyan-400"
+                      />
+                    </div>
+                    <Button onClick={() => setShowCreateTableDialog(true)} size="sm" className="h-10 bg-gradient-to-r from-cyan-500 to-indigo-500 text-white shadow-lg shadow-indigo-500/30 hover:shadow-indigo-500/40">
+                      <Plus size={16} className="mr-2" />
+                      Nuovo Tavolo
+                    </Button>
+                    <Dialog>
+                      <DialogTrigger asChild>
+                        <Button variant="outline" size="sm" className="h-10 border-white/30 text-slate-100 hover:bg-white/10">
+                          <ClockCounterClockwise size={16} className="mr-2" />
+                          Storico Tavoli
+                        </Button>
+                      </DialogTrigger>
+                      <DialogContent className="max-w-3xl max-h-[80vh] overflow-y-auto">
+                        <DialogHeader>
+                          <DialogTitle>Storico Tavoli Chiusi</DialogTitle>
+                          <DialogDescription>Visualizza le sessioni dei tavoli concluse.</DialogDescription>
+                        </DialogHeader>
+                        <div className="space-y-4 mt-4">
+                          {sessions?.filter(s => s.status === 'CLOSED').sort((a, b) => new Date(b.closed_at!).getTime() - new Date(a.closed_at!).getTime()).map(session => {
+                            const sessionOrders = restaurantCompletedOrders.filter(o => o.table_session_id === session.id)
+                            const totalSessionAmount = sessionOrders.reduce((sum, o) => sum + (o.total_amount || 0), 0)
+
+                            return (
+                              <div key={session.id} className="border rounded-lg p-4 bg-muted/20 space-y-3">
+                                <div className="flex justify-between items-start">
+                                  <div>
+                                    <p className="font-bold text-lg">Tavolo {restaurantTables.find(t => t.id === session.table_id)?.number || 'Unknown'}</p>
+                                    <p className="text-xs text-muted-foreground mt-1">
+                                      Aperto: {new Date(session.opened_at || session.created_at).toLocaleString()} <br />
+                                      Chiuso: {new Date(session.closed_at!).toLocaleString()}
+                                    </p>
+                                  </div>
+                                  <div className="text-right">
+                                    <Badge variant="secondary" className="mb-1">Chiuso</Badge>
+                                    <p className="font-bold text-primary">€{totalSessionAmount.toFixed(2)}</p>
+                                  </div>
+                                </div>
+
+                                <Dialog>
+                                  <DialogTrigger asChild>
+                                    <Button variant="outline" size="sm" className="w-full text-xs h-8">
+                                      <List size={14} className="mr-2" />
+                                      Vedi Dettagli Ordine
+                                    </Button>
+                                  </DialogTrigger>
+                                  <DialogContent className="max-w-2xl max-h-[70vh] overflow-y-auto">
+                                    <DialogHeader>
+                                      <DialogTitle>Dettaglio Sessione Tavolo {restaurantTables.find(t => t.id === session.table_id)?.number}</DialogTitle>
+                                      <DialogDescription>
+                                        Lista degli ordini effettuati durante questa sessione.
+                                      </DialogDescription>
+                                    </DialogHeader>
+                                    <div className="space-y-4 mt-4">
+                                      {sessionOrders.length === 0 ? (
+                                        <p className="text-center text-muted-foreground">Nessun ordine registrato.</p>
+                                      ) : (
+                                        sessionOrders.map(order => (
+                                          <div key={order.id} className="border rounded p-3">
+                                            <div className="flex justify-between text-sm font-semibold mb-2">
+                                              <span>Ordine #{order.id.slice(0, 8)}</span>
+                                              <span>{new Date(order.created_at).toLocaleTimeString()}</span>
+                                            </div>
+                                            <div className="space-y-1">
+                                              {order.items?.map(item => (
+                                                <div key={item.id} className="flex justify-between text-xs">
+                                                  <span>{item.quantity}x {restaurantDishes.find(d => d.id === item.dish_id)?.name}</span>
+                                                  <span>€{(restaurantDishes.find(d => d.id === item.dish_id)?.price || 0) * item.quantity}</span>
+                                                </div>
+                                              ))}
+                                            </div>
+                                          </div>
+                                        ))
+                                      )}
+                                    </div>
+                                  </DialogContent>
+                                </Dialog>
+                              </div>
+                            )
+                          })}
+                          {(!sessions || sessions.filter(s => s.status === 'CLOSED').length === 0) && (
+                            <p className="text-center text-muted-foreground py-8">Nessuna sessione chiusa trovata.</p>
+                          )}
+                        </div>
+                      </DialogContent>
+                    </Dialog>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
 
             <div className="grid gap-6 grid-cols-[repeat(auto-fill,minmax(220px,1fr))]">
               {restaurantTables.map(table => {
@@ -1389,38 +1393,38 @@ const RestaurantDashboard = ({ user, onLogout }: RestaurantDashboardProps) => {
                 return (
                   <Card
                     key={table.id}
-                    className={`relative overflow-hidden transition-all duration-300 group ${isActive
-                      ? 'bg-gradient-to-br from-card via-card to-amber-50/30 shadow-sm hover:shadow-md border-amber-200/30'
-                      : 'bg-card shadow-sm hover:shadow-md border-border/50'
+                    className={`relative overflow-hidden transition-all duration-300 group border border-white/5 shadow-lg shadow-indigo-900/20 ${isActive
+                      ? 'bg-gradient-to-br from-emerald-500/15 via-slate-900/80 to-indigo-900/70 hover:shadow-emerald-600/30'
+                      : 'bg-gradient-to-br from-slate-900/70 via-slate-950 to-slate-900 hover:shadow-slate-900/40'
                       }`}
                   >
                     <CardContent className="p-0 flex flex-col h-full">
-                      <div className={`p-4 flex items-center justify-between border-b ${isActive ? 'border-amber-200/40 bg-amber-50/20' : 'border-border/30 bg-muted/10'}`}>
-                        <span className={`text-xl font-semibold ${isActive ? 'text-amber-800/80' : 'text-foreground/90'}`}>
+                      <div className={`p-4 flex items-center justify-between border-b ${isActive ? 'border-emerald-400/30 bg-emerald-500/5' : 'border-white/5 bg-white/5'}`}>
+                        <span className={`text-xl font-semibold ${isActive ? 'text-emerald-100' : 'text-slate-100'}`}>
                           {table.number}
                         </span>
-                        <Badge variant={isActive ? 'default' : 'outline'} className={`${isActive ? 'bg-amber-100/60 text-amber-900/80 border-amber-300/40' : 'bg-muted/50 text-muted-foreground border-border/40'}`}>
+                        <Badge variant={isActive ? 'default' : 'outline'} className={`${isActive ? 'bg-emerald-500/20 text-emerald-50 border-emerald-300/40' : 'bg-white/10 text-slate-200 border-white/20'}`}>
                           {isActive ? 'Occupato' : 'Libero'}
                         </Badge>
                       </div>
 
-                      <div className="flex-1 p-6 flex flex-col items-center justify-center gap-4">
+                      <div className="flex-1 p-6 flex flex-col items-center justify-center gap-4 text-slate-100">
                         {isActive ? (
                           <>
                             <div className="text-center">
-                              <p className="text-xs text-muted-foreground/70 mb-2 uppercase tracking-wider font-medium">PIN Tavolo</p>
-                              <span className="text-4xl font-mono font-bold tracking-wider text-amber-800/70">
+                              <p className="text-[11px] text-emerald-100/70 mb-2 uppercase tracking-[0.2em] font-medium">PIN Tavolo</p>
+                              <span className="text-4xl font-mono font-bold tracking-wider text-emerald-100">
                                 {session?.session_pin || '...'}
                               </span>
                             </div>
                             {activeOrder && (
-                              <Badge variant="outline" className="bg-muted/30 border-amber-300/30 text-amber-900/60 text-xs">
+                              <Badge variant="outline" className="bg-white/10 border-emerald-200/30 text-emerald-50 text-xs">
                                 {activeOrder.items?.filter(i => i.status === 'SERVED').length || 0} ordini completati
                               </Badge>
                             )}
                           </>
                         ) : (
-                          <div className="text-center text-muted-foreground/50 group-hover:text-muted-foreground transition-colors">
+                          <div className="text-center text-slate-300/70 group-hover:text-slate-100 transition-colors">
                             <MapPin size={32} className="mx-auto mb-2" />
                             <p className="text-sm font-medium">Pronto per clienti</p>
                           </div>
@@ -1428,16 +1432,16 @@ const RestaurantDashboard = ({ user, onLogout }: RestaurantDashboardProps) => {
                       </div>
 
                       {/* Actions */}
-                      <div className="p-4 bg-black/20 border-t border-border/10 grid gap-2">
+                      <div className="p-4 bg-white/5 border-t border-white/10 grid gap-2">
                         {isActive ? (
                           <>
                             <div className="grid grid-cols-2 gap-2">
-                              <Button variant="outline" size="sm" onClick={() => handleShowTableQr(table)} className="border-orange-500/20 hover:bg-orange-500/10 hover:text-orange-400">
+                              <Button variant="outline" size="sm" onClick={() => handleShowTableQr(table)} className="border-cyan-400/40 text-cyan-100 hover:bg-cyan-400/15">
                                 <QrCode size={16} className="mr-2" />
                                 QR
                               </Button>
                               <Button
-                                className="bg-orange-600 hover:bg-orange-700 text-white shadow-lg shadow-orange-900/20"
+                                className="bg-gradient-to-r from-amber-500 to-orange-500 hover:from-amber-400 hover:to-orange-400 text-white shadow-lg shadow-amber-900/30"
                                 onClick={() => { setSelectedTableForActions(table); setShowTableBillDialog(true); }}
                               >
                                 <Receipt size={16} className="mr-2" />
@@ -1447,7 +1451,7 @@ const RestaurantDashboard = ({ user, onLogout }: RestaurantDashboardProps) => {
                           </>
                         ) : (
                           <Button
-                            className="w-full bg-primary/90 hover:bg-primary shadow-lg transition-all"
+                            className="w-full bg-gradient-to-r from-cyan-500 to-indigo-500 hover:from-cyan-400 hover:to-indigo-400 text-white shadow-lg"
                             onClick={() => handleToggleTable(table.id)}
                           >
                             Attiva Tavolo
@@ -1457,7 +1461,7 @@ const RestaurantDashboard = ({ user, onLogout }: RestaurantDashboardProps) => {
 
                       {/* Management Actions (Hover) */}
                       <div className="absolute top-2 right-12 opacity-0 group-hover:opacity-100 transition-opacity flex gap-1">
-                        <Button variant="ghost" size="icon" className="h-8 w-8 hover:bg-background/80" onClick={() => handleEditTable(table)}>
+                        <Button variant="ghost" size="icon" className="h-8 w-8 hover:bg-white/10 text-slate-100" onClick={() => handleEditTable(table)}>
                           <PencilSimple size={14} />
                         </Button>
                         <Button variant="ghost" size="icon" className="h-8 w-8 text-destructive hover:bg-destructive/10" onClick={() => handleDeleteTable(table.id)}>
@@ -1874,33 +1878,43 @@ const RestaurantDashboard = ({ user, onLogout }: RestaurantDashboardProps) => {
               </div>
             </div>
 
-            <Card>
+            <Card className="border border-primary/15 bg-gradient-to-br from-slate-950 via-slate-900 to-indigo-900 text-slate-50 shadow-lg shadow-indigo-900/30">
               <CardHeader>
-                <CardTitle>Aspetto</CardTitle>
+                <CardTitle className="text-lg font-semibold flex items-center gap-2">
+                  <span className="inline-flex h-9 w-9 items-center justify-center rounded-lg bg-white/10 text-cyan-200">
+                    <Gear size={18} />
+                  </span>
+                  Aspetto
+                </CardTitle>
               </CardHeader>
               <CardContent>
                 <div className="flex items-center justify-between">
                   <div className="space-y-1">
-                    <Label>Tema Scuro</Label>
-                    <p className="text-sm text-muted-foreground">Attiva o disattiva il tema scuro</p>
+                    <Label className="text-slate-100">Tema Scuro</Label>
+                    <p className="text-sm text-slate-200/80">Attiva o disattiva il tema scuro</p>
                   </div>
                   <ModeToggle />
                 </div>
               </CardContent>
             </Card>
 
-            <Card>
+            <Card className="border border-primary/10 bg-gradient-to-br from-slate-900 via-slate-950 to-indigo-950 text-slate-50 shadow-lg shadow-indigo-900/30">
               <CardHeader>
-                <CardTitle>Sala & Servizio</CardTitle>
-                <CardDescription>
+                <CardTitle className="text-lg font-semibold flex items-center gap-2">
+                  <span className="inline-flex h-9 w-9 items-center justify-center rounded-lg bg-white/10 text-cyan-200">
+                    <ClockCounterClockwise size={18} />
+                  </span>
+                  Sala & Servizio
+                </CardTitle>
+                <CardDescription className="text-slate-200/80">
                   Gestisci le impostazioni per il personale di sala e la modalità cameriere.
                 </CardDescription>
               </CardHeader>
               <CardContent className="space-y-6">
                 <div className="flex items-center justify-between">
                   <div className="space-y-1">
-                    <Label htmlFor="waiter-mode">Abilita Modalità Cameriere</Label>
-                    <p className="text-sm text-muted-foreground">Permette allo staff di prendere ordini da tablet/telefono dedicato.</p>
+                    <Label htmlFor="waiter-mode" className="text-slate-100">Abilita Modalità Cameriere</Label>
+                    <p className="text-sm text-slate-200/80">Permette allo staff di prendere ordini da tablet/telefono dedicato.</p>
                   </div>
                   <Switch
                     id="waiter-mode"
