@@ -7,8 +7,9 @@ import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover'
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, BarChart, Bar, Area, AreaChart } from 'recharts'
-import { TrendUp, CurrencyEur, Users, ShoppingBag, Clock, ChartLine, CalendarBlank, List, CaretDown } from '@phosphor-icons/react'
+import { TrendUp, CurrencyEuro, Users, ShoppingBag, Clock, ChartLine, CalendarBlank, List, CaretDown } from '@phosphor-icons/react'
 import type { Order, Dish, Category, OrderItem } from '../services/types'
+import AIAnalyticsSection from './AIAnalyticsSection'
 
 interface AnalyticsChartsProps {
   orders: Order[]
@@ -216,339 +217,347 @@ export default function AnalyticsCharts({ orders, completedOrders, dishes, categ
   }, [categoryFilteredOrders, orders, categories, dishes, dateFilter, start, end, activeCategoryIds, categoryMetric])
 
   return (
-    <div className="space-y-8">
-      {/* Filter Controls */}
-      <div className="flex items-center justify-between flex-wrap gap-4 bg-card/50 p-4 rounded-xl border shadow-sm backdrop-blur-sm">
-        <h2 className="text-2xl font-bold text-foreground">Analitiche</h2>
-        <div className="flex items-center gap-3">
-          <Popover>
-            <PopoverTrigger asChild>
-              <Button variant="outline" className="gap-2 h-9 border-dashed">
-                <List size={16} />
-                Categorie
-                <Badge variant="secondary" className="ml-1 h-5 px-1.5 min-w-5">
-                  {activeCategoryIds.length}
-                </Badge>
-              </Button>
-            </PopoverTrigger>
-            <PopoverContent className="w-64 p-3" align="end">
-              <div className="flex items-center justify-between mb-3 pb-2 border-b">
-                <span className="text-xs font-medium text-muted-foreground">Filtra per categoria</span>
-                <div className="flex gap-1">
-                  <Button size="sm" variant="ghost" className="h-6 px-2 text-xs" onClick={() => setSelectedCategories(categories.map(c => c.id))}>Tutte</Button>
-                  <Button size="sm" variant="ghost" className="h-6 px-2 text-xs" onClick={() => setSelectedCategories([])}>Nessuna</Button>
-                </div>
-              </div>
-              <div className="space-y-1 max-h-64 overflow-y-auto">
-                {categories.map(category => {
-                  const checked = activeCategoryIds.includes(category.id)
-                  return (
-                    <label key={category.id} className="flex items-center gap-2 text-sm px-2 py-1.5 rounded-md hover:bg-muted cursor-pointer transition-colors">
-                      <input
-                        type="checkbox"
-                        checked={checked}
-                        onChange={(e) => {
-                          if (e.target.checked) {
-                            setSelectedCategories(prev => Array.from(new Set([...prev, category.id])))
-                          } else {
-                            setSelectedCategories(prev => prev.filter(id => id !== category.id))
-                          }
-                        }}
-                        className="h-4 w-4 rounded border-primary text-primary focus:ring-primary"
-                      />
-                      <span className="truncate">{category.name}</span>
-                    </label>
-                  )
-                })}
-              </div>
-            </PopoverContent>
-          </Popover>
-
-          <div className="h-6 w-px bg-border mx-1" />
-
-          <Select value={dateFilter} onValueChange={(value: DateFilter) => setDateFilter(value)}>
-            <SelectTrigger className="w-40 h-9">
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              {dateFilters.map(filter => (
-                <SelectItem key={filter.value} value={filter.value}>
-                  {filter.label}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-
-          {dateFilter === 'custom' && (
+    <>
+      <div className="space-y-8">
+        {/* Filter Controls */}
+        <div className="flex items-center justify-between flex-wrap gap-4 bg-card/50 p-4 rounded-xl border shadow-sm backdrop-blur-sm">
+          <h2 className="text-2xl font-bold text-foreground">Analitiche</h2>
+          <div className="flex items-center gap-3">
             <Popover>
               <PopoverTrigger asChild>
-                <Button variant="outline" className="gap-2 h-9">
-                  <CalendarBlank size={16} />
-                  Date
+                <Button variant="outline" className="gap-2 h-9 border-dashed">
+                  <List size={16} />
+                  Categorie
+                  <Badge variant="secondary" className="ml-1 h-5 px-1.5 min-w-5">
+                    {activeCategoryIds.length}
+                  </Badge>
                 </Button>
               </PopoverTrigger>
-              <PopoverContent className="w-80" align="end">
-                <div className="space-y-4">
-                  <div className="space-y-2">
-                    <Label htmlFor="start-date">Data Inizio</Label>
-                    <Input
-                      id="start-date"
-                      type="date"
-                      value={customStartDate}
-                      onChange={(e) => setCustomStartDate(e.target.value)}
-                    />
+              <PopoverContent className="w-64 p-3" align="end">
+                <div className="flex items-center justify-between mb-3 pb-2 border-b">
+                  <span className="text-xs font-medium text-muted-foreground">Filtra per categoria</span>
+                  <div className="flex gap-1">
+                    <Button size="sm" variant="ghost" className="h-6 px-2 text-xs" onClick={() => setSelectedCategories(categories.map(c => c.id))}>Tutte</Button>
+                    <Button size="sm" variant="ghost" className="h-6 px-2 text-xs" onClick={() => setSelectedCategories([])}>Nessuna</Button>
                   </div>
-                  <div className="space-y-2">
-                    <Label htmlFor="end-date">Data Fine</Label>
-                    <Input
-                      id="end-date"
-                      type="date"
-                      value={customEndDate}
-                      onChange={(e) => setCustomEndDate(e.target.value)}
-                    />
-                  </div>
+                </div>
+                <div className="space-y-1 max-h-64 overflow-y-auto">
+                  {categories.map(category => {
+                    const checked = activeCategoryIds.includes(category.id)
+                    return (
+                      <label key={category.id} className="flex items-center gap-2 text-sm px-2 py-1.5 rounded-md hover:bg-muted cursor-pointer transition-colors">
+                        <input
+                          type="checkbox"
+                          checked={checked}
+                          onChange={(e) => {
+                            if (e.target.checked) {
+                              setSelectedCategories(prev => Array.from(new Set([...prev, category.id])))
+                            } else {
+                              setSelectedCategories(prev => prev.filter(id => id !== category.id))
+                            }
+                          }}
+                          className="h-4 w-4 rounded border-primary text-primary focus:ring-primary"
+                        />
+                        <span className="truncate">{category.name}</span>
+                      </label>
+                    )
+                  })}
                 </div>
               </PopoverContent>
             </Popover>
-          )}
-        </div>
-      </div>
 
-      {/* KPI Cards */}
-      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
-        <Card className="shadow-sm hover:shadow-md transition-shadow border-none bg-gradient-to-br from-blue-50 to-white dark:from-blue-950/20 dark:to-background">
-          <CardContent className="p-6">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm font-medium text-muted-foreground mb-1">Ordini Totali</p>
-                <p className="text-3xl font-bold text-foreground">{analytics.totalOrders}</p>
-              </div>
-              <div className="p-3 bg-blue-100 dark:bg-blue-900/30 rounded-full text-blue-600 dark:text-blue-400">
-                <ShoppingBag size={24} weight="duotone" />
-              </div>
-            </div>
-          </CardContent>
-        </Card>
+            <div className="h-6 w-px bg-border mx-1" />
 
-        <Card className="shadow-sm hover:shadow-md transition-shadow border-none bg-gradient-to-br from-green-50 to-white dark:from-green-950/20 dark:to-background">
-          <CardContent className="p-6">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm font-medium text-muted-foreground mb-1">Ricavi Totali</p>
-                <p className="text-3xl font-bold text-foreground">€{analytics.totalRevenue.toFixed(2)}</p>
-              </div>
-              <div className="p-3 bg-green-100 dark:bg-green-900/30 rounded-full text-green-600 dark:text-green-400">
-                <CurrencyEur size={24} weight="duotone" />
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-
-        <Card className="shadow-sm hover:shadow-md transition-shadow border-none bg-gradient-to-br from-amber-50 to-white dark:from-amber-950/20 dark:to-background">
-          <CardContent className="p-6">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm font-medium text-muted-foreground mb-1">Scontrino Medio</p>
-                <p className="text-3xl font-bold text-foreground">€{analytics.averageOrderValue.toFixed(2)}</p>
-              </div>
-              <div className="p-3 bg-amber-100 dark:bg-amber-900/30 rounded-full text-amber-600 dark:text-amber-400">
-                <TrendUp size={24} weight="duotone" />
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-
-        <Card className="shadow-sm hover:shadow-md transition-shadow border-none bg-gradient-to-br from-purple-50 to-white dark:from-purple-950/20 dark:to-background">
-          <CardContent className="p-6">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm font-medium text-muted-foreground mb-1">Ordini in Corso</p>
-                <p className="text-3xl font-bold text-foreground">{analytics.activeOrders}</p>
-              </div>
-              <div className="p-3 bg-purple-100 dark:bg-purple-900/30 rounded-full text-purple-600 dark:text-purple-400">
-                <Clock size={24} weight="duotone" />
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-      </div>
-
-      {/* Charts Grid */}
-      <div className="grid gap-8 md:grid-cols-2">
-        {/* Consolidated Time Series Chart */}
-        <Card className="shadow-lg border-none overflow-hidden">
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-6 bg-muted/10">
-            <CardTitle className="flex items-center gap-2 text-lg">
-              <ChartLine size={20} className="text-primary" />
-              Andamento Temporale
-            </CardTitle>
-            <Select value={timeSeriesMetric} onValueChange={(v: any) => setTimeSeriesMetric(v)}>
-              <SelectTrigger className="w-40 h-8 text-xs">
+            <Select value={dateFilter} onValueChange={(value: DateFilter) => setDateFilter(value)}>
+              <SelectTrigger className="w-40 h-9">
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="orders">Numero Ordini</SelectItem>
-                <SelectItem value="revenue">Ricavi (€)</SelectItem>
-                <SelectItem value="average">Valore Medio (€)</SelectItem>
+                {dateFilters.map(filter => (
+                  <SelectItem key={filter.value} value={filter.value}>
+                    {filter.label}
+                  </SelectItem>
+                ))}
               </SelectContent>
             </Select>
-          </CardHeader>
-          <CardContent className="pt-6">
-            <ResponsiveContainer width="100%" height={350}>
-              <AreaChart data={analytics.dailyData} margin={{ top: 10, right: 10, left: 0, bottom: 0 }}>
-                <defs>
-                  <linearGradient id="colorMetric" x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="5%" stopColor="#C9A152" stopOpacity={0.3} />
-                    <stop offset="95%" stopColor="#C9A152" stopOpacity={0} />
-                  </linearGradient>
-                </defs>
-                <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="var(--border)" />
-                <XAxis
-                  dataKey="date"
-                  axisLine={false}
-                  tickLine={false}
-                  tick={{ fontSize: 12, fill: 'var(--muted-foreground)' }}
-                  dy={10}
-                />
-                <YAxis
-                  axisLine={false}
-                  tickLine={false}
-                  tick={{ fontSize: 12, fill: 'var(--muted-foreground)' }}
-                  tickFormatter={(value) => timeSeriesMetric === 'orders' ? value : `€${value}`}
-                />
-                <Tooltip
-                  contentStyle={{ borderRadius: '8px', border: 'none', boxShadow: '0 4px 12px rgba(0,0,0,0.1)' }}
-                  formatter={(value: number) => [
-                    timeSeriesMetric === 'orders' ? value : `€${value.toFixed(2)}`,
-                    timeSeriesMetric === 'orders' ? 'Ordini' : timeSeriesMetric === 'revenue' ? 'Ricavi' : 'Valore Medio'
-                  ]}
-                />
-                <Area
-                  type="monotone"
-                  dataKey={timeSeriesMetric === 'orders' ? 'orders' : timeSeriesMetric === 'revenue' ? 'revenue' : 'averageValue'}
-                  stroke="#C9A152"
-                  strokeWidth={3}
-                  fillOpacity={1}
-                  fill="url(#colorMetric)"
-                />
-              </AreaChart>
-            </ResponsiveContainer>
-          </CardContent>
-        </Card>
 
-        {/* Consolidated Category Chart */}
-        <Card className="shadow-lg border-none overflow-hidden">
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-6 bg-muted/10">
-            <CardTitle className="flex items-center gap-2 text-lg">
-              <List size={20} className="text-primary" />
-              Performance Categorie
-            </CardTitle>
-            <Select value={categoryMetric} onValueChange={(v: any) => setCategoryMetric(v)}>
-              <SelectTrigger className="w-40 h-8 text-xs">
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="revenue">Per Ricavi (€)</SelectItem>
-                <SelectItem value="quantity">Per Quantità</SelectItem>
-              </SelectContent>
-            </Select>
-          </CardHeader>
-          <CardContent className="pt-6">
-            <ResponsiveContainer width="100%" height={350}>
-              <BarChart
-                data={analytics.categoryStats}
-                layout="vertical"
-                margin={{ top: 0, right: 30, left: 40, bottom: 0 }}
-              >
-                <CartesianGrid strokeDasharray="3 3" horizontal={false} stroke="var(--border)" />
-                <XAxis type="number" hide />
-                <YAxis
-                  dataKey="name"
-                  type="category"
-                  width={100}
-                  axisLine={false}
-                  tickLine={false}
-                  tick={{ fontSize: 12, fill: 'var(--foreground)', fontWeight: 500 }}
-                />
-                <Tooltip
-                  cursor={{ fill: 'var(--muted)', opacity: 0.2 }}
-                  contentStyle={{ borderRadius: '8px', border: 'none', boxShadow: '0 4px 12px rgba(0,0,0,0.1)' }}
-                  formatter={(value: number) => [
-                    categoryMetric === 'revenue' ? `€${value.toFixed(2)}` : value,
-                    categoryMetric === 'revenue' ? 'Ricavi' : 'Quantità'
-                  ]}
-                />
-                <Bar
-                  dataKey={categoryMetric}
-                  fill="#C9A152"
-                  radius={[0, 4, 4, 0]}
-                  barSize={32}
-                />
-              </BarChart>
-            </ResponsiveContainer>
-          </CardContent>
-        </Card>
-      </div>
-
-      {/* Best Selling Dishes List */}
-      <Card className="shadow-lg border-none">
-        <CardHeader className="bg-muted/10 pb-6">
-          <div className="flex items-center justify-between">
-            <CardTitle className="flex items-center gap-2 text-lg">
-              <Users size={20} className="text-primary" />
-              Classifica Piatti
-            </CardTitle>
-            <Badge variant="outline" className="font-normal">
-              Top {analytics.dishStats.length}
-            </Badge>
-          </div>
-        </CardHeader>
-        <CardContent className="pt-6">
-          <div className="space-y-1">
-            {analytics.dishStats.length === 0 ? (
-              <div className="text-center py-12 text-muted-foreground">
-                <ShoppingBag size={48} className="mx-auto mb-4 opacity-20" />
-                <p>Nessun dato disponibile per i filtri selezionati</p>
-              </div>
-            ) : (
-              <div className="grid gap-2">
-                {analytics.dishStats.map((dish, index) => (
-                  <div
-                    key={dish.name}
-                    className="flex items-center justify-between p-3 rounded-lg hover:bg-muted/50 transition-colors group"
-                  >
-                    <div className="flex items-center gap-4">
-                      <div className={`
-                        w-8 h-8 rounded-full flex items-center justify-center font-bold text-sm
-                        ${index === 0 ? 'bg-yellow-100 text-yellow-700' :
-                          index === 1 ? 'bg-gray-100 text-gray-700' :
-                            index === 2 ? 'bg-orange-100 text-orange-700' :
-                              'bg-muted text-muted-foreground'}
-                      `}>
-                        {index + 1}
-                      </div>
-                      <div>
-                        <p className="font-semibold text-foreground group-hover:text-primary transition-colors">{dish.name}</p>
-                        <p className="text-xs text-muted-foreground">{dish.category}</p>
-                      </div>
+            {dateFilter === 'custom' && (
+              <Popover>
+                <PopoverTrigger asChild>
+                  <Button variant="outline" className="gap-2 h-9">
+                    <CalendarBlank size={16} />
+                    Date
+                  </Button>
+                </PopoverTrigger>
+                <PopoverContent className="w-80" align="end">
+                  <div className="space-y-4">
+                    <div className="space-y-2">
+                      <Label htmlFor="start-date">Data Inizio</Label>
+                      <Input
+                        id="start-date"
+                        type="date"
+                        value={customStartDate}
+                        onChange={(e) => setCustomStartDate(e.target.value)}
+                      />
                     </div>
-                    <div className="text-right flex items-center gap-6">
-                      <div className="hidden sm:block">
-                        <p className="text-xs text-muted-foreground uppercase tracking-wider">Venduti</p>
-                        <p className="font-bold">{dish.quantity}</p>
-                      </div>
-                      <div className="min-w-[80px]">
-                        <p className="text-xs text-muted-foreground uppercase tracking-wider">Incasso</p>
-                        <p className="font-bold text-primary">€{dish.revenue.toFixed(2)}</p>
-                      </div>
+                    <div className="space-y-2">
+                      <Label htmlFor="end-date">Data Fine</Label>
+                      <Input
+                        id="end-date"
+                        type="date"
+                        value={customEndDate}
+                        onChange={(e) => setCustomEndDate(e.target.value)}
+                      />
                     </div>
                   </div>
-                ))}
-              </div>
+                </PopoverContent>
+              </Popover>
             )}
           </div>
-        </CardContent>
-      </Card>
-    </div>
+        </div>
+
+        {/* KPI Cards */}
+        <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+          <Card className="shadow-sm hover:shadow-md transition-shadow border-none bg-gradient-to-br from-blue-50 to-white dark:from-blue-950/20 dark:to-background">
+            <CardContent className="p-6">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-sm font-medium text-muted-foreground mb-1">Ordini Totali</p>
+                  <p className="text-3xl font-bold text-foreground">{analytics.totalOrders}</p>
+                </div>
+                <div className="p-3 bg-blue-100 dark:bg-blue-900/30 rounded-full text-blue-600 dark:text-blue-400">
+                  <ShoppingBag size={24} weight="duotone" />
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+
+          <Card className="shadow-sm hover:shadow-md transition-shadow border-none bg-gradient-to-br from-green-50 to-white dark:from-green-950/20 dark:to-background">
+            <CardContent className="p-6">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-sm font-medium text-muted-foreground mb-1">Ricavi Totali</p>
+                  <p className="text-3xl font-bold text-foreground">€{analytics.totalRevenue.toFixed(2)}</p>
+                </div>
+                <div className="p-3 bg-green-100 dark:bg-green-900/30 rounded-full text-green-600 dark:text-green-400">
+                  <CurrencyEur size={24} weight="duotone" />
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+
+          <Card className="shadow-sm hover:shadow-md transition-shadow border-none bg-gradient-to-br from-amber-50 to-white dark:from-amber-950/20 dark:to-background">
+            <CardContent className="p-6">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-sm font-medium text-muted-foreground mb-1">Scontrino Medio</p>
+                  <p className="text-3xl font-bold text-foreground">€{analytics.averageOrderValue.toFixed(2)}</p>
+                </div>
+                <div className="p-3 bg-amber-100 dark:bg-amber-900/30 rounded-full text-amber-600 dark:text-amber-400">
+                  <TrendUp size={24} weight="duotone" />
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+
+          <Card className="shadow-sm hover:shadow-md transition-shadow border-none bg-gradient-to-br from-purple-50 to-white dark:from-purple-950/20 dark:to-background">
+            <CardContent className="p-6">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-sm font-medium text-muted-foreground mb-1">Ordini in Corso</p>
+                  <p className="text-3xl font-bold text-foreground">{analytics.activeOrders}</p>
+                </div>
+                <div className="p-3 bg-purple-100 dark:bg-purple-900/30 rounded-full text-purple-600 dark:text-purple-400">
+                  <Clock size={24} weight="duotone" />
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+        </div>
+
+        {/* Charts Grid */}
+        <div className="grid gap-8 md:grid-cols-2">
+          {/* Consolidated Time Series Chart */}
+          <Card className="shadow-lg border-none overflow-hidden">
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-6 bg-muted/10">
+              <CardTitle className="flex items-center gap-2 text-lg">
+                <ChartLine size={20} className="text-primary" />
+                Andamento Temporale
+              </CardTitle>
+              <Select value={timeSeriesMetric} onValueChange={(v: any) => setTimeSeriesMetric(v)}>
+                <SelectTrigger className="w-40 h-8 text-xs">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="orders">Numero Ordini</SelectItem>
+                  <SelectItem value="revenue">Ricavi (€)</SelectItem>
+                  <SelectItem value="average">Valore Medio (€)</SelectItem>
+                </SelectContent>
+              </Select>
+            </CardHeader>
+            <CardContent className="pt-6">
+              <ResponsiveContainer width="100%" height={350}>
+                <AreaChart data={analytics.dailyData} margin={{ top: 10, right: 10, left: 0, bottom: 0 }}>
+                  <defs>
+                    <linearGradient id="colorMetric" x1="0" y1="0" x2="0" y2="1">
+                      <stop offset="5%" stopColor="#C9A152" stopOpacity={0.3} />
+                      <stop offset="95%" stopColor="#C9A152" stopOpacity={0} />
+                    </linearGradient>
+                  </defs>
+                  <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="var(--border)" />
+                  <XAxis
+                    dataKey="date"
+                    axisLine={false}
+                    tickLine={false}
+                    tick={{ fontSize: 12, fill: 'var(--muted-foreground)' }}
+                    dy={10}
+                  />
+                  <YAxis
+                    axisLine={false}
+                    tickLine={false}
+                    tick={{ fontSize: 12, fill: 'var(--muted-foreground)' }}
+                    tickFormatter={(value) => timeSeriesMetric === 'orders' ? value : `€${value}`}
+                  />
+                  <Tooltip
+                    contentStyle={{ borderRadius: '8px', border: 'none', boxShadow: '0 4px 12px rgba(0,0,0,0.1)' }}
+                    formatter={(value: number) => [
+                      timeSeriesMetric === 'orders' ? value : `€${value.toFixed(2)}`,
+                      timeSeriesMetric === 'orders' ? 'Ordini' : timeSeriesMetric === 'revenue' ? 'Ricavi' : 'Valore Medio'
+                    ]}
+                  />
+                  <Area
+                    type="monotone"
+                    dataKey={timeSeriesMetric === 'orders' ? 'orders' : timeSeriesMetric === 'revenue' ? 'revenue' : 'averageValue'}
+                    stroke="#C9A152"
+                    strokeWidth={3}
+                    fillOpacity={1}
+                    fill="url(#colorMetric)"
+                  />
+                </AreaChart>
+              </ResponsiveContainer>
+            </CardContent>
+          </Card>
+
+          {/* Consolidated Category Chart */}
+          <Card className="shadow-lg border-none overflow-hidden">
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-6 bg-muted/10">
+              <CardTitle className="flex items-center gap-2 text-lg">
+                <List size={20} className="text-primary" />
+                Performance Categorie
+              </CardTitle>
+              <Select value={categoryMetric} onValueChange={(v: any) => setCategoryMetric(v)}>
+                <SelectTrigger className="w-40 h-8 text-xs">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="revenue">Per Ricavi (€)</SelectItem>
+                  <SelectItem value="quantity">Per Quantità</SelectItem>
+                </SelectContent>
+              </Select>
+            </CardHeader>
+            <CardContent className="pt-6">
+              <ResponsiveContainer width="100%" height={350}>
+                <BarChart
+                  data={analytics.categoryStats}
+                  layout="vertical"
+                  margin={{ top: 0, right: 30, left: 40, bottom: 0 }}
+                >
+                  <CartesianGrid strokeDasharray="3 3" horizontal={false} stroke="var(--border)" />
+                  <XAxis type="number" hide />
+                  <YAxis
+                    dataKey="name"
+                    type="category"
+                    width={100}
+                    axisLine={false}
+                    tickLine={false}
+                    tick={{ fontSize: 12, fill: 'var(--foreground)', fontWeight: 500 }}
+                  />
+                  <Tooltip
+                    cursor={{ fill: 'var(--muted)', opacity: 0.2 }}
+                    contentStyle={{ borderRadius: '8px', border: 'none', boxShadow: '0 4px 12px rgba(0,0,0,0.1)' }}
+                    formatter={(value: number) => [
+                      categoryMetric === 'revenue' ? `€${value.toFixed(2)}` : value,
+                      categoryMetric === 'revenue' ? 'Ricavi' : 'Quantità'
+                    ]}
+                  />
+                  <Bar
+                    dataKey={categoryMetric}
+                    fill="#C9A152"
+                    radius={[0, 4, 4, 0]}
+                    barSize={32}
+                  />
+                </BarChart>
+              </ResponsiveContainer>
+            </CardContent>
+          </Card>
+        </div>
+
+        {/* Best Selling Dishes List */}
+        <Card className="shadow-lg border-none">
+          <CardHeader className="bg-muted/10 pb-6">
+            <div className="flex items-center justify-between">
+              <CardTitle className="flex items-center gap-2 text-lg">
+                <Users size={20} className="text-primary" />
+                Classifica Piatti
+              </CardTitle>
+              <Badge variant="outline" className="font-normal">
+                Top {analytics.dishStats.length}
+              </Badge>
+            </div>
+          </CardHeader>
+          <CardContent className="pt-6">
+            <div className="space-y-1">
+              {analytics.dishStats.length === 0 ? (
+                <div className="text-center py-12 text-muted-foreground">
+                  <ShoppingBag size={48} className="mx-auto mb-4 opacity-20" />
+                  <p>Nessun dato disponibile per i filtri selezionati</p>
+                </div>
+              ) : (
+                <div className="grid gap-2">
+                  {analytics.dishStats.map((dish, index) => (
+                    <div
+                      key={dish.name}
+                      className="flex items-center justify-between p-3 rounded-lg hover:bg-muted/50 transition-colors group"
+                    >
+                      <div className="flex items-center gap-4">
+                        <div className={`
+                        w-8 h-8 rounded-full flex items-center justify-center font-bold text-sm
+                        ${index === 0 ? 'bg-yellow-100 text-yellow-700' :
+                            index === 1 ? 'bg-gray-100 text-gray-700' :
+                              index === 2 ? 'bg-orange-100 text-orange-700' :
+                                'bg-muted text-muted-foreground'}
+                      `}>
+                          {index + 1}
+                        </div>
+                        <div>
+                          <p className="font-semibold text-foreground group-hover:text-primary transition-colors">{dish.name}</p>
+                          <p className="text-xs text-muted-foreground">{dish.category}</p>
+                        </div>
+                      </div>
+                      <div className="text-right flex items-center gap-6">
+                        <div className="hidden sm:block">
+                          <p className="text-xs text-muted-foreground uppercase tracking-wider">Venduti</p>
+                          <p className="font-bold">{dish.quantity}</p>
+                        </div>
+                        <div className="min-w-[80px]">
+                          <p className="text-xs text-muted-foreground uppercase tracking-wider">Incasso</p>
+                          <p className="font-bold text-primary">€{dish.revenue.toFixed(2)}</p>
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          </CardContent>
+        </Card>
+      </div>
+
+      <AIAnalyticsSection
+        orders={dateFilteredOrders}
+        dishes={dishes}
+        categories={categories}
+      />
+    </>
   )
 }
