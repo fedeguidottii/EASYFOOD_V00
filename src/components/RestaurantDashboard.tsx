@@ -344,6 +344,10 @@ const RestaurantDashboard = ({ user, onLogout }: RestaurantDashboardProps) => {
         await DatabaseService.closeSession(openSession.id)
         if (markPaid) {
           await DatabaseService.markOrdersPaidForSession(openSession.id)
+        } else {
+          // FIX: If just emptying the table (not paid), cancel all active orders
+          // so they don't count as "Active" in analytics.
+          await DatabaseService.cancelSessionOrders(openSession.id)
         }
 
         toast.success(markPaid ? 'Tavolo pagato e liberato' : 'Tavolo svuotato e liberato')

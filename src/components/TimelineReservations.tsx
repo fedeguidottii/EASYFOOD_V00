@@ -127,8 +127,15 @@ export default function TimelineReservations({ user, restaurantId, tables, booki
         const hours = parseInt(timeParts[0], 10)
         const minutes = parseInt(timeParts[1], 10)
 
-        const startMinutes = hours * 60 + minutes
-        const duration = 120 // Default 2 hours
+        // FIX: Add 30 minutes buffer BEFORE the reservation
+        // The user requested "mezz'ora d'anticipo" (half an hour advance)
+        // So we shift the start time back by 30 minutes
+        const startMinutes = (hours * 60 + minutes) - 30
+
+        // And we extend the duration by 30 minutes so the end time remains the same
+        // (Original Start + Duration) = (New Start + New Duration)
+        // (S + 120) = ((S - 30) + (120 + 30))
+        const duration = 120 + 30
 
         return {
           booking,

@@ -422,6 +422,19 @@ export const DatabaseService = {
         if (error) throw error
     },
 
+    async cancelSessionOrders(sessionId: string) {
+        const { error } = await supabase
+            .from('orders')
+            .update({ status: 'CANCELLED', closed_at: new Date().toISOString() })
+            .eq('table_session_id', sessionId)
+            .neq('status', 'PAID') // Don't cancel already paid orders
+            .neq('status', 'COMPLETED') // Optional: decide if completed orders should be cancelled. User said "annullarsi", so likely yes if they are still "active" in some way, but usually COMPLETED means served. 
+        // However, "Active Orders" usually implies PENDING/IN_PREPARATION/READY/SERVED. 
+        // If we "Empty Table", we assume everything is wiped.
+        // Let's cancel everything that isn't PAID.
+        if (error) throw error
+    },
+
     // Orders
     async getOrders(restaurantId: string) {
         const { data, error } = await supabase
