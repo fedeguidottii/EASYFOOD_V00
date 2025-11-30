@@ -91,9 +91,9 @@ export function KitchenView({ orders, tables, dishes, selectedCategoryIds = [], 
                         return (
                             <Card
                                 key={order.id}
-                                className="flex flex-col shadow-sm border-2 border-border bg-card overflow-hidden"
+                                className="flex flex-col shadow-[0_4px_20px_rgba(0,0,0,0.2)] border border-cyan-500/30 bg-slate-900/90 overflow-hidden"
                             >
-                                <CardHeader className="pb-2 border-b bg-muted/30 p-3">
+                                <CardHeader className="pb-2 border-b border-cyan-500/30 bg-cyan-500/5 p-3">
                                     <div className="flex justify-between items-center w-full">
                                         <span className="text-4xl font-black text-foreground">
                                             {tableName.replace('Tavolo ', '')}
@@ -166,9 +166,9 @@ export function KitchenView({ orders, tables, dishes, selectedCategoryIds = [], 
                         return (
                             <Card
                                 key={`dish-view-${idx}`}
-                                className="flex flex-col shadow-sm border-2 border-border bg-card overflow-hidden"
+                                className="flex flex-col shadow-[0_4px_20px_rgba(0,0,0,0.2)] border border-cyan-500/30 bg-slate-900/90 overflow-hidden"
                             >
-                                <CardHeader className="pb-2 border-b bg-muted/30 p-3">
+                                <CardHeader className="pb-2 border-b border-cyan-500/30 bg-cyan-500/5 p-3">
                                     <div className="flex justify-between items-center w-full">
                                         <span className="text-4xl font-black text-foreground leading-tight">
                                             {data.dish?.name}

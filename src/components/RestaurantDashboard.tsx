@@ -930,9 +930,9 @@ const RestaurantDashboard = ({ user, onLogout }: RestaurantDashboardProps) => {
     const diff = now - time
     const minutes = Math.floor(diff / 60000)
 
-    if (minutes < 10) return 'text-green-600 bg-green-50 border-green-200'
-    if (minutes < 20) return 'text-orange-600 bg-orange-50 border-orange-200'
-    return 'text-red-600 bg-red-50 border-red-200'
+    if (minutes < 10) return 'text-emerald-400 bg-emerald-500/10 border border-emerald-500/20'
+    if (minutes < 20) return 'text-amber-400 bg-amber-500/10 border border-amber-500/20'
+    return 'text-rose-400 bg-rose-500/10 border border-rose-500/20'
   }
 
   // Handle sidebar auto-expand on hover - REMOVED to keep it expanded or manual toggle
@@ -1225,7 +1225,7 @@ const RestaurantDashboard = ({ user, onLogout }: RestaurantDashboardProps) => {
                 ) : (
                   <div className="grid gap-4">
                     {restaurantCompletedOrders.sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime()).map(order => (
-                      <Card key={order.id} className="bg-muted/20">
+                      <Card key={order.id} className="bg-slate-900/90 border-cyan-500/30 shadow-[0_4px_20px_rgba(0,0,0,0.2)]">
                         <CardHeader className="p-4 pb-2">
                           <div className="flex justify-between items-center">
                             <CardTitle className="text-base">Ordine #{order.id.slice(0, 8)}</CardTitle>
@@ -1272,7 +1272,7 @@ const RestaurantDashboard = ({ user, onLogout }: RestaurantDashboardProps) => {
 
           {/* Tables Tab */}
           < TabsContent value="tables" className="space-y-6" >
-            <Card className="border border-primary/15 bg-gradient-to-r from-slate-950 via-slate-900 to-indigo-900 text-slate-50 shadow-xl">
+            <Card className="border border-cyan-500/30 bg-slate-900/90 shadow-[0_4px_20px_rgba(0,0,0,0.2)] text-slate-50">
               <CardContent className="p-5">
                 <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
                   <div className="flex items-center gap-3">
@@ -1393,17 +1393,17 @@ const RestaurantDashboard = ({ user, onLogout }: RestaurantDashboardProps) => {
                 return (
                   <Card
                     key={table.id}
-                    className={`relative overflow-hidden transition-all duration-300 group border border-white/5 shadow-lg shadow-indigo-900/20 ${isActive
-                      ? 'bg-gradient-to-br from-emerald-500/15 via-slate-900/80 to-indigo-900/70 hover:shadow-emerald-600/30'
-                      : 'bg-gradient-to-br from-slate-900/70 via-slate-950 to-slate-900 hover:shadow-slate-900/40'
+                    className={`relative overflow-hidden transition-all duration-300 group border border-cyan-500/30 shadow-lg ${isActive
+                      ? 'bg-slate-900/90 shadow-[0_0_30px_rgba(6,182,212,0.15)]'
+                      : 'bg-slate-950/80 hover:bg-slate-900/90'
                       }`}
                   >
                     <CardContent className="p-0 flex flex-col h-full">
-                      <div className={`p-4 flex items-center justify-between border-b ${isActive ? 'border-emerald-400/30 bg-emerald-500/5' : 'border-white/5 bg-white/5'}`}>
-                        <span className={`text-xl font-semibold ${isActive ? 'text-emerald-100' : 'text-slate-100'}`}>
+                      <div className={`p-4 flex items-center justify-between border-b ${isActive ? 'border-cyan-500/30 bg-cyan-500/5' : 'border-white/5 bg-white/5'}`}>
+                        <span className={`text-xl font-semibold ${isActive ? 'text-cyan-100' : 'text-slate-100'}`}>
                           {table.number}
                         </span>
-                        <Badge variant={isActive ? 'default' : 'outline'} className={`${isActive ? 'bg-emerald-500/20 text-emerald-50 border-emerald-300/40' : 'bg-white/10 text-slate-200 border-white/20'}`}>
+                        <Badge variant={isActive ? 'default' : 'outline'} className={`${isActive ? 'bg-cyan-500/20 text-cyan-50 border-cyan-500/40' : 'bg-white/10 text-slate-200 border-white/20'}`}>
                           {isActive ? 'Occupato' : 'Libero'}
                         </Badge>
                       </div>
@@ -1412,13 +1412,13 @@ const RestaurantDashboard = ({ user, onLogout }: RestaurantDashboardProps) => {
                         {isActive ? (
                           <>
                             <div className="text-center">
-                              <p className="text-[11px] text-emerald-100/70 mb-2 uppercase tracking-[0.2em] font-medium">PIN Tavolo</p>
-                              <span className="text-4xl font-mono font-bold tracking-wider text-emerald-100">
+                              <p className="text-[11px] text-cyan-200/70 mb-2 uppercase tracking-[0.2em] font-medium">PIN Tavolo</p>
+                              <span className="text-4xl font-mono font-bold tracking-wider text-cyan-100">
                                 {session?.session_pin || '...'}
                               </span>
                             </div>
                             {activeOrder && (
-                              <Badge variant="outline" className="bg-white/10 border-emerald-200/30 text-emerald-50 text-xs">
+                              <Badge variant="outline" className="bg-cyan-500/10 border-cyan-500/30 text-cyan-50 text-xs">
                                 {activeOrder.items?.filter(i => i.status === 'SERVED').length || 0} ordini completati
                               </Badge>
                             )}
@@ -1700,7 +1700,7 @@ const RestaurantDashboard = ({ user, onLogout }: RestaurantDashboardProps) => {
                     </div>
                     <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
                       {categoryDishes.map(dish => (
-                        <Card key={dish.id} className={`group hover:shadow-md transition-all ${!dish.is_active ? 'opacity-40' : 'opacity-100'
+                        <Card key={dish.id} className={`group hover:shadow-lg transition-all border-cyan-500/30 bg-slate-900/90 shadow-[0_4px_20px_rgba(0,0,0,0.2)] ${!dish.is_active ? 'opacity-60 grayscale' : 'opacity-100'
                           }`}>
                           <CardContent className="p-0">
                             {dish.image_url && (
@@ -1878,7 +1878,7 @@ const RestaurantDashboard = ({ user, onLogout }: RestaurantDashboardProps) => {
               </div>
             </div>
 
-            <Card className="border border-primary/15 bg-gradient-to-br from-slate-950 via-slate-900 to-indigo-900 text-slate-50 shadow-lg shadow-indigo-900/30">
+            <Card className="border border-cyan-500/30 bg-slate-900/90 shadow-[0_4px_20px_rgba(0,0,0,0.2)] text-slate-50">
               <CardHeader>
                 <CardTitle className="text-lg font-semibold flex items-center gap-2">
                   <span className="inline-flex h-9 w-9 items-center justify-center rounded-lg bg-white/10 text-cyan-200">
@@ -1898,7 +1898,7 @@ const RestaurantDashboard = ({ user, onLogout }: RestaurantDashboardProps) => {
               </CardContent>
             </Card>
 
-            <Card className="border border-primary/10 bg-gradient-to-br from-slate-900 via-slate-950 to-indigo-950 text-slate-50 shadow-lg shadow-indigo-900/30">
+            <Card className="border border-cyan-500/30 bg-slate-900/90 shadow-[0_4px_20px_rgba(0,0,0,0.2)] text-slate-50">
               <CardHeader>
                 <CardTitle className="text-lg font-semibold flex items-center gap-2">
                   <span className="inline-flex h-9 w-9 items-center justify-center rounded-lg bg-white/10 text-cyan-200">
@@ -2015,7 +2015,7 @@ const RestaurantDashboard = ({ user, onLogout }: RestaurantDashboardProps) => {
             </Card>
 
             <div className="space-y-6">
-              <Card className="bg-gradient-to-br from-card to-orange-950/10 border-orange-500/20 shadow-lg">
+              <Card className="bg-slate-900/90 border-cyan-500/30 shadow-[0_4px_20px_rgba(0,0,0,0.2)]">
                 <CardHeader>
                   <CardTitle className="text-orange-400 flex items-center gap-2">
                     <ForkKnife size={20} />
@@ -2075,7 +2075,7 @@ const RestaurantDashboard = ({ user, onLogout }: RestaurantDashboardProps) => {
               </Card>
 
               <div className="grid gap-6 md:grid-cols-2">
-                <Card className="bg-gradient-to-br from-card to-orange-950/10 border-orange-500/20 shadow-lg">
+                <Card className="bg-slate-900/90 border-cyan-500/30 shadow-[0_4px_20px_rgba(0,0,0,0.2)]">
                   <CardHeader>
                     <CardTitle className="text-orange-400 flex items-center gap-2">
                       <Receipt size={20} />
@@ -2126,7 +2126,7 @@ const RestaurantDashboard = ({ user, onLogout }: RestaurantDashboardProps) => {
                   </CardContent>
                 </Card>
 
-                <Card className="bg-gradient-to-br from-card to-orange-950/10 border-orange-500/20 shadow-lg">
+                <Card className="bg-slate-900/90 border-cyan-500/30 shadow-[0_4px_20px_rgba(0,0,0,0.2)]">
                   <CardHeader>
                     <CardTitle className="text-orange-400 flex items-center gap-2">
                       <Clock size={20} />
