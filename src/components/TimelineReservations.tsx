@@ -7,7 +7,7 @@ import { Label } from '@/components/ui/label'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { Badge } from '@/components/ui/badge'
 import { toast } from 'sonner'
-import { Plus, X, Trash } from '@phosphor-icons/react'
+import { Plus, Trash } from '@phosphor-icons/react'
 import type { Table, Booking, User } from '../services/types'
 import { DatabaseService } from '../services/DatabaseService'
 
@@ -36,6 +36,8 @@ interface ReservationBlock {
   duration: number
   table: Table
 }
+
+const COLORS = ['#C9A152', '#8B7355', '#F4E6D1', '#E8C547', '#D4B366', '#A68B5B', '#F0D86F', '#C09853']
 
 export default function TimelineReservations({ user, restaurantId, tables, bookings, selectedDate, openingTime = '10:00', closingTime = '23:00', onRefresh, onEditBooking, onDeleteBooking }: TimelineReservationsProps) {
   const [showReservationDialog, setShowReservationDialog] = useState(false)
@@ -243,56 +245,51 @@ export default function TimelineReservations({ user, restaurantId, tables, booki
         </div>
       </div>
 
-      {/* Timeline Header */}
-      <div className="ml-32 flex relative border-b border-[#C9A152]/20 bg-[#0a0a0a] rounded-t-xl">
-        <div className="absolute inset-0 flex pointer-events-none">
-          {timeSlots.map((_, i) => (
-            <div key={i} className="h-full border-r border-[#C9A152]/10 flex-1"></div>
-          ))}
-        </div>
-        <div className="flex w-full">
+      {/* Timeline Header - Time Labels */}
+      <div className="relative pl-32 pr-4">
+        <div className="flex justify-between text-xs text-muted-foreground border-b border-border/50 pb-2">
           {timeSlots.map((slot, i) => (
-            <div key={i} className="flex-1 py-3 text-center text-xs font-medium text-[#C9A152] relative">
+            <div key={i} className="flex flex-col items-center" style={{ width: `${100 / timeSlots.length}%` }}>
               <span>{slot.time}</span>
-              <div className="h-2 w-px bg-[#C9A152]/30 mt-1 mx-auto"></div>
+              <div className="h-2 w-px bg-border/50 mt-1"></div>
             </div>
           ))}
         </div>
       </div>
 
       {/* Timeline Grid */}
-      <Card className="shadow-2xl border-[#C9A152]/20 bg-[#0a0a0a] rounded-b-xl rounded-t-none overflow-hidden">
+      <Card className="shadow-professional">
         <CardContent className="p-0">
           <div className="relative">
             {/* Current Time Indicator */}
             {currentTimePos >= 0 && (
               <div
-                className="absolute top-0 bottom-0 w-0.5 bg-red-500 z-30 pointer-events-none shadow-[0_0_10px_rgba(239,68,68,0.8)]"
-                style={{ left: `calc(8rem + ${currentTimePos} * (100% - 8rem) / 100)` }}
+                className="absolute top-0 bottom-0 w-0.5 bg-red-500 z-20 pointer-events-none"
+                style={{ left: `calc(8rem + ${currentTimePos} * (100% - 9rem) / 100)` }} // Adjusted for padding/margin
               >
-                <div className="absolute -top-1 -left-1.5 w-3 h-3 rounded-full bg-red-500 shadow-[0_0_10px_rgba(239,68,68,0.8)]"></div>
+                <div className="absolute -top-1 -left-1.5 w-3 h-3 rounded-full bg-red-500"></div>
               </div>
             )}
 
             {/* Table Rows */}
             {restaurantTables.map((table, tableIndex) => (
-              <div key={table.id} className="relative group/row">
+              <div key={table.id} className="relative">
                 {/* Table Name */}
-                <div className="absolute left-0 top-0 bottom-0 w-32 flex flex-col items-center justify-center border-r border-[#C9A152]/20 bg-[#111111] z-20 shadow-[4px_0_10px_rgba(0,0,0,0.5)]">
-                  <span className="font-bold text-lg text-[#C9A152]">Tavolo {table.number}</span>
-                  <span className="text-xs text-muted-foreground/60 mt-1">{table.seats} posti</span>
+                <div className="absolute left-0 top-0 bottom-0 w-32 flex items-center justify-center border-r border-border/50 bg-muted/10 z-10">
+                  <span className="font-medium text-sm">Tavolo {table.number}</span>
+                  <span className="text-xs text-muted-foreground ml-2">({table.seats}p)</span>
                 </div>
 
                 {/* Timeline Row */}
                 <div
-                  className="ml-32 h-20 border-b border-[#C9A152]/10 relative cursor-crosshair hover:bg-[#C9A152]/5 transition-colors"
+                  className="ml-32 h-16 border-b border-border/20 relative cursor-crosshair hover:bg-muted/20 transition-colors"
                   onClick={(e) => handleTimelineClick(e, table.id)}
                   ref={tableIndex === 0 ? timelineRef : undefined}
                 >
                   {/* Grid Lines */}
                   <div className="absolute inset-0 flex pointer-events-none">
                     {timeSlots.map((_, i) => (
-                      <div key={i} className="h-full border-r border-[#C9A152]/5 flex-1"></div>
+                      <div key={i} className="h-full border-r border-border/10 flex-1"></div>
                     ))}
                   </div>
 
@@ -301,36 +298,45 @@ export default function TimelineReservations({ user, restaurantId, tables, booki
                     .filter(block => block.table.id === table.id)
                     .map((block, i) => {
                       const isCompleted = block.booking.status === 'COMPLETED'
+                      const colorIndex = i % COLORS.length
+                      const bgColor = isCompleted ? '#e5e7eb' : COLORS[colorIndex]
+                      const textColor = isCompleted ? '#9ca3af' : (['#F4E6D1', '#F0D86F'].includes(bgColor) ? '#000' : '#fff')
+
                       return (
                         <div
                           key={block.booking.id}
-                          className={`absolute top-2 bottom-2 rounded-lg px-3 py-1.5 text-xs font-medium overflow-hidden whitespace-nowrap shadow-lg border cursor-pointer hover:brightness-110 transition-all z-10 group/block
-                            ${isCompleted
-                              ? 'bg-green-900/40 text-green-400 border-green-800/50'
-                              : 'bg-gradient-to-r from-[#C9A152] to-[#E8C547] text-black border-[#F4E6D1]/50 shadow-[0_4px_10px_rgba(201,161,82,0.2)]'
-                            }`}
-                          style={getBlockStyle(block.startMinutes, block.duration)}
+                          className={`absolute top-2 bottom-2 rounded-md shadow-sm border border-black/10 flex items-center justify-between px-2 overflow-hidden transition-all hover:shadow-md hover:scale-[1.02] z-20 ${isCompleted ? 'opacity-60' : ''}`}
+                          style={{
+                            left: `${getBlockStyle(block.startMinutes, block.duration).left}`,
+                            width: `${getBlockStyle(block.startMinutes, block.duration).width}`,
+                            backgroundColor: bgColor,
+                            color: textColor
+                          }}
                           onClick={(e) => {
                             e.stopPropagation()
                             onEditBooking?.(block.booking)
                           }}
-                          title={`${block.booking.name} (${block.booking.guests}p) - ${block.booking.date_time.split('T')[1].substring(0, 5)}`}
                         >
-                          <div className="flex justify-between items-start">
-                            <div className="font-black truncate text-sm">{block.booking.name}</div>
-                            {onDeleteBooking && !isCompleted && (
-                              <button
-                                onClick={(e) => {
-                                  e.stopPropagation()
-                                  onDeleteBooking(block.booking.id)
-                                }}
-                                className="opacity-0 group-hover/block:opacity-100 transition-opacity p-0.5 hover:bg-black/20 rounded text-current"
-                              >
-                                <X weight="bold" className="h-3.5 w-3.5" />
-                              </button>
-                            )}
+                          <div className="flex flex-col overflow-hidden">
+                            <span className="font-bold text-xs truncate">{block.booking.name}</span>
+                            <span className="text-[10px] truncate opacity-90">{block.booking.guests} ospiti</span>
                           </div>
-                          <div className="truncate opacity-80 font-semibold mt-0.5">{block.booking.guests} ospiti • {block.booking.date_time.split('T')[1].substring(0, 5)}</div>
+
+                          {!isCompleted && onDeleteBooking && (
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              className="h-6 w-6 hover:bg-black/10 rounded-full shrink-0 ml-1"
+                              onClick={(e) => {
+                                e.stopPropagation()
+                                if (confirm('Sei sicuro di voler eliminare questa prenotazione?')) {
+                                  onDeleteBooking(block.booking.id)
+                                }
+                              }}
+                            >
+                              <Trash size={12} weight="bold" />
+                            </Button>
+                          )}
                         </div>
                       )
                     })}
@@ -339,10 +345,7 @@ export default function TimelineReservations({ user, restaurantId, tables, booki
             ))}
 
             {restaurantTables.length === 0 && (
-              <div className="p-16 text-center text-muted-foreground bg-[#0a0a0a]">
-                <div className="mb-4 text-[#C9A152]/40">
-                  <Trash size={48} className="mx-auto" />
-                </div>
+              <div className="p-8 text-center text-muted-foreground">
                 Nessun tavolo configurato. Aggiungi tavoli nelle impostazioni.
               </div>
             )}

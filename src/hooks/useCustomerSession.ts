@@ -17,7 +17,7 @@ export function useCustomerSession(tableId: string) {
     useEffect(() => {
         if (!tableId) return
 
-        sessionStorage.setItem('customer_table_id', tableId)
+        localStorage.setItem('customer_table_id', tableId)
 
         const initSession = async () => {
             try {
@@ -42,7 +42,7 @@ export function useCustomerSession(tableId: string) {
                             allYouCanEat: restData.all_you_can_eat,
                             coverChargePerPerson: restData.cover_charge_per_person
                         })
-                        sessionStorage.setItem('customer_restaurant_id', restData.id)
+                        localStorage.setItem('customer_restaurant_id', restData.id)
                     }
 
                     // 3. Get Menu (Categories & Dishes)
@@ -71,6 +71,45 @@ export function useCustomerSession(tableId: string) {
         }
 
         initSession()
+    }, [tableId])
+
+    // Listen for Session Changes (New Session or Closed Session)
+    useEffect(() => {
+        if (!tableId) return
+
+        const sessionSub = supabase
+            .channel(`table_sessions:${tableId}`)
+            .on('postgres_changes', {
+                event: '*',
+                schema: 'public',
+                table: 'table_sessions',
+                filter: `table_id=eq.${tableId}`
+            }, async (payload) => {
+                // If a new session is created or current one updated
+                console.log('Session update:', payload)
+
+                // Reload session data
+                const activeSession = await DatabaseService.getActiveSession(tableId)
+                setSession(activeSession)
+
+                if (activeSession) {
+                    // Reload cart and orders for the new/updated session
+                    const cart = await DatabaseService.getCartItems(activeSession.id)
+                    setCartItems(cart)
+                    const sessionOrders = await DatabaseService.getSessionOrders(activeSession.id)
+                    setOrders(sessionOrders)
+                } else {
+                    // No active session (e.g. closed), clear data
+                    setSession(null)
+                    setCartItems([])
+                    setOrders([])
+                }
+            })
+            .subscribe()
+
+        return () => {
+            supabase.removeChannel(sessionSub)
+        }
     }, [tableId])
 
     // Realtime Subscriptions

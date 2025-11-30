@@ -31,8 +31,6 @@ export function KitchenView({ orders, tables, dishes, selectedCategoryIds = [], 
 
     const getDish = (dishId: string) => dishes.find(d => d.id === dishId)
 
-
-
     const isOrderComplete = (order: Order) => {
         return order.items?.every(item => item.status === 'SERVED' || item.status === 'ready')
     }
@@ -72,13 +70,15 @@ export function KitchenView({ orders, tables, dishes, selectedCategoryIds = [], 
 
     return (
         <div className="p-2 h-screen flex flex-col bg-background">
+            <div className="flex items-center justify-between mb-4 bg-muted/20 p-2 rounded-lg border hidden">
+                {/* Controls moved to parent */}
+            </div>
 
-            < div
+            <div
                 className="grid gap-4 overflow-y-auto pb-20 content-start"
                 style={{
                     gridTemplateColumns: `repeat(${columns}, minmax(0, 1fr))`
-                }
-                }
+                }}
             >
                 {viewMode === 'table' ? (
                     activeOrders.map(order => {

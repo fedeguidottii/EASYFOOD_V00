@@ -8,16 +8,13 @@ import { Label } from '@/components/ui/label'
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover'
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, BarChart, Bar, Area, AreaChart } from 'recharts'
 import { TrendUp, CurrencyEur, Users, ShoppingBag, Clock, ChartLine, CalendarBlank, List, CaretDown } from '@phosphor-icons/react'
-import type { Order, Dish, Category, OrderItem, Table, Booking } from '../services/types'
-import AIAnalyticsSection from './AIAnalyticsSection'
+import type { Order, Dish, Category, OrderItem } from '../services/types'
 
 interface AnalyticsChartsProps {
   orders: Order[]
   completedOrders: Order[]
   dishes: Dish[]
   categories: Category[]
-  tables: Table[]
-  bookings: Booking[]
 }
 
 type DateFilter = 'today' | 'yesterday' | 'week' | '2weeks' | 'month' | '3months' | 'custom'
@@ -49,7 +46,7 @@ interface HourlyData {
 
 type FilteredOrder = Order & { filteredItems?: OrderItem[]; filteredAmount?: number }
 
-export default function AnalyticsCharts({ orders, completedOrders, dishes, categories, tables, bookings }: AnalyticsChartsProps) {
+export default function AnalyticsCharts({ orders, completedOrders, dishes, categories }: AnalyticsChartsProps) {
   const [dateFilter, setDateFilter] = useState<DateFilter>('week')
   const [customStartDate, setCustomStartDate] = useState('')
   const [customEndDate, setCustomEndDate] = useState('')
@@ -552,15 +549,6 @@ export default function AnalyticsCharts({ orders, completedOrders, dishes, categ
           </div>
         </CardContent>
       </Card>
-
-      <AIAnalyticsSection
-        orders={orders}
-        completedOrders={completedOrders}
-        dishes={dishes}
-        categories={categories}
-        tables={tables}
-        bookings={bookings}
-      />
     </div>
   )
 }

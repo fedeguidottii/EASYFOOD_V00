@@ -20,6 +20,7 @@ import QRCodeGenerator from './QRCodeGenerator'
 import {
   Clock,
   Plus,
+  Minus,
   Trash,
   PencilSimple,
   Gear,
@@ -46,7 +47,6 @@ import {
   MagnifyingGlass,
   ArrowUp,
   ArrowDown,
-  Minus
 } from '@phosphor-icons/react'
 import type { User, Table, Dish, Order, Restaurant, Booking, Category, OrderItem, TableSession } from '../services/types'
 import TimelineReservations from './TimelineReservations'
@@ -196,6 +196,7 @@ const RestaurantDashboard = ({ user, onLogout }: RestaurantDashboardProps) => {
   const [showTableBillDialog, setShowTableBillDialog] = useState(false)
   const [selectedTableForActions, setSelectedTableForActions] = useState<Table | null>(null)
   const [kitchenViewMode, setKitchenViewMode] = useState<'table' | 'dish'>('table')
+  const [kitchenColumns, setKitchenColumns] = useState(3)
 
   // AYCE and Coperto Settings
   const [ayceEnabled, setAyceEnabled] = useState(false)
@@ -210,7 +211,6 @@ const RestaurantDashboard = ({ user, onLogout }: RestaurantDashboardProps) => {
   // Operating Hours State
   const [openingTime, setOpeningTime] = useState('10:00')
   const [closingTime, setClosingTime] = useState('23:00')
-  const [kitchenColumns, setKitchenColumns] = useState(3)
 
 
   // Waiter Mode Settings
@@ -1125,12 +1125,12 @@ const RestaurantDashboard = ({ user, onLogout }: RestaurantDashboardProps) => {
                   </Button>
                 </div>
 
-                <div className="flex items-center gap-2 bg-muted p-1 rounded-lg">
-                  <Button variant="ghost" size="icon" onClick={() => setKitchenColumns(prev => Math.max(1, prev - 1))} className="h-7 w-7">
+                <div className="flex items-center gap-2 bg-muted p-1 rounded-lg mr-2">
+                  <Button variant="ghost" size="sm" onClick={() => setKitchenColumns(prev => Math.max(1, prev - 1))} className="h-7 w-7 p-0">
                     <Minus size={14} />
                   </Button>
                   <span className="w-4 text-center text-xs font-bold">{kitchenColumns}</span>
-                  <Button variant="ghost" size="icon" onClick={() => setKitchenColumns(prev => prev + 1)} className="h-7 w-7">
+                  <Button variant="ghost" size="sm" onClick={() => setKitchenColumns(prev => prev + 1)} className="h-7 w-7 p-0">
                     <Plus size={14} />
                   </Button>
                 </div>
@@ -1378,94 +1378,88 @@ const RestaurantDashboard = ({ user, onLogout }: RestaurantDashboardProps) => {
               </div>
             </div>
 
-            <div className="grid gap-6 grid-cols-[repeat(auto-fill,minmax(220px,1fr))] p-6 rounded-3xl bg-slate-950 bg-[radial-gradient(#ffffff15_1px,transparent_1px)] [background-size:16px_16px] border border-white/5 shadow-inner">
+            <div className="grid gap-6 grid-cols-[repeat(auto-fill,minmax(220px,1fr))]">
               {restaurantTables.map(table => {
                 const session = getOpenSessionForTable(table.id)
                 const isActive = session?.status === 'OPEN'
                 const activeOrder = restaurantOrders.find(o => getTableIdFromOrder(o) === table.id)
 
                 return (
-                  <div key={table.id} className="relative group">
-                    {/* Stylized Chairs (Visual Decoration) */}
-                    <div className="absolute inset-0 pointer-events-none">
-                      {/* Top Chair */}
-                      <div className="absolute -top-3 left-1/2 -translate-x-1/2 w-12 h-2 bg-slate-700 rounded-full opacity-50" />
-                      {/* Bottom Chair */}
-                      <div className="absolute -bottom-3 left-1/2 -translate-x-1/2 w-12 h-2 bg-slate-700 rounded-full opacity-50" />
-                      {/* Left Chair (if > 2 seats) */}
-                      {(table.seats || 0) > 2 && <div className="absolute top-1/2 -left-3 -translate-y-1/2 w-2 h-12 bg-slate-700 rounded-full opacity-50" />}
-                      {/* Right Chair (if > 2 seats) */}
-                      {(table.seats || 0) > 2 && <div className="absolute top-1/2 -right-3 -translate-y-1/2 w-2 h-12 bg-slate-700 rounded-full opacity-50" />}
-                    </div>
+                  <Card key={table.id} className={`relative overflow-hidden transition-all duration-300 hover:shadow-lg border-border/40 hover:border-primary/30 group ${isActive ? 'ring-1 ring-primary/20' : ''}`}>
+                    <CardContent className="p-0 flex flex-col h-full">
+                      {/* Header */}
+                      <div className={`p-4 flex items-center justify-between border-b border-border/10 ${isActive ? 'bg-orange-500/10' : 'bg-green-500/10'}`}>
+                        <span className="text-xl font-bold text-foreground">
+                          {table.number}
+                        </span>
+                        <Badge variant={isActive ? 'default' : 'secondary'} className={`${isActive ? 'bg-orange-600 hover:bg-orange-700 text-white' : 'bg-green-600 hover:bg-green-700 text-white'}`}>
+                          {isActive ? 'Occupato' : 'Libero'}
+                        </Badge>
+                      </div>
 
-                    {/* The Table Object */}
-                    <Card className={`
-                      relative overflow-hidden transition-all duration-500 border-2
-                      bg-slate-900/80 backdrop-blur-md
-                      ${isActive
-                        ? 'border-rose-500/50 shadow-[0_0_30px_-5px_rgba(244,63,94,0.3)] hover:shadow-[0_0_40px_-5px_rgba(244,63,94,0.5)]'
-                        : 'border-emerald-500/50 shadow-[0_0_30px_-5px_rgba(16,185,129,0.3)] hover:shadow-[0_0_40px_-5px_rgba(16,185,129,0.5)]'
-                      }
-                    `}>
-                      <CardContent className="p-6 flex flex-col items-center justify-center min-h-[160px] gap-4">
+                      {/* Body */}
+                      <div className="flex-1 p-6 flex flex-col items-center justify-center gap-4">
+                        {isActive ? (
+                          <>
+                            <div className="text-center">
+                              <p className="text-sm text-muted-foreground mb-1">PIN Tavolo</p>
+                              <span className="text-3xl font-mono font-bold tracking-widest text-primary">
+                                {session?.session_pin || '...'}
+                              </span>
+                            </div>
+                            {activeOrder && (
+                              <Badge variant="outline" className="bg-background">
+                                {activeOrder.items?.filter(i => i.status === 'SERVED').length || 0} ordini completati
+                              </Badge>
+                            )}
+                          </>
+                        ) : (
+                          <div className="text-center text-muted-foreground">
+                            <MapPin size={32} className="mx-auto mb-2 opacity-20" />
+                            <p className="text-sm">Pronto per clienti</p>
+                          </div>
+                        )}
+                      </div>
 
-                        {/* Table Number */}
-                        <div className="relative z-10 text-center">
-                          <span className={`text-4xl font-light tracking-tighter ${isActive ? 'text-rose-100' : 'text-emerald-100'}`}>
-                            {table.number}
-                          </span>
-                          <p className="text-[10px] uppercase tracking-[0.2em] text-slate-400 mt-1 font-medium">
-                            {table.seats} Posti
-                          </p>
-                        </div>
-
-                        {/* Status Indicator (Center Glow) */}
-                        <div className={`absolute inset-0 opacity-20 ${isActive ? 'bg-rose-500' : 'bg-emerald-500'} blur-3xl`} />
-
-                        {/* Info / Actions */}
-                        <div className="relative z-10 flex flex-col items-center gap-2 w-full">
-                          {isActive ? (
-                            <>
-                              <div className="flex items-center gap-2 bg-rose-950/50 px-3 py-1 rounded-full border border-rose-500/30">
-                                <Clock size={14} className="text-rose-400" />
-                                <span className="text-xs font-mono text-rose-200">{session?.session_pin}</span>
-                              </div>
-                              {activeOrder && (
-                                <div className="text-[10px] text-rose-300 font-medium animate-pulse">
-                                  {activeOrder.items?.filter(i => i.status === 'SERVED').length || 0} piatti serviti
-                                </div>
-                              )}
+                      {/* Actions */}
+                      <div className="p-4 bg-muted/10 border-t border-border/10 grid gap-2">
+                        {isActive ? (
+                          <>
+                            <div className="grid grid-cols-2 gap-2">
+                              <Button variant="outline" size="sm" onClick={() => handleShowTableQr(table)}>
+                                <QrCode size={16} className="mr-2" />
+                                QR
+                              </Button>
                               <Button
-                                size="sm"
-                                variant="ghost"
-                                className="h-8 w-full mt-2 text-rose-200 hover:text-white hover:bg-rose-500/20"
+                                className="shadow-sm hover:shadow-md transition-all"
                                 onClick={() => { setSelectedTableForActions(table); setShowTableBillDialog(true); }}
                               >
                                 <Receipt size={16} className="mr-2" />
                                 Conto
                               </Button>
-                            </>
-                          ) : (
-                            <>
-                              <div className="flex items-center gap-2 bg-emerald-950/50 px-3 py-1 rounded-full border border-emerald-500/30">
-                                <CheckCircle size={14} className="text-emerald-400" />
-                                <span className="text-xs text-emerald-200">Libero</span>
-                              </div>
-                              <Button
-                                size="sm"
-                                variant="ghost"
-                                className="h-8 w-full mt-2 text-emerald-200 hover:text-white hover:bg-emerald-500/20"
-                                onClick={() => handleShowTableQr(table)}
-                              >
-                                <QrCode size={16} className="mr-2" />
-                                QR Code
-                              </Button>
-                            </>
-                          )}
-                        </div>
-                      </CardContent>
-                    </Card>
-                  </div>
+                            </div>
+                          </>
+                        ) : (
+                          <Button
+                            className="w-full bg-primary hover:bg-primary/90 shadow-sm hover:shadow-md transition-all"
+                            onClick={() => handleToggleTable(table.id)}
+                          >
+                            Attiva Tavolo
+                          </Button>
+                        )}
+                      </div>
+
+                      {/* Management Actions (Hover) */}
+                      <div className="absolute top-2 right-12 opacity-0 group-hover:opacity-100 transition-opacity flex gap-1">
+                        <Button variant="ghost" size="icon" className="h-8 w-8 hover:bg-background/80" onClick={() => handleEditTable(table)}>
+                          <PencilSimple size={14} />
+                        </Button>
+                        <Button variant="ghost" size="icon" className="h-8 w-8 text-destructive hover:bg-destructive/10" onClick={() => handleDeleteTable(table.id)}>
+                          <Trash size={14} />
+                        </Button>
+                      </div>
+                    </CardContent>
+                  </Card>
                 )
               })}
             </div>
@@ -1857,8 +1851,6 @@ const RestaurantDashboard = ({ user, onLogout }: RestaurantDashboardProps) => {
               completedOrders={restaurantCompletedOrders}
               dishes={restaurantDishes}
               categories={restaurantCategories}
-              tables={tables || []}
-              bookings={bookings || []}
             />
           </TabsContent >
 
