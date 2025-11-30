@@ -181,6 +181,19 @@ export default function ReservationsManager({ user, restaurantId, tables, bookin
     }
   }
 
+  const handleTimelineDelete = async (bookingId: string) => {
+    if (confirm('Sei sicuro di voler eliminare questa prenotazione?')) {
+      try {
+        await DatabaseService.deleteBooking(bookingId)
+        toast.success('Prenotazione eliminata')
+        onRefresh?.()
+      } catch (error) {
+        console.error('Errore durante l\'eliminazione della prenotazione', error)
+        toast.error('Non è stato possibile eliminare la prenotazione')
+      }
+    }
+  }
+
   // Complete reservation (move to history)
   const handleCompleteBooking = (booking: Booking) => {
     DatabaseService.updateBooking({ id: booking.id, status: 'COMPLETED' })
@@ -313,6 +326,7 @@ export default function ReservationsManager({ user, restaurantId, tables, bookin
           closingTime={closingTime}
           onRefresh={onRefresh}
           onEditBooking={handleEditBooking}
+          onDeleteBooking={handleTimelineDelete}
         />
       </div>
 

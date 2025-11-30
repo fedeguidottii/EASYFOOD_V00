@@ -11,13 +11,13 @@ interface KitchenViewProps {
     dishes: Dish[]
     selectedCategoryIds?: string[]
     viewMode: 'table' | 'dish'
+    columns: number
     onCompleteDish: (orderId: string, itemId: string) => void
     onCompleteOrder: (orderId: string) => void
 }
 
-export function KitchenView({ orders, tables, dishes, selectedCategoryIds = [], viewMode, onCompleteDish, onCompleteOrder }: KitchenViewProps) {
+export function KitchenView({ orders, tables, dishes, selectedCategoryIds = [], viewMode, columns, onCompleteDish, onCompleteOrder }: KitchenViewProps) {
     const [now, setNow] = useState(new Date())
-    const [columns, setColumns] = useState(3)
 
     useEffect(() => {
         const interval = setInterval(() => setNow(new Date()), 1000 * 60)
@@ -31,8 +31,7 @@ export function KitchenView({ orders, tables, dishes, selectedCategoryIds = [], 
 
     const getDish = (dishId: string) => dishes.find(d => d.id === dishId)
 
-    const handleZoomIn = () => setColumns(prev => Math.max(1, prev - 1))
-    const handleZoomOut = () => setColumns(prev => Math.min(5, prev + 1))
+
 
     const isOrderComplete = (order: Order) => {
         return order.items?.every(item => item.status === 'SERVED' || item.status === 'ready')
@@ -73,30 +72,13 @@ export function KitchenView({ orders, tables, dishes, selectedCategoryIds = [], 
 
     return (
         <div className="p-2 h-screen flex flex-col bg-background">
-            <div className="flex items-center justify-between mb-4 bg-muted/20 p-2 rounded-lg border">
-                <div className="flex items-center gap-4">
-                    {/* View Mode controls moved to parent */}
-                </div>
 
-                <div className="flex items-center gap-4">
-                    <span className="text-sm font-medium text-muted-foreground uppercase tracking-wider">Zoom</span>
-                    <div className="flex items-center gap-2 bg-card border rounded-lg p-1 shadow-sm">
-                        <Button variant="ghost" size="icon" onClick={handleZoomOut} className="h-10 w-10 rounded-md hover:bg-muted">
-                            <Minus weight="bold" className="h-5 w-5" />
-                        </Button>
-                        <span className="w-8 text-center font-bold text-lg">{columns}</span>
-                        <Button variant="ghost" size="icon" onClick={handleZoomIn} className="h-10 w-10 rounded-md hover:bg-muted">
-                            <Plus weight="bold" className="h-5 w-5" />
-                        </Button>
-                    </div>
-                </div>
-            </div>
-
-            <div
+            < div
                 className="grid gap-4 overflow-y-auto pb-20 content-start"
                 style={{
                     gridTemplateColumns: `repeat(${columns}, minmax(0, 1fr))`
-                }}
+                }
+                }
             >
                 {viewMode === 'table' ? (
                     activeOrders.map(order => {

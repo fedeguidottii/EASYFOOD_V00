@@ -210,6 +210,7 @@ const RestaurantDashboard = ({ user, onLogout }: RestaurantDashboardProps) => {
   // Operating Hours State
   const [openingTime, setOpeningTime] = useState('10:00')
   const [closingTime, setClosingTime] = useState('23:00')
+  const [kitchenColumns, setKitchenColumns] = useState(3)
 
 
   // Waiter Mode Settings
@@ -1123,6 +1124,17 @@ const RestaurantDashboard = ({ user, onLogout }: RestaurantDashboardProps) => {
                     Piatti
                   </Button>
                 </div>
+
+                <div className="flex items-center gap-2 bg-muted p-1 rounded-lg">
+                  <Button variant="ghost" size="icon" onClick={() => setKitchenColumns(prev => Math.max(1, prev - 1))} className="h-7 w-7">
+                    <Minus size={14} />
+                  </Button>
+                  <span className="w-4 text-center text-xs font-bold">{kitchenColumns}</span>
+                  <Button variant="ghost" size="icon" onClick={() => setKitchenColumns(prev => prev + 1)} className="h-7 w-7">
+                    <Plus size={14} />
+                  </Button>
+                </div>
+
                 <Dialog>
                   <DialogTrigger asChild>
                     <Button variant="outline" size="sm" className="h-9 border-dashed">
@@ -1250,6 +1262,7 @@ const RestaurantDashboard = ({ user, onLogout }: RestaurantDashboardProps) => {
                 dishes={dishes || []}
                 selectedCategoryIds={selectedCategoryIds}
                 viewMode={kitchenViewMode}
+                columns={kitchenColumns}
                 onCompleteDish={(orderId, itemId) => handleCompleteDish(orderId, itemId)}
                 onCompleteOrder={handleCompleteOrder}
               />
@@ -1838,6 +1851,8 @@ const RestaurantDashboard = ({ user, onLogout }: RestaurantDashboardProps) => {
               completedOrders={restaurantCompletedOrders}
               dishes={restaurantDishes}
               categories={restaurantCategories}
+              tables={tables || []}
+              bookings={bookings || []}
             />
           </TabsContent >
 

@@ -12,11 +12,11 @@ import ClientTableAccess from './components/ClientTableAccess'
 
 function App() {
   const [currentUser, setCurrentUser] = useState<User | null>(() => {
-    const saved = localStorage.getItem('session_user')
+    const saved = sessionStorage.getItem('session_user')
     return saved ? JSON.parse(saved) : null
   })
   const [currentTable, setCurrentTable] = useState<string | null>(() => {
-    return localStorage.getItem('session_table')
+    return sessionStorage.getItem('session_table')
   })
 
   // New state for client access route
@@ -25,17 +25,17 @@ function App() {
   // Persist session changes
   useEffect(() => {
     if (currentUser) {
-      localStorage.setItem('session_user', JSON.stringify(currentUser))
+      sessionStorage.setItem('session_user', JSON.stringify(currentUser))
     } else {
-      localStorage.removeItem('session_user')
+      sessionStorage.removeItem('session_user')
     }
   }, [currentUser])
 
   useEffect(() => {
     if (currentTable) {
-      localStorage.setItem('session_table', currentTable)
+      sessionStorage.setItem('session_table', currentTable)
     } else {
-      localStorage.removeItem('session_table')
+      sessionStorage.removeItem('session_table')
     }
   }, [currentTable])
 
@@ -78,8 +78,8 @@ function App() {
     setCurrentUser(null)
     setCurrentTable(null)
     setClientAccessTableId(null) // Reset client access on logout
-    localStorage.removeItem('session_user')
-    localStorage.removeItem('session_table')
+    sessionStorage.removeItem('session_user')
+    sessionStorage.removeItem('session_table')
     // Clear URL to avoid re-triggering client access
     window.history.replaceState({}, document.title, '/')
   }

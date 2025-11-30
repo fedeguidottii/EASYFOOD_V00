@@ -17,7 +17,7 @@ export function useCustomerSession(tableId: string) {
     useEffect(() => {
         if (!tableId) return
 
-        localStorage.setItem('customer_table_id', tableId)
+        sessionStorage.setItem('customer_table_id', tableId)
 
         const initSession = async () => {
             try {
@@ -42,7 +42,7 @@ export function useCustomerSession(tableId: string) {
                             allYouCanEat: restData.all_you_can_eat,
                             coverChargePerPerson: restData.cover_charge_per_person
                         })
-                        localStorage.setItem('customer_restaurant_id', restData.id)
+                        sessionStorage.setItem('customer_restaurant_id', restData.id)
                     }
 
                     // 3. Get Menu (Categories & Dishes)
