@@ -37,7 +37,11 @@ interface CartItem extends Dish {
 }
 
 export default function CustomerMenu() {
-  const { tableId } = useParams<{ tableId: string }>()
+  // FIX: Recuperiamo i parametri in modo generico per gestire sia :tableId che :id
+  const params = useParams()
+  // Cerca l'ID in params.tableId O params.id O params.table_id
+  const tableId = params.tableId || params.id || params.table_id
+
   const [restaurantId, setRestaurantId] = useState<string | null>(null)
   const [error, setError] = useState<string | null>(null)
   const [isLoading, setIsLoading] = useState(true)
@@ -55,7 +59,8 @@ export default function CustomerMenu() {
   // 0. Recupera l'ID Ristorante (FIX LOGICA CONNESSIONE)
   const initMenu = async () => {
     if (!tableId) {
-      setError("ID Tavolo mancante nel QR Code")
+      console.error("Parametri URL:", params) // Debug log
+      setError("ID Tavolo mancante nel QR Code. Parametri URL non validi.")
       setIsLoading(false)
       return
     }
@@ -76,7 +81,7 @@ export default function CustomerMenu() {
         return // Successo!
       }
 
-      console.warn("Tentativo 1 fallito:", tableError)
+      console.warn("Tentativo 1 (Table ID) fallito:", tableError)
 
       // Tentativo 2: Recupero da una sessione attiva (Fallback)
       const { data: sessionData, error: sessionError } = await supabase
@@ -93,7 +98,7 @@ export default function CustomerMenu() {
       }
 
       // Se arriviamo qui, non abbiamo trovato nulla
-      throw new Error("Impossibile identificare il ristorante. Verifica che il tavolo esista o chiedi allo staff.")
+      throw new Error("Impossibile identificare il ristorante. Verifica che il tavolo esista nel sistema.")
 
     } catch (err: any) {
       console.error("Errore initMenu:", err)
@@ -105,7 +110,7 @@ export default function CustomerMenu() {
 
   useEffect(() => {
     initMenu()
-  }, [tableId])
+  }, [tableId]) // Dipendenza corretta
 
   // Recupero Dati (Hooks Supabase - si attivano solo quando restaurantId è presente)
   const [categories] = useSupabaseData<Category>('categories', [], { column: 'restaurant_id', value: restaurantId || '' })
@@ -147,12 +152,18 @@ export default function CustomerMenu() {
     if (!tableId) return
 
     const fetchSessionAndOrders = async () => {
-      const { data: sessions } = await supabase
+      // FIX: Query più robusta per trovare la sessione
+      const { data: sessions, error } = await supabase
         .from('table_sessions')
         .select('*')
         .eq('table_id', tableId)
         .eq('status', 'OPEN')
         .limit(1)
+
+      if (error) {
+        console.error("Errore fetch sessione:", error)
+        return
+      }
 
       if (sessions && sessions.length > 0) {
         setSession(sessions[0])
@@ -163,6 +174,9 @@ export default function CustomerMenu() {
           .order('created_at', { ascending: false })
 
         if (orders) setPreviousOrders(orders as any[])
+      } else {
+        // Nessuna sessione attiva trovata
+        setSession(null)
       }
     }
 
@@ -270,6 +284,10 @@ export default function CustomerMenu() {
             <p className="text-sm text-muted-foreground">
               {error || "Ristorante non trovato. Verifica che il QR Code sia corretto."}
             </p>
+            {/* Debug Info in production can be helpful */}
+            <p className="text-xs text-muted-foreground/50 font-mono mt-2">
+              Ref: {tableId || 'No ID'}
+            </p>
             <Button onClick={() => window.location.reload()} className="w-full mt-2 gap-2">
               <RefreshCw className="w-4 h-4" />
               Riprova
@@ -324,8 +342,8 @@ export default function CustomerMenu() {
               <button
                 onClick={() => setActiveCategory('all')}
                 className={`px-3 py-1.5 rounded-full text-xs font-semibold transition-all duration-300 border ${activeCategory === 'all'
-                    ? 'bg-foreground text-background border-foreground shadow-sm scale-105'
-                    : 'bg-background text-muted-foreground border-border/40 hover:bg-muted'
+                  ? 'bg-foreground text-background border-foreground shadow-sm scale-105'
+                  : 'bg-background text-muted-foreground border-border/40 hover:bg-muted'
                   }`}
               >
                 Tutti
@@ -335,8 +353,8 @@ export default function CustomerMenu() {
                   key={cat.id}
                   onClick={() => setActiveCategory(cat.id)}
                   className={`px-3 py-1.5 rounded-full text-xs font-semibold transition-all duration-300 border ${activeCategory === cat.id
-                      ? 'bg-foreground text-background border-foreground shadow-sm scale-105'
-                      : 'bg-background text-muted-foreground border-border/40 hover:bg-muted'
+                    ? 'bg-foreground text-background border-foreground shadow-sm scale-105'
+                    : 'bg-background text-muted-foreground border-border/40 hover:bg-muted'
                     }`}
                 >
                   {cat.name}
