@@ -1382,6 +1382,7 @@ const RestaurantDashboard = ({ user, onLogout }: RestaurantDashboardProps) => {
             <div className="grid gap-6 grid-cols-[repeat(auto-fill,minmax(220px,1fr))]">
               {restaurantTables.map(table => {
                 const session = getOpenSessionForTable(table.id)
+                const session = getOpenSessionForTable(table.id)
                 const isActive = session?.status === 'OPEN'
                 const activeOrder = restaurantOrders.find(o => getTableIdFromOrder(o) === table.id)
 
@@ -1389,16 +1390,16 @@ const RestaurantDashboard = ({ user, onLogout }: RestaurantDashboardProps) => {
                   <Card
                     key={table.id}
                     className={`relative overflow-hidden transition-all duration-300 group ${isActive
-                      ? 'bg-gradient-to-br from-card to-amber-950/10 shadow-lg shadow-amber-500/20 hover:shadow-xl hover:shadow-amber-500/30'
-                      : 'bg-card shadow-md hover:shadow-lg hover:shadow-primary/10'
+                        ? 'bg-gradient-to-br from-card via-card to-amber-50/30 shadow-sm hover:shadow-md border-amber-200/30'
+                        : 'bg-card shadow-sm hover:shadow-md border-border/50'
                       }`}
                   >
                     <CardContent className="p-0 flex flex-col h-full">
-                      <div className={`p-4 flex items-center justify-between border-b border-border/10 ${isActive ? 'bg-amber-500/5' : 'bg-muted/30'}`}>
-                        <span className={`text-2xl font-serif tracking-widest font-medium drop-shadow-sm ${isActive ? 'text-amber-500' : 'text-foreground'}`}>
+                      <div className={`p-4 flex items-center justify-between border-b ${isActive ? 'border-amber-200/40 bg-amber-50/20' : 'border-border/30 bg-muted/10'}`}>
+                        <span className={`text-xl font-semibold ${isActive ? 'text-amber-800/80' : 'text-foreground/90'}`}>
                           {table.number}
                         </span>
-                        <Badge variant={isActive ? 'default' : 'outline'} className={`${isActive ? 'bg-amber-500/15 text-amber-600 border-amber-500/40 hover:bg-amber-500/25' : 'text-muted-foreground border-border'}`}>
+                        <Badge variant={isActive ? 'default' : 'outline'} className={`${isActive ? 'bg-amber-100/60 text-amber-900/80 border-amber-300/40' : 'bg-muted/50 text-muted-foreground border-border/40'}`}>
                           {isActive ? 'Occupato' : 'Libero'}
                         </Badge>
                       </div>
@@ -1407,13 +1408,13 @@ const RestaurantDashboard = ({ user, onLogout }: RestaurantDashboardProps) => {
                         {isActive ? (
                           <>
                             <div className="text-center">
-                              <p className="text-xs text-muted-foreground mb-1 uppercase tracking-widest">PIN Tavolo</p>
-                              <span className="text-4xl font-mono font-bold tracking-widest text-amber-500 drop-shadow-sm">
+                              <p className="text-xs text-muted-foreground/70 mb-2 uppercase tracking-wider font-medium">PIN Tavolo</p>
+                              <span className="text-4xl font-mono font-bold tracking-wider text-amber-800/70">
                                 {session?.session_pin || '...'}
                               </span>
                             </div>
                             {activeOrder && (
-                              <Badge variant="outline" className="bg-background/50 border-orange-500/20 text-orange-300">
+                              <Badge variant="outline" className="bg-muted/30 border-amber-300/30 text-amber-900/60 text-xs">
                                 {activeOrder.items?.filter(i => i.status === 'SERVED').length || 0} ordini completati
                               </Badge>
                             )}
