@@ -42,6 +42,9 @@ const COLORS = ['#C9A152', '#8B7355', '#F4E6D1', '#E8C547', '#D4B366', '#A68B5B'
 export default function TimelineReservations({ user, restaurantId, tables, bookings, selectedDate, openingTime = '10:00', closingTime = '23:00', onRefresh, onEditBooking, onDeleteBooking }: TimelineReservationsProps) {
   const [showReservationDialog, setShowReservationDialog] = useState(false)
   const [selectedTimeSlot, setSelectedTimeSlot] = useState<{ tableId: string, time: string } | null>(null)
+  const [draggedBookingId, setDraggedBookingId] = useState<string | null>(null)
+  const [dropTarget, setDropTarget] = useState<{ tableId: string, time: string } | null>(null)
+  const [showDragConfirmDialog, setShowDragConfirmDialog] = useState(false)
 
   // New reservation form state
   const [newReservation, setNewReservation] = useState({
@@ -212,6 +215,61 @@ export default function TimelineReservations({ user, restaurantId, tables, booki
     }
   }
 
+  // Drag and Drop Handlers
+  const handleDragStart = (e: React.DragEvent, bookingId: string) => {
+    e.dataTransfer.setData('bookingId', bookingId)
+    setDraggedBookingId(bookingId)
+  }
+
+  const handleDragOver = (e: React.DragEvent) => {
+    e.preventDefault()
+  }
+
+  const handleDrop = (e: React.DragEvent, tableId: string) => {
+    e.preventDefault()
+    const bookingId = e.dataTransfer.getData('bookingId')
+    if (!bookingId) return
+
+    const rect = e.currentTarget.getBoundingClientRect()
+    const clickX = e.clientX - rect.left
+    const percentage = (clickX / rect.width) * 100
+    const totalMinutes = TIMELINE_DURATION
+    const clickedMinutes = TIMELINE_START_MINUTES + (percentage / 100) * totalMinutes
+    const roundedMinutes = Math.round(clickedMinutes / 15) * 15 // Snap to 15 mins
+    const newTime = minutesToTime(roundedMinutes)
+
+    // Check conflicts
+    if (hasConflict(tableId, newTime, 120)) { // Assuming 2h duration
+      toast.error('Orario occupato o sovrapposto')
+      return
+    }
+
+    setDropTarget({ tableId, time: newTime })
+    setShowDragConfirmDialog(true)
+  }
+
+  const confirmMove = async () => {
+    if (!draggedBookingId || !dropTarget) return
+
+    try {
+      const dateTime = `${selectedDate}T${dropTarget.time}:00`
+      await DatabaseService.updateBooking({
+        id: draggedBookingId,
+        table_id: dropTarget.tableId,
+        date_time: dateTime
+      })
+      toast.success('Prenotazione spostata')
+      onRefresh?.()
+    } catch (error) {
+      console.error('Move error:', error)
+      toast.error('Errore spostamento')
+    } finally {
+      setShowDragConfirmDialog(false)
+      setDraggedBookingId(null)
+      setDropTarget(null)
+    }
+  }
+
   // Current time indicator position
   const getCurrentTimePosition = () => {
     const now = new Date()
@@ -275,13 +333,15 @@ export default function TimelineReservations({ user, restaurantId, tables, booki
                 {/* Table Name */}
                 <div className="absolute left-0 top-0 bottom-0 w-32 flex items-center justify-center border-r border-border/50 bg-muted/10 z-10">
                   <span className="font-medium text-sm">{table.number}</span>
-                  <span className="text-xs text-muted-foreground ml-2">({table.seats}p)</span>
+                  <span className="text-xs text-muted-foreground ml-2">({table.seats})</span>
                 </div>
 
                 {/* Timeline Row */}
                 <div
                   className="ml-32 h-16 border-b border-border/20 relative cursor-crosshair hover:bg-muted/20 transition-colors"
                   onClick={(e) => handleTimelineClick(e, table.id)}
+                  onDragOver={handleDragOver}
+                  onDrop={(e) => handleDrop(e, table.id)}
                   ref={tableIndex === 0 ? timelineRef : undefined}
                 >
                   {/* Grid Lines */}
@@ -303,7 +363,9 @@ export default function TimelineReservations({ user, restaurantId, tables, booki
                       return (
                         <div
                           key={block.booking.id}
-                          className={`absolute top-2 bottom-2 rounded-md shadow-sm border border-black/10 flex items-center justify-between px-2 overflow-hidden transition-all hover:shadow-md hover:scale-[1.02] z-20 ${isCompleted ? 'opacity-60' : ''}`}
+                          draggable={!isCompleted}
+                          onDragStart={(e) => handleDragStart(e, block.booking.id)}
+                          className={`absolute top-2 bottom-2 rounded-md shadow-sm border border-black/10 flex items-center justify-between px-2 overflow-hidden transition-all hover:shadow-md hover:scale-[1.02] z-20 ${isCompleted ? 'opacity-60' : 'cursor-move'}`}
                           style={{
                             left: `${getBlockStyle(block.startMinutes, block.duration).left}`,
                             width: `${getBlockStyle(block.startMinutes, block.duration).width}`,
@@ -425,6 +487,26 @@ export default function TimelineReservations({ user, restaurantId, tables, booki
           </div>
         </DialogContent>
       </Dialog>
-    </div>
+
+      {/* Drag Confirm Dialog */}
+      <Dialog open={showDragConfirmDialog} onOpenChange={setShowDragConfirmDialog}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Conferma Spostamento</DialogTitle>
+            <DialogDescription>
+              Sei sicuro di voler spostare la prenotazione?
+            </DialogDescription>
+          </DialogHeader>
+          <div className="py-4">
+            <p>Nuovo Orario: <strong>{dropTarget?.time}</strong></p>
+            <p>Nuovo Tavolo: <strong>{restaurantTables.find(t => t.id === dropTarget?.tableId)?.number}</strong></p>
+          </div>
+          <div className="flex justify-end gap-2">
+            <Button variant="outline" onClick={() => setShowDragConfirmDialog(false)}>Annulla</Button>
+            <Button onClick={confirmMove}>Conferma</Button>
+          </div>
+        </DialogContent>
+      </Dialog>
+    </div >
   )
 }

@@ -11,6 +11,7 @@ import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Textarea } from '@/components/ui/textarea'
 import { Badge } from '@/components/ui/badge'
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { Separator } from '@/components/ui/separator'
 import { Progress } from '@/components/ui/progress'
@@ -47,7 +48,8 @@ import {
   MagnifyingGlass,
   ArrowUp,
   ArrowDown,
-  DotsSixVertical
+  DotsSixVertical,
+  Funnel
 } from '@phosphor-icons/react'
 import type { User, Table, Dish, Order, Restaurant, Booking, Category, OrderItem, TableSession } from '../services/types'
 import TimelineReservations from './TimelineReservations'
@@ -96,6 +98,33 @@ const RestaurantDashboard = ({ user, onLogout }: RestaurantDashboardProps) => {
       .channel(`dashboard_orders_${restaurantId}`)
       .on('postgres_changes', { event: '*', schema: 'public', table: 'orders', filter: `restaurant_id=eq.${restaurantId}` }, () => {
         fetchOrders()
+      })
+      .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'orders' }, (payload) => {
+        const newOrder = payload.new as Order
+        if (newOrder.restaurant_id === restaurantId) {
+          fetchOrders()
+          toast.info(`Nuovo ordine al tavolo! 🔔`)
+          // Play notification sound using AudioContext (no file needed)
+          try {
+            const AudioContext = window.AudioContext || (window as any).webkitAudioContext
+            if (AudioContext) {
+              const ctx = new AudioContext()
+              const osc = ctx.createOscillator()
+              const gain = ctx.createGain()
+              osc.connect(gain)
+              gain.connect(ctx.destination)
+              osc.type = 'sine'
+              osc.frequency.setValueAtTime(880, ctx.currentTime) // A5
+              osc.frequency.exponentialRampToValueAtTime(440, ctx.currentTime + 0.5) // Drop to A4
+              gain.gain.setValueAtTime(0.5, ctx.currentTime)
+              gain.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime + 0.5)
+              osc.start()
+              osc.stop(ctx.currentTime + 0.5)
+            }
+          } catch (e) {
+            console.error('Audio play failed', e)
+          }
+        }
       })
       .on('postgres_changes', { event: '*', schema: 'public', table: 'order_items' }, () => {
         fetchOrders()
@@ -178,7 +207,7 @@ const RestaurantDashboard = ({ user, onLogout }: RestaurantDashboardProps) => {
   const [selectedTableForActions, setSelectedTableForActions] = useState<Table | null>(null)
   const [kitchenViewMode, setKitchenViewMode] = useState<'table' | 'dish'>('table')
   const [kitchenColumns, setKitchenColumns] = useState(3)
-  const [selectedCategoryIds, setSelectedCategoryIds] = useState<string[]>([])
+  const [selectedKitchenCategories, setSelectedKitchenCategories] = useState<string[]>([])
 
   // AYCE and Coperto Settings
   const [ayceEnabled, setAyceEnabled] = useState(false)
@@ -228,6 +257,17 @@ const RestaurantDashboard = ({ user, onLogout }: RestaurantDashboardProps) => {
     }
     return new Date(a.created_at).getTime() - new Date(b.created_at).getTime()
   })
+
+  const filteredOrders = sortedActiveOrders.map(order => {
+    if (selectedKitchenCategories.length === 0) return order
+
+    const filteredItems = order.items?.filter(item => {
+      const dish = dishes?.find(d => d.id === item.dish_id)
+      return dish && selectedKitchenCategories.includes(dish.category_id)
+    })
+
+    return { ...order, items: filteredItems }
+  }).filter(order => order.items && order.items.length > 0)
 
   // Load AYCE and Coperto settings from restaurant
   useEffect(() => {
@@ -853,6 +893,51 @@ const RestaurantDashboard = ({ user, onLogout }: RestaurantDashboardProps) => {
                   </Button>
                 </div>
 
+                {/* Category Filter */}
+                <Popover>
+                  <PopoverTrigger asChild>
+                    <Button variant={selectedKitchenCategories.length > 0 ? "default" : "outline"} size="sm" className="mr-2 h-9 border-dashed">
+                      <Funnel size={16} className="mr-2" />
+                      Filtra Categorie
+                      {selectedKitchenCategories.length > 0 && (
+                        <span className="ml-1 rounded-full bg-primary-foreground text-primary w-4 h-4 text-[10px] flex items-center justify-center">
+                          {selectedKitchenCategories.length}
+                        </span>
+                      )}
+                    </Button>
+                  </PopoverTrigger>
+                  <PopoverContent className="w-56 p-0" align="start">
+                    <div className="p-2 border-b border-border/10">
+                      <h4 className="font-medium text-xs text-muted-foreground uppercase tracking-wider">Seleziona Categorie</h4>
+                    </div>
+                    <div className="p-2 max-h-64 overflow-y-auto space-y-1">
+                      {categories?.map(cat => (
+                        <div key={cat.id} className="flex items-center space-x-2 p-1 hover:bg-muted/50 rounded cursor-pointer"
+                          onClick={() => {
+                            setSelectedKitchenCategories(prev =>
+                              prev.includes(cat.id)
+                                ? prev.filter(id => id !== cat.id)
+                                : [...prev, cat.id]
+                            )
+                          }}
+                        >
+                          <div className={`w-4 h-4 rounded border flex items-center justify-center ${selectedKitchenCategories.includes(cat.id) ? 'bg-primary border-primary text-primary-foreground' : 'border-muted-foreground'}`}>
+                            {selectedKitchenCategories.includes(cat.id) && <Check size={10} weight="bold" />}
+                          </div>
+                          <span className="text-sm">{cat.name}</span>
+                        </div>
+                      ))}
+                    </div>
+                    {selectedKitchenCategories.length > 0 && (
+                      <div className="p-2 border-t border-border/10">
+                        <Button variant="ghost" size="sm" className="w-full h-7 text-xs" onClick={() => setSelectedKitchenCategories([])}>
+                          Resetta Filtri
+                        </Button>
+                      </div>
+                    )}
+                  </PopoverContent>
+                </Popover>
+
                 <div className="flex items-center gap-2 bg-muted p-1 rounded-lg mr-2">
                   <span className="text-[10px] font-bold uppercase text-muted-foreground px-2">Zoom</span>
                   <Button variant="ghost" size="sm" onClick={() => setKitchenColumns(prev => prev + 1)} className="h-7 w-7 p-0">
@@ -919,7 +1004,7 @@ const RestaurantDashboard = ({ user, onLogout }: RestaurantDashboardProps) => {
                   </div>
                 )}
               </div>
-            ) : sortedActiveOrders.length === 0 ? (
+            ) : filteredOrders.length === 0 ? (
               <div className="col-span-full text-center py-16">
                 <div className="w-16 h-16 rounded-2xl bg-muted/20 flex items-center justify-center mx-auto mb-4">
                   <Clock size={32} className="text-muted-foreground/40" weight="duotone" />
@@ -929,13 +1014,13 @@ const RestaurantDashboard = ({ user, onLogout }: RestaurantDashboardProps) => {
               </div>
             ) : (
               <KitchenView
-                orders={orders}
+                orders={filteredOrders}
                 tables={tables || []}
                 dishes={dishes || []}
-                selectedCategoryIds={selectedCategoryIds}
+                selectedCategoryIds={selectedKitchenCategories}
                 viewMode={kitchenViewMode}
                 columns={kitchenColumns}
-                onCompleteDish={(orderId, itemId) => handleCompleteDish(orderId, itemId)}
+                onCompleteDish={handleCompleteDish}
                 onCompleteOrder={handleCompleteOrder}
                 sessions={sessions || []}
               />

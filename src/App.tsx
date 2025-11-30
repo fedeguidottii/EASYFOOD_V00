@@ -55,17 +55,48 @@ function App() {
 
     // Check for /client/table/:tableId
     const match = path.match(/\/client\/table\/([^/]+)/)
+    let newTableId: string | null = null
+
     if (match && match[1]) {
-      setClientAccessTableId(match[1])
+      newTableId = match[1]
     } else {
       // Fallback for legacy query param ?table=...
       const urlParams = new URLSearchParams(window.location.search)
       const tableId = urlParams.get('table')
       if (tableId) {
-        setClientAccessTableId(tableId)
+        newTableId = tableId
       }
     }
-  }, [])
+
+    if (newTableId) {
+      setClientAccessTableId(newTableId)
+
+      // CRITICAL FIX: Prevent order mixing.
+      // If the user is already logged in as a CUSTOMER and the table in the URL is different
+      // from the current session table, we MUST log them out to force a new login/PIN for the new table.
+      if (currentUser && currentUser.role === 'CUSTOMER' && currentTable && currentTable !== newTableId) {
+        console.log('Detected table switch from', currentTable, 'to', newTableId, '- Resetting session.')
+        handleLogout()
+        // We need to set the clientAccessTableId again because handleLogout clears it
+        // But we can't do it immediately because state updates are async.
+        // However, since this effect runs on mount/URL change, and handleLogout clears everything,
+        // the next render will see no user and clientAccessTableId might be null if we don't preserve it.
+        // Actually handleLogout sets it to null. We should probably NOT set it to null in handleLogout if we are just switching.
+        // Or better: we just let the effect run again? No, handleLogout might not trigger a reload.
+        // Let's just force a reload to be safe and clean?
+        // Or simpler: just setClientAccessTableId(newTableId) AFTER handleLogout?
+        // But handleLogout is a function in this scope.
+        // Let's modify handleLogout to accept a "keepClientAccess" flag?
+        // Or just manually do the cleanup here without clearing clientAccessTableId.
+
+        setCurrentUser(null)
+        setCurrentTable(null)
+        localStorage.removeItem('session_user')
+        localStorage.removeItem('session_table')
+        // Do NOT clear clientAccessTableId here, so the PIN screen appears for the new table.
+      }
+    }
+  }, [currentUser, currentTable]) // Added dependencies to check on change too
 
   const handleLogin = (user: User, table?: Table) => {
     setCurrentUser(user)

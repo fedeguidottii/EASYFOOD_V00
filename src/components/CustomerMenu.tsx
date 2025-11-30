@@ -153,6 +153,12 @@ export default function CustomerMenu({ tableId: propTableId, onExit, interfaceMo
     return cart.reduce((count, item) => count + item.quantity, 0)
   }, [cart])
 
+  const historyTotal = useMemo(() => {
+    return previousOrders.reduce((sum, order) => sum + (order.total_amount || 0), 0)
+  }, [previousOrders])
+
+  const grandTotal = cartTotal + historyTotal
+
   // Gestione Sessione e Storico Ordini
   useEffect(() => {
     if (!tableId) return
@@ -619,9 +625,15 @@ export default function CustomerMenu({ tableId: propTableId, onExit, interfaceMo
                                           <span className="text-sm font-medium text-foreground/90">{dishDetails?.name || 'Piatto eliminato'}</span>
                                         </div>
                                         {item.status === 'SERVED' ? (
-                                          <CheckCircle className="w-4 h-4 text-green-500 shrink-0" />
+                                          <span className="text-green-600 text-xs font-bold flex items-center gap-1">
+                                            <CheckCircle className="w-3.5 h-3.5" />
+                                            Completato
+                                          </span>
                                         ) : (
-                                          <ChefHat className="w-4 h-4 text-orange-400 opacity-60 shrink-0" />
+                                          <span className="text-orange-500 text-xs flex items-center gap-1">
+                                            <ChefHat className="w-3.5 h-3.5" />
+                                            In preparazione
+                                          </span>
                                         )}
                                       </div>
                                     )
@@ -669,7 +681,7 @@ export default function CustomerMenu({ tableId: propTableId, onExit, interfaceMo
                           {new Date(order.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
                         </span>
                         <span className={order.status === 'completed' ? 'text-green-600 bg-green-50 px-2 py-0.5 rounded text-xs' : 'text-orange-600 bg-orange-50 px-2 py-0.5 rounded text-xs'}>
-                          {order.status === 'completed' ? 'Servito' : 'In attesa'}
+                          {order.status === 'completed' ? 'Completato' : 'In attesa'}
                         </span>
                       </div>
                       <div className="space-y-1.5 pl-2">
@@ -678,7 +690,12 @@ export default function CustomerMenu({ tableId: propTableId, onExit, interfaceMo
                           return (
                             <div key={item.id} className="text-sm text-muted-foreground flex justify-between items-center">
                               <span><span className="font-bold text-foreground mr-1">{item.quantity}x</span> {dish?.name}</span>
-                              {item.status === 'SERVED' && <CheckCircle className="w-3.5 h-3.5 text-green-500" />}
+                              {item.status === 'SERVED' && (
+                                <span className="text-green-600 text-xs font-bold flex items-center gap-1">
+                                  <CheckCircle className="w-3.5 h-3.5" />
+                                  Completato
+                                </span>
+                              )}
                             </div>
                           )
                         })}
@@ -686,6 +703,16 @@ export default function CustomerMenu({ tableId: propTableId, onExit, interfaceMo
                     </div>
                   ))}
                 </ScrollArea>
+                <div className="p-4 border-t border-border/10 bg-muted/5">
+                  <div className="flex justify-between items-center mb-2">
+                    <span className="text-sm text-muted-foreground">Totale Ordini Passati</span>
+                    <span className="font-bold">€ {historyTotal.toFixed(2)}</span>
+                  </div>
+                  <div className="flex justify-between items-center text-lg font-bold text-primary">
+                    <span>Totale Complessivo</span>
+                    <span>€ {grandTotal.toFixed(2)}</span>
+                  </div>
+                </div>
               </DrawerContent>
             </Drawer>
           </motion.div>

@@ -104,12 +104,25 @@ export default function AnalyticsCharts({ orders, completedOrders, dishes, categ
   const dateRange = getDateRange(dateFilter)
   const { start, end } = dateRange
 
-  const dateFilteredOrders = completedOrders.filter(order => {
+  // Combine active and completed orders for comprehensive analytics
+  const allOrders = useMemo(() => [...completedOrders, ...orders], [completedOrders, orders])
+
+  const dateFilteredOrders = allOrders.filter(order => {
     const orderTime = new Date(order.created_at).getTime()
     return orderTime >= start && orderTime <= end
   })
 
-  const activeCategoryIds = selectedCategories.length > 0 ? selectedCategories : categories.map(c => c.id)
+  // If selectedCategories is empty, it means NONE (unless it's the very first render before effect, but effect runs fast).
+  // However, for UX, usually "no filter" means "all". But here we have explicit "All" and "None" buttons.
+  // If "None" is clicked, selectedCategories is [].
+  // If we want [] to mean "Show Nothing", we just use selectedCategories.
+  // If we want [] to mean "Show All" (default), then "None" button is useless.
+  // The user complained "Nessuna" doesn't work. So they expect it to show NOTHING (or maybe just reset?).
+  // "Dicevo tutte, ho nessuna. Questi due pulsanti non funzionano." -> "I meant all, or none. These two buttons don't work."
+  // If I click None, I expect 0 categories selected.
+  // So I should NOT fallback to all categories if empty.
+  // BUT, I need to initialize it to ALL. (Which the useEffect does).
+  const activeCategoryIds = selectedCategories
 
   const categoryFilteredOrders: FilteredOrder[] = dateFilteredOrders.map(order => {
     const filteredItems = (order.items || []).filter((item: OrderItem) => {
