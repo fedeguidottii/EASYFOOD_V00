@@ -1381,6 +1381,7 @@ const RestaurantDashboard = ({ user, onLogout }: RestaurantDashboardProps) => {
 
             <div className="grid gap-6 grid-cols-[repeat(auto-fill,minmax(220px,1fr))]">
               {restaurantTables.map(table => {
+                // Get session for table
                 const session = getOpenSessionForTable(table.id)
                 const isActive = session?.status === 'OPEN'
                 const activeOrder = restaurantOrders.find(o => getTableIdFromOrder(o) === table.id)
