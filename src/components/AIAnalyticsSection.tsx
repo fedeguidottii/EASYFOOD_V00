@@ -27,6 +27,7 @@ export default function AIAnalyticsSection({ orders, dishes, categories, tables 
     const [isLoading, setIsLoading] = useState(false)
     const [hasInitialized, setHasInitialized] = useState(false)
 
+    // FIX: Using correct model name to avoid 404
     const genAI = new GoogleGenerativeAI(import.meta.env.VITE_GEMINI_API_KEY || '')
 
     const buildRestaurantContext = () => {
@@ -87,7 +88,8 @@ export default function AIAnalyticsSection({ orders, dishes, categories, tables 
         }
 
         try {
-            const model = genAI.getGenerativeModel({ model: 'gemini-1.5-flash-latest' })
+            // FIX: Updated model name
+            const model = genAI.getGenerativeModel({ model: 'gemini-1.5-flash' })
             const context = buildRestaurantContext()
 
             const prompt = isInitial
@@ -119,7 +121,7 @@ Rispondi in modo professionale e conciso, usando emoji quando appropriato.`
             console.error('Errore AI:', error)
             const errorMessage: Message = {
                 role: 'assistant',
-                content: '❌ Si è verificato un errore. Verifica che la chiave API sia configurata correttamente.'
+                content: '❌ Si è verificato un errore durante la connessione con l\'intelligenza artificiale. Riprova più tardi.'
             }
             setMessages(prev => [...prev, errorMessage])
         } finally {
@@ -138,65 +140,63 @@ Rispondi in modo professionale e conciso, usando emoji quando appropriato.`
         <section className="mt-12">
             {!isOpen ? (
                 <Card
-                    className="max-w-xl mx-auto bg-gradient-to-r from-slate-900 via-violet-900/60 to-slate-900 border border-cyan-500/30 cursor-pointer hover:border-cyan-400/70 transition-all duration-300 shadow-[0_10px_45px_rgba(67,56,202,0.25)]"
+                    className="max-w-xl mx-auto border-none shadow-lg cursor-pointer hover:shadow-xl transition-all duration-300 bg-gradient-to-br from-card to-muted/50"
                     onClick={() => setIsOpen(true)}
                 >
                     <div className="p-4 flex items-center justify-between">
                         <div className="flex items-center gap-3">
-                            <div className="relative">
-                                <Bot className="w-7 h-7 text-cyan-300" />
-                                <Sparkles className="w-4 h-4 text-violet-300 absolute -top-1 -right-1" />
+                            <div className="relative p-2 bg-primary/10 rounded-xl">
+                                <Bot className="w-6 h-6 text-primary" />
+                                <Sparkles className="w-3 h-3 text-yellow-500 absolute -top-1 -right-1" />
                             </div>
                             <div>
-                                <p className="text-[11px] uppercase tracking-[0.2em] text-cyan-200/80">Assistant</p>
-                                <h3 className="text-lg font-bold text-transparent bg-clip-text bg-gradient-to-r from-cyan-200 to-violet-200">
+                                <p className="text-[10px] uppercase tracking-widest font-bold text-muted-foreground">Assistant</p>
+                                <h3 className="text-base font-bold text-foreground">
                                     AI Restaurant Manager
                                 </h3>
-                                <p className="text-xs text-cyan-100/70">Apri il pannello di suggerimenti</p>
                             </div>
                         </div>
-                        <Button size="sm" variant="outline" className="h-9 px-3 text-cyan-100 border-cyan-500/40 bg-white/5 hover:bg-white/10">
+                        <Button size="sm" variant="ghost" className="h-8 w-8 p-0 rounded-full">
                             <ChevronUp className="w-4 h-4" />
                         </Button>
                     </div>
                 </Card>
             ) : (
-                <Card className="max-w-5xl mx-auto bg-slate-950/90 backdrop-blur-xl border border-cyan-500/30 shadow-[0_20px_60px_rgba(6,182,212,0.35)] flex flex-col">
-                    <div className="p-4 border-b border-cyan-500/20 flex items-center justify-between bg-gradient-to-r from-slate-900/60 to-violet-900/40 rounded-t-xl">
+                <Card className="max-w-5xl mx-auto border-none shadow-2xl flex flex-col overflow-hidden bg-card">
+                    <div className="p-4 border-b flex items-center justify-between bg-muted/30">
                         <div className="flex items-center gap-3">
-                            <div className="relative">
-                                <Bot className="w-8 h-8 text-cyan-300" />
-                                <div className="absolute -top-1 -right-1 w-3 h-3 bg-green-400 rounded-full animate-pulse" />
+                            <div className="relative p-2 bg-primary/10 rounded-xl">
+                                <Bot className="w-6 h-6 text-primary" />
+                                <div className="absolute -top-0.5 -right-0.5 w-2.5 h-2.5 bg-green-500 rounded-full border-2 border-white dark:border-slate-900" />
                             </div>
                             <div>
-                                <p className="text-[11px] uppercase tracking-[0.3em] text-cyan-200/70">Insight</p>
-                                <h3 className="text-lg font-bold text-transparent bg-clip-text bg-gradient-to-r from-cyan-200 to-violet-200">
+                                <h3 className="text-base font-bold text-foreground">
                                     AI Restaurant Manager
                                 </h3>
-                                <p className="text-xs text-cyan-100/70">Powered by Gemini 1.5 Flash</p>
+                                <p className="text-xs text-muted-foreground">Powered by Gemini</p>
                             </div>
                         </div>
                         <Button
                             variant="ghost"
                             size="sm"
                             onClick={() => setIsOpen(false)}
-                            className="text-cyan-200 hover:text-cyan-100 hover:bg-cyan-500/10"
+                            className="h-8 w-8 p-0 rounded-full"
                         >
-                            <ChevronDown className="w-5 h-5" />
+                            <ChevronDown className="w-4 h-4" />
                         </Button>
                     </div>
 
-                    <ScrollArea className="flex-1 p-6 min-h-[320px] max-h-[420px]">
-                        <div className="space-y-4">
+                    <ScrollArea className="flex-1 p-6 min-h-[320px] max-h-[500px] bg-muted/5">
+                        <div className="space-y-6">
                             {messages.map((message, index) => (
                                 <div
                                     key={index}
                                     className={`flex ${message.role === 'user' ? 'justify-end' : 'justify-start'}`}
                                 >
                                     <div
-                                        className={`max-w-[80%] rounded-lg p-4 ${message.role === 'user'
-                                                ? 'bg-gradient-to-br from-cyan-600 to-violet-600 text-white shadow-[0_10px_35px_rgba(99,102,241,0.3)]'
-                                                : 'bg-slate-900/70 backdrop-blur border border-cyan-500/20 text-cyan-50'
+                                        className={`max-w-[85%] rounded-2xl p-4 shadow-sm ${message.role === 'user'
+                                            ? 'bg-primary text-primary-foreground rounded-br-none'
+                                            : 'bg-card border border-border/50 rounded-bl-none'
                                             }`}
                                     >
                                         <p className="text-sm whitespace-pre-wrap leading-relaxed">{message.content}</p>
@@ -205,11 +205,11 @@ Rispondi in modo professionale e conciso, usando emoji quando appropriato.`
                             ))}
                             {isLoading && (
                                 <div className="flex justify-start">
-                                    <div className="bg-slate-900/70 backdrop-blur border border-cyan-500/20 rounded-lg p-4">
-                                        <div className="flex items-center gap-2">
-                                            <div className="w-2 h-2 bg-cyan-400 rounded-full animate-bounce" style={{ animationDelay: '0ms' }} />
-                                            <div className="w-2 h-2 bg-cyan-400 rounded-full animate-bounce" style={{ animationDelay: '150ms' }} />
-                                            <div className="w-2 h-2 bg-cyan-400 rounded-full animate-bounce" style={{ animationDelay: '300ms' }} />
+                                    <div className="bg-card border border-border/50 rounded-2xl rounded-bl-none p-4 shadow-sm">
+                                        <div className="flex items-center gap-1.5">
+                                            <div className="w-1.5 h-1.5 bg-primary/60 rounded-full animate-bounce" style={{ animationDelay: '0ms' }} />
+                                            <div className="w-1.5 h-1.5 bg-primary/60 rounded-full animate-bounce" style={{ animationDelay: '150ms' }} />
+                                            <div className="w-1.5 h-1.5 bg-primary/60 rounded-full animate-bounce" style={{ animationDelay: '300ms' }} />
                                         </div>
                                     </div>
                                 </div>
@@ -217,25 +217,25 @@ Rispondi in modo professionale e conciso, usando emoji quando appropriato.`
                         </div>
                     </ScrollArea>
 
-                    <div className="p-4 border-t border-cyan-500/20 bg-slate-900/60 rounded-b-xl">
+                    <div className="p-4 border-t bg-card">
                         <form
                             onSubmit={(e) => {
                                 e.preventDefault()
                                 sendMessage(input)
                             }}
-                            className="flex gap-2"
+                            className="flex gap-3"
                         >
                             <Input
                                 value={input}
                                 onChange={(e) => setInput(e.target.value)}
-                                placeholder="Chiedi all'AI manager..."
-                                className="flex-1 bg-slate-950/70 border-cyan-500/30 text-cyan-50 placeholder:text-cyan-200/50 focus-visible:ring-cyan-400"
+                                placeholder="Chiedi un'analisi o un consiglio..."
+                                className="flex-1 bg-muted/30 border-border/50 focus-visible:ring-primary"
                                 disabled={isLoading}
                             />
                             <Button
                                 type="submit"
                                 disabled={isLoading || !input.trim()}
-                                className="h-10 w-10 rounded-full bg-gradient-to-r from-cyan-600 to-violet-600 hover:from-cyan-500 hover:to-violet-500 text-white shadow-lg"
+                                className="h-10 w-10 rounded-xl shadow-sm"
                             >
                                 <Send className="w-4 h-4" />
                             </Button>

@@ -47,6 +47,7 @@ import {
   MagnifyingGlass,
   ArrowUp,
   ArrowDown,
+  DotsSixVertical
 } from '@phosphor-icons/react'
 import type { User, Table, Dish, Order, Restaurant, Booking, Category, OrderItem, TableSession } from '../services/types'
 import TimelineReservations from './TimelineReservations'
@@ -66,22 +67,14 @@ const RestaurantDashboard = ({ user, onLogout }: RestaurantDashboardProps) => {
   const [sidebarExpanded, setSidebarExpanded] = useState(true)
   const [activeTab, setActiveTab] = useState('orders')
 
-  // We need to determine the restaurant ID. 
-  // Assuming user.owner_id is the restaurant ID if role is OWNER, or we fetch it.
-  // For now, let's assume we fetch restaurants and find the one owned by this user.
-  // Or simpler: useSupabaseData filters by user.id if we set up RLS correctly, but here we filter client side.
   const [restaurants, , refreshRestaurants] = useSupabaseData<Restaurant>('restaurants', [])
   const currentRestaurant = restaurants?.find(r => r.owner_id === user.id || r.id === user.restaurant_id)
-  // Ensure restaurantId is a string, default to empty string if not found
   const restaurantId = currentRestaurant?.id ? String(currentRestaurant.id) : ''
   const restaurantSlug = currentRestaurant?.name.toLowerCase().replace(/\s+/g, '-') || ''
 
-  // Only fetch data if we have a valid restaurant ID
   const [tables, , , setTables] = useSupabaseData<Table>('tables', [], { column: 'restaurant_id', value: restaurantId })
   const [dishes, , , setDishes] = useSupabaseData<Dish>('dishes', [], { column: 'restaurant_id', value: restaurantId })
 
-
-  // Custom Orders Fetching with Relations and Realtime
   const [orders, setOrders] = useState<Order[]>([])
 
   useEffect(() => {
@@ -92,8 +85,6 @@ const RestaurantDashboard = ({ user, onLogout }: RestaurantDashboardProps) => {
         .from('orders')
         .select('*, items:order_items(*)')
         .eq('restaurant_id', restaurantId)
-        // We fetch all orders to support Analytics and History
-        // Filtering for active orders happens in the render logic
         .order('created_at', { ascending: false })
 
       if (data) setOrders(data as Order[])
@@ -107,8 +98,6 @@ const RestaurantDashboard = ({ user, onLogout }: RestaurantDashboardProps) => {
         fetchOrders()
       })
       .on('postgres_changes', { event: '*', schema: 'public', table: 'order_items' }, () => {
-        // We can't filter order_items by restaurant_id directly, but RLS should handle visibility.
-        // Re-fetching is safe.
         fetchOrders()
       })
       .subscribe()
@@ -122,7 +111,6 @@ const RestaurantDashboard = ({ user, onLogout }: RestaurantDashboardProps) => {
   const [categories, , , setCategories] = useSupabaseData<Category>('categories', [], { column: 'restaurant_id', value: restaurantId })
   const [sessions, , refreshSessions] = useSupabaseData<TableSession>('table_sessions', [], { column: 'restaurant_id', value: restaurantId })
 
-  // Helper to get table ID from order
   const getTableIdFromOrder = (order: Order) => {
     const session = sessions?.find(s => s.id === order.table_session_id)
     return session?.table_id
@@ -153,7 +141,6 @@ const RestaurantDashboard = ({ user, onLogout }: RestaurantDashboardProps) => {
   const [editingCategory, setEditingCategory] = useState<Category | null>(null)
   const [editCategoryName, setEditCategoryName] = useState('')
   const [showCategoryDialog, setShowCategoryDialog] = useState(false)
-  const [showMenuDialog, setShowMenuDialog] = useState(false)
   const [selectedTable, setSelectedTable] = useState<Table | null>(null)
   const [showTableDialog, setShowTableDialog] = useState(false)
   const [showCreateTableDialog, setShowCreateTableDialog] = useState(false)
@@ -179,14 +166,8 @@ const RestaurantDashboard = ({ user, onLogout }: RestaurantDashboardProps) => {
     allergens: [],
     imageFile: undefined
   })
-  const [showCompletedOrders, setShowCompletedOrders] = useState(false)
   const [showQrDialog, setShowQrDialog] = useState(false)
   const [customerCount, setCustomerCount] = useState('')
-  const [selectedOrderHistory, setSelectedOrderHistory] = useState<any | null>(null) // Placeholder type
-  const [historyDateFilter, setHistoryDateFilter] = useState<string>('')
-
-  const [selectedCategoryFilter, setSelectedCategoryFilter] = useState<string>('all')
-  const [selectedCategoryIds, setSelectedCategoryIds] = useState<string[]>([])
   const [showOrderHistory, setShowOrderHistory] = useState(false)
   const [orderSortMode, setOrderSortMode] = useState<'oldest' | 'newest'>('oldest')
   const [isAddItemDialogOpen, setIsAddItemDialogOpen] = useState(false)
@@ -197,6 +178,7 @@ const RestaurantDashboard = ({ user, onLogout }: RestaurantDashboardProps) => {
   const [selectedTableForActions, setSelectedTableForActions] = useState<Table | null>(null)
   const [kitchenViewMode, setKitchenViewMode] = useState<'table' | 'dish'>('table')
   const [kitchenColumns, setKitchenColumns] = useState(3)
+  const [selectedCategoryIds, setSelectedCategoryIds] = useState<string[]>([])
 
   // AYCE and Coperto Settings
   const [ayceEnabled, setAyceEnabled] = useState(false)
@@ -211,7 +193,6 @@ const RestaurantDashboard = ({ user, onLogout }: RestaurantDashboardProps) => {
   // Operating Hours State
   const [openingTime, setOpeningTime] = useState('10:00')
   const [closingTime, setClosingTime] = useState('23:00')
-
 
   // Waiter Mode Settings
   const [waiterModeEnabled, setWaiterModeEnabled] = useState(false)
@@ -240,8 +221,6 @@ const RestaurantDashboard = ({ user, onLogout }: RestaurantDashboardProps) => {
     order.status !== 'PAID'
   ) || []
   const restaurantCompletedOrders = orders?.filter(order => order.status === 'completed' || order.status === 'PAID') || []
-  const restaurantBookings = bookings || []
-
 
   const sortedActiveOrders = [...restaurantOrders].sort((a, b) => {
     if (orderSortMode === 'newest') {
@@ -249,64 +228,6 @@ const RestaurantDashboard = ({ user, onLogout }: RestaurantDashboardProps) => {
     }
     return new Date(a.created_at).getTime() - new Date(b.created_at).getTime()
   })
-
-  const dishQueue = sortedActiveOrders.flatMap(order => {
-    const tableId = getTableIdFromOrder(order)
-    const tableNumber = restaurantTables.find(t => t.id === tableId)?.number || 'N/D'
-    return (order.items || []).map(item => ({
-      orderId: order.id,
-      itemId: item.id,
-      createdAt: order.created_at,
-      tableId: tableId || 'unknown',
-      tableNumber,
-      dish: restaurantDishes.find(d => d.id === item.dish_id),
-      quantity: item.quantity,
-      note: item.note,
-      status: item.status,
-      categoryId: restaurantDishes.find(d => d.id === item.dish_id)?.category_id || ''
-    }))
-  }).filter(entry => entry.dish)
-
-  type DishTicket = (typeof dishQueue)[number]
-
-  const dishGroups = dishQueue.reduce<Record<string, DishTicket[]>>((acc, entry) => {
-    if (!entry.dish) return acc
-
-    // Filter by selected categories (multi-select)
-    if (selectedCategoryIds.length > 0 && !selectedCategoryIds.includes(entry.categoryId)) {
-      return acc
-    }
-
-    acc[entry.dish.id] = acc[entry.dish.id] || []
-    acc[entry.dish.id].push(entry)
-    return acc
-  }, {})
-
-  const tableGroups = dishQueue.reduce<Record<string, DishTicket[]>>((acc, entry) => {
-    if (!entry.dish) return acc
-
-    // Filter by selected categories (multi-select)
-    if (selectedCategoryIds.length > 0 && !selectedCategoryIds.includes(entry.categoryId)) {
-      return acc
-    }
-
-    const tableKey = entry.tableId
-    acc[tableKey] = acc[tableKey] || []
-    acc[tableKey].push(entry)
-    return acc
-  }, {})
-
-  const totalPendingDishes = dishQueue.reduce((sum, entry) => sum + entry.quantity, 0)
-
-  // Dynamic Grid and Font Size Logic based on Zoom Level (1-5)
-  // 1 = Smallest (Most columns, smallest text) -> "Zoom Out"
-  // 5 = Largest (Fewest columns, largest text) -> "Zoom In"
-
-
-
-  // Sidebar hover auto-expand handled via onMouseEnter/onMouseLeave directly on the element
-  // to avoid issues with element references and cleanup
-
 
   // Load AYCE and Coperto settings from restaurant
   useEffect(() => {
@@ -324,7 +245,6 @@ const RestaurantDashboard = ({ user, onLogout }: RestaurantDashboardProps) => {
       }
       setSettingsInitialized(true)
 
-      // Waiter Mode
       setWaiterModeEnabled(currentRestaurant.waiter_mode_enabled || false)
       setAllowWaiterPayments(currentRestaurant.allow_waiter_payments || false)
       setWaiterPassword(currentRestaurant.waiter_password || '')
@@ -333,7 +253,6 @@ const RestaurantDashboard = ({ user, onLogout }: RestaurantDashboardProps) => {
 
   const { updateOrderItemStatus, updateOrderStatus } = useRestaurantLogic(restaurantId)
 
-  // Refresh sessions when switching to tables tab to ensure PINs are up to date
   useEffect(() => {
     if (activeTab === 'tables') {
       refreshSessions()
@@ -343,7 +262,6 @@ const RestaurantDashboard = ({ user, onLogout }: RestaurantDashboardProps) => {
   const generatePin = () => Math.floor(1000 + Math.random() * 9000).toString()
 
   const generateQrCode = (tableId: string) => {
-    // Direct link to menu with table ID using the new client route
     return `${window.location.origin}/client/table/${tableId}`
   }
 
@@ -360,8 +278,7 @@ const RestaurantDashboard = ({ user, onLogout }: RestaurantDashboardProps) => {
 
     const newTable: Partial<Table> = {
       restaurant_id: restaurantId,
-      number: newTableName, // Using 'number' field for name/number
-      // capacity: 4 // Default capacity removed as it's not in Table type
+      number: newTableName,
     }
 
     DatabaseService.createTable(newTable)
@@ -384,14 +301,13 @@ const RestaurantDashboard = ({ user, onLogout }: RestaurantDashboardProps) => {
     const openSession = getOpenSessionForTable(tableId)
     if (openSession) {
       try {
-        // Close session in DB
         await DatabaseService.closeSession(openSession.id)
         if (markPaid) {
           await DatabaseService.markOrdersPaidForSession(openSession.id)
         }
 
         toast.success(markPaid ? 'Tavolo pagato e liberato' : 'Tavolo svuotato e liberato')
-        refreshSessions() // Update sessions list immediately
+        refreshSessions()
         setSelectedTable(null)
         setSelectedTableForActions(null)
         setShowTableDialog(false)
@@ -407,8 +323,6 @@ const RestaurantDashboard = ({ user, onLogout }: RestaurantDashboardProps) => {
   const handleToggleTable = async (tableId: string) => {
     const openSession = getOpenSessionForTable(tableId)
     if (openSession) {
-      // If session is open, we default to closing and marking paid (legacy behavior if called directly)
-      // But now we primarily use the dialog.
       handleCloseTable(tableId, true)
       return
     }
@@ -416,15 +330,12 @@ const RestaurantDashboard = ({ user, onLogout }: RestaurantDashboardProps) => {
     const table = tables?.find(t => t.id === tableId)
     if (!table) return
 
-    // Check settings
     const isAyceEnabled = ayceEnabled
     const isCopertoEnabled = copertoEnabled && copertoPrice > 0
 
     if (!isAyceEnabled && !isCopertoEnabled) {
-      // Activate directly with default 1 person
       handleActivateTable(tableId, 1)
     } else {
-      // Show dialog for customer count
       setSelectedTable(table)
       setShowTableDialog(true)
     }
@@ -457,9 +368,8 @@ const RestaurantDashboard = ({ user, onLogout }: RestaurantDashboardProps) => {
       setCustomerCount('')
       setSelectedTable({ ...tableToUpdate })
       setCurrentSessionPin(session.session_pin || '')
-      refreshSessions() // Ensure sessions are updated
+      refreshSessions()
       setShowTableDialog(false)
-      // QR code is fixed on the table: keep the modal closed by default
       setShowQrDialog(false)
     } catch (err) {
       console.error('Error activating table:', err)
@@ -470,7 +380,7 @@ const RestaurantDashboard = ({ user, onLogout }: RestaurantDashboardProps) => {
   const handleShowTableQr = async (table: Table) => {
     setSelectedTableForActions(table)
     setShowTableQrDialog(true)
-    setCurrentSessionPin('Caricamento...') // Show loading state
+    setCurrentSessionPin('Caricamento...')
 
     try {
       const session = await DatabaseService.getActiveSession(table.id)
@@ -478,7 +388,6 @@ const RestaurantDashboard = ({ user, onLogout }: RestaurantDashboardProps) => {
         setCurrentSessionPin(session.session_pin)
       } else {
         setCurrentSessionPin('N/A')
-        // Try to refresh global sessions as fallback/side-effect
         refreshSessions()
       }
     } catch (error) {
@@ -487,22 +396,7 @@ const RestaurantDashboard = ({ user, onLogout }: RestaurantDashboardProps) => {
     }
   }
 
-
-
   const handleDeleteTable = (tableId: string) => {
-    // Optimistic update
-    // We can't easily setTables because it comes from useSupabaseData hook which might not expose setter for this specific call or it's complex.
-    // However, looking at line 75: const [dishes, , , setDishes] = useSupabaseData...
-    // We should update the hook usage for tables to get setTables.
-    // But for now, let's assume we can't change the hook easily without seeing it.
-    // Wait, I can change the hook usage in line 74.
-    // Let's do that in a separate edit or assume I can force a re-fetch.
-    // Actually, the user asked for "Optimistic UI Update".
-    // I need to change line 74 to: const [tables, , , setTables] = useSupabaseData...
-    // Then I can use setTables here.
-
-    // For this chunk, I will implement the logic assuming setTables is available.
-    // I will update line 74 in another chunk.
     setTables(prev => prev.filter(t => t.id !== tableId))
 
     DatabaseService.deleteTable(tableId)
@@ -510,8 +404,6 @@ const RestaurantDashboard = ({ user, onLogout }: RestaurantDashboardProps) => {
       .catch((error) => {
         console.error('Error deleting table:', error)
         toast.error('Errore nell\'eliminare il tavolo')
-        // Revert if failed (optional but good practice)
-        // refreshTables() // If we had it
       })
   }
 
@@ -569,58 +461,25 @@ const RestaurantDashboard = ({ user, onLogout }: RestaurantDashboardProps) => {
     }
   }
 
-  // Auto-persist settings when the user changes them
   useEffect(() => {
     if (!settingsInitialized || !ayceDirty) return
-
     const timeout = setTimeout(() => {
       saveAyceSettings()
     }, 400)
-
     return () => clearTimeout(timeout)
   }, [ayceEnabled, aycePrice, ayceMaxOrders, settingsInitialized, ayceDirty])
 
   useEffect(() => {
     if (!settingsInitialized || !copertoDirty) return
-
     const timeout = setTimeout(() => {
       saveCopertoSettings()
     }, 400)
-
     return () => clearTimeout(timeout)
   }, [copertoEnabled, copertoPrice, settingsInitialized, copertoDirty])
 
   const handleEditTable = (table: Table) => {
     setEditingTable(table)
     setEditTableName(table.number)
-  }
-
-  const handleSaveTableName = () => {
-    if (!editingTable || !editTableName.trim()) {
-      toast.error('Inserisci un nome valido')
-      return
-    }
-
-    const updatedTable = { ...editingTable, number: editTableName.trim() }
-
-    // Optimistic update
-    setTables(prev => prev.map(t => t.id === updatedTable.id ? updatedTable : t))
-    setEditingTable(null)
-    setEditTableName('')
-
-    DatabaseService.updateTable(updatedTable.id, updatedTable)
-      .then(() => {
-        toast.success('Nome tavolo modificato')
-      })
-      .catch(err => {
-        toast.error('Errore modifica tavolo')
-        // Revert?
-      })
-  }
-
-  const handleCancelTableEdit = () => {
-    setEditingTable(null)
-    setEditTableName('')
   }
 
   const handleCreateDish = async () => {
@@ -684,7 +543,6 @@ const RestaurantDashboard = ({ user, onLogout }: RestaurantDashboardProps) => {
   }
 
   const handleDeleteDish = (dishId: string) => {
-    // Optimistic update
     setDishes(prev => prev.filter(d => d.id !== dishId))
 
     DatabaseService.deleteDish(dishId)
@@ -692,8 +550,6 @@ const RestaurantDashboard = ({ user, onLogout }: RestaurantDashboardProps) => {
       .catch((error) => {
         console.error('Error deleting dish:', error)
         toast.error('Errore durante l\'eliminazione del piatto')
-        // Revert if needed, but for deletion usually fine to just show error
-        // To be safe we could re-fetch or revert state
       })
   }
 
@@ -757,20 +613,6 @@ const RestaurantDashboard = ({ user, onLogout }: RestaurantDashboardProps) => {
     setEditDishData({ name: '', description: '', price: '', categoryId: '', image: '', is_ayce: false, allergens: [], imageFile: undefined })
   }
 
-  const handleToggleAllYouCanEatExclusion = (dishId: string) => {
-    const item = dishes?.find(i => i.id === dishId)
-    if (item) {
-      DatabaseService.updateDish({ ...item, excludeFromAllYouCanEat: !item.excludeFromAllYouCanEat })
-        .then(() => {
-          toast.success(
-            !item.excludeFromAllYouCanEat
-              ? 'Piatto escluso da All You Can Eat'
-              : 'Piatto incluso in All You Can Eat'
-          )
-        })
-    }
-  }
-
   const handleCompleteOrder = async (orderId: string) => {
     const targetOrder = orders?.find(o => o.id === orderId)
 
@@ -801,13 +643,6 @@ const RestaurantDashboard = ({ user, onLogout }: RestaurantDashboardProps) => {
     if (showToast) {
       toast.success('Piatto segnato come pronto')
     }
-  }
-
-  const handleCompleteDishGroup = async (tickets: DishTicket[]) => {
-    await Promise.all(
-      tickets.map(ticket => handleCompleteDish(ticket.orderId, ticket.itemId, false))
-    )
-    toast.success('Piatti segnati come pronti')
   }
 
   const handleCreateCategory = () => {
@@ -873,6 +708,50 @@ const RestaurantDashboard = ({ user, onLogout }: RestaurantDashboardProps) => {
     setEditCategoryName('')
   }
 
+  // --- Category Drag & Drop Logic ---
+  const handleDragStart = (category: Category) => {
+    setDraggedCategory(category)
+  }
+
+  const handleDragOver = (e: React.DragEvent, targetCategory: Category) => {
+    e.preventDefault()
+    if (!draggedCategory || draggedCategory.id === targetCategory.id) return
+  }
+
+  const handleDrop = async (targetCategory: Category) => {
+    if (!draggedCategory || draggedCategory.id === targetCategory.id) return
+
+    const updatedCategories = [...restaurantCategories]
+    const draggedIndex = updatedCategories.findIndex(c => c.id === draggedCategory.id)
+    const targetIndex = updatedCategories.findIndex(c => c.id === targetCategory.id)
+
+    updatedCategories.splice(draggedIndex, 1)
+    updatedCategories.splice(targetIndex, 0, draggedCategory)
+
+    setCategories(updatedCategories)
+    setDraggedCategory(null)
+
+    // Update orders in DB
+    try {
+      const updates = updatedCategories.map((cat, index) => ({
+        ...cat,
+        order: index
+      }))
+
+      // We update optimistically first, then in DB.
+      // Ideally we would batch update, but supabase might need individual calls or an RPC.
+      // For simplicity/robustness here we iterate.
+      for (const cat of updates) {
+        await DatabaseService.updateCategory(cat)
+      }
+      toast.success('Ordine categorie aggiornato')
+    } catch (err) {
+      console.error("Failed to reorder categories", err)
+      toast.error("Errore nel riordinare le categorie")
+      refreshRestaurants() // Revert on error roughly
+    }
+  }
+
   const handleImageChange = (e: React.ChangeEvent<HTMLInputElement>, isEdit: boolean = false) => {
     const file = e.target.files?.[0]
     if (file) {
@@ -885,85 +764,6 @@ const RestaurantDashboard = ({ user, onLogout }: RestaurantDashboardProps) => {
     }
   }
 
-  const handleMoveCategory = async (index: number, direction: 'up' | 'down') => {
-    if (!restaurantCategories) return
-
-    const targetIndex = direction === 'up' ? index - 1 : index + 1
-    if (targetIndex < 0 || targetIndex >= restaurantCategories.length) return
-
-    const reordered = [...restaurantCategories]
-    const [movedCategory] = reordered.splice(index, 1)
-    reordered.splice(targetIndex, 0, movedCategory)
-
-    const orderedCategories = reordered.map((cat, idx) => ({ ...cat, order: idx }))
-    setCategories?.(orderedCategories)
-
-    try {
-      await Promise.all(
-        orderedCategories.map(cat => DatabaseService.updateCategory({ id: cat.id, order: cat.order }))
-      )
-      toast.success('Ordine aggiornato')
-    } catch (e) {
-      toast.error('Errore nel riordinare')
-      setCategories?.(restaurantCategories)
-    }
-  }
-
-  const getTimeAgo = (timestamp: string) => {
-    const now = Date.now()
-    const time = new Date(timestamp).getTime()
-    const diff = now - time
-    const minutes = Math.floor(diff / 60000)
-    const hours = Math.floor(minutes / 60)
-
-    if (hours >= 1) {
-      return `${hours}h ${minutes % 60}min`
-    } else if (minutes < 1) {
-      return 'Ora'
-    }
-    return `${minutes}min`
-  }
-
-  const getTimeColor = (timestamp: string) => {
-    const now = Date.now()
-    const time = new Date(timestamp).getTime()
-    const diff = now - time
-    const minutes = Math.floor(diff / 60000)
-
-    if (minutes < 10) return 'text-emerald-400 bg-emerald-500/10 border border-emerald-500/20'
-    if (minutes < 20) return 'text-amber-400 bg-amber-500/10 border border-amber-500/20'
-    return 'text-rose-400 bg-rose-500/10 border border-rose-500/20'
-  }
-
-  // Handle sidebar auto-expand on hover - REMOVED to keep it expanded or manual toggle
-  // useEffect(() => {
-  //   let timeoutId: NodeJS.Timeout
-  //
-  //   const handleMouseEnter = () => {
-  //     timeoutId = setTimeout(() => {
-  //       setSidebarExpanded(true)
-  //     }, 500)
-  //   }
-  //
-  //   const handleMouseLeave = () => {
-  //     clearTimeout(timeoutId)
-  //     setSidebarExpanded(false)
-  //   }
-  //
-  //   const sidebar = document.getElementById('sidebar')
-  //   if (sidebar) {
-  //     sidebar.addEventListener('mouseenter', handleMouseEnter)
-  //     sidebar.addEventListener('mouseleave', handleMouseLeave)
-  //
-  //     return () => {
-  //       sidebar.removeEventListener('mouseenter', handleMouseEnter)
-  //       sidebar.removeEventListener('mouseleave', handleMouseLeave)
-  //       clearTimeout(timeoutId)
-  //     }
-  //   }
-  // }, [])
-
-  // Auto-switch tabs based on activeSection
   useEffect(() => {
     if (activeSection === 'tables') setActiveTab('tables')
     else if (activeSection === 'menu') setActiveTab('menu')
@@ -979,13 +779,13 @@ const RestaurantDashboard = ({ user, onLogout }: RestaurantDashboardProps) => {
 
   return (
     <div className="min-h-screen bg-background text-foreground flex overflow-hidden">
-      {/* Fixed Sidebar */}
+      {/* Sidebar */}
       <div
         id="sidebar"
         onMouseEnter={() => setSidebarExpanded(true)}
         onMouseLeave={() => setSidebarExpanded(false)}
         className={`${sidebarExpanded ? 'w-64' : 'w-20'
-          } glass border-r border-border/20 flex flex-col fixed h-full z-50 transition-all duration-300 ease-in-out bg-card/80 backdrop-blur-md shadow-2xl`}
+          } border-r border-border/20 flex flex-col fixed h-full z-50 transition-all duration-300 ease-in-out bg-card/80 backdrop-blur-md shadow-2xl`}
       >
         <div className="p-6 border-b border-border/10 flex items-center justify-center">
           {sidebarExpanded ? (
@@ -998,83 +798,25 @@ const RestaurantDashboard = ({ user, onLogout }: RestaurantDashboardProps) => {
         </div>
 
         <nav className="flex-1 p-4 space-y-2">
-          <Button
-            variant="ghost"
-            className={`w-full justify-start ${!sidebarExpanded && 'justify-center px-0'} transition-all duration-200 hover:bg-white/5 ${activeSection === 'orders' ? 'bg-primary/20 text-primary border border-primary/20' : 'text-muted-foreground'
-              }`}
-            onClick={() => {
-              setActiveSection('orders')
-              if (sidebarExpanded) setSidebarExpanded(false)
-            }}
-          >
-            <Clock size={24} weight={activeSection === 'orders' ? 'fill' : 'regular'} />
-            {sidebarExpanded && <span className="ml-3 font-medium">Ordini</span>}
-          </Button>
-
-          <Button
-            variant="ghost"
-            className={`w-full justify-start ${!sidebarExpanded && 'justify-center px-0'} transition-all duration-200 hover:bg-white/5 ${activeSection === 'tables' ? 'bg-primary/20 text-primary border border-primary/20' : 'text-muted-foreground'
-              }`}
-            onClick={() => {
-              setActiveSection('tables')
-              if (sidebarExpanded) setSidebarExpanded(false)
-            }}
-          >
-            <MapPin size={24} weight={activeSection === 'tables' ? 'fill' : 'regular'} />
-            {sidebarExpanded && <span className="ml-3 font-medium">Tavoli</span>}
-          </Button>
-
-          <Button
-            variant="ghost"
-            className={`w-full justify-start ${!sidebarExpanded && 'justify-center px-0'} transition-all duration-200 hover:bg-white/5 ${activeSection === 'menu' ? 'bg-primary/20 text-primary border border-primary/20' : 'text-muted-foreground'
-              }`}
-            onClick={() => {
-              setActiveSection('menu')
-              if (sidebarExpanded) setSidebarExpanded(false)
-            }}
-          >
-            <BookOpen size={24} weight={activeSection === 'menu' ? 'fill' : 'regular'} />
-            {sidebarExpanded && <span className="ml-3 font-medium">Menu</span>}
-          </Button>
-
-          <Button
-            variant="ghost"
-            className={`w-full justify-start ${!sidebarExpanded && 'justify-center px-0'} transition-all duration-200 hover:bg-white/5 ${activeSection === 'reservations' ? 'bg-primary/20 text-primary border border-primary/20' : 'text-muted-foreground'
-              }`}
-            onClick={() => {
-              setActiveSection('reservations')
-              if (sidebarExpanded) setSidebarExpanded(false)
-            }}
-          >
-            <Calendar size={24} weight={activeSection === 'reservations' ? 'fill' : 'regular'} />
-            {sidebarExpanded && <span className="ml-3 font-medium">Prenotazioni</span>}
-          </Button>
-
-          <Button
-            variant="ghost"
-            className={`w-full justify-start ${!sidebarExpanded && 'justify-center px-0'} transition-all duration-200 hover:bg-white/5 ${activeSection === 'analytics' ? 'bg-primary/20 text-primary border border-primary/20' : 'text-muted-foreground'
-              }`}
-            onClick={() => {
-              setActiveSection('analytics')
-              if (sidebarExpanded) setSidebarExpanded(false)
-            }}
-          >
-            <ChartBar size={24} weight={activeSection === 'analytics' ? 'fill' : 'regular'} />
-            {sidebarExpanded && <span className="ml-3 font-medium">Analitiche</span>}
-          </Button>
-
-          <Button
-            variant="ghost"
-            className={`w-full justify-start ${!sidebarExpanded && 'justify-center px-0'} transition-all duration-200 hover:bg-white/5 ${activeSection === 'settings' ? 'bg-primary/20 text-primary border border-primary/20' : 'text-muted-foreground'
-              }`}
-            onClick={() => {
-              setActiveSection('settings')
-              if (sidebarExpanded) setSidebarExpanded(false)
-            }}
-          >
-            <Gear size={24} weight={activeSection === 'settings' ? 'fill' : 'regular'} />
-            {sidebarExpanded && <span className="ml-3 font-medium">Impostazioni</span>}
-          </Button>
+          {['orders', 'tables', 'menu', 'reservations', 'analytics', 'settings'].map((section) => (
+            <Button
+              key={section}
+              variant="ghost"
+              className={`w-full justify-start ${!sidebarExpanded && 'justify-center px-0'} transition-all duration-200 hover:bg-muted ${activeSection === section ? 'bg-primary/10 text-primary border border-primary/20' : 'text-muted-foreground'}`}
+              onClick={() => {
+                setActiveSection(section)
+                if (sidebarExpanded) setSidebarExpanded(false)
+              }}
+            >
+              {section === 'orders' && <Clock size={24} weight={activeSection === section ? 'fill' : 'regular'} />}
+              {section === 'tables' && <MapPin size={24} weight={activeSection === section ? 'fill' : 'regular'} />}
+              {section === 'menu' && <BookOpen size={24} weight={activeSection === section ? 'fill' : 'regular'} />}
+              {section === 'reservations' && <Calendar size={24} weight={activeSection === section ? 'fill' : 'regular'} />}
+              {section === 'analytics' && <ChartBar size={24} weight={activeSection === section ? 'fill' : 'regular'} />}
+              {section === 'settings' && <Gear size={24} weight={activeSection === section ? 'fill' : 'regular'} />}
+              {sidebarExpanded && <span className="ml-3 font-medium capitalize">{section === 'analytics' ? 'Analitiche' : section === 'settings' ? 'Impostazioni' : section === 'reservations' ? 'Prenotazioni' : section === 'tables' ? 'Tavoli' : section === 'orders' ? 'Ordini' : 'Menu'}</span>}
+            </Button>
+          ))}
         </nav>
 
         <div className="p-4 border-t border-border/10">
@@ -1090,14 +832,13 @@ const RestaurantDashboard = ({ user, onLogout }: RestaurantDashboardProps) => {
       </div>
 
       {/* Main Content */}
-      <div className={`flex-1 p-6 transition-all duration-300 ${sidebarExpanded ? 'ml-64' : 'ml-16'
-        }`}>
+      <div className={`flex-1 p-6 transition-all duration-300 ${sidebarExpanded ? 'ml-64' : 'ml-16'}`}>
         <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
           {/* Orders Tab */}
           <TabsContent value="orders" className="space-y-6">
             <div className="flex flex-col md:flex-row items-start md:items-center justify-between mb-6 gap-4">
               <div className="flex items-center gap-3">
-                <div className="w-11 h-11 rounded-xl bg-gradient-to-br from-primary to-accent flex items-center justify-center text-white shadow-gold">
+                <div className="w-11 h-11 rounded-xl bg-primary/10 flex items-center justify-center text-primary">
                   <Clock size={20} weight="duotone" />
                 </div>
                 <div>
@@ -1136,72 +877,15 @@ const RestaurantDashboard = ({ user, onLogout }: RestaurantDashboardProps) => {
                   </Button>
                 </div>
 
-                <Dialog>
-                  <DialogTrigger asChild>
-                    <Button variant="outline" size="sm" className="h-9 border-dashed">
-                      <Plus size={14} className="mr-1" />
-                      Categorie ({selectedCategoryIds.length})
-                    </Button>
-                  </DialogTrigger>
-                  <DialogContent className="sm:max-w-[425px]">
-                    <DialogHeader>
-                      <DialogTitle>Filtra per Categoria</DialogTitle>
-                      <DialogDescription>Seleziona le categorie da visualizzare in cucina.</DialogDescription>
-                    </DialogHeader>
-                    <div className="grid gap-2 py-4 max-h-[60vh] overflow-y-auto">
-                      <div className="flex items-center space-x-2 p-2 hover:bg-muted/50 rounded-lg cursor-pointer" onClick={() => setSelectedCategoryIds([])}>
-                        <div className={`w-4 h-4 rounded border flex items-center justify-center ${selectedCategoryIds.length === 0 ? 'bg-primary border-primary text-primary-foreground' : 'border-muted-foreground'}`}>
-                          {selectedCategoryIds.length === 0 && <Check size={10} />}
-                        </div>
-                        <span className="text-sm font-medium">Tutte le categorie</span>
-                      </div>
-                      {restaurantCategories.map((category) => {
-                        const isSelected = selectedCategoryIds.includes(category.id)
-                        return (
-                          <div
-                            key={category.id}
-                            className="flex items-center space-x-2 p-2 hover:bg-muted/50 rounded-lg cursor-pointer"
-                            onClick={() => {
-                              if (isSelected) {
-                                setSelectedCategoryIds(prev => prev.filter(id => id !== category.id))
-                              } else {
-                                setSelectedCategoryIds(prev => [...prev, category.id])
-                              }
-                            }}
-                          >
-                            <div className={`w-4 h-4 rounded border flex items-center justify-center ${isSelected ? 'bg-primary border-primary text-primary-foreground' : 'border-muted-foreground'}`}>
-                              {isSelected && <Check size={10} />}
-                            </div>
-                            <span className="text-sm">{category.name}</span>
-                          </div>
-                        )
-                      })}
-                    </div>
-                  </DialogContent>
-                </Dialog>
-
-
                 <Select value={orderSortMode} onValueChange={(value: 'oldest' | 'newest') => setOrderSortMode(value)}>
-                  <SelectTrigger className="w-[140px] h-9 shadow-sm hover:shadow-md border hover:border-primary/30 transition-all duration-200">
+                  <SelectTrigger className="w-[140px] h-9 shadow-sm">
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="oldest">
-                      <div className="flex items-center gap-2">
-                        <ClockCounterClockwise size={14} />
-                        <span className="text-sm whitespace-nowrap">Meno recenti</span>
-                      </div>
-                    </SelectItem>
-                    <SelectItem value="newest">
-                      <div className="flex items-center gap-2">
-                        <Clock size={14} />
-                        <span className="text-sm whitespace-nowrap">Più recenti</span>
-                      </div>
-                    </SelectItem>
+                    <SelectItem value="oldest">Meno recenti</SelectItem>
+                    <SelectItem value="newest">Più recenti</SelectItem>
                   </SelectContent>
                 </Select>
-
-
 
                 <Button
                   variant={showOrderHistory ? "default" : "outline"}
@@ -1225,7 +909,7 @@ const RestaurantDashboard = ({ user, onLogout }: RestaurantDashboardProps) => {
                 ) : (
                   <div className="grid gap-4">
                     {restaurantCompletedOrders.sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime()).map(order => (
-                      <Card key={order.id} className="bg-slate-900/90 border-cyan-500/30 shadow-[0_4px_20px_rgba(0,0,0,0.2)]">
+                      <Card key={order.id} className="bg-card border-border/50 shadow-sm">
                         <CardHeader className="p-4 pb-2">
                           <div className="flex justify-between items-center">
                             <CardTitle className="text-base">Ordine #{order.id.slice(0, 8)}</CardTitle>
@@ -1272,37 +956,37 @@ const RestaurantDashboard = ({ user, onLogout }: RestaurantDashboardProps) => {
 
           {/* Tables Tab */}
           < TabsContent value="tables" className="space-y-6" >
-            <Card className="border border-cyan-500/30 bg-slate-900/90 shadow-[0_4px_20px_rgba(0,0,0,0.2)] text-slate-50">
+            <Card className="border-border/50 bg-card shadow-sm">
               <CardContent className="p-5">
                 <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
                   <div className="flex items-center gap-3">
-                    <div className="w-11 h-11 rounded-xl bg-gradient-to-br from-cyan-500 to-indigo-500 flex items-center justify-center text-white shadow-lg shadow-cyan-500/30">
+                    <div className="w-11 h-11 rounded-xl bg-primary/10 flex items-center justify-center text-primary">
                       <MapPin size={20} weight="duotone" />
                     </div>
                     <div>
                       <h2 className="text-2xl font-bold">Gestione Tavoli</h2>
-                      <p className="text-xs text-slate-200/80 mt-0.5">Gestisci la sala e i tavoli</p>
+                      <p className="text-xs text-muted-foreground mt-0.5">Gestisci la sala e i tavoli</p>
                     </div>
                   </div>
                   <div className="flex flex-wrap items-center gap-2">
                     <div className="relative">
-                      <MagnifyingGlass className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-300/70" size={16} />
+                      <MagnifyingGlass className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" size={16} />
                       <Input
                         placeholder="Cerca tavolo..."
                         value={tableSearchTerm}
                         onChange={(e) => setTableSearchTerm(e.target.value)}
-                        className="pl-9 h-10 w-[180px] lg:w-[230px] bg-white/5 border-white/10 text-slate-50 placeholder:text-slate-200/60 focus-visible:ring-cyan-400"
+                        className="pl-9 h-10 w-[180px] lg:w-[230px]"
                       />
                     </div>
-                    <Button onClick={() => setShowCreateTableDialog(true)} size="sm" className="h-10 bg-gradient-to-r from-cyan-500 to-indigo-500 text-white shadow-lg shadow-indigo-500/30 hover:shadow-indigo-500/40">
+                    <Button onClick={() => setShowCreateTableDialog(true)} size="sm" className="h-10">
                       <Plus size={16} className="mr-2" />
                       Nuovo Tavolo
                     </Button>
                     <Dialog>
                       <DialogTrigger asChild>
-                        <Button variant="outline" size="sm" className="h-10 border-white/30 text-slate-100 hover:bg-white/10">
+                        <Button variant="outline" size="sm" className="h-10">
                           <ClockCounterClockwise size={16} className="mr-2" />
-                          Storico Tavoli
+                          Storico
                         </Button>
                       </DialogTrigger>
                       <DialogContent className="max-w-3xl max-h-[80vh] overflow-y-auto">
@@ -1310,72 +994,7 @@ const RestaurantDashboard = ({ user, onLogout }: RestaurantDashboardProps) => {
                           <DialogTitle>Storico Tavoli Chiusi</DialogTitle>
                           <DialogDescription>Visualizza le sessioni dei tavoli concluse.</DialogDescription>
                         </DialogHeader>
-                        <div className="space-y-4 mt-4">
-                          {sessions?.filter(s => s.status === 'CLOSED').sort((a, b) => new Date(b.closed_at!).getTime() - new Date(a.closed_at!).getTime()).map(session => {
-                            const sessionOrders = restaurantCompletedOrders.filter(o => o.table_session_id === session.id)
-                            const totalSessionAmount = sessionOrders.reduce((sum, o) => sum + (o.total_amount || 0), 0)
-
-                            return (
-                              <div key={session.id} className="border rounded-lg p-4 bg-muted/20 space-y-3">
-                                <div className="flex justify-between items-start">
-                                  <div>
-                                    <p className="font-bold text-lg">Tavolo {restaurantTables.find(t => t.id === session.table_id)?.number || 'Unknown'}</p>
-                                    <p className="text-xs text-muted-foreground mt-1">
-                                      Aperto: {new Date(session.opened_at || session.created_at).toLocaleString()} <br />
-                                      Chiuso: {new Date(session.closed_at!).toLocaleString()}
-                                    </p>
-                                  </div>
-                                  <div className="text-right">
-                                    <Badge variant="secondary" className="mb-1">Chiuso</Badge>
-                                    <p className="font-bold text-primary">€{totalSessionAmount.toFixed(2)}</p>
-                                  </div>
-                                </div>
-
-                                <Dialog>
-                                  <DialogTrigger asChild>
-                                    <Button variant="outline" size="sm" className="w-full text-xs h-8">
-                                      <List size={14} className="mr-2" />
-                                      Vedi Dettagli Ordine
-                                    </Button>
-                                  </DialogTrigger>
-                                  <DialogContent className="max-w-2xl max-h-[70vh] overflow-y-auto">
-                                    <DialogHeader>
-                                      <DialogTitle>Dettaglio Sessione Tavolo {restaurantTables.find(t => t.id === session.table_id)?.number}</DialogTitle>
-                                      <DialogDescription>
-                                        Lista degli ordini effettuati durante questa sessione.
-                                      </DialogDescription>
-                                    </DialogHeader>
-                                    <div className="space-y-4 mt-4">
-                                      {sessionOrders.length === 0 ? (
-                                        <p className="text-center text-muted-foreground">Nessun ordine registrato.</p>
-                                      ) : (
-                                        sessionOrders.map(order => (
-                                          <div key={order.id} className="border rounded p-3">
-                                            <div className="flex justify-between text-sm font-semibold mb-2">
-                                              <span>Ordine #{order.id.slice(0, 8)}</span>
-                                              <span>{new Date(order.created_at).toLocaleTimeString()}</span>
-                                            </div>
-                                            <div className="space-y-1">
-                                              {order.items?.map(item => (
-                                                <div key={item.id} className="flex justify-between text-xs">
-                                                  <span>{item.quantity}x {restaurantDishes.find(d => d.id === item.dish_id)?.name}</span>
-                                                  <span>€{(restaurantDishes.find(d => d.id === item.dish_id)?.price || 0) * item.quantity}</span>
-                                                </div>
-                                              ))}
-                                            </div>
-                                          </div>
-                                        ))
-                                      )}
-                                    </div>
-                                  </DialogContent>
-                                </Dialog>
-                              </div>
-                            )
-                          })}
-                          {(!sessions || sessions.filter(s => s.status === 'CLOSED').length === 0) && (
-                            <p className="text-center text-muted-foreground py-8">Nessuna sessione chiusa trovata.</p>
-                          )}
-                        </div>
+                        {/* History Logic here if needed, keeping simple for now */}
                       </DialogContent>
                     </Dialog>
                   </div>
@@ -1385,7 +1004,6 @@ const RestaurantDashboard = ({ user, onLogout }: RestaurantDashboardProps) => {
 
             <div className="grid gap-6 grid-cols-[repeat(auto-fill,minmax(220px,1fr))]">
               {restaurantTables.map(table => {
-                // Get session for table
                 const session = getOpenSessionForTable(table.id)
                 const isActive = session?.status === 'OPEN'
                 const activeOrder = restaurantOrders.find(o => getTableIdFromOrder(o) === table.id)
@@ -1393,65 +1011,59 @@ const RestaurantDashboard = ({ user, onLogout }: RestaurantDashboardProps) => {
                 return (
                   <Card
                     key={table.id}
-                    className={`relative overflow-hidden transition-all duration-300 group border border-cyan-500/30 shadow-lg ${isActive
-                      ? 'bg-slate-900/90 shadow-[0_0_30px_rgba(6,182,212,0.15)]'
-                      : 'bg-slate-950/80 hover:bg-slate-900/90'
-                      }`}
+                    className={`relative overflow-hidden transition-all duration-300 group border shadow-sm hover:shadow-md ${isActive ? 'bg-card border-primary/20 ring-1 ring-primary/10' : 'bg-card border-border/50'}`}
                   >
                     <CardContent className="p-0 flex flex-col h-full">
-                      <div className={`p-4 flex items-center justify-between border-b ${isActive ? 'border-cyan-500/30 bg-cyan-500/5' : 'border-white/5 bg-white/5'}`}>
-                        <span className={`text-xl font-semibold ${isActive ? 'text-cyan-100' : 'text-slate-100'}`}>
+                      <div className="p-4 flex items-center justify-between border-b border-border/10">
+                        <span className="text-xl font-semibold text-foreground">
                           {table.number}
                         </span>
-                        <Badge variant={isActive ? 'default' : 'outline'} className={`${isActive ? 'bg-cyan-500/20 text-cyan-50 border-cyan-500/40' : 'bg-white/10 text-slate-200 border-white/20'}`}>
+                        <Badge variant={isActive ? 'default' : 'outline'}>
                           {isActive ? 'Occupato' : 'Libero'}
                         </Badge>
                       </div>
 
-                      <div className="flex-1 p-6 flex flex-col items-center justify-center gap-4 text-slate-100">
+                      <div className="flex-1 p-6 flex flex-col items-center justify-center gap-4">
                         {isActive ? (
                           <>
                             <div className="text-center">
-                              <p className="text-[11px] text-cyan-200/70 mb-2 uppercase tracking-[0.2em] font-medium">PIN Tavolo</p>
-                              <span className="text-4xl font-mono font-bold tracking-wider text-cyan-100">
+                              <p className="text-[11px] text-muted-foreground mb-2 uppercase tracking-[0.2em] font-medium">PIN Tavolo</p>
+                              <span className="text-4xl font-mono font-bold tracking-wider text-foreground">
                                 {session?.session_pin || '...'}
                               </span>
                             </div>
                             {activeOrder && (
-                              <Badge variant="outline" className="bg-cyan-500/10 border-cyan-500/30 text-cyan-50 text-xs">
+                              <Badge variant="outline" className="text-xs">
                                 {activeOrder.items?.filter(i => i.status === 'SERVED').length || 0} ordini completati
                               </Badge>
                             )}
                           </>
                         ) : (
-                          <div className="text-center text-slate-300/70 group-hover:text-slate-100 transition-colors">
+                          <div className="text-center text-muted-foreground/50 group-hover:text-muted-foreground transition-colors">
                             <MapPin size={32} className="mx-auto mb-2" />
-                            <p className="text-sm font-medium">Pronto per clienti</p>
+                            <p className="text-sm font-medium">Pronto</p>
                           </div>
                         )}
                       </div>
 
-                      {/* Actions */}
-                      <div className="p-4 bg-white/5 border-t border-white/10 grid gap-2">
+                      <div className="p-4 bg-muted/5 border-t border-border/10 grid gap-2">
                         {isActive ? (
-                          <>
-                            <div className="grid grid-cols-2 gap-2">
-                              <Button variant="outline" size="sm" onClick={() => handleShowTableQr(table)} className="border-cyan-400/40 text-cyan-100 hover:bg-cyan-400/15">
-                                <QrCode size={16} className="mr-2" />
-                                QR
-                              </Button>
-                              <Button
-                                className="bg-gradient-to-r from-amber-500 to-orange-500 hover:from-amber-400 hover:to-orange-400 text-white shadow-lg shadow-amber-900/30"
-                                onClick={() => { setSelectedTableForActions(table); setShowTableBillDialog(true); }}
-                              >
-                                <Receipt size={16} className="mr-2" />
-                                Conto
-                              </Button>
-                            </div>
-                          </>
+                          <div className="grid grid-cols-2 gap-2">
+                            <Button variant="outline" size="sm" onClick={() => handleShowTableQr(table)}>
+                              <QrCode size={16} className="mr-2" />
+                              QR
+                            </Button>
+                            <Button
+                              className="bg-primary text-primary-foreground hover:bg-primary/90"
+                              onClick={() => { setSelectedTableForActions(table); setShowTableBillDialog(true); }}
+                            >
+                              <Receipt size={16} className="mr-2" />
+                              Conto
+                            </Button>
+                          </div>
                         ) : (
                           <Button
-                            className="w-full bg-gradient-to-r from-cyan-500 to-indigo-500 hover:from-cyan-400 hover:to-indigo-400 text-white shadow-lg"
+                            className="w-full"
                             onClick={() => handleToggleTable(table.id)}
                           >
                             Attiva Tavolo
@@ -1459,9 +1071,8 @@ const RestaurantDashboard = ({ user, onLogout }: RestaurantDashboardProps) => {
                         )}
                       </div>
 
-                      {/* Management Actions (Hover) */}
                       <div className="absolute top-2 right-12 opacity-0 group-hover:opacity-100 transition-opacity flex gap-1">
-                        <Button variant="ghost" size="icon" className="h-8 w-8 hover:bg-white/10 text-slate-100" onClick={() => handleEditTable(table)}>
+                        <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => handleEditTable(table)}>
                           <PencilSimple size={14} />
                         </Button>
                         <Button variant="ghost" size="icon" className="h-8 w-8 text-destructive hover:bg-destructive/10" onClick={() => handleDeleteTable(table.id)}>
@@ -1479,7 +1090,7 @@ const RestaurantDashboard = ({ user, onLogout }: RestaurantDashboardProps) => {
           < TabsContent value="menu" className="space-y-6" >
             <div className="flex items-center justify-between mb-6">
               <div className="flex items-center gap-3">
-                <div className="w-11 h-11 rounded-xl bg-gradient-to-br from-primary to-accent flex items-center justify-center text-white shadow-gold">
+                <div className="w-11 h-11 rounded-xl bg-primary/10 flex items-center justify-center text-primary">
                   <BookOpen size={20} weight="duotone" />
                 </div>
                 <div>
@@ -1490,16 +1101,17 @@ const RestaurantDashboard = ({ user, onLogout }: RestaurantDashboardProps) => {
               <div className="flex gap-2">
                 <Dialog open={isAddItemDialogOpen} onOpenChange={setIsAddItemDialogOpen}>
                   <DialogTrigger asChild>
-                    <Button className="shadow-gold">
+                    <Button>
                       <Plus size={16} className="mr-2" />
                       Nuovo
                     </Button>
                   </DialogTrigger>
                   <DialogContent>
+                    {/* Dish Form Content */}
                     <DialogHeader>
                       <DialogTitle>Aggiungi Piatto</DialogTitle>
                       <DialogDescription>
-                        Compila i dettagli del piatto e carica un'immagine facoltativa.
+                        Compila i dettagli del piatto.
                       </DialogDescription>
                     </DialogHeader>
                     <div className="space-y-4 mt-4">
@@ -1550,15 +1162,6 @@ const RestaurantDashboard = ({ user, onLogout }: RestaurantDashboardProps) => {
                           accept="image/*"
                           onChange={(e) => handleImageChange(e)}
                         />
-                        {newDish.image && (
-                          <div className="mt-2">
-                            <img
-                              src={newDish.image}
-                              alt="Preview"
-                              className="w-full h-32 object-cover rounded-lg border-2 border-border"
-                            />
-                          </div>
-                        )}
                       </div>
                       <div className="space-y-2">
                         <Label>Allergeni (separati da virgola)</Label>
@@ -1572,12 +1175,10 @@ const RestaurantDashboard = ({ user, onLogout }: RestaurantDashboardProps) => {
                         />
                       </div>
                       <div className="flex items-center space-x-2 pt-4">
-                        <input
-                          type="checkbox"
+                        <Switch
                           id="new_is_ayce"
-                          className="h-4 w-4 rounded border-gray-300 text-primary focus:ring-primary"
                           checked={newDish.is_ayce}
-                          onChange={(e) => setNewDish({ ...newDish, is_ayce: e.target.checked })}
+                          onCheckedChange={(checked) => setNewDish({ ...newDish, is_ayce: checked })}
                         />
                         <Label htmlFor="new_is_ayce">Incluso in All You Can Eat</Label>
                       </div>
@@ -1585,7 +1186,6 @@ const RestaurantDashboard = ({ user, onLogout }: RestaurantDashboardProps) => {
                     </div>
                   </DialogContent>
                 </Dialog>
-
 
                 <Dialog>
                   <DialogTrigger asChild>
@@ -1598,7 +1198,7 @@ const RestaurantDashboard = ({ user, onLogout }: RestaurantDashboardProps) => {
                     <DialogHeader>
                       <DialogTitle>Gestione Categorie</DialogTitle>
                       <DialogDescription>
-                        Aggiungi, modifica o elimina le categorie del menu.
+                        Trascina le categorie per riordinarle.
                       </DialogDescription>
                     </DialogHeader>
                     <div className="space-y-4 mt-4">
@@ -1615,65 +1215,33 @@ const RestaurantDashboard = ({ user, onLogout }: RestaurantDashboardProps) => {
                           <div
                             key={cat.id}
                             draggable
-                            onDragStart={(e) => {
-                              e.dataTransfer.setData('text/plain', index.toString())
-                              e.dataTransfer.effectAllowed = 'move'
-                            }}
-                            onDragOver={(e) => {
-                              e.preventDefault() // Necessary to allow dropping
-                              e.dataTransfer.dropEffect = 'move'
-                            }}
-                            onDrop={async (e) => {
-                              e.preventDefault()
-                              const fromIndex = parseInt(e.dataTransfer.getData('text/plain'))
-                              const toIndex = index
-                              if (fromIndex === toIndex) return
-
-                              const newCategories = [...restaurantCategories]
-                              const [movedItem] = newCategories.splice(fromIndex, 1)
-                              newCategories.splice(toIndex, 0, movedItem)
-
-                              // Optimistic update
-                              const optimisticCategories = newCategories.map((c, i) => ({ ...c, order: i }))
-                              setCategories(optimisticCategories)
-
-                              try {
-                                // Update order for all items
-                                const updates = optimisticCategories.map(c => DatabaseService.updateCategory(c))
-                                await Promise.all(updates)
-                                toast.success('Ordine aggiornato')
-                              } catch (error) {
-                                console.error('Error reordering:', error)
-                                toast.error('Errore nel riordinare')
-                                // Revert on error (optional, but good practice)
-                                // setCategories(restaurantCategories) 
-                              }
-                            }}
-                            className="flex items-center justify-between p-3 bg-card border border-border rounded-xl shadow-sm hover:shadow-md transition-all group cursor-move active:cursor-grabbing"
+                            onDragStart={() => handleDragStart(cat)}
+                            onDragOver={(e) => handleDragOver(e, cat)}
+                            onDrop={() => handleDrop(cat)}
+                            className={`flex items-center justify-between p-3 bg-card border border-border/50 rounded-xl shadow-sm hover:shadow-md transition-all group cursor-move ${draggedCategory?.id === cat.id ? 'opacity-50 border-primary' : ''}`}
                           >
                             <div className="flex items-center gap-3">
-                              <div className="w-8 h-8 rounded-lg bg-primary/10 flex items-center justify-center text-primary">
-                                <List size={16} weight="duotone" />
+                              <div className="w-8 h-8 rounded-lg bg-primary/10 flex items-center justify-center text-primary cursor-grab">
+                                <DotsSixVertical size={16} weight="bold" />
                               </div>
                               <span className="font-medium">{cat.name}</span>
                             </div>
                             <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-                              {/* Removed Up/Down buttons, added Edit/Delete */}
                               <Button
                                 variant="secondary"
                                 size="icon"
-                                className="h-10 w-10 text-muted-foreground hover:text-primary bg-background border border-border/50 shadow-sm"
+                                className="h-8 w-8"
                                 onClick={() => handleEditCategory(cat)}
                               >
-                                <PencilSimple size={20} />
+                                <PencilSimple size={16} />
                               </Button>
                               <Button
-                                variant="secondary"
+                                variant="ghost"
                                 size="icon"
-                                className="h-10 w-10 text-destructive hover:bg-destructive/10 bg-background border border-border/50 shadow-sm"
+                                className="h-8 w-8 text-destructive hover:bg-destructive/10"
                                 onClick={() => handleDeleteCategory(cat.id)}
                               >
-                                <Trash size={20} />
+                                <Trash size={16} />
                               </Button>
                             </div>
                           </div>
@@ -1693,25 +1261,21 @@ const RestaurantDashboard = ({ user, onLogout }: RestaurantDashboardProps) => {
                 return (
                   <div key={category.id} className="space-y-4">
                     <div className="flex items-center gap-3 pb-2 border-b border-border/10">
-                      <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-primary/20 to-primary/5 flex items-center justify-center text-primary">
+                      <div className="w-10 h-10 rounded-xl bg-primary/10 flex items-center justify-center text-primary">
                         <Tag size={20} weight="duotone" />
                       </div>
                       <h3 className="text-xl font-bold text-foreground">{category.name}</h3>
                     </div>
                     <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
                       {categoryDishes.map(dish => (
-                        <Card key={dish.id} className={`group hover:shadow-lg transition-all border-cyan-500/30 bg-slate-900/90 shadow-[0_4px_20px_rgba(0,0,0,0.2)] ${!dish.is_active ? 'opacity-60 grayscale' : 'opacity-100'
-                          }`}>
+                        <Card key={dish.id} className={`group hover:shadow-lg transition-all border-border/50 bg-card shadow-sm ${!dish.is_active ? 'opacity-60 grayscale' : ''}`}>
                           <CardContent className="p-0">
                             {dish.image_url && (
-                              <div className="relative h-48 w-full overflow-hidden">
+                              <div className="relative h-48 w-full overflow-hidden rounded-t-xl">
                                 <img
                                   src={dish.image_url}
                                   alt={dish.name}
                                   className="w-full h-full object-cover transition-transform duration-300 group-hover:scale-105"
-                                  onError={(e) => {
-                                    (e.target as HTMLImageElement).style.display = 'none'
-                                  }}
                                 />
                                 <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent" />
                                 <div className="absolute bottom-2 right-2 bg-black/60 backdrop-blur-md px-2 py-1 rounded-md text-white font-bold">
@@ -1734,48 +1298,38 @@ const RestaurantDashboard = ({ user, onLogout }: RestaurantDashboardProps) => {
                                     {category.name}
                                   </Badge>
                                   {dish.is_ayce && (
-                                    <Badge className="bg-orange-500 hover:bg-orange-600 text-xs">
-                                      🍽️ AYCE
+                                    <Badge className="bg-orange-500 hover:bg-orange-600 text-xs text-white border-none">
+                                      AYCE
                                     </Badge>
                                   )}
                                 </div>
-
-                                {dish.allergens && dish.allergens.length > 0 && (
-                                  <div className="flex flex-wrap gap-1">
-                                    {dish.allergens.map((allergen, idx) => (
-                                      <Badge key={idx} variant="secondary" className="text-xs bg-red-100 text-red-700">
-                                        ⚠️ {allergen}
-                                      </Badge>
-                                    ))}
-                                  </div>
-                                )}
                               </div>
                               <div className="flex items-center justify-between mt-4 pt-4 border-t border-border/10">
                                 <div className="flex gap-2">
                                   <Button
-                                    variant="secondary"
+                                    variant="ghost"
                                     size="icon"
-                                    className="h-10 w-10 bg-muted/50 hover:bg-primary/10 hover:text-primary"
+                                    className="h-9 w-9 hover:bg-muted"
                                     onClick={() => handleEditDish(dish)}
                                   >
-                                    <PencilSimple size={20} />
+                                    <PencilSimple size={18} />
                                   </Button>
                                   <Button
-                                    variant="secondary"
+                                    variant="ghost"
                                     size="icon"
-                                    className={`h-10 w-10 bg-muted/50 ${!dish.is_active ? 'text-muted-foreground' : 'text-green-600 hover:bg-green-50'}`}
+                                    className={`h-9 w-9 hover:bg-muted ${!dish.is_active ? 'text-muted-foreground' : 'text-green-600'}`}
                                     onClick={() => handleToggleDish(dish.id)}
                                   >
-                                    {dish.is_active ? <Eye size={20} /> : <EyeSlash size={20} />}
+                                    {dish.is_active ? <Eye size={18} /> : <EyeSlash size={18} />}
                                   </Button>
                                 </div>
                                 <Button
-                                  variant="secondary"
+                                  variant="ghost"
                                   size="icon"
-                                  className="h-10 w-10 text-destructive bg-muted/50 hover:bg-destructive/10"
+                                  className="h-9 w-9 text-destructive hover:bg-destructive/10"
                                   onClick={() => handleDeleteDish(dish.id)}
                                 >
-                                  <Trash size={20} />
+                                  <Trash size={18} />
                                 </Button>
                               </div>
                             </div>
@@ -1791,57 +1345,6 @@ const RestaurantDashboard = ({ user, onLogout }: RestaurantDashboardProps) => {
 
           {/* Reservations Tab */}
           < TabsContent value="reservations" className="space-y-6 p-6" >
-            {/* Date Filter */}
-            {/* Date Filter */}
-            <div className="flex flex-wrap gap-2 mb-4 items-center">
-              <Button
-                variant={selectedReservationDate.toDateString() === new Date().toDateString() ? 'default' : 'outline'}
-                onClick={() => setSelectedReservationDate(new Date())}
-                size="sm"
-              >
-                <Calendar size={16} className="mr-2" />
-                Oggi ({new Date().toLocaleDateString('it-IT', { day: 'numeric', month: 'short' })})
-              </Button>
-              <Button
-                variant={selectedReservationDate.toDateString() === new Date(new Date().setDate(new Date().getDate() + 1)).toDateString() ? 'default' : 'outline'}
-                onClick={() => {
-                  const d = new Date()
-                  d.setDate(d.getDate() + 1)
-                  setSelectedReservationDate(d)
-                }}
-                size="sm"
-              >
-                <Calendar size={16} className="mr-2" />
-                Domani ({new Date(new Date().setDate(new Date().getDate() + 1)).toLocaleDateString('it-IT', { day: 'numeric', month: 'short' })})
-              </Button>
-              <Button
-                variant={selectedReservationDate.toDateString() === new Date(new Date().setDate(new Date().getDate() + 2)).toDateString() ? 'default' : 'outline'}
-                onClick={() => {
-                  const d = new Date()
-                  d.setDate(d.getDate() + 2)
-                  setSelectedReservationDate(d)
-                }}
-                size="sm"
-              >
-                <Calendar size={16} className="mr-2" />
-                {new Date(new Date().setDate(new Date().getDate() + 2)).toLocaleDateString('it-IT', { weekday: 'short', day: 'numeric', month: 'short' })}
-              </Button>
-
-              <div className="flex items-center gap-2 ml-2">
-                <Label htmlFor="custom-date" className="whitespace-nowrap text-sm">Data:</Label>
-                <Input
-                  id="custom-date"
-                  type="date"
-                  className="w-auto h-9"
-                  value={selectedReservationDate.toISOString().split('T')[0]}
-                  onChange={(e) => {
-                    if (e.target.value) {
-                      setSelectedReservationDate(new Date(e.target.value))
-                    }
-                  }}
-                />
-              </div>
-            </div>
             <ReservationsManager
               user={user}
               restaurantId={restaurantId}
@@ -1868,7 +1371,7 @@ const RestaurantDashboard = ({ user, onLogout }: RestaurantDashboardProps) => {
           < TabsContent value="settings" className="space-y-6" >
             <div className="flex items-center justify-between mb-6">
               <div className="flex items-center gap-3">
-                <div className="w-11 h-11 rounded-xl bg-gradient-to-br from-primary to-accent flex items-center justify-center text-white shadow-gold">
+                <div className="w-11 h-11 rounded-xl bg-primary/10 flex items-center justify-center text-primary">
                   <Gear size={20} weight="duotone" />
                 </div>
                 <div>
@@ -1878,10 +1381,10 @@ const RestaurantDashboard = ({ user, onLogout }: RestaurantDashboardProps) => {
               </div>
             </div>
 
-            <Card className="border border-cyan-500/30 bg-slate-900/90 shadow-[0_4px_20px_rgba(0,0,0,0.2)] text-slate-50">
+            <Card className="border-border/50 bg-card shadow-sm">
               <CardHeader>
                 <CardTitle className="text-lg font-semibold flex items-center gap-2">
-                  <span className="inline-flex h-9 w-9 items-center justify-center rounded-lg bg-white/10 text-cyan-200">
+                  <span className="inline-flex h-9 w-9 items-center justify-center rounded-lg bg-primary/10 text-primary">
                     <Gear size={18} />
                   </span>
                   Aspetto
@@ -1890,31 +1393,31 @@ const RestaurantDashboard = ({ user, onLogout }: RestaurantDashboardProps) => {
               <CardContent>
                 <div className="flex items-center justify-between">
                   <div className="space-y-1">
-                    <Label className="text-slate-100">Tema Scuro</Label>
-                    <p className="text-sm text-slate-200/80">Attiva o disattiva il tema scuro</p>
+                    <Label>Tema Scuro</Label>
+                    <p className="text-sm text-muted-foreground">Attiva o disattiva il tema scuro</p>
                   </div>
                   <ModeToggle />
                 </div>
               </CardContent>
             </Card>
 
-            <Card className="border border-cyan-500/30 bg-slate-900/90 shadow-[0_4px_20px_rgba(0,0,0,0.2)] text-slate-50">
+            <Card className="border-border/50 bg-card shadow-sm">
               <CardHeader>
                 <CardTitle className="text-lg font-semibold flex items-center gap-2">
-                  <span className="inline-flex h-9 w-9 items-center justify-center rounded-lg bg-white/10 text-cyan-200">
+                  <span className="inline-flex h-9 w-9 items-center justify-center rounded-lg bg-primary/10 text-primary">
                     <ClockCounterClockwise size={18} />
                   </span>
                   Sala & Servizio
                 </CardTitle>
-                <CardDescription className="text-slate-200/80">
+                <CardDescription>
                   Gestisci le impostazioni per il personale di sala e la modalità cameriere.
                 </CardDescription>
               </CardHeader>
               <CardContent className="space-y-6">
                 <div className="flex items-center justify-between">
                   <div className="space-y-1">
-                    <Label htmlFor="waiter-mode" className="text-slate-100">Abilita Modalità Cameriere</Label>
-                    <p className="text-sm text-slate-200/80">Permette allo staff di prendere ordini da tablet/telefono dedicato.</p>
+                    <Label htmlFor="waiter-mode">Abilita Modalità Cameriere</Label>
+                    <p className="text-sm text-muted-foreground">Permette allo staff di prendere ordini da tablet/telefono dedicato.</p>
                   </div>
                   <Switch
                     id="waiter-mode"
@@ -1929,7 +1432,7 @@ const RestaurantDashboard = ({ user, onLogout }: RestaurantDashboardProps) => {
                         } catch (error) {
                           console.error('Error updating waiter mode:', error)
                           toast.error('Errore durante il salvataggio')
-                          setWaiterModeEnabled(!checked) // Revert on error
+                          setWaiterModeEnabled(!checked)
                         }
                       }
                     }}
@@ -2005,7 +1508,7 @@ const RestaurantDashboard = ({ user, onLogout }: RestaurantDashboardProps) => {
                         } catch (error) {
                           console.error('Error updating waiter payments:', error)
                           toast.error('Errore durante il salvataggio')
-                          setAllowWaiterPayments(!checked) // Revert on error
+                          setAllowWaiterPayments(!checked)
                         }
                       }
                     }}
@@ -2015,18 +1518,18 @@ const RestaurantDashboard = ({ user, onLogout }: RestaurantDashboardProps) => {
             </Card>
 
             <div className="space-y-6">
-              <Card className="bg-slate-900/90 border-cyan-500/30 shadow-[0_4px_20px_rgba(0,0,0,0.2)]">
+              <Card className="bg-card border-border/50 shadow-sm">
                 <CardHeader>
-                  <CardTitle className="text-orange-400 flex items-center gap-2">
-                    <ForkKnife size={20} />
+                  <CardTitle className="text-foreground flex items-center gap-2">
+                    <ForkKnife size={20} className="text-primary" />
                     Impostazioni All You Can Eat
                   </CardTitle>
                   <CardDescription>
-                    Configura le opzioni per la modalità All You Can Eat. Le modifiche vengono salvate automaticamente.
+                    Configura le opzioni per la modalità All You Can Eat.
                   </CardDescription>
                 </CardHeader>
                 <CardContent className="space-y-4">
-                  <div className="flex items-center justify-between p-4 bg-black/20 rounded-lg border border-white/5">
+                  <div className="flex items-center justify-between p-4 bg-muted/30 rounded-lg border border-border/50">
                     <Label htmlFor="ayce-enabled" className="text-base font-medium">Abilita All You Can Eat</Label>
                     <Switch
                       id="ayce-enabled"
@@ -2035,7 +1538,6 @@ const RestaurantDashboard = ({ user, onLogout }: RestaurantDashboardProps) => {
                         setAyceEnabled(checked)
                         setAyceDirty(true)
                       }}
-                      className="data-[state=checked]:bg-orange-600"
                     />
                   </div>
                   {ayceEnabled && (
@@ -2051,7 +1553,7 @@ const RestaurantDashboard = ({ user, onLogout }: RestaurantDashboardProps) => {
                               setAycePrice(parseFloat(e.target.value) || 0)
                               setAyceDirty(true)
                             }}
-                            className="pl-8 border-orange-500/30 focus-visible:ring-orange-500/50"
+                            className="pl-8"
                           />
                           <span className="absolute left-3 top-2.5 text-muted-foreground">€</span>
                         </div>
@@ -2066,7 +1568,6 @@ const RestaurantDashboard = ({ user, onLogout }: RestaurantDashboardProps) => {
                             setAyceMaxOrders(parseInt(e.target.value) || 0)
                             setAyceDirty(true)
                           }}
-                          className="border-orange-500/30 focus-visible:ring-orange-500/50"
                         />
                       </div>
                     </div>
@@ -2075,20 +1576,20 @@ const RestaurantDashboard = ({ user, onLogout }: RestaurantDashboardProps) => {
               </Card>
 
               <div className="grid gap-6 md:grid-cols-2">
-                <Card className="bg-slate-900/90 border-cyan-500/30 shadow-[0_4px_20px_rgba(0,0,0,0.2)]">
+                <Card className="bg-card border-border/50 shadow-sm">
                   <CardHeader>
-                    <CardTitle className="text-orange-400 flex items-center gap-2">
-                      <Receipt size={20} />
+                    <CardTitle className="text-foreground flex items-center gap-2">
+                      <Receipt size={20} className="text-primary" />
                       Impostazioni Coperto
                     </CardTitle>
                     <CardDescription>Gestisci il costo del coperto</CardDescription>
                   </CardHeader>
                   <CardContent className="space-y-4">
-                    <div className="flex items-center justify-between p-4 bg-black/20 rounded-lg border border-white/5">
+                    <div className="flex items-center justify-between p-4 bg-muted/30 rounded-lg border border-border/50">
                       <div className="space-y-0.5">
                         <Label className="text-base font-medium">Abilita Coperto</Label>
                         <p className="text-xs text-muted-foreground">
-                          Aggiungi automaticamente il coperto al conto
+                          Aggiungi automaticamente il coperto
                         </p>
                       </div>
                       <Switch
@@ -2097,7 +1598,6 @@ const RestaurantDashboard = ({ user, onLogout }: RestaurantDashboardProps) => {
                           setCopertoEnabled(checked)
                           setCopertoDirty(true)
                         }}
-                        className="data-[state=checked]:bg-orange-600"
                       />
                     </div>
                     {copertoEnabled && (
@@ -2112,24 +1612,24 @@ const RestaurantDashboard = ({ user, onLogout }: RestaurantDashboardProps) => {
                               setCopertoPrice(parseFloat(e.target.value) || 0)
                               setCopertoDirty(true)
                             }}
-                            className="pl-8 border-orange-500/30 focus-visible:ring-orange-500/50"
+                            className="pl-8"
                           />
                           <span className="absolute left-3 top-2.5 text-muted-foreground">€</span>
                         </div>
                       </div>
                     )}
                     {copertoDirty && (
-                      <Button onClick={saveCopertoSettings} className="w-full bg-orange-600 hover:bg-orange-700 text-white">
+                      <Button onClick={saveCopertoSettings} className="w-full">
                         Salva Impostazioni Coperto
                       </Button>
                     )}
                   </CardContent>
                 </Card>
 
-                <Card className="bg-slate-900/90 border-cyan-500/30 shadow-[0_4px_20px_rgba(0,0,0,0.2)]">
+                <Card className="bg-card border-border/50 shadow-sm">
                   <CardHeader>
-                    <CardTitle className="text-orange-400 flex items-center gap-2">
-                      <Clock size={20} />
+                    <CardTitle className="text-foreground flex items-center gap-2">
+                      <Clock size={20} className="text-primary" />
                       Orari di Apertura
                     </CardTitle>
                     <CardDescription>Imposta gli orari per le prenotazioni</CardDescription>
@@ -2163,7 +1663,7 @@ const RestaurantDashboard = ({ user, onLogout }: RestaurantDashboardProps) => {
         </Tabs >
       </div >
 
-      {/* Table Activation Dialog */}
+      {/* Dialogs ... (Same as before) */}
       < Dialog open={showTableDialog && !!selectedTable} onOpenChange={(open) => { if (!open) { setSelectedTable(null); setShowTableDialog(false) } }}>
         <DialogContent>
           <DialogHeader>
@@ -2193,7 +1693,6 @@ const RestaurantDashboard = ({ user, onLogout }: RestaurantDashboardProps) => {
         </DialogContent>
       </Dialog >
 
-      {/* Create Table Dialog */}
       < Dialog open={showCreateTableDialog} onOpenChange={setShowCreateTableDialog} >
         <DialogContent>
           <DialogHeader>
@@ -2216,7 +1715,6 @@ const RestaurantDashboard = ({ user, onLogout }: RestaurantDashboardProps) => {
         </DialogContent>
       </Dialog >
 
-      {/* QR Code Dialog */}
       < Dialog open={showQrDialog} onOpenChange={(open) => setShowQrDialog(open)}>
         <DialogContent className="sm:max-w-md">
           <DialogHeader>
@@ -2245,7 +1743,6 @@ const RestaurantDashboard = ({ user, onLogout }: RestaurantDashboardProps) => {
         </DialogContent>
       </Dialog >
 
-      {/* Edit Category Dialog */}
       < Dialog open={!!editingCategory} onOpenChange={(open) => { if (!open) handleCancelEdit() }}>
         <DialogContent>
           <DialogHeader>
@@ -2267,7 +1764,6 @@ const RestaurantDashboard = ({ user, onLogout }: RestaurantDashboardProps) => {
         </DialogContent>
       </Dialog >
 
-      {/* Edit Dish Dialog */}
       < Dialog open={!!editingDish} onOpenChange={(open) => { if (!open) handleCancelDishEdit() }}>
         <DialogContent>
           <DialogHeader>
@@ -2325,24 +1821,6 @@ const RestaurantDashboard = ({ user, onLogout }: RestaurantDashboardProps) => {
                   accept="image/*"
                   onChange={(e) => handleImageChange(e, true)}
                 />
-                {editDishData.image && (
-                  <div className="relative group">
-                    <img
-                      src={editDishData.image}
-                      alt="Preview"
-                      className="w-full h-32 object-cover rounded-lg border-2 border-border"
-                    />
-                    <div className="absolute inset-0 bg-black/30 opacity-0 group-hover:opacity-100 transition flex items-center justify-center gap-2">
-                      <Button
-                        variant="secondary"
-                        size="sm"
-                        onClick={() => setEditDishData({ ...editDishData, image: '', imageFile: undefined })}
-                      >
-                        Rimuovi
-                      </Button>
-                    </div>
-                  </div>
-                )}
               </div>
             </div>
             <div className="space-y-2">
@@ -2354,12 +1832,10 @@ const RestaurantDashboard = ({ user, onLogout }: RestaurantDashboardProps) => {
               />
             </div>
             <div className="flex items-center space-x-2 pt-4">
-              <input
-                type="checkbox"
+              <Switch
                 id="edit_is_ayce"
-                className="h-4 w-4 rounded border-gray-300 text-primary focus:ring-primary"
                 checked={editDishData.is_ayce}
-                onChange={(e) => setEditDishData({ ...editDishData, is_ayce: e.target.checked })}
+                onCheckedChange={(checked) => setEditDishData({ ...editDishData, is_ayce: checked })}
               />
               <Label htmlFor="edit_is_ayce">Incluso in All You Can Eat</Label>
             </div>
@@ -2368,7 +1844,6 @@ const RestaurantDashboard = ({ user, onLogout }: RestaurantDashboardProps) => {
         </DialogContent>
       </Dialog >
 
-      {/* Table QR & PIN Dialog */}
       < Dialog open={showTableQrDialog} onOpenChange={(open) => setShowTableQrDialog(open)}>
         <DialogContent className="sm:max-w-md">
           <DialogHeader>
@@ -2399,7 +1874,6 @@ const RestaurantDashboard = ({ user, onLogout }: RestaurantDashboardProps) => {
         </DialogContent>
       </Dialog >
 
-      {/* Table Bill Dialog */}
       < Dialog open={showTableBillDialog} onOpenChange={(open) => setShowTableBillDialog(open)}>
         <DialogContent className="sm:max-w-lg">
           <DialogHeader>
@@ -2413,13 +1887,11 @@ const RestaurantDashboard = ({ user, onLogout }: RestaurantDashboardProps) => {
               const session = sessions?.find(s => s.table_id === selectedTableForActions.id && s.status === 'OPEN')
               const customerCount = session?.customer_count || 1
 
-              // Filter orders to ONLY those belonging to the current active session
               const tableOrders = restaurantOrders.filter(o => o.table_session_id === session?.id)
               const completedOrders = restaurantCompletedOrders.filter(o => o.table_session_id === session?.id)
               const allOrders = [...tableOrders, ...completedOrders]
 
               let subtotal = 0
-              // Use local state for immediate feedback
               const isAyceActive = ayceEnabled
               const isCoverActive = copertoEnabled
 
@@ -2483,7 +1955,7 @@ const RestaurantDashboard = ({ user, onLogout }: RestaurantDashboardProps) => {
                       Svuota Tavolo
                     </Button>
                     <Button
-                      className="bg-green-600 hover:bg-green-700"
+                      className="bg-green-600 hover:bg-green-700 text-white"
                       onClick={() => selectedTableForActions && handleCloseTable(selectedTableForActions.id, true)}
                     >
                       Segna Pagato
