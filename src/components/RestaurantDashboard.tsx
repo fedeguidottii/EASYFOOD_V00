@@ -55,7 +55,6 @@ import AnalyticsCharts from './AnalyticsCharts'
 import { useRestaurantLogic } from '../hooks/useRestaurantLogic'
 import { ModeToggle } from './mode-toggle'
 import { KitchenView } from './KitchenView'
-import AIAnalyticsSection from './AIAnalyticsSection'
 
 interface RestaurantDashboardProps {
   user: User
@@ -2481,12 +2480,6 @@ const RestaurantDashboard = ({ user, onLogout }: RestaurantDashboardProps) => {
           </div>
         </DialogContent>
       </Dialog >
-
-      <AIAnalyticsSection
-        orders={restaurantOrders}
-        dishes={restaurantDishes}
-        categories={restaurantCategories}
-      />
 
     </div >
   )

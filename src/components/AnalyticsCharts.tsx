@@ -9,6 +9,7 @@ import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, BarChart, Bar, Area, AreaChart } from 'recharts'
 import { TrendUp, CurrencyEur, Users, ShoppingBag, Clock, ChartLine, CalendarBlank, List, CaretDown } from '@phosphor-icons/react'
 import type { Order, Dish, Category, OrderItem } from '../services/types'
+import AIAnalyticsSection from './AIAnalyticsSection'
 
 interface AnalyticsChartsProps {
   orders: Order[]
