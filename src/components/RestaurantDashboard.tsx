@@ -1387,25 +1387,29 @@ const RestaurantDashboard = ({ user, onLogout }: RestaurantDashboardProps) => {
                 const activeOrder = restaurantOrders.find(o => getTableIdFromOrder(o) === table.id)
 
                 return (
-                  <Card key={table.id} className={`relative overflow-hidden transition-all duration-300 hover:shadow-xl border-border/40 group ${isActive ? 'bg-gradient-to-br from-card to-orange-950/20 border-orange-500/30' : 'bg-card hover:border-primary/30'}`}>
+                  <Card
+                    key={table.id}
+                    className={`relative overflow-hidden transition-all duration-300 group ${isActive
+                      ? 'bg-gradient-to-br from-card to-amber-950/10 shadow-lg shadow-amber-500/20 hover:shadow-xl hover:shadow-amber-500/30'
+                      : 'bg-card shadow-md hover:shadow-lg hover:shadow-primary/10'
+                      }`}
+                  >
                     <CardContent className="p-0 flex flex-col h-full">
-                      {/* Header */}
-                      <div className={`p-4 flex items-center justify-between border-b border-border/10 ${isActive ? 'bg-orange-500/10' : 'bg-muted/30'}`}>
-                        <span className={`text-xl font-bold ${isActive ? 'text-orange-400' : 'text-foreground'}`}>
+                      <div className={`p-4 flex items-center justify-between border-b border-border/10 ${isActive ? 'bg-amber-500/5' : 'bg-muted/30'}`}>
+                        <span className={`text-xl font-bold ${isActive ? 'text-amber-500' : 'text-foreground'}`}>
                           {table.number}
                         </span>
-                        <Badge variant={isActive ? 'default' : 'outline'} className={`${isActive ? 'bg-orange-500/20 text-orange-400 border-orange-500/50 hover:bg-orange-500/30' : 'text-muted-foreground border-border'}`}>
+                        <Badge variant={isActive ? 'default' : 'outline'} className={`${isActive ? 'bg-amber-500/15 text-amber-600 border-amber-500/40 hover:bg-amber-500/25' : 'text-muted-foreground border-border'}`}>
                           {isActive ? 'Occupato' : 'Libero'}
                         </Badge>
                       </div>
 
-                      {/* Body */}
                       <div className="flex-1 p-6 flex flex-col items-center justify-center gap-4">
                         {isActive ? (
                           <>
                             <div className="text-center">
                               <p className="text-xs text-muted-foreground mb-1 uppercase tracking-widest">PIN Tavolo</p>
-                              <span className="text-4xl font-mono font-bold tracking-widest text-orange-400 drop-shadow-sm">
+                              <span className="text-4xl font-mono font-bold tracking-widest text-amber-500 drop-shadow-sm">
                                 {session?.session_pin || '...'}
                               </span>
                             </div>
