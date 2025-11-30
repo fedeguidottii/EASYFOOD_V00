@@ -309,7 +309,7 @@ export default function AdminDashboard({ user, onLogout }: Props) {
   }
 
   return (
-    <div className="min-h-screen bg-background">
+    <div className="min-h-screen bg-slate-950 text-slate-200">
       {/* Header */}
       <header className="border-b bg-card/50 backdrop-blur-sm sticky top-0 z-50">
         <div className="container mx-auto px-4 py-4">
@@ -471,110 +471,105 @@ export default function AdminDashboard({ user, onLogout }: Props) {
                 const isPasswordVisible = visiblePasswords[restaurant.id]
 
                 return (
-                  <Card key={restaurant.id} className="overflow-hidden">
-                    <CardContent className="p-0">
-                      <div className={`flex flex-col md:flex-row items-center p-4 gap-4 transition-all duration-300 ${!restaurant.isActive ? 'opacity-50 grayscale bg-muted/30' : ''}`}>
-
-                        {/* Left: Logo */}
-                        <div className="flex-shrink-0">
-                          {restaurant.logo_url ? (
-                            <img src={restaurant.logo_url} alt={restaurant.name} className="w-12 h-12 rounded-full object-cover border bg-background" />
-                          ) : (
-                            <div className="w-12 h-12 rounded-full bg-muted flex items-center justify-center border">
-                              <Buildings size={20} className="text-muted-foreground" />
-                            </div>
-                          )}
+                  <div
+                    key={restaurant.id}
+                    className={`
+                      group relative flex flex-col md:flex-row items-center p-4 gap-4 mb-3 rounded-xl transition-all duration-300
+                      bg-slate-900/50 border border-slate-800 backdrop-blur-sm
+                      hover:border-cyan-500/50 hover:shadow-[0_0_15px_-5px_rgba(6,182,212,0.3)]
+                      ${!restaurant.isActive ? 'opacity-60 grayscale-[0.5]' : ''}
+                    `}
+                  >
+                    {/* Left: Logo */}
+                    <div className="flex-shrink-0 relative">
+                      {restaurant.logo_url ? (
+                        <img src={restaurant.logo_url} alt={restaurant.name} className="w-14 h-14 rounded-full object-cover border-2 border-slate-700 group-hover:border-cyan-500/50 transition-colors" />
+                      ) : (
+                        <div className="w-14 h-14 rounded-full bg-slate-800 flex items-center justify-center border-2 border-slate-700 group-hover:border-cyan-500/50 transition-colors">
+                          <Buildings size={24} className="text-slate-400 group-hover:text-cyan-400" />
                         </div>
+                      )}
+                      {/* Status LED */}
+                      <div className={`absolute -bottom-1 -right-1 h-4 w-4 rounded-full border-2 border-slate-900 ${restaurant.isActive ? 'bg-emerald-500 shadow-[0_0_10px_#10b981] animate-pulse' : 'bg-rose-500 shadow-[0_0_10px_#f43f5e]'}`} />
+                    </div>
 
-                        {/* Center: Info */}
-                        <div className="flex-1 min-w-0 grid grid-cols-1 md:grid-cols-2 gap-4 items-center">
-                          <div className="space-y-1">
-                            <div className="flex items-center gap-2">
-                              <h3 className="text-base font-bold truncate">{restaurant.name}</h3>
-                              {restaurant.isActive && (
-                                <Badge variant="default" className="text-xs px-2 py-0 h-5">
-                                  Attivo
-                                </Badge>
-                              )}
-                            </div>
-                            <div className="text-xs text-muted-foreground flex items-center gap-3 truncate">
-                              <span>{restaurant.email}</span>
-                              <span className="w-1 h-1 rounded-full bg-border" />
-                              <span>{restaurant.phone}</span>
-                            </div>
-                          </div>
-
-                          {/* Credentials (Compact) */}
-                          {restaurantUser && (
-                            <div className="text-xs text-muted-foreground bg-muted/50 p-2 rounded border flex items-center justify-between gap-2">
-                              <div className="truncate">
-                                <span className="font-medium text-foreground">{restaurantUser.name}</span>
-                              </div>
-                              <div className="flex items-center gap-2 flex-shrink-0">
-                                <span className="font-mono bg-background px-1 rounded border">
-                                  {isPasswordVisible ? restaurantUser.password_hash : '••••••••'}
-                                </span>
-                                <button
-                                  onClick={() => togglePasswordVisibility(restaurant.id)}
-                                  className="text-muted-foreground hover:text-foreground p-1 hover:bg-background rounded"
-                                >
-                                  {isPasswordVisible ? <EyeSlash size={12} /> : <Eye size={12} />}
-                                </button>
-                              </div>
-                            </div>
-                          )}
+                    {/* Center: Info */}
+                    <div className="flex-1 min-w-0 grid grid-cols-1 md:grid-cols-2 gap-6 items-center w-full">
+                      <div className="space-y-1">
+                        <h3 className="text-lg font-bold text-white tracking-tight group-hover:text-cyan-400 transition-colors truncate">
+                          {restaurant.name}
+                        </h3>
+                        <div className="text-xs text-slate-400 flex items-center gap-3 truncate font-medium">
+                          <span className="flex items-center gap-1"><span className="w-1.5 h-1.5 rounded-full bg-slate-600"></span>{restaurant.email}</span>
+                          <span className="flex items-center gap-1"><span className="w-1.5 h-1.5 rounded-full bg-slate-600"></span>{restaurant.phone}</span>
                         </div>
-
-                        {/* Right: Actions */}
-                        <div className="flex items-center gap-1 flex-shrink-0 border-l pl-4 ml-2">
-                          <Button
-                            variant="ghost"
-                            size="icon"
-                            className="h-8 w-8 text-muted-foreground hover:text-primary"
-                            onClick={() => handlePopulateData(restaurant.id)}
-                            title="Popola Dati Demo"
-                          >
-                            <Database size={16} />
-                          </Button>
-
-                          <Button
-                            variant="ghost"
-                            size="icon"
-                            className={`h-8 w-8 ${restaurant.isActive ? 'text-muted-foreground hover:text-destructive' : 'text-muted-foreground hover:text-green-600'}`}
-                            onClick={() => handleToggleActive(restaurant)}
-                            title={restaurant.isActive ? "Disattiva" : "Attiva"}
-                          >
-                            {restaurant.isActive ? (
-                              <Eye size={18} />
-                            ) : (
-                              <EyeSlash size={18} />
-                            )}
-                          </Button>
-
-                          <Button
-                            variant="ghost"
-                            size="icon"
-                            className="h-8 w-8 text-muted-foreground hover:text-foreground"
-                            onClick={() => handleEditRestaurant(restaurant)}
-                            title="Modifica"
-                          >
-                            <PencilSimple size={16} />
-                          </Button>
-
-                          <Button
-                            variant="ghost"
-                            size="icon"
-                            className="h-8 w-8 text-muted-foreground hover:text-destructive hover:bg-destructive/10"
-                            onClick={() => handleDeleteRestaurant(restaurant.id)}
-                            title="Elimina"
-                          >
-                            <Trash size={16} />
-                          </Button>
-                        </div>
-
                       </div>
-                    </CardContent>
-                  </Card>
+
+                      {/* Credentials (Glass Pill) */}
+                      {restaurantUser && (
+                        <div className="flex items-center justify-between gap-3 bg-slate-950/50 border border-slate-800 rounded-lg px-4 py-2 hover:border-slate-700 transition-colors">
+                          <div className="flex flex-col">
+                            <span className="text-[10px] uppercase tracking-wider text-slate-500 font-bold">Proprietario</span>
+                            <span className="text-sm font-medium text-slate-200 truncate">{restaurantUser.name}</span>
+                          </div>
+                          <div className="flex items-center gap-2 bg-slate-900 rounded px-2 py-1 border border-slate-800">
+                            <span className="font-mono text-xs text-cyan-400">
+                              {isPasswordVisible ? restaurantUser.password_hash : '••••••••'}
+                            </span>
+                            <button
+                              onClick={() => togglePasswordVisibility(restaurant.id)}
+                              className="text-slate-500 hover:text-white transition-colors"
+                            >
+                              {isPasswordVisible ? <EyeSlash size={14} /> : <Eye size={14} />}
+                            </button>
+                          </div>
+                        </div>
+                      )}
+                    </div>
+
+                    {/* Right: Actions */}
+                    <div className="flex items-center gap-2 md:border-l md:border-slate-800 md:pl-4 md:ml-2 w-full md:w-auto justify-end">
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        className="h-9 w-9 rounded-full text-slate-400 hover:text-white hover:bg-cyan-500/10 hover:shadow-[0_0_10px_rgba(6,182,212,0.2)] transition-all"
+                        onClick={() => handlePopulateData(restaurant.id)}
+                        title="Popola Dati Demo"
+                      >
+                        <Database size={18} />
+                      </Button>
+
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        className={`h-9 w-9 rounded-full transition-all ${restaurant.isActive ? 'text-slate-400 hover:text-rose-400 hover:bg-rose-500/10 hover:shadow-[0_0_10px_rgba(244,63,94,0.2)]' : 'text-slate-400 hover:text-emerald-400 hover:bg-emerald-500/10 hover:shadow-[0_0_10px_rgba(16,185,129,0.2)]'}`}
+                        onClick={() => handleToggleActive(restaurant)}
+                        title={restaurant.isActive ? "Disattiva" : "Attiva"}
+                      >
+                        {restaurant.isActive ? <Eye size={18} /> : <EyeSlash size={18} />}
+                      </Button>
+
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        className="h-9 w-9 rounded-full text-slate-400 hover:text-white hover:bg-amber-500/10 hover:shadow-[0_0_10px_rgba(245,158,11,0.2)] transition-all"
+                        onClick={() => handleEditRestaurant(restaurant)}
+                        title="Modifica"
+                      >
+                        <PencilSimple size={18} />
+                      </Button>
+
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        className="h-9 w-9 rounded-full text-slate-400 hover:text-rose-500 hover:bg-rose-500/10 hover:shadow-[0_0_10px_rgba(244,63,94,0.2)] transition-all"
+                        onClick={() => handleDeleteRestaurant(restaurant.id)}
+                        title="Elimina"
+                      >
+                        <Trash size={18} />
+                      </Button>
+                    </div>
+                  </div>
                 )
               })}
 

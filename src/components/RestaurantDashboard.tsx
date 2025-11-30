@@ -1378,99 +1378,94 @@ const RestaurantDashboard = ({ user, onLogout }: RestaurantDashboardProps) => {
               </div>
             </div>
 
-            <div className="grid gap-6 grid-cols-[repeat(auto-fill,minmax(220px,1fr))]">
+            <div className="grid gap-6 grid-cols-[repeat(auto-fill,minmax(220px,1fr))] p-6 rounded-3xl bg-slate-950 bg-[radial-gradient(#ffffff15_1px,transparent_1px)] [background-size:16px_16px] border border-white/5 shadow-inner">
               {restaurantTables.map(table => {
                 const session = getOpenSessionForTable(table.id)
                 const isActive = session?.status === 'OPEN'
                 const activeOrder = restaurantOrders.find(o => getTableIdFromOrder(o) === table.id)
 
                 return (
-                  <Card key={table.id} className={`relative overflow-hidden transition-all duration-300 hover:shadow-md border-none shadow-sm group ${isActive
-                    ? 'bg-gradient-to-br from-amber-50 to-white dark:from-amber-950/20 dark:to-background'
-                    : 'bg-gradient-to-br from-green-50 to-white dark:from-green-950/20 dark:to-background'
-                    }`}>
-                    {/* Status Indicator Bar */}
-                    <div className={`absolute top-0 left-0 right-0 h-1 ${isActive ? 'bg-amber-500/50' : 'bg-green-500/50'}`} />
+                  <div key={table.id} className="relative group">
+                    {/* Stylized Chairs (Visual Decoration) */}
+                    <div className="absolute inset-0 pointer-events-none">
+                      {/* Top Chair */}
+                      <div className="absolute -top-3 left-1/2 -translate-x-1/2 w-12 h-2 bg-slate-700 rounded-full opacity-50" />
+                      {/* Bottom Chair */}
+                      <div className="absolute -bottom-3 left-1/2 -translate-x-1/2 w-12 h-2 bg-slate-700 rounded-full opacity-50" />
+                      {/* Left Chair (if > 2 seats) */}
+                      {(table.seats || 0) > 2 && <div className="absolute top-1/2 -left-3 -translate-y-1/2 w-2 h-12 bg-slate-700 rounded-full opacity-50" />}
+                      {/* Right Chair (if > 2 seats) */}
+                      {(table.seats || 0) > 2 && <div className="absolute top-1/2 -right-3 -translate-y-1/2 w-2 h-12 bg-slate-700 rounded-full opacity-50" />}
+                    </div>
 
-                    <CardContent className="p-6 flex flex-col h-full justify-between gap-6">
-                      {/* Header */}
-                      <div className="flex justify-between items-start">
-                        <div>
-                          <span className="text-3xl font-bold text-foreground tracking-tight">
+                    {/* The Table Object */}
+                    <Card className={`
+                      relative overflow-hidden transition-all duration-500 border-2
+                      bg-slate-900/80 backdrop-blur-md
+                      ${isActive
+                        ? 'border-rose-500/50 shadow-[0_0_30px_-5px_rgba(244,63,94,0.3)] hover:shadow-[0_0_40px_-5px_rgba(244,63,94,0.5)]'
+                        : 'border-emerald-500/50 shadow-[0_0_30px_-5px_rgba(16,185,129,0.3)] hover:shadow-[0_0_40px_-5px_rgba(16,185,129,0.5)]'
+                      }
+                    `}>
+                      <CardContent className="p-6 flex flex-col items-center justify-center min-h-[160px] gap-4">
+
+                        {/* Table Number */}
+                        <div className="relative z-10 text-center">
+                          <span className={`text-4xl font-light tracking-tighter ${isActive ? 'text-rose-100' : 'text-emerald-100'}`}>
                             {table.number}
                           </span>
-                          <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider mt-1">
+                          <p className="text-[10px] uppercase tracking-[0.2em] text-slate-400 mt-1 font-medium">
                             {table.seats} Posti
                           </p>
                         </div>
-                        <div className={`p-2 rounded-full ${isActive ? 'bg-amber-100 dark:bg-amber-900/30 text-amber-600 dark:text-amber-400' : 'bg-green-100 dark:bg-green-900/30 text-green-600 dark:text-green-400'}`}>
-                          {isActive ? <Clock size={20} weight="duotone" /> : <CheckCircle size={20} weight="duotone" />}
-                        </div>
-                      </div>
 
-                      {/* Body */}
-                      <div className="flex-1 flex flex-col items-center justify-center py-2">
-                        {isActive ? (
-                          <div className="text-center w-full space-y-3">
-                            <div>
-                              <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest mb-1">PIN Accesso</p>
-                              <span className="text-2xl font-mono font-bold tracking-widest text-foreground">
-                                {session?.session_pin || '...'}
-                              </span>
-                            </div>
-                            {activeOrder && (
-                              <div className="flex items-center justify-center gap-2 text-xs font-medium text-muted-foreground bg-background/50 p-2 rounded-lg">
-                                <span className="w-2 h-2 rounded-full bg-blue-500 animate-pulse"></span>
-                                {activeOrder.items?.filter(i => i.status === 'SERVED').length || 0} piatti serviti
+                        {/* Status Indicator (Center Glow) */}
+                        <div className={`absolute inset-0 opacity-20 ${isActive ? 'bg-rose-500' : 'bg-emerald-500'} blur-3xl`} />
+
+                        {/* Info / Actions */}
+                        <div className="relative z-10 flex flex-col items-center gap-2 w-full">
+                          {isActive ? (
+                            <>
+                              <div className="flex items-center gap-2 bg-rose-950/50 px-3 py-1 rounded-full border border-rose-500/30">
+                                <Clock size={14} className="text-rose-400" />
+                                <span className="text-xs font-mono text-rose-200">{session?.session_pin}</span>
                               </div>
-                            )}
-                          </div>
-                        ) : (
-                          <div className="text-center text-muted-foreground/50">
-                            <p className="text-xs font-medium uppercase tracking-widest">Disponibile</p>
-                          </div>
-                        )}
-                      </div>
-
-                      {/* Actions */}
-                      <div className="p-4 bg-muted/10 border-t border-border/10 grid gap-2">
-                        {isActive ? (
-                          <>
-                            <div className="grid grid-cols-2 gap-2">
-                              <Button variant="outline" size="sm" onClick={() => handleShowTableQr(table)}>
-                                <QrCode size={16} className="mr-2" />
-                                QR
-                              </Button>
+                              {activeOrder && (
+                                <div className="text-[10px] text-rose-300 font-medium animate-pulse">
+                                  {activeOrder.items?.filter(i => i.status === 'SERVED').length || 0} piatti serviti
+                                </div>
+                              )}
                               <Button
-                                className="shadow-sm hover:shadow-md transition-all"
+                                size="sm"
+                                variant="ghost"
+                                className="h-8 w-full mt-2 text-rose-200 hover:text-white hover:bg-rose-500/20"
                                 onClick={() => { setSelectedTableForActions(table); setShowTableBillDialog(true); }}
                               >
                                 <Receipt size={16} className="mr-2" />
                                 Conto
                               </Button>
-                            </div>
-                          </>
-                        ) : (
-                          <Button
-                            className="w-full bg-primary hover:bg-primary/90 shadow-sm hover:shadow-md transition-all"
-                            onClick={() => handleToggleTable(table.id)}
-                          >
-                            Attiva Tavolo
-                          </Button>
-                        )}
-                      </div>
-
-                      {/* Management Actions (Hover) */}
-                      <div className="absolute top-2 right-12 opacity-0 group-hover:opacity-100 transition-opacity flex gap-1">
-                        <Button variant="ghost" size="icon" className="h-8 w-8 hover:bg-background/80" onClick={() => handleEditTable(table)}>
-                          <PencilSimple size={14} />
-                        </Button>
-                        <Button variant="ghost" size="icon" className="h-8 w-8 text-destructive hover:bg-destructive/10" onClick={() => handleDeleteTable(table.id)}>
-                          <Trash size={14} />
-                        </Button>
-                      </div>
-                    </CardContent>
-                  </Card>
+                            </>
+                          ) : (
+                            <>
+                              <div className="flex items-center gap-2 bg-emerald-950/50 px-3 py-1 rounded-full border border-emerald-500/30">
+                                <CheckCircle size={14} className="text-emerald-400" />
+                                <span className="text-xs text-emerald-200">Libero</span>
+                              </div>
+                              <Button
+                                size="sm"
+                                variant="ghost"
+                                className="h-8 w-full mt-2 text-emerald-200 hover:text-white hover:bg-emerald-500/20"
+                                onClick={() => handleShowTableQr(table)}
+                              >
+                                <QrCode size={16} className="mr-2" />
+                                QR Code
+                              </Button>
+                            </>
+                          )}
+                        </div>
+                      </CardContent>
+                    </Card>
+                  </div>
                 )
               })}
             </div>

@@ -3,8 +3,8 @@ import { GoogleGenerativeAI } from '@google/generative-ai'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { ScrollArea } from '@/components/ui/scroll-area'
-import { Sparkle, PaperPlaneRight, X, CaretUp, Robot } from '@phosphor-icons/react'
-import { Card, CardContent } from '@/components/ui/card'
+import { Sparkle, PaperPlaneRight, X, CaretUp, Robot, Lightning, WarningCircle } from '@phosphor-icons/react'
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card'
 import { cn } from '@/lib/utils'
 import type { Order, Dish, Category, Table, Booking } from '../services/types'
 
@@ -19,15 +19,14 @@ interface AIAnalyticsSectionProps {
 
 interface Message {
     role: 'user' | 'model'
-    content: string
+    text: string
 }
 
 export default function AIAnalyticsSection({ orders, completedOrders, dishes, categories, tables, bookings }: AIAnalyticsSectionProps) {
-    const [isOpen, setIsOpen] = useState(false)
-    const [messages, setMessages] = useState<Message[]>([])
-    const [input, setInput] = useState('')
-    const [isLoading, setIsLoading] = useState(false)
-    const [chatSession, setChatSession] = useState<any>(null)
+    const [inputMessage, setInputMessage] = useState('')
+    const [loading, setLoading] = useState(false)
+    const [chatSession, setChatSession] = useState<Message[] | null>(null)
+    const [error, setError] = useState<string | null>(null)
     const scrollRef = useRef<HTMLDivElement>(null)
 
     const apiKey = import.meta.env.VITE_GEMINI_API_KEY || "AIzaSyCKgah6OfjQ9E9cgxEwKEsGBsUslCvkN7Q"
@@ -36,155 +35,187 @@ export default function AIAnalyticsSection({ orders, completedOrders, dishes, ca
         if (scrollRef.current) {
             scrollRef.current.scrollTop = scrollRef.current.scrollHeight
         }
-    }, [messages])
+    }, [chatSession])
 
-    const initializeChat = async () => {
+    const generateReport = async () => {
         if (!apiKey) {
-            setMessages([{ role: 'model', content: '⚠️ API Key mancante. Controlla la configurazione.' }])
+            setError("Chiave API mancante. Controlla la configurazione.")
             return
         }
 
+        setLoading(true)
+        setError(null)
+
         try {
             const genAI = new GoogleGenerativeAI(apiKey)
-            const model = genAI.getGenerativeModel({ model: 'gemini-1.5-flash' })
+            const model = genAI.getGenerativeModel({ model: 'gemini-1.5-pro' })
 
             const fullContext = {
                 menu: { categories, dishes },
-                orders: { active: orders, completed: completedOrders },
-                tables,
-                bookings
+                orders: orders,
+                tables: tables,
+                bookings: bookings
             }
 
-            const systemPrompt = `Sei il Manager virtuale di questo ristorante. Hai accesso al database completo: ${JSON.stringify(fullContext)}.
-Analizza tutto: efficienza menu, incassi, piatti "morti" che non si vendono, orari di punta e sprechi.
-Dammi un report brutale e onesto su come migliorare il business. Sii pratico. Usa emoji.
-Rispondi sempre in italiano.`
+            const prompt = `
+            Sei il Manager Virtuale di questo ristorante. Analizza i dati seguenti e fornisci un report BRUTALE e ONESTO su come migliorare il business.
+            Usa emoji, sii diretto, parla in italiano.
+            
+            DATI RISTORANTE:
+            ${JSON.stringify(fullContext, null, 2)}
+            `
 
-            const chat = model.startChat({
-                history: [
-                    {
-                        role: 'user',
-                        parts: [{ text: systemPrompt }],
-                    },
-                ],
-            })
-
-            setChatSession(chat)
-            setIsLoading(true)
-
-            const result = await chat.sendMessage("Genera il report iniziale.")
-            const response = await result.response
+            const result = await model.generateContent(prompt)
+            const response = result.response
             const text = response.text()
 
-            setMessages([{ role: 'model', content: text }])
-            setIsLoading(false)
+            setChatSession([{ role: 'model', text: text }])
         } catch (error) {
             console.error("Gemini Error:", error)
-            setMessages([{ role: 'model', content: '❌ Errore durante l\'inizializzazione dell\'AI.' }])
-            setIsLoading(false)
+            setError("Errore IA: Verifica la chiave API o riprova più tardi.")
+        } finally {
+            setLoading(false)
         }
     }
 
-    const handleSend = async () => {
-        if (!input.trim() || !chatSession) return
+    const handleSendMessage = async () => {
+        if (!inputMessage.trim() || !chatSession) return
 
-        const userMsg = input
-        setInput('')
-        setMessages(prev => [...prev, { role: 'user', content: userMsg }])
-        setIsLoading(true)
+        const newMessage: Message = { role: 'user', text: inputMessage }
+        setChatSession(prev => [...(prev || []), newMessage])
+        setInputMessage('')
+        setLoading(true)
+        setError(null)
 
         try {
-            const result = await chatSession.sendMessage(userMsg)
-            const response = await result.response
+            const genAI = new GoogleGenerativeAI(apiKey)
+            const model = genAI.getGenerativeModel({ model: 'gemini-1.5-pro' })
+
+            const history = chatSession.map((msg: Message) => ({
+                role: msg.role === 'model' ? 'model' : 'user',
+                parts: [{ text: msg.text }]
+            }))
+
+            const chat = model.startChat({
+                history: history
+            })
+
+            const result = await chat.sendMessage(inputMessage)
+            const response = result.response
             const text = response.text()
-            setMessages(prev => [...prev, { role: 'model', content: text }])
+            setChatSession(prev => [...(prev || []), { role: 'model', text: text }])
         } catch (error) {
             console.error("Gemini Error:", error)
-            setMessages(prev => [...prev, { role: 'model', content: '❌ Errore nella risposta.' }])
+            setError("Errore nella risposta. Riprova.")
         } finally {
-            setIsLoading(false)
+            setLoading(false)
         }
-    }
-
-    const toggleOpen = () => {
-        if (!isOpen && messages.length === 0) {
-            initializeChat()
-        }
-        setIsOpen(!isOpen)
     }
 
     return (
-        <div className="mt-8 w-full">
-            {!isOpen ? (
-                <div
-                    onClick={toggleOpen}
-                    className="w-full bg-slate-900 border border-cyan-500/50 rounded-xl p-6 cursor-pointer hover:bg-slate-800 transition-all duration-300 group relative overflow-hidden shadow-[0_0_20px_rgba(6,182,212,0.15)]"
-                >
-                    <div className="absolute inset-0 bg-gradient-to-r from-cyan-500/10 via-transparent to-cyan-500/10 opacity-0 group-hover:opacity-100 transition-opacity duration-500 animate-pulse" />
-                    <div className="flex items-center justify-center gap-3 text-cyan-400 font-bold tracking-widest text-lg">
-                        <Sparkle weight="fill" className="animate-pulse" />
-                        <span>AI MANAGER INTELLIGENCE - CLICCA PER ANALISI COMPLETA</span>
-                        <Sparkle weight="fill" className="animate-pulse" />
-                    </div>
-                </div>
-            ) : (
-                <Card className="w-full bg-slate-950 border-cyan-500/50 shadow-2xl overflow-hidden animate-in slide-in-from-bottom-10 fade-in duration-300">
-                    <div className="bg-slate-900/50 p-4 border-b border-cyan-500/30 flex justify-between items-center">
-                        <div className="flex items-center gap-2 text-cyan-400 font-bold">
-                            <Robot size={24} weight="duotone" />
-                            <span>AI RESTAURANT MANAGER</span>
+        <Card className="border-none shadow-2xl bg-gradient-to-br from-slate-900 via-slate-950 to-black text-white overflow-hidden relative group">
+            <div className="absolute inset-0 bg-[url('https://grainy-gradients.vercel.app/noise.svg')] opacity-20 brightness-100 contrast-150 mix-blend-overlay pointer-events-none"></div>
+            <div className="absolute -top-24 -right-24 w-64 h-64 bg-cyan-500/20 rounded-full blur-3xl animate-pulse"></div>
+            <div className="absolute -bottom-24 -left-24 w-64 h-64 bg-purple-500/20 rounded-full blur-3xl animate-pulse delay-1000"></div>
+
+            <CardHeader className="relative z-10 border-b border-white/10 bg-white/5 backdrop-blur-md">
+                <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-3">
+                        <div className="p-2 bg-gradient-to-br from-cyan-400 to-blue-600 rounded-xl shadow-lg shadow-cyan-500/20">
+                            <Sparkle size={24} weight="fill" className="text-white animate-pulse" />
                         </div>
-                        <Button variant="ghost" size="icon" onClick={() => setIsOpen(false)} className="text-slate-400 hover:text-white">
-                            <X size={20} />
+                        <div>
+                            <CardTitle className="text-xl font-black tracking-tight bg-clip-text text-transparent bg-gradient-to-r from-white to-slate-400">
+                                AI Manager Intelligence
+                            </CardTitle>
+                            <CardDescription className="text-slate-400 font-medium">
+                                Analisi avanzata e consigli strategici
+                            </CardDescription>
+                        </div>
+                    </div>
+                    {!chatSession && (
+                        <Button
+                            onClick={generateReport}
+                            disabled={loading}
+                            className="bg-white text-black hover:bg-slate-200 font-bold shadow-lg shadow-white/10 transition-all hover:scale-105 active:scale-95"
+                        >
+                            {loading ? (
+                                <div className="flex items-center gap-2">
+                                    <div className="w-4 h-4 border-2 border-black/30 border-t-black rounded-full animate-spin" />
+                                    Analisi in corso...
+                                </div>
+                            ) : (
+                                <>
+                                    <Lightning size={18} weight="fill" className="mr-2 text-amber-500" />
+                                    Genera Report
+                                </>
+                            )}
                         </Button>
+                    )}
+                </div>
+            </CardHeader>
+
+            <CardContent className="relative z-10 p-0 min-h-[200px]">
+                {error && (
+                    <div className="p-8 text-center text-red-400 bg-red-950/30 m-4 rounded-xl border border-red-900/50">
+                        <WarningCircle size={32} className="mx-auto mb-2" />
+                        <p className="font-bold">{error}</p>
                     </div>
+                )}
 
-                    <CardContent className="p-0">
-                        <ScrollArea className="h-[500px] p-4" ref={scrollRef}>
-                            <div className="space-y-4">
-                                {messages.map((msg, idx) => (
-                                    <div key={idx} className={cn("flex", msg.role === 'user' ? "justify-end" : "justify-start")}>
-                                        <div className={cn(
-                                            "max-w-[80%] rounded-2xl p-4 text-sm leading-relaxed shadow-md",
-                                            msg.role === 'user'
-                                                ? "bg-cyan-600 text-white rounded-br-none"
-                                                : "bg-slate-800 text-slate-200 border border-slate-700 rounded-bl-none"
-                                        )}>
-                                            {msg.role === 'model' ? (
-                                                <div className="markdown-prose" dangerouslySetInnerHTML={{ __html: msg.content.replace(/\n/g, '<br/>').replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>') }} />
-                                            ) : (
-                                                msg.content
-                                            )}
+                {!chatSession && !loading && !error && (
+                    <div className="flex flex-col items-center justify-center py-16 text-slate-500 space-y-4">
+                        <Robot size={64} weight="duotone" className="opacity-20 animate-bounce" />
+                        <p className="text-lg font-medium">L'IA è pronta ad analizzare i dati del tuo ristorante.</p>
+                    </div>
+                )}
+
+                {chatSession && (
+                    <div className="flex flex-col h-[500px]">
+                        <div className="flex-1 overflow-y-auto p-6 space-y-6 scrollbar-thin scrollbar-thumb-white/10 scrollbar-track-transparent" ref={scrollRef}>
+                            {chatSession.map((msg, idx) => (
+                                <div key={idx} className={`flex ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}>
+                                    <div className={`max-w-[80%] p-4 rounded-2xl shadow-md ${msg.role === 'user'
+                                        ? 'bg-blue-600 text-white rounded-tr-none'
+                                        : 'bg-slate-800/80 border border-white/10 text-slate-200 rounded-tl-none backdrop-blur-md'
+                                        }`}>
+                                        <div className="prose prose-invert prose-sm max-w-none whitespace-pre-wrap">
+                                            {msg.text}
                                         </div>
                                     </div>
-                                ))}
-                                {isLoading && (
-                                    <div className="flex justify-start">
-                                        <div className="bg-slate-800 rounded-2xl p-4 border border-slate-700 rounded-bl-none flex items-center gap-2">
-                                            <div className="w-2 h-2 bg-cyan-400 rounded-full animate-bounce" style={{ animationDelay: '0ms' }} />
-                                            <div className="w-2 h-2 bg-cyan-400 rounded-full animate-bounce" style={{ animationDelay: '150ms' }} />
-                                            <div className="w-2 h-2 bg-cyan-400 rounded-full animate-bounce" style={{ animationDelay: '300ms' }} />
-                                        </div>
+                                </div>
+                            ))}
+                            {loading && (
+                                <div className="flex justify-start">
+                                    <div className="bg-slate-800/50 p-4 rounded-2xl rounded-tl-none flex gap-2 items-center">
+                                        <div className="w-2 h-2 bg-cyan-400 rounded-full animate-bounce" />
+                                        <div className="w-2 h-2 bg-cyan-400 rounded-full animate-bounce delay-100" />
+                                        <div className="w-2 h-2 bg-cyan-400 rounded-full animate-bounce delay-200" />
                                     </div>
-                                )}
-                            </div>
-                        </ScrollArea>
-
-                        <div className="p-4 bg-slate-900 border-t border-cyan-500/20 flex gap-2">
-                            <Input
-                                value={input}
-                                onChange={(e) => setInput(e.target.value)}
-                                onKeyDown={(e) => e.key === 'Enter' && handleSend()}
-                                placeholder="Chiedi qualcosa al tuo manager AI..."
-                                className="bg-slate-950 border-slate-700 text-white focus-visible:ring-cyan-500"
-                            />
-                            <Button onClick={handleSend} disabled={isLoading || !input.trim()} className="bg-cyan-600 hover:bg-cyan-700 text-white">
-                                <PaperPlaneRight size={20} weight="fill" />
-                            </Button>
+                                </div>
+                            )}
                         </div>
-                    </CardContent>
-                </Card>
-            )}
-        </div>
+                        <div className="p-4 bg-slate-900/50 border-t border-white/5 backdrop-blur-lg">
+                            <div className="flex gap-2">
+                                <Input
+                                    value={inputMessage}
+                                    onChange={(e) => setInputMessage(e.target.value)}
+                                    placeholder="Chiedi dettagli sui dati..."
+                                    className="bg-slate-800/50 border-white/10 text-white placeholder:text-slate-500 focus:ring-cyan-500/50 focus:border-cyan-500/50"
+                                    onKeyDown={(e) => e.key === 'Enter' && handleSendMessage()}
+                                />
+                                <Button
+                                    onClick={handleSendMessage}
+                                    disabled={loading || !inputMessage.trim()}
+                                    className="bg-cyan-600 hover:bg-cyan-700 text-white shadow-lg shadow-cyan-600/20"
+                                >
+                                    <PaperPlaneRight size={18} weight="fill" />
+                                </Button>
+                            </div>
+                        </div>
+                    </div>
+                )}
+            </CardContent>
+        </Card>
     )
 }
