@@ -6,8 +6,8 @@ import { supabase } from '../lib/supabase'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
-import { Drawer, DrawerContent, DrawerHeader, DrawerTitle, DrawerTrigger, DrawerFooter, DrawerDescription } from '@/components/ui/drawer'
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '@/components/ui/dialog'
+import { Drawer, DrawerContent, DrawerHeader, DrawerTitle, DrawerTrigger, DrawerDescription } from '@/components/ui/drawer'
+import { Dialog, DialogContent, DialogFooter } from '@/components/ui/dialog'
 import { ScrollArea } from '@/components/ui/scroll-area'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { Input } from '@/components/ui/input'
@@ -28,7 +28,6 @@ import {
 import { motion, AnimatePresence } from 'framer-motion'
 import type { Category, Dish, Order, TableSession } from '../services/types'
 
-// Interfaccia estesa per gestire note e ID univoci nel carrello
 interface CartItem extends Dish {
   cartId: string
   quantity: number
@@ -36,7 +35,10 @@ interface CartItem extends Dish {
 }
 
 export default function CustomerMenu() {
-  const { restaurantId, tableId } = useParams<{ restaurantId: string; tableId: string }>()
+  // Ora prendiamo solo tableId dai parametri, perché il QR code contiene solo quello
+  const { tableId } = useParams<{ tableId: string }>()
+  const [restaurantId, setRestaurantId] = useState<string | null>(null)
+
   const [activeCategory, setActiveCategory] = useState<string>('all')
   const [cart, setCart] = useState<CartItem[]>([])
   const [isCartOpen, setIsCartOpen] = useState(false)
@@ -44,22 +46,45 @@ export default function CustomerMenu() {
   const [previousOrders, setPreviousOrders] = useState<Order[]>([])
   const [isOrderSubmitting, setIsOrderSubmitting] = useState(false)
   const [searchTerm, setSearchTerm] = useState('')
-  const [selectedDish, setSelectedDish] = useState<Dish | null>(null) // Per il popup dettagli
-  const [dishNote, setDishNote] = useState('') // Nota temporanea nel popup
+  const [selectedDish, setSelectedDish] = useState<Dish | null>(null)
+  const [dishNote, setDishNote] = useState('')
 
-  // Recupero Dati
-  const [categories] = useSupabaseData<Category>('categories', [], { column: 'restaurant_id', value: restaurantId })
-  const [dishes] = useSupabaseData<Dish>('dishes', [], { column: 'restaurant_id', value: restaurantId })
+  // 0. Recupera l'ID Ristorante dal Tavolo (FIX CRITICO)
+  useEffect(() => {
+    if (!tableId) return
+    const fetchRestaurantId = async () => {
+      const { data, error } = await supabase
+        .from('tables')
+        .select('restaurant_id')
+        .eq('id', tableId)
+        .single()
 
-  // 1. Ordinamento Categorie (Cruciale: rispetta l'ordine del backend)
+      if (data) {
+        setRestaurantId(data.restaurant_id)
+      } else {
+        console.error("Impossibile trovare il ristorante per questo tavolo:", error)
+      }
+    }
+    fetchRestaurantId()
+  }, [tableId])
+
+  // Recupero Dati (Usiamo restaurantId recuperato)
+  // Passiamo una stringa vuota se restaurantId è null per evitare errori, il hook si aggiornerà quando cambia
+  const [categories] = useSupabaseData<Category>('categories', [], { column: 'restaurant_id', value: restaurantId || '' })
+  const [dishes] = useSupabaseData<Dish>('dishes', [], { column: 'restaurant_id', value: restaurantId || '' })
+
+  // 1. Ordinamento Categorie
   const sortedCategories = useMemo(() => {
     return [...(categories || [])].sort((a, b) => (a.order || 0) - (b.order || 0))
   }, [categories])
 
-  // 2. Filtro Piatti (Categoria + Ricerca + Attivi)
+  // 2. Filtro Piatti
   const filteredDishes = useMemo(() => {
-    let d = dishes || []
-    d = d.filter(dish => dish.is_active !== false) // Mostra solo piatti attivi
+    if (!dishes) return []
+    let d = dishes
+
+    // Filtro attivo/inattivo (tollerante su null/undefined che conta come true)
+    d = d.filter(dish => dish.is_active !== false)
 
     if (activeCategory !== 'all') {
       d = d.filter(dish => dish.category_id === activeCategory)
@@ -75,7 +100,6 @@ export default function CustomerMenu() {
     return d
   }, [dishes, activeCategory, searchTerm])
 
-  // Totali
   const cartTotal = useMemo(() => {
     return cart.reduce((total, item) => total + (item.price * item.quantity), 0)
   }, [cart])
@@ -84,12 +108,11 @@ export default function CustomerMenu() {
     return cart.reduce((count, item) => count + item.quantity, 0)
   }, [cart])
 
-  // Inizializzazione Sessione
+  // Sessione e Storico
   useEffect(() => {
     if (!tableId) return
 
     const fetchSession = async () => {
-      // Cerca sessione aperta
       const { data: sessions } = await supabase
         .from('table_sessions')
         .select('*')
@@ -99,8 +122,6 @@ export default function CustomerMenu() {
 
       if (sessions && sessions.length > 0) {
         setSession(sessions[0])
-
-        // Carica ordini precedenti
         const { data: orders } = await supabase
           .from('orders')
           .select('*, items:order_items(*)')
@@ -112,8 +133,6 @@ export default function CustomerMenu() {
     }
 
     fetchSession()
-
-    // Realtime: Ascolta cambiamenti sugli ordini (es. cucina accetta ordine)
     const channel = supabase
       .channel(`public:orders:table-${tableId}`)
       .on('postgres_changes', { event: '*', schema: 'public', table: 'orders' }, () => fetchSession())
@@ -122,26 +141,16 @@ export default function CustomerMenu() {
     return () => { supabase.removeChannel(channel) }
   }, [tableId])
 
-  // --- Gestione Carrello ---
-
+  // Gestione Carrello
   const addToCart = (dish: Dish, quantity: number = 1, notes: string = '') => {
     setCart(prev => {
-      // Se esiste già lo stesso piatto SENZA note, aumenta quantità
       const existingIndex = prev.findIndex(item => item.id === dish.id && item.notes === notes)
-
       if (existingIndex >= 0) {
         const newCart = [...prev]
         newCart[existingIndex].quantity += quantity
         return newCart
       }
-
-      // Altrimenti aggiungi nuovo item
-      return [...prev, {
-        ...dish,
-        cartId: crypto.randomUUID(),
-        quantity,
-        notes
-      }]
+      return [...prev, { ...dish, cartId: crypto.randomUUID(), quantity, notes }]
     })
 
     if (quantity > 0) {
@@ -151,7 +160,7 @@ export default function CustomerMenu() {
         style: { background: '#10B981', color: '#fff', border: 'none' }
       })
     }
-    setSelectedDish(null) // Chiudi popup se aperto
+    setSelectedDish(null)
     setDishNote('')
   }
 
@@ -164,13 +173,8 @@ export default function CustomerMenu() {
     }).filter(item => item.quantity > 0))
   }
 
-  const removeCartItem = (cartId: string) => {
-    setCart(prev => prev.filter(item => item.cartId !== cartId))
-  }
-
   const submitOrder = async () => {
-    if (!session || cart.length === 0) return
-
+    if (!session || cart.length === 0 || !restaurantId) return
     setIsOrderSubmitting(true)
     try {
       const orderItems = cart.map(item => ({
@@ -202,12 +206,23 @@ export default function CustomerMenu() {
     }
   }
 
-  // --- UI Components ---
+  // --- UI ---
+
+  if (!restaurantId) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-background">
+        <div className="flex flex-col items-center gap-4">
+          <div className="w-8 h-8 border-4 border-primary border-t-transparent rounded-full animate-spin"></div>
+          <p className="text-sm text-muted-foreground">Connessione al tavolo...</p>
+        </div>
+      </div>
+    )
+  }
 
   return (
     <div className="min-h-screen bg-muted/5 pb-28 font-sans select-none">
 
-      {/* Header Fisso: Titolo + Ricerca + Categorie */}
+      {/* Header */}
       <header className="sticky top-0 z-20 bg-background/95 backdrop-blur-md border-b border-border/10 shadow-sm">
         <div className="px-4 pt-3 pb-2">
           <div className="flex items-center justify-between mb-3">
@@ -216,12 +231,11 @@ export default function CustomerMenu() {
                 <Utensils className="w-4 h-4 text-primary-foreground" />
               </div>
               <div>
-                <h1 className="font-bold text-base leading-none">Menu Digitale</h1>
+                <h1 className="font-bold text-base leading-none">Menu</h1>
                 {session && <span className="text-[10px] text-muted-foreground">Tavolo connesso</span>}
               </div>
             </div>
 
-            {/* Barra Ricerca Compatta */}
             <div className="relative w-32 sm:w-48 transition-all focus-within:w-40 sm:focus-within:w-56">
               <Search className="absolute left-2 top-1.5 w-3.5 h-3.5 text-muted-foreground" />
               <Input
@@ -233,7 +247,6 @@ export default function CustomerMenu() {
             </div>
           </div>
 
-          {/* Categorie Scrollabili */}
           <ScrollArea className="w-full -mx-4 px-4">
             <div className="flex gap-2 pb-2 min-w-max">
               <button
@@ -263,7 +276,7 @@ export default function CustomerMenu() {
       </header>
 
       {/* Lista Piatti */}
-      <main className="p-4 space-y-3 max-w-lg mx-auto">
+      <main className="p-3 space-y-2.5 max-w-lg mx-auto">
         <AnimatePresence mode="popLayout">
           {filteredDishes.map((dish) => (
             <motion.div
@@ -277,10 +290,11 @@ export default function CustomerMenu() {
                 className="overflow-hidden border-none shadow-sm bg-card hover:bg-muted/10 transition-colors cursor-pointer group"
                 onClick={() => setSelectedDish(dish)}
               >
-                <div className="flex p-2 gap-3 h-[90px]"> {/* Altezza ridotta fissa */}
+                {/* Altezza ridotta a h-[72px] per compattezza */}
+                <div className="flex p-2 gap-3 h-[80px]">
 
-                  {/* Immagine (1:1 o quasi, arrotondata) */}
-                  <div className="w-[85px] h-full shrink-0 relative rounded-lg overflow-hidden bg-muted/20">
+                  {/* Immagine compatta */}
+                  <div className="w-[72px] h-full shrink-0 relative rounded-lg overflow-hidden bg-muted/20">
                     {dish.image_url ? (
                       <img
                         src={dish.image_url}
@@ -290,13 +304,12 @@ export default function CustomerMenu() {
                       />
                     ) : (
                       <div className="w-full h-full flex items-center justify-center">
-                        <Utensils className="w-6 h-6 text-muted-foreground/30" />
+                        <Utensils className="w-5 h-5 text-muted-foreground/30" />
                       </div>
                     )}
-                    {/* Badge Allergeni Mini */}
                     {dish.allergens && dish.allergens.length > 0 && (
-                      <div className="absolute bottom-1 right-1 bg-black/50 backdrop-blur-[2px] p-0.5 rounded text-[8px] text-white">
-                        <Info className="w-2.5 h-2.5" />
+                      <div className="absolute bottom-0.5 right-0.5 bg-black/50 backdrop-blur-[2px] p-0.5 rounded text-[7px] text-white">
+                        <Info className="w-2 h-2" />
                       </div>
                     )}
                   </div>
@@ -304,30 +317,29 @@ export default function CustomerMenu() {
                   {/* Info Piatto */}
                   <div className="flex-1 flex flex-col justify-between min-w-0 py-0.5">
                     <div>
-                      <h3 className="font-bold text-sm leading-tight text-foreground truncate pr-4">
+                      <h3 className="font-bold text-sm leading-tight text-foreground truncate pr-6">
                         {dish.name}
                       </h3>
-                      <p className="text-[11px] text-muted-foreground line-clamp-2 mt-1 leading-relaxed">
+                      <p className="text-[10px] text-muted-foreground line-clamp-2 mt-0.5 leading-snug">
                         {dish.description}
                       </p>
                     </div>
 
-                    <div className="flex items-end justify-between">
+                    <div className="flex items-end justify-between mt-auto">
                       <span className="font-bold text-sm text-foreground">
                         € {dish.price.toFixed(2)}
                       </span>
 
-                      {/* Tasto Quick Add (+), senza aprire dettagli se uno vuole fare veloce */}
                       <Button
                         size="sm"
                         variant="secondary"
-                        className="h-7 w-7 rounded-full p-0 shadow-sm bg-primary/10 hover:bg-primary text-primary hover:text-primary-foreground transition-all"
+                        className="h-6 w-6 rounded-full p-0 shadow-sm bg-primary/10 hover:bg-primary text-primary hover:text-primary-foreground transition-all"
                         onClick={(e) => {
-                          e.stopPropagation() // Non aprire popup dettagli
+                          e.stopPropagation()
                           addToCart(dish)
                         }}
                       >
-                        <Plus className="w-4 h-4" />
+                        <Plus className="w-3.5 h-3.5" />
                       </Button>
                     </div>
                   </div>
@@ -343,12 +355,12 @@ export default function CustomerMenu() {
               <Utensils className="w-8 h-8 text-muted-foreground" />
             </div>
             <p className="text-sm font-medium">Nessun piatto trovato</p>
-            <p className="text-xs text-muted-foreground">Prova a cambiare categoria o ricerca</p>
+            <p className="text-xs text-muted-foreground">Prova a cambiare categoria</p>
           </div>
         )}
       </main>
 
-      {/* Floating Bottom Bar (Carrello & Storico Unificati) */}
+      {/* Bottom Bar */}
       <AnimatePresence>
         {cart.length > 0 && (
           <motion.div
@@ -378,8 +390,8 @@ export default function CustomerMenu() {
               <DrawerContent className="max-w-lg mx-auto max-h-[90vh] bg-background">
                 <div className="flex flex-col h-full max-h-[85vh]">
                   <DrawerHeader className="border-b border-border/10 pb-2 shrink-0">
-                    <DrawerTitle className="text-center text-lg font-bold">Riepilogo Ordine</DrawerTitle>
-                    <DrawerDescription className="text-center text-xs">Controlla prima di inviare</DrawerDescription>
+                    <DrawerTitle className="text-center text-lg font-bold">Riepilogo</DrawerTitle>
+                    <DrawerDescription className="text-center text-xs">Controlla e invia</DrawerDescription>
                   </DrawerHeader>
 
                   <Tabs defaultValue="current" className="flex-1 overflow-hidden flex flex-col w-full">
@@ -394,7 +406,6 @@ export default function CustomerMenu() {
                       </TabsList>
                     </div>
 
-                    {/* Tab: Carrello Attuale */}
                     <TabsContent value="current" className="flex-1 overflow-hidden flex flex-col data-[state=active]:flex mt-0">
                       <ScrollArea className="flex-1 px-4 py-4">
                         {cart.length === 0 ? (
@@ -408,7 +419,6 @@ export default function CustomerMenu() {
                               <div key={item.cartId} className="flex flex-col bg-card border border-border/40 rounded-xl p-3 shadow-sm gap-2">
                                 <div className="flex items-center justify-between gap-3">
                                   <div className="flex items-center gap-3 overflow-hidden">
-                                    {/* Quantità Badge */}
                                     <div className="bg-primary/10 text-primary w-6 h-6 rounded-md flex items-center justify-center font-bold text-xs shrink-0">
                                       {item.quantity}x
                                     </div>
@@ -418,7 +428,6 @@ export default function CustomerMenu() {
                                     </div>
                                   </div>
 
-                                  {/* Controlli Quantità */}
                                   <div className="flex items-center bg-muted/50 rounded-lg p-0.5 border border-border/10">
                                     <Button
                                       variant="ghost"
@@ -470,7 +479,6 @@ export default function CustomerMenu() {
                       </div>
                     </TabsContent>
 
-                    {/* Tab: Storico Ordini (Ex "Miei Ordini") */}
                     <TabsContent value="history" className="flex-1 overflow-hidden flex flex-col mt-0">
                       <ScrollArea className="flex-1 px-4 py-4 h-full">
                         {previousOrders.length === 0 ? (
@@ -527,7 +535,6 @@ export default function CustomerMenu() {
         )}
       </AnimatePresence>
 
-      {/* Floating Button Solo Storico (se carrello vuoto ma esistono ordini) */}
       <AnimatePresence>
         {cart.length === 0 && previousOrders.length > 0 && (
           <motion.div
@@ -574,7 +581,6 @@ export default function CustomerMenu() {
         )}
       </AnimatePresence>
 
-      {/* Popup Dettagli Piatto */}
       <Dialog open={!!selectedDish} onOpenChange={(open) => !open && setSelectedDish(null)}>
         <DialogContent className="sm:max-w-md p-0 overflow-hidden bg-card border-none">
           {selectedDish && (
