@@ -69,6 +69,7 @@ export default function CustomerMenu({ tableId: propTableId, onExit, interfaceMo
   const [dishNote, setDishNote] = useState('')
   
   const [maxCourse, setMaxCourse] = useState(1)
+  const [currentCourse, setCurrentCourse] = useState(1) // Track which course user is currently adding to
   const [showCourseAlert, setShowCourseAlert] = useState(false)
   const [showConfirmDialog, setShowConfirmDialog] = useState(false)
 
@@ -205,18 +206,20 @@ export default function CustomerMenu({ tableId: propTableId, onExit, interfaceMo
     toast.success(`+1 ${dish.name}`, { position: 'top-center', duration: 800, style: { background: '#10B981', color: '#fff', border: 'none', fontSize: '14px', padding: '8px 16px' } })
   }
 
-  const addToCart = (dish: Dish, quantity: number = 1, notes: string = '') => {
+  const addToCart = (dish: Dish, quantity: number = 1, notes: string = '', courseNum?: number) => {
+    const targetCourse = courseNum !== undefined ? courseNum : currentCourse
     setCart(prev => {
-      const existingIndex = prev.findIndex(item => item.id === dish.id && item.notes === notes && item.courseNumber === 1)
+      const existingIndex = prev.findIndex(item => item.id === dish.id && item.notes === notes && item.courseNumber === targetCourse)
       if (existingIndex >= 0) {
         const newCart = [...prev]
         newCart[existingIndex].quantity += quantity
         return newCart
       }
-      return [...prev, { ...dish, cartId: crypto.randomUUID(), quantity, notes, courseNumber: 1 }]
+      return [...prev, { ...dish, cartId: crypto.randomUUID(), quantity, notes, courseNumber: targetCourse }]
     })
     if (quantity > 0) {
-      toast.success(`Aggiunto: ${dish.name}`, { position: 'top-center', duration: 1500, style: { background: '#10B981', color: '#fff', border: 'none' } })
+      const courseLabel = targetCourse === 1 ? 'Prima portata' : targetCourse === 2 ? 'Seconda portata' : `Portata ${targetCourse}`
+      toast.success(`Aggiunto a ${courseLabel}: ${dish.name}`, { position: 'top-center', duration: 1500, style: { background: '#10B981', color: '#fff', border: 'none' } })
     }
     setSelectedDish(null)
     setDishNote('')
@@ -277,6 +280,7 @@ export default function CustomerMenu({ tableId: propTableId, onExit, interfaceMo
 
       setCart([])
       setMaxCourse(1)
+      setCurrentCourse(1)
       setIsCartOpen(false)
       setShowCourseAlert(false)
       setShowConfirmDialog(false)
@@ -490,9 +494,18 @@ export default function CustomerMenu({ tableId: propTableId, onExit, interfaceMo
                 </div>
               </div>
             </div>
-            <div className="relative w-32 transition-all focus-within:w-44 duration-300">
-              <Search className="absolute left-2 top-1/2 -translate-y-1/2 w-3 h-3 text-slate-400" />
-              <Input placeholder="Cerca..." className="h-7 pl-7 pr-2 text-xs rounded-lg bg-slate-100 dark:bg-slate-800 border-none" value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} />
+            <div className="flex items-center gap-2">
+              <div className={`px-2 py-1 rounded-lg text-[10px] font-bold ${
+                currentCourse === 1 ? 'bg-emerald-500 text-white' :
+                currentCourse === 2 ? 'bg-amber-500 text-white' :
+                'bg-purple-500 text-white'
+              }`}>
+                {currentCourse}ª Portata
+              </div>
+              <div className="relative w-32 transition-all focus-within:w-44 duration-300">
+                <Search className="absolute left-2 top-1/2 -translate-y-1/2 w-3 h-3 text-slate-400" />
+                <Input placeholder="Cerca..." className="h-7 pl-7 pr-2 text-xs rounded-lg bg-slate-100 dark:bg-slate-800 border-none" value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} />
+              </div>
             </div>
           </div>
           <div className="overflow-x-auto scrollbar-hide -mx-3 px-3 pb-1">
@@ -670,10 +683,48 @@ export default function CustomerMenu({ tableId: propTableId, onExit, interfaceMo
               <div className="p-4 space-y-4">
                 {selectedDish.description && (<div><h3 className="font-bold text-xs">Descrizione</h3><p className="text-xs text-muted-foreground mt-1">{selectedDish.description}</p></div>)}
                 {selectedDish.allergens && selectedDish.allergens.length > 0 && (<div><h3 className="font-bold text-xs flex items-center gap-1"><Info className="w-3 h-3 text-amber-500" />Allergeni</h3><div className="flex flex-wrap gap-1 mt-1">{selectedDish.allergens.map(a => (<Badge key={a} className="text-[10px] bg-amber-100 text-amber-700">{a}</Badge>))}</div></div>)}
+                <div>
+                  <label className="text-[10px] font-bold uppercase text-muted-foreground">Portata</label>
+                  <div className="flex gap-2 mt-2">
+                    {Array.from({ length: maxCourse }, (_, i) => i + 1).map((courseNum) => (
+                      <button
+                        key={courseNum}
+                        onClick={() => setCurrentCourse(courseNum)}
+                        className={`flex-1 py-2 px-3 rounded-lg text-xs font-bold transition-all ${
+                          currentCourse === courseNum
+                            ? courseNum === 1
+                              ? 'bg-emerald-500 text-white shadow-md'
+                              : courseNum === 2
+                              ? 'bg-amber-500 text-white shadow-md'
+                              : 'bg-purple-500 text-white shadow-md'
+                            : 'bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400'
+                        }`}
+                      >
+                        {courseNum}ª
+                      </button>
+                    ))}
+                    <button
+                      onClick={() => {
+                        const newCourse = maxCourse + 1
+                        setMaxCourse(newCourse)
+                        setCurrentCourse(newCourse)
+                        toast.success(`Portata ${newCourse} aggiunta`)
+                      }}
+                      className="py-2 px-3 rounded-lg text-xs font-bold bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400 hover:bg-slate-200 dark:hover:bg-slate-700 transition-all"
+                    >
+                      <Plus className="w-3 h-3" />
+                    </button>
+                  </div>
+                  <p className="text-[10px] text-muted-foreground mt-2">
+                    Seleziona la portata in cui desideri questo piatto
+                  </p>
+                </div>
                 <div><label className="text-[10px] font-bold uppercase text-muted-foreground">Note (opzionale)</label><Textarea placeholder="Es. Niente cipolla..." className="resize-none text-xs min-h-[60px] mt-1 rounded-xl" value={dishNote} onChange={(e) => setDishNote(e.target.value)} /></div>
               </div>
               <DialogFooter className="p-4 bg-slate-50/50 dark:bg-slate-800/50 border-t">
-                <Button className="w-full h-11 font-bold rounded-xl bg-gradient-to-r from-emerald-500 to-teal-600 text-white" onClick={() => addToCart(selectedDish, 1, dishNote)}>Aggiungi al carrello - €{selectedDish.price.toFixed(2)}</Button>
+                <Button className="w-full h-11 font-bold rounded-xl bg-gradient-to-r from-emerald-500 to-teal-600 text-white" onClick={() => addToCart(selectedDish, 1, dishNote)}>
+                  Aggiungi alla {currentCourse}ª portata - €{selectedDish.price.toFixed(2)}
+                </Button>
               </DialogFooter>
             </>
           )}

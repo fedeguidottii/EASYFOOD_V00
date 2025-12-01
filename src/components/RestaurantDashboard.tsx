@@ -1104,14 +1104,14 @@ const RestaurantDashboard = ({ user, onLogout }: RestaurantDashboardProps) => {
                           <span className="text-2xl font-bold text-foreground tracking-tight">
                             {table.number}
                           </span>
-                          <div className="flex items-center gap-1 text-muted-foreground bg-muted/50 px-2 py-0.5 rounded-full">
-                            <Users size={12} />
-                            <span className="text-xs font-medium">{table.seats || 4}</span>
+                          <div className="flex items-center gap-1.5 text-foreground bg-muted px-3 py-1 rounded-full">
+                            <Users size={16} weight="bold" />
+                            <span className="text-sm font-bold">{table.seats || 4}</span>
                           </div>
                         </div>
                         <Badge
                           variant={isActive ? 'default' : 'outline'}
-                          className={isActive ? 'bg-emerald-600 hover:bg-emerald-700 border-none text-white shadow-sm' : 'text-muted-foreground'}
+                          className={isActive ? 'bg-red-600 hover:bg-red-700 border-none text-white shadow-sm font-semibold' : 'bg-green-600 text-white border-none font-semibold'}
                         >
                           {isActive ? 'Occupato' : 'Libero'}
                         </Badge>
@@ -1122,8 +1122,8 @@ const RestaurantDashboard = ({ user, onLogout }: RestaurantDashboardProps) => {
                           <>
                             <div className="text-center">
                               <p className="text-[9px] text-muted-foreground mb-1 uppercase tracking-[0.2em] font-semibold">PIN</p>
-                              <div className="bg-gradient-to-br from-slate-100 to-slate-50 dark:from-slate-800 dark:to-slate-900 px-4 py-2.5 rounded-xl border border-slate-200/50 dark:border-slate-700/50 shadow-inner">
-                                <span className="text-3xl font-mono font-bold tracking-[0.15em] text-foreground">
+                              <div className="bg-gradient-to-br from-slate-100 to-slate-50 dark:from-slate-800 dark:to-slate-900 px-6 py-3 rounded-xl border border-slate-200/50 dark:border-slate-700/50 shadow-inner min-w-[120px]">
+                                <span className="text-4xl font-mono font-bold tracking-widest text-foreground whitespace-nowrap">
                                   {session?.session_pin || '...'}
                                 </span>
                               </div>
@@ -1445,6 +1445,47 @@ const RestaurantDashboard = ({ user, onLogout }: RestaurantDashboardProps) => {
 
           {/* Reservations Tab */}
           < TabsContent value="reservations" className="space-y-6 p-6" >
+            {/* Date Quick Filters */}
+            <div className="flex items-center gap-2 flex-wrap">
+              <span className="text-sm font-medium text-muted-foreground mr-2">Seleziona data:</span>
+              <Button
+                variant={selectedReservationDate.toDateString() === new Date().toDateString() ? 'default' : 'outline'}
+                size="sm"
+                onClick={() => setSelectedReservationDate(new Date())}
+              >
+                Oggi
+              </Button>
+              <Button
+                variant={selectedReservationDate.toDateString() === new Date(Date.now() + 24 * 60 * 60 * 1000).toDateString() ? 'default' : 'outline'}
+                size="sm"
+                onClick={() => {
+                  const tomorrow = new Date()
+                  tomorrow.setDate(tomorrow.getDate() + 1)
+                  setSelectedReservationDate(tomorrow)
+                }}
+              >
+                Domani
+              </Button>
+              <Button
+                variant={selectedReservationDate.toDateString() === new Date(Date.now() + 2 * 24 * 60 * 60 * 1000).toDateString() ? 'default' : 'outline'}
+                size="sm"
+                onClick={() => {
+                  const dayAfterTomorrow = new Date()
+                  dayAfterTomorrow.setDate(dayAfterTomorrow.getDate() + 2)
+                  setSelectedReservationDate(dayAfterTomorrow)
+                }}
+              >
+                Dopodomani
+              </Button>
+              <div className="flex items-center gap-2">
+                <Input
+                  type="date"
+                  value={selectedReservationDate.toISOString().split('T')[0]}
+                  onChange={(e) => setSelectedReservationDate(new Date(e.target.value + 'T00:00:00'))}
+                  className="w-[180px] h-9"
+                />
+              </div>
+            </div>
             <ReservationsManager
               user={user}
               restaurantId={restaurantId}
@@ -1618,55 +1659,6 @@ const RestaurantDashboard = ({ user, onLogout }: RestaurantDashboardProps) => {
               </CardContent>
             </Card>
 
-            {/* Reservation Settings Card */}
-            <Card className="shadow-lg border-none overflow-hidden bg-gradient-to-br from-indigo-50 to-white dark:from-indigo-950/20 dark:to-background">
-              <CardHeader className="bg-muted/10 pb-6">
-                <CardTitle className="text-lg font-semibold flex items-center gap-2">
-                  <span className="inline-flex h-9 w-9 items-center justify-center rounded-lg bg-primary/10 text-primary">
-                    <Calendar size={18} />
-                  </span>
-                  Impostazioni Prenotazioni
-                </CardTitle>
-                <CardDescription>
-                  Configura la durata predefinita delle prenotazioni visualizzate nella timeline.
-                </CardDescription>
-              </CardHeader>
-              <CardContent className="space-y-4">
-                <div className="space-y-3">
-                  <Label htmlFor="reservation-duration" className="text-base font-medium">
-                    Durata Prenotazione (minuti)
-                  </Label>
-                  <p className="text-sm text-muted-foreground">
-                    Imposta quanto tempo occupa visivamente una prenotazione nella timeline.
-                  </p>
-                  <div className="flex items-center gap-3">
-                    <Select
-                      value={reservationDuration.toString()}
-                      onValueChange={(value) => {
-                        setReservationDuration(parseInt(value))
-                        localStorage.setItem('reservationDuration', value)
-                        toast.success(`Durata prenotazione impostata a ${value} minuti`)
-                      }}
-                    >
-                      <SelectTrigger className="w-[200px]">
-                        <SelectValue placeholder="Seleziona durata" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="60">1 ora (60 min)</SelectItem>
-                        <SelectItem value="90">1 ora e 30 min</SelectItem>
-                        <SelectItem value="120">2 ore (120 min)</SelectItem>
-                        <SelectItem value="150">2 ore e 30 min</SelectItem>
-                        <SelectItem value="180">3 ore (180 min)</SelectItem>
-                      </SelectContent>
-                    </Select>
-                    <span className="text-sm text-muted-foreground">
-                      Attuale: {Math.floor(reservationDuration / 60)}h {reservationDuration % 60 > 0 ? `${reservationDuration % 60}m` : ''}
-                    </span>
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
-
             <div className="space-y-6">
               <Card className="shadow-lg border-none overflow-hidden bg-gradient-to-br from-orange-50 to-white dark:from-orange-950/20 dark:to-background">
                 <CardHeader className="bg-muted/10 pb-6">
@@ -1786,11 +1778,11 @@ const RestaurantDashboard = ({ user, onLogout }: RestaurantDashboardProps) => {
                       <span className="inline-flex h-9 w-9 items-center justify-center rounded-lg bg-primary/10 text-primary">
                         <Clock size={18} />
                       </span>
-                      Orari di Apertura
+                      Orari di Apertura e Prenotazioni
                     </CardTitle>
-                    <CardDescription>Imposta gli orari per le prenotazioni</CardDescription>
+                    <CardDescription>Imposta gli orari per le prenotazioni e la loro durata</CardDescription>
                   </CardHeader>
-                  <CardContent className="space-y-4">
+                  <CardContent className="space-y-6">
                     <div className="grid grid-cols-2 gap-4">
                       <div className="space-y-2">
                         <Label htmlFor="opening-time">Apertura</Label>
@@ -1809,6 +1801,38 @@ const RestaurantDashboard = ({ user, onLogout }: RestaurantDashboardProps) => {
                           value={closingTime}
                           onChange={(e) => setClosingTime(e.target.value)}
                         />
+                      </div>
+                    </div>
+                    <div className="space-y-3 pt-2 border-t">
+                      <Label htmlFor="reservation-duration" className="text-base font-medium">
+                        Durata Prenotazione (minuti)
+                      </Label>
+                      <p className="text-sm text-muted-foreground">
+                        Imposta quanto tempo occupa visivamente una prenotazione nella timeline.
+                      </p>
+                      <div className="flex items-center gap-3">
+                        <Select
+                          value={reservationDuration.toString()}
+                          onValueChange={(value) => {
+                            setReservationDuration(parseInt(value))
+                            localStorage.setItem('reservationDuration', value)
+                            toast.success(`Durata prenotazione impostata a ${value} minuti`)
+                          }}
+                        >
+                          <SelectTrigger className="w-[200px]">
+                            <SelectValue placeholder="Seleziona durata" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="60">1 ora (60 min)</SelectItem>
+                            <SelectItem value="90">1 ora e 30 min</SelectItem>
+                            <SelectItem value="120">2 ore (120 min)</SelectItem>
+                            <SelectItem value="150">2 ore e 30 min</SelectItem>
+                            <SelectItem value="180">3 ore (180 min)</SelectItem>
+                          </SelectContent>
+                        </Select>
+                        <span className="text-sm text-muted-foreground">
+                          Attuale: {Math.floor(reservationDuration / 60)}h {reservationDuration % 60 > 0 ? `${reservationDuration % 60}m` : ''}
+                        </span>
                       </div>
                     </div>
                   </CardContent>

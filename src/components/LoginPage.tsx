@@ -7,7 +7,7 @@ import { v4 as uuidv4 } from 'uuid'
 import { DatabaseService } from '../services/DatabaseService'
 import { toast } from 'sonner'
 import { User, Table } from '../services/types'
-import { Users } from '@phosphor-icons/react'
+import { Users, Eye, EyeSlash } from '@phosphor-icons/react'
 
 interface Props {
   onLogin: (user: User) => void
@@ -17,6 +17,7 @@ export default function LoginPage({ onLogin }: Props) {
   const [isLoading, setIsLoading] = useState(false)
   const [username, setUsername] = useState('')
   const [password, setPassword] = useState('')
+  const [showPassword, setShowPassword] = useState(false)
 
   const handleAdminLogin = async () => {
     setIsLoading(true)
@@ -121,14 +122,24 @@ export default function LoginPage({ onLogin }: Props) {
             </div>
             <div className="space-y-2">
               <Label htmlFor="password">Password</Label>
-              <Input
-                id="password"
-                type="password"
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                placeholder="Password"
-                className="bg-black/20 border-white/10 focus:border-primary/50 focus:ring-primary/20"
-              />
+              <div className="relative">
+                <Input
+                  id="password"
+                  type={showPassword ? "text" : "password"}
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  placeholder="Password"
+                  className="bg-black/20 border-white/10 focus:border-primary/50 focus:ring-primary/20 pr-10"
+                />
+                <button
+                  type="button"
+                  onClick={() => setShowPassword(!showPassword)}
+                  className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors"
+                  tabIndex={-1}
+                >
+                  {showPassword ? <EyeSlash size={20} /> : <Eye size={20} />}
+                </button>
+              </div>
             </div>
             <Button
               onClick={handleAdminLogin}

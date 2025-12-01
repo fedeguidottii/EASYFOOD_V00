@@ -143,10 +143,7 @@ export default function AnalyticsCharts({ orders, completedOrders, dishes, categ
     const totalOrders = categoryFilteredOrders.length
     const totalRevenue = categoryFilteredOrders.reduce((sum, order) => sum + (order.filteredAmount || order.total_amount || 0), 0)
     const averageOrderValue = totalOrders > 0 ? totalRevenue / totalOrders : 0
-    const activeOrdersCount = orders.filter(order => (order.items || []).some(item => {
-      const dish = dishes.find(d => d.id === item.dish_id)
-      return dish ? activeCategoryIds.includes(dish.category_id) : false
-    })).length
+    const activeOrdersCount = orders.filter(order => order.status === 'OPEN').length
 
     // Daily data for charts
     const dailyData: DailyData[] = []
@@ -557,7 +554,7 @@ export default function AnalyticsCharts({ orders, completedOrders, dishes, categ
             </div>
           </CardHeader>
           <CardContent className="pt-6">
-            <div className="space-y-1">
+            <div>
               {analytics.dishStats.length === 0 ? (
                 <div className="text-center py-12 text-muted-foreground">
                   <ShoppingBag size={48} className="mx-auto mb-4 opacity-20" />
