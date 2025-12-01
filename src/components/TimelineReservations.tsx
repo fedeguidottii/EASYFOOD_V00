@@ -55,6 +55,9 @@ export default function TimelineReservations({ user, restaurantId, tables, booki
   const [availableTables, setAvailableTables] = useState<Table[]>([])
   const [highlightedTableId, setHighlightedTableId] = useState<string | null>(null)
 
+  // Table sorting/filtering state
+  const [tableSortBy, setTableSortBy] = useState<'name' | 'capacity' | 'status'>('name')
+
   // New reservation form state
   const [newReservation, setNewReservation] = useState({
     name: '',
@@ -66,6 +69,8 @@ export default function TimelineReservations({ user, restaurantId, tables, booki
 
   // Filter tables for this restaurant
   const restaurantTables = tables.filter(t => t.restaurant_id === restaurantId)
+
+  // Sort tables based on selected filter (will be applied later after reservationBlocks is calculated)
 
   // Filter bookings for selected date
   const localBookings = bookings.filter(b => b.restaurant_id === restaurantId && b.status !== 'CANCELLED')
@@ -152,6 +157,38 @@ export default function TimelineReservations({ user, restaurantId, tables, booki
   }
 
   const reservationBlocks = getReservationBlocks()
+
+  // Sort tables based on selected filter
+  const sortedTables = [...restaurantTables].sort((a, b) => {
+    if (tableSortBy === 'name') {
+      return a.number.localeCompare(b.number)
+    } else if (tableSortBy === 'capacity') {
+      return (b.seats || 4) - (a.seats || 4) // Descending
+    } else if (tableSortBy === 'status') {
+      // Check if tables are occupied
+      const now = new Date()
+      const currentMinutes = now.getHours() * 60 + now.getMinutes()
+      const isToday = selectedDate === now.toISOString().split('T')[0]
+
+      const aOccupied = isToday && reservationBlocks.some(block =>
+        block.table.id === a.id &&
+        currentMinutes >= block.startMinutes &&
+        currentMinutes < block.startMinutes + block.duration
+      )
+
+      const bOccupied = isToday && reservationBlocks.some(block =>
+        block.table.id === b.id &&
+        currentMinutes >= block.startMinutes &&
+        currentMinutes < block.startMinutes + block.duration
+      )
+
+      // Occupied tables first
+      if (aOccupied && !bOccupied) return -1
+      if (!aOccupied && bOccupied) return 1
+      return 0
+    }
+    return 0
+  })
 
   // Check for conflicts
   const hasConflict = (tableId: string, time: string, durationMinutes: number = reservationDuration) => {
@@ -375,14 +412,42 @@ export default function TimelineReservations({ user, restaurantId, tables, booki
             {dayBookings.length} prenotazioni
           </div>
         </div>
-        <Button
-          variant="outline"
-          onClick={() => setShowSmartSearch(true)}
-          className="gap-2"
-        >
-          <Search size={16} />
-          Ricerca Tavolo Intelligente
-        </Button>
+        <div className="flex items-center gap-2">
+          <div className="flex gap-1 bg-muted/50 p-1 rounded-lg">
+            <Button
+              variant={tableSortBy === 'name' ? 'default' : 'ghost'}
+              size="sm"
+              onClick={() => setTableSortBy('name')}
+              className="h-8 text-xs"
+            >
+              A-Z
+            </Button>
+            <Button
+              variant={tableSortBy === 'capacity' ? 'default' : 'ghost'}
+              size="sm"
+              onClick={() => setTableSortBy('capacity')}
+              className="h-8 text-xs"
+            >
+              Capacità
+            </Button>
+            <Button
+              variant={tableSortBy === 'status' ? 'default' : 'ghost'}
+              size="sm"
+              onClick={() => setTableSortBy('status')}
+              className="h-8 text-xs"
+            >
+              Stato
+            </Button>
+          </div>
+          <Button
+            variant="outline"
+            onClick={() => setShowSmartSearch(true)}
+            className="gap-2"
+          >
+            <Search size={16} />
+            Ricerca Tavolo Intelligente
+          </Button>
+        </div>
       </div>
 
       {/* Timeline Header - Time Labels */}
@@ -412,7 +477,7 @@ export default function TimelineReservations({ user, restaurantId, tables, booki
             )}
 
             {/* Table Rows */}
-            {restaurantTables.map((table, tableIndex) => {
+            {sortedTables.map((table, tableIndex) => {
               // Check if table is currently occupied (has a booking active right now)
               const now = new Date()
               const currentMinutes = now.getHours() * 60 + now.getMinutes()
@@ -431,15 +496,15 @@ export default function TimelineReservations({ user, restaurantId, tables, booki
               const isAvailable = availableTables.some(t => t.id === table.id)
 
               let tableColor = 'bg-gradient-to-r from-slate-50/50 to-white dark:from-slate-900/30 dark:to-slate-950/50'
-              
+
               if (isCurrentlyOccupied) {
-                // Currently occupied - strong indicator
-                tableColor = 'bg-gradient-to-r from-rose-50/80 to-rose-100/60 dark:from-rose-950/40 dark:to-rose-900/30 border-l-4 border-rose-500/70'
+                // Currently occupied - RED indicator
+                tableColor = 'bg-gradient-to-r from-red-100 to-red-200 dark:from-red-950/70 dark:to-red-900/60 border-l-4 border-red-600'
               } else if (hasBookingsToday) {
-                // Has bookings today but not currently occupied - subtle indicator
-                tableColor = 'bg-gradient-to-r from-emerald-50/60 to-emerald-100/40 dark:from-emerald-950/20 dark:to-emerald-900/15 border-l-4 border-emerald-400/40'
+                // Has bookings today but not currently occupied - GREEN indicator
+                tableColor = 'bg-gradient-to-r from-green-100 to-green-200 dark:from-green-950/50 dark:to-green-900/40 border-l-4 border-green-500'
               }
-              
+
               if (isHighlighted) {
                 tableColor = 'bg-gradient-to-r from-amber-50 to-amber-100/80 dark:from-amber-950/40 dark:to-amber-900/30 border-l-4 border-amber-400 animate-pulse'
               } else if (isAvailable && searchTime) {
@@ -450,15 +515,15 @@ export default function TimelineReservations({ user, restaurantId, tables, booki
               <div key={table.id} className="relative">
                 {/* Table Name with capacity and status */}
                 <div className={`absolute left-0 top-0 bottom-0 w-32 flex flex-col items-center justify-center border-r-2 border-border/50 z-10 transition-all duration-300 ${tableColor}`}>
-                  <span className="font-bold text-base">{table.number}</span>
-                  <span className="text-[10px] font-medium text-muted-foreground mt-0.5">
-                    👥 {table.seats || 4} posti
+                  <span className="font-bold text-xl">{table.number}</span>
+                  <span className="text-sm font-bold text-foreground mt-1">
+                    👥 {table.seats || 4}
                   </span>
                   {isCurrentlyOccupied && (
-                    <Badge className="mt-1 text-[9px] bg-rose-600 text-white">Occupato ora</Badge>
+                    <Badge className="mt-1 text-[9px] bg-red-600 text-white font-semibold">Occupato ora</Badge>
                   )}
                   {isAvailable && searchTime && !isCurrentlyOccupied && (
-                    <Badge className="mt-1 text-[9px] bg-emerald-600 text-white">Disponibile</Badge>
+                    <Badge className="mt-1 text-[9px] bg-green-600 text-white font-semibold">Disponibile</Badge>
                   )}
                 </div>
 
@@ -748,12 +813,32 @@ export default function TimelineReservations({ user, restaurantId, tables, booki
                 <h4 className="font-semibold text-sm text-emerald-900 dark:text-emerald-100 mb-2">
                   Tavoli Disponibili:
                 </h4>
-                <div className="space-y-1">
+                <div className="space-y-2">
                   {availableTables.map(table => (
-                    <div key={table.id} className="flex items-center justify-between text-sm">
-                      <span className="font-medium">{table.number}</span>
-                      <span className="text-muted-foreground">Capacità: {table.seats} posti</span>
-                    </div>
+                    <button
+                      key={table.id}
+                      onClick={() => {
+                        // Pre-fill the reservation form
+                        setNewReservation({
+                          name: '',
+                          phone: '',
+                          guests: searchGuests,
+                          time: searchTime,
+                          tableId: table.id
+                        })
+                        setSelectedTimeSlot({ tableId: table.id, time: searchTime })
+                        // Close smart search and open reservation dialog
+                        setShowSmartSearch(false)
+                        setShowReservationDialog(true)
+                      }}
+                      className="w-full flex items-center justify-between text-sm p-2 rounded-lg hover:bg-emerald-100 dark:hover:bg-emerald-900/30 transition-colors cursor-pointer group"
+                    >
+                      <span className="font-medium group-hover:text-emerald-700 dark:group-hover:text-emerald-300">{table.number}</span>
+                      <div className="flex items-center gap-2">
+                        <span className="text-muted-foreground">Capacità: {table.seats} posti</span>
+                        <Plus size={16} className="text-emerald-600 dark:text-emerald-400" />
+                      </div>
+                    </button>
                   ))}
                 </div>
               </div>
