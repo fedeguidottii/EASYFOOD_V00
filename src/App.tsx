@@ -154,13 +154,20 @@ function App() {
   }
 
   const handleLogout = () => {
+    // If we're in a client access flow, preserve the table ID
+    const isClientAccess = window.location.pathname.includes('/client/table/')
+
     setCurrentUser(null)
     setCurrentTable(null)
-    setClientAccessTableId(null) // Reset client access on logout
+
+    // Don't clear clientAccessTableId if we're in client access flow
+    if (!isClientAccess) {
+      setClientAccessTableId(null)
+      window.history.replaceState({}, document.title, '/')
+    }
+
     localStorage.removeItem('session_user')
     localStorage.removeItem('session_table')
-    // Clear URL to avoid re-triggering client access
-    window.history.replaceState({}, document.title, '/')
   }
 
   // If we have a table ID from URL but no user, show Client Access (PIN entry)

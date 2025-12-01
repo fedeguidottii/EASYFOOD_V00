@@ -130,6 +130,9 @@ export default function LoginPage({ onLogin }: Props) {
                   onChange={(e) => setPassword(e.target.value)}
                   placeholder="Password"
                   className="bg-black/20 border-white/10 focus:border-primary/50 focus:ring-primary/20 pr-10"
+                  autoComplete="off"
+                  data-lpignore="true"
+                  data-form-type="other"
                 />
                 <button
                   type="button"

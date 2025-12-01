@@ -50,7 +50,8 @@ import {
   ArrowDown,
   DotsSixVertical,
   Funnel,
-  Users
+  Users,
+  Layers
 } from '@phosphor-icons/react'
 import type { User, Table, Dish, Order, Restaurant, Booking, Category, OrderItem, TableSession } from '../services/types'
 import TimelineReservations from './TimelineReservations'
@@ -232,6 +233,9 @@ const RestaurantDashboard = ({ user, onLogout }: RestaurantDashboardProps) => {
   const [allowWaiterPayments, setAllowWaiterPayments] = useState(false)
   const [waiterPassword, setWaiterPassword] = useState('')
   const [waiterCredentialsDirty, setWaiterCredentialsDirty] = useState(false)
+
+  // Course Management Settings
+  const [coursesEnabled, setCoursesEnabled] = useState(true)
 
   // Reservations Date Filter
   const [selectedReservationDate, setSelectedReservationDate] = useState<Date>(new Date())
@@ -1769,6 +1773,41 @@ const RestaurantDashboard = ({ user, onLogout }: RestaurantDashboardProps) => {
                         Salva Impostazioni Coperto
                       </Button>
                     )}
+                  </CardContent>
+                </Card>
+
+                <Card className="shadow-lg border-none overflow-hidden bg-gradient-to-br from-purple-50 to-white dark:from-purple-950/20 dark:to-background">
+                  <CardHeader className="bg-muted/10 pb-6">
+                    <CardTitle className="text-lg font-semibold flex items-center gap-2">
+                      <span className="inline-flex h-9 w-9 items-center justify-center rounded-lg bg-primary/10 text-primary">
+                        <Layers size={18} />
+                      </span>
+                      Gestione Portate
+                    </CardTitle>
+                    <CardDescription>Attiva o disattiva la funzionalità delle portate</CardDescription>
+                  </CardHeader>
+                  <CardContent className="space-y-4">
+                    <div className="flex items-center justify-between p-4 bg-muted/30 rounded-lg border border-border/50">
+                      <div className="space-y-0.5">
+                        <Label className="text-base font-medium">Abilita Portate</Label>
+                        <p className="text-xs text-muted-foreground">
+                          Permetti ai clienti di organizzare ordini in portate separate
+                        </p>
+                      </div>
+                      <Switch
+                        checked={coursesEnabled}
+                        onCheckedChange={(checked) => {
+                          setCoursesEnabled(checked)
+                          localStorage.setItem('coursesEnabled', checked.toString())
+                          toast.success(checked ? 'Portate abilitate' : 'Portate disabilitate')
+                        }}
+                      />
+                    </div>
+                    <div className="bg-blue-50 dark:bg-blue-950/20 p-3 rounded-lg border border-blue-200 dark:border-blue-800">
+                      <p className="text-xs text-blue-900 dark:text-blue-100">
+                        💡 Quando disabilitate, i clienti vedranno un unico ordine senza suddivisione in portate.
+                      </p>
+                    </div>
                   </CardContent>
                 </Card>
 

@@ -28,7 +28,7 @@ export function DataInitializer() {
                         id: adminUserId,
                         email: 'admin@example.com',
                         name: 'Admin',
-                        password_hash: 'admin123',
+                        password_hash: `EasyFood${uuidv4().substring(0, 8)}!2024`,
                         role: 'ADMIN',
                         created_at: new Date().toISOString()
                     }

@@ -576,11 +576,14 @@ export default function CustomerMenu({ tableId: propTableId, onExit, interfaceMo
                   <TabsContent value="current" className="flex-1 overflow-hidden flex flex-col mt-0">
                     <ScrollArea className="flex-1 px-4 py-3">
                       <div className="space-y-4">
-                        {courseNumbers.map((courseNum) => (
+                        {Array.from({ length: maxCourse }, (_, i) => i + 1).map((courseNum) => (
                           <div key={courseNum}>
                             <div className={`flex items-center gap-2 mb-2 pb-1 border-b-2 ${courseNum === 1 ? 'border-emerald-400' : courseNum === 2 ? 'border-amber-400' : 'border-purple-400'}`}>
                               <Layers className={`w-4 h-4 ${courseNum === 1 ? 'text-emerald-500' : courseNum === 2 ? 'text-amber-500' : 'text-purple-500'}`} />
                               <span className="font-bold text-xs uppercase tracking-wider">Portata {courseNum}</span>
+                              {(!cartByCourse[courseNum] || cartByCourse[courseNum].length === 0) && (
+                                <span className="text-[10px] text-muted-foreground ml-auto">(vuota)</span>
+                              )}
                             </div>
                             <div className="space-y-2 pl-2">
                               {cartByCourse[courseNum]?.map((item) => (
@@ -629,7 +632,8 @@ export default function CustomerMenu({ tableId: propTableId, onExit, interfaceMo
                               <div className="space-y-1">
                                 {(order as any).items?.map((item: any, idx: number) => {
                                   const d = dishes?.find(dd => dd.id === item.dish_id)
-                                  return (<div key={idx} className="text-xs flex justify-between"><span><span className="font-bold mr-1">{item.quantity}x</span>{d?.name}</span>{item.status === 'SERVED' && <CheckCircle className="w-3 h-3 text-green-600" />}</div>)
+                                  const isReady = item.status === 'SERVED' || item.status === 'READY'
+                                  return (<div key={idx} className="text-xs flex justify-between"><span><span className="font-bold mr-1">{item.quantity}x</span>{d?.name}</span>{isReady && <CheckCircle className="w-3 h-3 text-green-600" />}</div>)
                                 })}
                               </div>
                             </div>
