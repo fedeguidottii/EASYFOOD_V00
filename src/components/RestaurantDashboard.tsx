@@ -1033,53 +1033,49 @@ const RestaurantDashboard = ({ user, onLogout }: RestaurantDashboardProps) => {
 
           {/* Tables Tab */}
           < TabsContent value="tables" className="space-y-6" >
-            <Card className="border-border/50 bg-card shadow-sm">
-              <CardContent className="p-5">
-                <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
-                  <div className="flex items-center gap-3">
-                    <div className="w-11 h-11 rounded-xl bg-primary/10 flex items-center justify-center text-primary">
-                      <MapPin size={20} weight="duotone" />
-                    </div>
-                    <div>
-                      <h2 className="text-2xl font-bold">Gestione Tavoli</h2>
-                      <p className="text-xs text-muted-foreground mt-0.5">Gestisci la sala e i tavoli</p>
-                    </div>
-                  </div>
-                  <div className="flex flex-wrap items-center gap-2">
-                    <div className="relative">
-                      <MagnifyingGlass className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" size={16} />
-                      <Input
-                        placeholder="Cerca tavolo..."
-                        value={tableSearchTerm}
-                        onChange={(e) => setTableSearchTerm(e.target.value)}
-                        className="pl-9 h-10 w-[180px] lg:w-[230px]"
-                      />
-                    </div>
-                    <Button onClick={() => setShowCreateTableDialog(true)} size="sm" className="h-10">
-                      <Plus size={16} className="mr-2" />
-                      Nuovo Tavolo
-                    </Button>
-                    <Dialog>
-                      <DialogTrigger asChild>
-                        <Button variant="outline" size="sm" className="h-10">
-                          <ClockCounterClockwise size={16} className="mr-2" />
-                          Storico
-                        </Button>
-                      </DialogTrigger>
-                      <DialogContent className="max-w-3xl max-h-[80vh] overflow-y-auto">
-                        <DialogHeader>
-                          <DialogTitle>Storico Tavoli Chiusi</DialogTitle>
-                          <DialogDescription>Visualizza le sessioni dei tavoli concluse.</DialogDescription>
-                        </DialogHeader>
-                        {/* History Logic here if needed, keeping simple for now */}
-                      </DialogContent>
-                    </Dialog>
-                  </div>
+            <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between bg-card/50 p-4 rounded-xl border shadow-sm backdrop-blur-sm">
+              <div className="flex items-center gap-3">
+                <div className="w-11 h-11 rounded-xl bg-primary/10 flex items-center justify-center text-primary">
+                  <MapPin size={20} weight="duotone" />
                 </div>
-              </CardContent>
-            </Card>
+                <div>
+                  <h2 className="text-2xl font-bold">Gestione Tavoli</h2>
+                  <p className="text-xs text-muted-foreground mt-0.5">Gestisci la sala e i tavoli</p>
+                </div>
+              </div>
+              <div className="flex flex-wrap items-center gap-2">
+                <div className="relative">
+                  <MagnifyingGlass className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" size={16} />
+                  <Input
+                    placeholder="Cerca tavolo..."
+                    value={tableSearchTerm}
+                    onChange={(e) => setTableSearchTerm(e.target.value)}
+                    className="pl-9 h-10 w-[180px] lg:w-[230px] bg-background/50 backdrop-blur-sm"
+                  />
+                </div>
+                <Button onClick={() => setShowCreateTableDialog(true)} size="sm" className="h-10 shadow-sm hover:shadow-md transition-shadow">
+                  <Plus size={16} className="mr-2" />
+                  Nuovo Tavolo
+                </Button>
+                <Dialog>
+                  <DialogTrigger asChild>
+                    <Button variant="outline" size="sm" className="h-10 shadow-sm hover:shadow-md transition-shadow">
+                      <ClockCounterClockwise size={16} className="mr-2" />
+                      Storico
+                    </Button>
+                  </DialogTrigger>
+                  <DialogContent className="max-w-3xl max-h-[80vh] overflow-y-auto">
+                    <DialogHeader>
+                      <DialogTitle>Storico Tavoli Chiusi</DialogTitle>
+                      <DialogDescription>Visualizza le sessioni dei tavoli concluse.</DialogDescription>
+                    </DialogHeader>
+                    {/* History Logic here if needed, keeping simple for now */}
+                  </DialogContent>
+                </Dialog>
+              </div>
+            </div>
 
-            <div className="grid gap-6 grid-cols-[repeat(auto-fill,minmax(220px,1fr))]">
+            <div className="grid gap-6 grid-cols-[repeat(auto-fill,minmax(240px,1fr))]">
               {restaurantTables.map(table => {
                 const session = getOpenSessionForTable(table.id)
                 const isActive = session?.status === 'OPEN'
@@ -1088,14 +1084,21 @@ const RestaurantDashboard = ({ user, onLogout }: RestaurantDashboardProps) => {
                 return (
                   <Card
                     key={table.id}
-                    className={`relative overflow-hidden transition-all duration-300 group border shadow-sm hover:shadow-md ${isActive ? 'bg-card border-primary/20 ring-1 ring-primary/10' : 'bg-card border-border/50'}`}
+                    className={`relative overflow-hidden transition-all duration-300 group shadow-sm hover:shadow-lg border-none ${
+                      isActive
+                        ? 'bg-gradient-to-br from-green-50 to-white dark:from-green-950/20 dark:to-background ring-1 ring-green-200 dark:ring-green-900'
+                        : 'bg-gradient-to-br from-slate-50 to-white dark:from-slate-950/20 dark:to-background'
+                    }`}
                   >
                     <CardContent className="p-0 flex flex-col h-full">
-                      <div className="p-4 flex items-center justify-between border-b border-border/10">
-                        <span className="text-xl font-semibold text-foreground">
+                      <div className="p-5 flex items-center justify-between border-b border-border/10 bg-gradient-to-r from-transparent via-white/50 to-transparent dark:via-white/5">
+                        <span className="text-2xl font-bold text-foreground">
                           {table.number}
                         </span>
-                        <Badge variant={isActive ? 'default' : 'outline'}>
+                        <Badge
+                          variant={isActive ? 'default' : 'outline'}
+                          className={isActive ? 'bg-green-600 hover:bg-green-700 border-none shadow-sm' : ''}
+                        >
                           {isActive ? 'Occupato' : 'Libero'}
                         </Badge>
                       </div>
@@ -1104,34 +1107,38 @@ const RestaurantDashboard = ({ user, onLogout }: RestaurantDashboardProps) => {
                         {isActive ? (
                           <>
                             <div className="text-center">
-                              <p className="text-[11px] text-muted-foreground mb-2 uppercase tracking-[0.2em] font-medium">PIN Tavolo</p>
-                              <span className="text-4xl font-mono font-bold tracking-wider text-foreground">
-                                {session?.session_pin || '...'}
-                              </span>
+                              <p className="text-[10px] text-muted-foreground mb-2 uppercase tracking-[0.25em] font-semibold">PIN Tavolo</p>
+                              <div className="bg-gradient-to-br from-primary/10 to-primary/5 px-4 py-3 rounded-xl border border-primary/20">
+                                <span className="text-4xl font-mono font-bold tracking-wider text-primary">
+                                  {session?.session_pin || '...'}
+                                </span>
+                              </div>
                             </div>
                             {activeOrder && (
-                              <Badge variant="outline" className="text-xs">
-                                {activeOrder.items?.filter(i => i.status === 'SERVED').length || 0} ordini completati
+                              <Badge variant="outline" className="text-xs bg-background/50 backdrop-blur-sm">
+                                <CheckCircle size={12} className="mr-1" weight="fill" />
+                                {activeOrder.items?.filter(i => i.status === 'SERVED').length || 0} completati
                               </Badge>
                             )}
                           </>
                         ) : (
-                          <div className="text-center text-muted-foreground/50 group-hover:text-muted-foreground transition-colors">
-                            <MapPin size={32} className="mx-auto mb-2" />
-                            <p className="text-sm font-medium">Pronto</p>
+                          <div className="text-center text-muted-foreground/40 group-hover:text-muted-foreground transition-all duration-300 transform group-hover:scale-110">
+                            <MapPin size={40} className="mx-auto mb-2" weight="duotone" />
+                            <p className="text-sm font-semibold">Disponibile</p>
                           </div>
                         )}
                       </div>
 
-                      <div className="p-4 bg-muted/5 border-t border-border/10 grid gap-2">
+                      <div className="p-4 bg-gradient-to-t from-muted/20 to-transparent border-t border-border/10 grid gap-2">
                         {isActive ? (
                           <div className="grid grid-cols-2 gap-2">
-                            <Button variant="outline" size="sm" onClick={() => handleShowTableQr(table)}>
+                            <Button variant="outline" size="sm" onClick={() => handleShowTableQr(table)} className="shadow-sm hover:shadow-md transition-shadow">
                               <QrCode size={16} className="mr-2" />
                               QR
                             </Button>
                             <Button
-                              className="bg-primary text-primary-foreground hover:bg-primary/90"
+                              className="bg-gradient-to-r from-primary to-primary/80 text-primary-foreground hover:from-primary/90 hover:to-primary/70 shadow-sm hover:shadow-md transition-all"
+                              size="sm"
                               onClick={() => { setSelectedTableForActions(table); setShowTableBillDialog(true); }}
                             >
                               <Receipt size={16} className="mr-2" />
@@ -1140,19 +1147,21 @@ const RestaurantDashboard = ({ user, onLogout }: RestaurantDashboardProps) => {
                           </div>
                         ) : (
                           <Button
-                            className="w-full"
+                            className="w-full shadow-sm hover:shadow-md transition-shadow"
+                            size="sm"
                             onClick={() => handleToggleTable(table.id)}
                           >
+                            <Plus size={16} className="mr-2" />
                             Attiva Tavolo
                           </Button>
                         )}
                       </div>
 
-                      <div className="absolute top-2 right-12 opacity-0 group-hover:opacity-100 transition-opacity flex gap-1">
-                        <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => handleEditTable(table)}>
+                      <div className="absolute top-3 right-3 opacity-0 group-hover:opacity-100 transition-opacity flex gap-1 bg-background/80 backdrop-blur-md p-1 rounded-lg border border-border/50 shadow-lg">
+                        <Button variant="ghost" size="icon" className="h-7 w-7 hover:bg-muted" onClick={() => handleEditTable(table)}>
                           <PencilSimple size={14} />
                         </Button>
-                        <Button variant="ghost" size="icon" className="h-8 w-8 text-destructive hover:bg-destructive/10" onClick={() => handleDeleteTable(table.id)}>
+                        <Button variant="ghost" size="icon" className="h-7 w-7 text-destructive hover:bg-destructive/10" onClick={() => handleDeleteTable(table.id)}>
                           <Trash size={14} />
                         </Button>
                       </div>
@@ -1446,7 +1455,7 @@ const RestaurantDashboard = ({ user, onLogout }: RestaurantDashboardProps) => {
 
           {/* Settings Tab */}
           < TabsContent value="settings" className="space-y-6" >
-            <div className="flex items-center justify-between mb-6">
+            <div className="flex items-center justify-between mb-6 bg-card/50 p-4 rounded-xl border shadow-sm backdrop-blur-sm">
               <div className="flex items-center gap-3">
                 <div className="w-11 h-11 rounded-xl bg-primary/10 flex items-center justify-center text-primary">
                   <Gear size={20} weight="duotone" />
@@ -1458,8 +1467,8 @@ const RestaurantDashboard = ({ user, onLogout }: RestaurantDashboardProps) => {
               </div>
             </div>
 
-            <Card className="border-border/50 bg-card shadow-sm">
-              <CardHeader>
+            <Card className="shadow-lg border-none overflow-hidden bg-gradient-to-br from-purple-50 to-white dark:from-purple-950/20 dark:to-background">
+              <CardHeader className="bg-muted/10 pb-6">
                 <CardTitle className="text-lg font-semibold flex items-center gap-2">
                   <span className="inline-flex h-9 w-9 items-center justify-center rounded-lg bg-primary/10 text-primary">
                     <Gear size={18} />
@@ -1467,10 +1476,10 @@ const RestaurantDashboard = ({ user, onLogout }: RestaurantDashboardProps) => {
                   Aspetto
                 </CardTitle>
               </CardHeader>
-              <CardContent>
-                <div className="flex items-center justify-between">
+              <CardContent className="pt-6">
+                <div className="flex items-center justify-between p-4 bg-muted/30 rounded-lg border border-border/50">
                   <div className="space-y-1">
-                    <Label>Tema Scuro</Label>
+                    <Label className="text-base font-medium">Tema Scuro</Label>
                     <p className="text-sm text-muted-foreground">Attiva o disattiva il tema scuro</p>
                   </div>
                   <ModeToggle />
@@ -1478,8 +1487,8 @@ const RestaurantDashboard = ({ user, onLogout }: RestaurantDashboardProps) => {
               </CardContent>
             </Card>
 
-            <Card className="border-border/50 bg-card shadow-sm">
-              <CardHeader>
+            <Card className="shadow-lg border-none overflow-hidden bg-gradient-to-br from-blue-50 to-white dark:from-blue-950/20 dark:to-background">
+              <CardHeader className="bg-muted/10 pb-6">
                 <CardTitle className="text-lg font-semibold flex items-center gap-2">
                   <span className="inline-flex h-9 w-9 items-center justify-center rounded-lg bg-primary/10 text-primary">
                     <ClockCounterClockwise size={18} />
@@ -1595,10 +1604,12 @@ const RestaurantDashboard = ({ user, onLogout }: RestaurantDashboardProps) => {
             </Card>
 
             <div className="space-y-6">
-              <Card className="bg-card border-border/50 shadow-sm">
-                <CardHeader>
-                  <CardTitle className="text-foreground flex items-center gap-2">
-                    <ForkKnife size={20} className="text-primary" />
+              <Card className="shadow-lg border-none overflow-hidden bg-gradient-to-br from-orange-50 to-white dark:from-orange-950/20 dark:to-background">
+                <CardHeader className="bg-muted/10 pb-6">
+                  <CardTitle className="text-lg font-semibold flex items-center gap-2">
+                    <span className="inline-flex h-9 w-9 items-center justify-center rounded-lg bg-primary/10 text-primary">
+                      <ForkKnife size={18} />
+                    </span>
                     Impostazioni All You Can Eat
                   </CardTitle>
                   <CardDescription>
@@ -1653,10 +1664,12 @@ const RestaurantDashboard = ({ user, onLogout }: RestaurantDashboardProps) => {
               </Card>
 
               <div className="grid gap-6 md:grid-cols-2">
-                <Card className="bg-card border-border/50 shadow-sm">
-                  <CardHeader>
-                    <CardTitle className="text-foreground flex items-center gap-2">
-                      <Receipt size={20} className="text-primary" />
+                <Card className="shadow-lg border-none overflow-hidden bg-gradient-to-br from-amber-50 to-white dark:from-amber-950/20 dark:to-background">
+                  <CardHeader className="bg-muted/10 pb-6">
+                    <CardTitle className="text-lg font-semibold flex items-center gap-2">
+                      <span className="inline-flex h-9 w-9 items-center justify-center rounded-lg bg-primary/10 text-primary">
+                        <Receipt size={18} />
+                      </span>
                       Impostazioni Coperto
                     </CardTitle>
                     <CardDescription>Gestisci il costo del coperto</CardDescription>
@@ -1703,10 +1716,12 @@ const RestaurantDashboard = ({ user, onLogout }: RestaurantDashboardProps) => {
                   </CardContent>
                 </Card>
 
-                <Card className="bg-card border-border/50 shadow-sm">
-                  <CardHeader>
-                    <CardTitle className="text-foreground flex items-center gap-2">
-                      <Clock size={20} className="text-primary" />
+                <Card className="shadow-lg border-none overflow-hidden bg-gradient-to-br from-cyan-50 to-white dark:from-cyan-950/20 dark:to-background">
+                  <CardHeader className="bg-muted/10 pb-6">
+                    <CardTitle className="text-lg font-semibold flex items-center gap-2">
+                      <span className="inline-flex h-9 w-9 items-center justify-center rounded-lg bg-primary/10 text-primary">
+                        <Clock size={18} />
+                      </span>
                       Orari di Apertura
                     </CardTitle>
                     <CardDescription>Imposta gli orari per le prenotazioni</CardDescription>
