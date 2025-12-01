@@ -70,29 +70,36 @@ export default function ClientTableAccess({ tableId, onAccessGranted }: ClientTa
     }
 
     return (
-        <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-background to-muted p-4">
-            <Card className="w-full max-w-md shadow-xl border-none bg-white/80 dark:bg-zinc-900/80 backdrop-blur-md">
-                <CardHeader className="text-center pb-2">
-                    <div className="mx-auto w-16 h-16 bg-primary/10 rounded-full flex items-center justify-center mb-4 text-primary">
-                        <Utensils size={32} />
+        <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-slate-50 via-white to-slate-100 dark:from-slate-950 dark:via-slate-900 dark:to-slate-950 p-6">
+            <Card className="w-full max-w-md shadow-2xl border border-slate-200/60 dark:border-slate-800/60 bg-white dark:bg-slate-900 backdrop-blur-xl overflow-hidden rounded-3xl">
+                <CardHeader className="text-center pb-4 pt-8 px-8">
+                    <div className="mx-auto relative mb-6">
+                        <div className="w-20 h-20 bg-gradient-to-br from-emerald-500 to-teal-600 rounded-3xl flex items-center justify-center shadow-2xl shadow-emerald-500/30 transform hover:scale-105 transition-transform">
+                            <Utensils size={36} className="text-white" />
+                        </div>
+                        <div className="absolute -bottom-2 -right-2 w-8 h-8 bg-gradient-to-br from-amber-400 to-orange-500 rounded-full flex items-center justify-center shadow-lg">
+                            <Lock size={14} className="text-white" />
+                        </div>
                     </div>
-                    <CardTitle className="text-2xl font-bold">Benvenuto</CardTitle>
-                    <CardDescription className="text-base">
-                        Inserisci il PIN per accedere al menu
+                    <CardTitle className="text-3xl font-bold bg-gradient-to-r from-slate-900 to-slate-600 dark:from-white dark:to-slate-300 bg-clip-text text-transparent">
+                        Benvenuto
+                    </CardTitle>
+                    <CardDescription className="text-base mt-2 text-slate-600 dark:text-slate-400">
+                        Inserisci il PIN per accedere al menu digitale
                     </CardDescription>
                 </CardHeader>
-                <CardContent className="space-y-6 pt-4">
-                    <div className="space-y-4">
+                <CardContent className="space-y-8 pt-4 px-8 pb-8">
+                    <div className="space-y-6">
                         <div className="relative">
-                            <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-muted-foreground">
-                                <Lock size={20} />
+                            <div className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400">
+                                <Lock size={22} />
                             </div>
                             <Input
                                 type="text"
                                 inputMode="numeric"
                                 pattern="[0-9]*"
-                                placeholder="PIN"
-                                className="text-center text-3xl tracking-[0.5em] font-mono h-14 pl-10 font-bold bg-muted/50 border-border/50 focus:ring-primary/20 transition-all"
+                                placeholder="••••"
+                                className="text-center text-4xl tracking-[0.8em] font-mono h-16 pl-12 pr-12 font-bold bg-slate-50 dark:bg-slate-800 border-2 border-slate-200 dark:border-slate-700 focus-visible:ring-2 focus-visible:ring-emerald-500/50 focus-visible:border-emerald-500 rounded-2xl transition-all placeholder:text-slate-300 dark:placeholder:text-slate-700"
                                 value={pin}
                                 onChange={(e) => setPin(e.target.value)}
                                 maxLength={4}
@@ -100,22 +107,29 @@ export default function ClientTableAccess({ tableId, onAccessGranted }: ClientTa
                             />
                         </div>
                         {tableName && (
-                            <p className="text-center text-xs text-muted-foreground font-medium uppercase tracking-wider">
-                                {tableName}
-                            </p>
+                            <div className="text-center">
+                                <p className="text-sm text-slate-500 dark:text-slate-400 font-medium">
+                                    {tableName}
+                                </p>
+                            </div>
                         )}
                     </div>
                     <Button
-                        className="w-full h-12 text-lg font-bold shadow-lg rounded-xl transition-all active:scale-[0.98]"
+                        className="w-full h-14 text-lg font-bold shadow-2xl shadow-emerald-500/30 rounded-2xl transition-all active:scale-95 bg-gradient-to-r from-emerald-500 to-teal-600 hover:from-emerald-600 hover:to-teal-700 text-white border-none hover:shadow-emerald-500/40"
                         onClick={handleAccess}
                         disabled={loading || pin.length < 4}
                     >
                         {loading ? (
-                            <div className="flex items-center gap-2">
-                                <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
-                                Verifica...
+                            <div className="flex items-center gap-3">
+                                <div className="w-5 h-5 border-3 border-white/30 border-t-white rounded-full animate-spin" />
+                                <span>Verifica in corso...</span>
                             </div>
-                        ) : 'Accedi al Menu'}
+                        ) : (
+                            <div className="flex items-center justify-center gap-2">
+                                <Utensils size={20} />
+                                <span>Accedi al Menu</span>
+                            </div>
+                        )}
                     </Button>
                 </CardContent>
             </Card>
