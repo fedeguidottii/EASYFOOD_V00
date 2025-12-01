@@ -45,9 +45,7 @@ function Toggle({
           aria-hidden
           className="flex h-5 w-5 items-center justify-center rounded-full border border-input bg-background transition-colors group-data-[state=on]:border-primary/70 group-data-[state=on]:bg-primary"
         >
-          <TogglePrimitive.Indicator>
-            <Check className="h-3 w-3 text-primary-foreground" />
-          </TogglePrimitive.Indicator>
+          <Check className="h-3 w-3 text-primary-foreground opacity-0 group-data-[state=on]:opacity-100 transition-opacity" />
         </span>
         <span className="leading-none">{props.children}</span>
       </span>
