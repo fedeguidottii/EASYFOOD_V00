@@ -1104,8 +1104,8 @@ const RestaurantDashboard = ({ user, onLogout }: RestaurantDashboardProps) => {
                   >
                     <CardContent className="p-0 flex flex-col h-full">
                       <div className="p-4 flex items-center justify-between border-b border-border/5">
-                        <div className="flex items-center gap-3">
-                          <span className="text-2xl font-bold text-foreground tracking-tight">
+                        <div className="flex items-center gap-3 min-w-0 flex-1">
+                          <span className="text-2xl font-bold text-foreground tracking-tight truncate max-w-[200px]" title={table.number}>
                             {table.number}
                           </span>
                           <div className="flex items-center gap-1.5 text-foreground bg-muted px-3 py-1 rounded-full">

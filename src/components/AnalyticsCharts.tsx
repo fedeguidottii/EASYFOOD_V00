@@ -218,11 +218,38 @@ export default function AnalyticsCharts({ orders, completedOrders, dishes, categ
       .sort((a, b) => b.quantity - a.quantity)
       .slice(0, 50) // Show top 50
 
+    // Calculate interesting insights
+    let insight = ''
+    let insightType: 'success' | 'info' | 'warning' = 'info'
+
+    if (dishStats.length > 0 && totalOrders > 5) {
+      const topDish = dishStats[0]
+      const topDishPercent = (topDish.quantity / totalOrders) * 100
+      if (topDishPercent > 30) {
+        insight = `${topDish.name} è il piatto più venduto (${topDish.quantity} ordini, ${topDishPercent.toFixed(0)}%)`
+        insightType = 'success'
+      }
+    }
+
+    if (!insight && totalOrders > 0) {
+      const avgComparison = averageOrderValue > 20 ? 'sopra' : 'sotto'
+      const avgQuality = averageOrderValue > 20 ? 'ottimo' : 'normale'
+      insight = `Scontrino medio ${avgQuality}: €${averageOrderValue.toFixed(2)}`
+      insightType = averageOrderValue > 20 ? 'success' : 'info'
+    }
+
+    if (!insight) {
+      insight = `${totalOrders} ordini ricevuti nel periodo selezionato`
+      insightType = 'info'
+    }
+
     return {
       totalOrders,
       totalRevenue,
       averageOrderValue,
       activeOrders: activeOrdersCount,
+      insight,
+      insightType,
       dailyData,
       categoryStats,
       dishStats,
@@ -374,15 +401,23 @@ export default function AnalyticsCharts({ orders, completedOrders, dishes, categ
             </CardContent>
           </Card>
 
-          <Card className="shadow-sm hover:shadow-md transition-shadow border-none bg-gradient-to-br from-purple-50 to-white dark:from-purple-950/20 dark:to-background">
+          <Card className={`shadow-sm hover:shadow-md transition-shadow border-none ${
+            analytics.insightType === 'success' ? 'bg-gradient-to-br from-emerald-50 to-white dark:from-emerald-950/20 dark:to-background' :
+            analytics.insightType === 'warning' ? 'bg-gradient-to-br from-amber-50 to-white dark:from-amber-950/20 dark:to-background' :
+            'bg-gradient-to-br from-blue-50 to-white dark:from-blue-950/20 dark:to-background'
+          }`}>
             <CardContent className="p-6">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-sm font-medium text-muted-foreground mb-1">Ordini in Corso</p>
-                  <p className="text-3xl font-bold text-foreground">{analytics.activeOrders}</p>
+              <div className="flex items-center gap-3">
+                <div className={`p-3 rounded-full ${
+                  analytics.insightType === 'success' ? 'bg-emerald-100 dark:bg-emerald-900/30 text-emerald-600 dark:text-emerald-400' :
+                  analytics.insightType === 'warning' ? 'bg-amber-100 dark:bg-amber-900/30 text-amber-600 dark:text-amber-400' :
+                  'bg-blue-100 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400'
+                }`}>
+                  ✨
                 </div>
-                <div className="p-3 bg-purple-100 dark:bg-purple-900/30 rounded-full text-purple-600 dark:text-purple-400">
-                  <Clock size={24} weight="duotone" />
+                <div className="flex-1">
+                  <p className="text-xs font-medium text-muted-foreground mb-1 uppercase tracking-wider">Insight</p>
+                  <p className="text-sm font-semibold text-foreground leading-snug">{analytics.insight}</p>
                 </div>
               </div>
             </CardContent>

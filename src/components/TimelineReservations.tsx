@@ -514,8 +514,8 @@ export default function TimelineReservations({ user, restaurantId, tables, booki
               return (
               <div key={table.id} className="relative">
                 {/* Table Name with capacity and status */}
-                <div className={`absolute left-0 top-0 bottom-0 w-32 flex flex-col items-center justify-center border-r-2 border-border/50 z-10 transition-all duration-300 ${tableColor}`}>
-                  <span className="font-bold text-xl">{table.number}</span>
+                <div className={`absolute left-0 top-0 bottom-0 w-32 flex flex-col items-center justify-center border-r-2 border-border/50 z-10 transition-all duration-300 ${tableColor} overflow-hidden px-2`}>
+                  <span className="font-bold text-xl truncate max-w-full text-center" title={table.number}>{table.number}</span>
                   <span className="text-sm font-bold text-foreground mt-1">
                     👥 {table.seats || 4}
                   </span>
@@ -535,11 +535,20 @@ export default function TimelineReservations({ user, restaurantId, tables, booki
                   onDrop={(e) => handleDrop(e, table.id)}
                   ref={tableIndex === 0 ? timelineRef : undefined}
                 >
-                  {/* Enhanced Grid Lines - Thicker and more visible */}
-                  <div className="absolute inset-0 flex pointer-events-none">
-                    {timeSlots.map((_, i) => (
-                      <div key={i} className="h-full border-r-2 border-slate-200 dark:border-slate-700 flex-1"></div>
-                    ))}
+                  {/* Enhanced Grid Lines - Positioned at exact hours */}
+                  <div className="absolute inset-0 pointer-events-none">
+                    {timeSlots.map((slot, i) => {
+                      const hourMinutes = slot.hour * 60
+                      const relativePosition = (hourMinutes - TIMELINE_START_MINUTES) / TIMELINE_DURATION
+                      const leftPercent = relativePosition * 100
+                      return (
+                        <div
+                          key={i}
+                          className="absolute top-0 bottom-0 w-0.5 bg-slate-300 dark:bg-slate-600"
+                          style={{ left: `${leftPercent}%` }}
+                        />
+                      )
+                    })}
                   </div>
 
                   {/* Reservation Blocks */}
