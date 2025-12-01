@@ -88,8 +88,8 @@ export default function AIAnalyticsSection({ orders, dishes, categories, tables 
         }
 
         try {
-            // FIX: Updated model name
-            const model = genAI.getGenerativeModel({ model: 'gemini-1.5-flash-latest' })
+            // FIX: Use correct model name for Gemini API
+            const model = genAI.getGenerativeModel({ model: 'gemini-1.5-flash' })
             const context = buildRestaurantContext()
 
             const prompt = isInitial

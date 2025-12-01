@@ -759,9 +759,6 @@ const RestaurantDashboard = ({ user, onLogout }: RestaurantDashboardProps) => {
     updatedCategories.splice(draggedIndex, 1)
     updatedCategories.splice(targetIndex, 0, draggedCategory)
 
-    setCategories(updatedCategories)
-    setDraggedCategory(null)
-
     // Update orders in DB
     try {
       const updates = updatedCategories.map((cat, index) => ({
@@ -769,17 +766,21 @@ const RestaurantDashboard = ({ user, onLogout }: RestaurantDashboardProps) => {
         order: index
       }))
 
-      // We update optimistically first, then in DB.
-      // Ideally we would batch update, but supabase might need individual calls or an RPC.
-      // For simplicity/robustness here we iterate.
+      // Batch update all categories with new order
       for (const cat of updates) {
         await DatabaseService.updateCategory(cat)
       }
+
+      // Force update local state after successful DB save
+      setCategories(updates)
+      setDraggedCategory(null)
+
       toast.success('Ordine categorie aggiornato')
     } catch (err) {
       console.error("Failed to reorder categories", err)
       toast.error("Errore nel riordinare le categorie")
-      refreshRestaurants() // Revert on error roughly
+      // Revert to original order on error
+      setCategories([...restaurantCategories])
     }
   }
 

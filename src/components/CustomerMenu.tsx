@@ -311,52 +311,60 @@ export default function CustomerMenu({ tableId: propTableId, onExit, interfaceMo
   }
 
   return (
-    <div className="min-h-screen bg-muted/5 pb-28 font-sans select-none">
+    <div className="min-h-screen bg-gradient-to-br from-slate-50 via-white to-slate-100 dark:from-slate-950 dark:via-slate-900 dark:to-slate-950 pb-28 font-sans select-none">
 
-      {/* Header Fisso */}
-      <header className="sticky top-0 z-20 bg-background/95 backdrop-blur-md border-b border-border/10 shadow-sm transition-all">
-        <div className="px-4 pt-3 pb-2">
-          <div className="flex items-center justify-between mb-3">
-            <div className="flex items-center gap-2">
-              <div className="bg-primary/10 p-1.5 rounded-lg">
-                <Utensils className="w-4 h-4 text-primary" />
+      {/* Header Elegante e Moderno */}
+      <header className="sticky top-0 z-20 bg-white/80 dark:bg-slate-900/80 backdrop-blur-xl border-b border-slate-200/50 dark:border-slate-800/50 shadow-lg shadow-slate-200/50 dark:shadow-slate-950/50 transition-all">
+        <div className="max-w-5xl mx-auto px-5 pt-4 pb-3">
+          <div className="flex items-center justify-between mb-4">
+            <div className="flex items-center gap-3">
+              <div className="relative">
+                <div className="bg-gradient-to-br from-emerald-500 to-teal-600 p-2.5 rounded-2xl shadow-lg shadow-emerald-500/30">
+                  <Utensils className="w-5 h-5 text-white" />
+                </div>
+                {session && (
+                  <div className="absolute -top-1 -right-1 w-3 h-3 rounded-full bg-green-500 border-2 border-white dark:border-slate-900 animate-pulse" />
+                )}
               </div>
               <div>
-                <h1 className="font-bold text-base leading-none tracking-tight">Menu</h1>
-                <div className="flex items-center gap-1 mt-0.5">
+                <h1 className="font-bold text-xl leading-none tracking-tight bg-gradient-to-r from-slate-900 to-slate-600 dark:from-white dark:to-slate-300 bg-clip-text text-transparent">
+                  Il Nostro Menu
+                </h1>
+                <div className="flex items-center gap-1.5 mt-1">
                   {session ? (
-                    <span className="text-[10px] text-green-600 font-medium flex items-center gap-1">
+                    <span className="text-xs text-green-600 dark:text-green-400 font-medium flex items-center gap-1.5">
                       <div className="w-1.5 h-1.5 rounded-full bg-green-500 animate-pulse" />
-                      Tavolo connesso
+                      Connesso
                     </span>
                   ) : (
-                    <span className="text-[10px] text-orange-500 font-medium">In attesa apertura tavolo...</span>
+                    <span className="text-xs text-amber-600 dark:text-amber-400 font-medium">In attesa...</span>
                   )}
                 </div>
               </div>
             </div>
 
-            {/* Search Bar Micro */}
-            <div className="relative w-36 transition-all focus-within:w-48">
-              <Search className="absolute left-2.5 top-1.5 w-3.5 h-3.5 text-muted-foreground" />
+            {/* Search Bar Elegante */}
+            <div className="relative w-40 transition-all focus-within:w-56 duration-300">
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
               <Input
-                placeholder="Cerca piatto..."
-                className="h-8 pl-8 text-xs bg-muted/30 border-none focus-visible:ring-1 rounded-full"
+                placeholder="Cerca..."
+                className="h-10 pl-10 pr-3 text-sm bg-slate-100/80 dark:bg-slate-800/80 border-slate-200 dark:border-slate-700 focus-visible:ring-2 focus-visible:ring-emerald-500/50 rounded-2xl transition-all placeholder:text-slate-400"
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
               />
             </div>
           </div>
 
-          {/* Categorie Scroll orizzontale fluido */}
-          <ScrollArea className="w-full -mx-4 px-4 pb-1">
-            <div className="flex gap-2 pb-1 min-w-max">
+          {/* Categorie con stile elegante */}
+          <ScrollArea className="w-full -mx-5 px-5 pb-2">
+            <div className="flex gap-2.5 pb-2 min-w-max">
               <button
                 onClick={() => setActiveCategory('all')}
-                className={`px-3 py-1.5 rounded-full text-xs font-semibold transition-all duration-300 border ${activeCategory === 'all'
-                  ? 'bg-foreground text-background border-foreground shadow-sm scale-105'
-                  : 'bg-background text-muted-foreground border-border/40 hover:bg-muted'
-                  }`}
+                className={`px-5 py-2 rounded-full text-sm font-semibold transition-all duration-300 shadow-sm ${
+                  activeCategory === 'all'
+                    ? 'bg-gradient-to-r from-emerald-500 to-teal-600 text-white shadow-lg shadow-emerald-500/30 scale-105'
+                    : 'bg-white dark:bg-slate-800 text-slate-600 dark:text-slate-300 border border-slate-200 dark:border-slate-700 hover:bg-slate-50 dark:hover:bg-slate-750 hover:scale-105'
+                }`}
               >
                 Tutti
               </button>
@@ -364,10 +372,11 @@ export default function CustomerMenu({ tableId: propTableId, onExit, interfaceMo
                 <button
                   key={cat.id}
                   onClick={() => setActiveCategory(cat.id)}
-                  className={`px-3 py-1.5 rounded-full text-xs font-semibold transition-all duration-300 border ${activeCategory === cat.id
-                    ? 'bg-foreground text-background border-foreground shadow-sm scale-105'
-                    : 'bg-background text-muted-foreground border-border/40 hover:bg-muted'
-                    }`}
+                  className={`px-5 py-2 rounded-full text-sm font-semibold transition-all duration-300 shadow-sm ${
+                    activeCategory === cat.id
+                      ? 'bg-gradient-to-r from-emerald-500 to-teal-600 text-white shadow-lg shadow-emerald-500/30 scale-105'
+                      : 'bg-white dark:bg-slate-800 text-slate-600 dark:text-slate-300 border border-slate-200 dark:border-slate-700 hover:bg-slate-50 dark:hover:bg-slate-750 hover:scale-105'
+                  }`}
                 >
                   {cat.name}
                 </button>
@@ -377,73 +386,71 @@ export default function CustomerMenu({ tableId: propTableId, onExit, interfaceMo
         </div>
       </header>
 
-      {/* Lista Piatti */}
-      <main className="p-3 space-y-3 max-w-lg mx-auto">
+      {/* Lista Piatti con stile elegante */}
+      <main className="p-4 space-y-4 max-w-5xl mx-auto">
         <AnimatePresence mode="popLayout">
           {filteredDishes.map((dish) => (
             <motion.div
               key={dish.id}
-              initial={{ opacity: 0, y: 10 }}
+              initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
               exit={{ opacity: 0, scale: 0.95 }}
-              transition={{ duration: 0.2 }}
+              transition={{ duration: 0.3, ease: "easeOut" }}
             >
               <Card
-                className="overflow-hidden border-none shadow-sm bg-card hover:bg-muted/5 active:scale-[0.99] transition-all cursor-pointer group"
+                className="overflow-hidden border border-slate-200/60 dark:border-slate-800/60 shadow-lg hover:shadow-xl bg-white dark:bg-slate-900 hover:scale-[1.02] active:scale-[0.98] transition-all duration-300 cursor-pointer group"
                 onClick={() => setSelectedDish(dish)}
               >
-                {/* Card Compatta: Immagine a sx, testo a dx */}
-                <div className="flex p-2 gap-3 h-[88px]">
+                <div className="flex p-3 gap-4 min-h-[100px]">
 
-                  {/* Immagine */}
-                  <div className="w-[88px] h-full shrink-0 relative rounded-lg overflow-hidden bg-muted/20">
+                  {/* Immagine Elegante */}
+                  <div className="w-24 h-24 shrink-0 relative rounded-2xl overflow-hidden bg-gradient-to-br from-slate-100 to-slate-200 dark:from-slate-800 dark:to-slate-700 shadow-inner">
                     {dish.image_url ? (
                       <img
                         src={dish.image_url}
                         alt={dish.name}
-                        className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500"
+                        className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-700 ease-out"
                         loading="lazy"
                       />
                     ) : (
                       <div className="w-full h-full flex items-center justify-center">
-                        <Utensils className="w-6 h-6 text-muted-foreground/20" />
+                        <Utensils className="w-8 h-8 text-slate-400 dark:text-slate-600" />
                       </div>
                     )}
-                    {/* Badge Allergeni */}
+                    {/* Badge Allergeni Elegante */}
                     {dish.allergens && dish.allergens.length > 0 && (
-                      <div className="absolute bottom-1 right-1 bg-black/60 backdrop-blur-[2px] p-0.5 rounded text-[8px] text-white">
-                        <Info className="w-2.5 h-2.5" />
+                      <div className="absolute bottom-1.5 right-1.5 bg-amber-500/90 backdrop-blur-sm p-1 rounded-lg shadow-lg">
+                        <Info className="w-3 h-3 text-white" />
                       </div>
                     )}
                   </div>
 
-                  {/* Info */}
-                  <div className="flex-1 flex flex-col justify-between min-w-0 py-0.5">
+                  {/* Info Piatto */}
+                  <div className="flex-1 flex flex-col justify-between min-w-0 py-1">
                     <div>
-                      <h3 className="font-bold text-sm leading-tight text-foreground truncate pr-2">
+                      <h3 className="font-bold text-base leading-tight text-slate-900 dark:text-white truncate pr-2 group-hover:text-emerald-600 dark:group-hover:text-emerald-400 transition-colors">
                         {dish.name}
                       </h3>
-                      <p className="text-[10px] text-muted-foreground line-clamp-2 mt-1 leading-snug">
+                      <p className="text-xs text-slate-600 dark:text-slate-400 line-clamp-2 mt-1.5 leading-relaxed">
                         {dish.description}
                       </p>
                     </div>
 
-                    <div className="flex items-center justify-between mt-auto">
-                      <span className="font-bold text-sm text-foreground">
+                    <div className="flex items-center justify-between mt-auto pt-2">
+                      <span className="font-bold text-lg text-emerald-600 dark:text-emerald-400">
                         € {dish.price.toFixed(2)}
                       </span>
 
-                      {/* Quick Add Button */}
+                      {/* Quick Add Button Elegante */}
                       <Button
                         size="sm"
-                        variant="secondary"
-                        className="h-7 w-7 rounded-full p-0 shadow-sm bg-primary/10 hover:bg-primary text-primary hover:text-primary-foreground transition-all"
+                        className="h-9 w-9 rounded-full p-0 shadow-lg bg-gradient-to-r from-emerald-500 to-teal-600 hover:from-emerald-600 hover:to-teal-700 text-white transition-all hover:scale-110 active:scale-95"
                         onClick={(e) => {
                           e.stopPropagation()
                           setSelectedDish(dish)
                         }}
                       >
-                        <Plus className="w-4 h-4" />
+                        <Plus className="w-5 h-5" />
                       </Button>
                     </div>
                   </div>
@@ -464,30 +471,31 @@ export default function CustomerMenu({ tableId: propTableId, onExit, interfaceMo
         )}
       </main>
 
-      {/* Floating Bottom Bar - CARRELLO UNIFICATO */}
+      {/* Floating Bottom Bar - Carrello Elegante */}
       <AnimatePresence>
         {cart.length > 0 && (
           <motion.div
-            initial={{ y: 100, opacity: 0 }}
-            animate={{ y: 0, opacity: 1 }}
-            exit={{ y: 100, opacity: 0 }}
-            className="fixed bottom-4 left-4 right-4 z-40 max-w-lg mx-auto"
+            initial={{ y: 100, opacity: 0, scale: 0.9 }}
+            animate={{ y: 0, opacity: 1, scale: 1 }}
+            exit={{ y: 100, opacity: 0, scale: 0.9 }}
+            transition={{ type: "spring", damping: 25, stiffness: 300 }}
+            className="fixed bottom-6 left-4 right-4 z-40 max-w-5xl mx-auto"
           >
             <Drawer open={isCartOpen} onOpenChange={setIsCartOpen}>
               <DrawerTrigger asChild>
                 <Button
-                  className="w-full h-14 rounded-2xl shadow-xl bg-zinc-900 text-white hover:bg-zinc-800 flex items-center justify-between px-5 transition-all active:scale-95 border border-white/10"
+                  className="w-full h-16 rounded-3xl shadow-2xl shadow-emerald-500/30 bg-gradient-to-r from-emerald-500 via-teal-600 to-emerald-600 text-white hover:from-emerald-600 hover:via-teal-700 hover:to-emerald-700 flex items-center justify-between px-6 transition-all active:scale-95 border border-white/20 backdrop-blur-xl"
                 >
-                  <div className="flex items-center gap-3">
-                    <div className="bg-white/20 backdrop-blur-md w-8 h-8 rounded-full flex items-center justify-center font-bold text-sm text-white border border-white/20">
+                  <div className="flex items-center gap-4">
+                    <div className="bg-white/30 backdrop-blur-md w-10 h-10 rounded-full flex items-center justify-center font-bold text-base text-white border-2 border-white/30 shadow-lg">
                       {cartCount}
                     </div>
                     <div className="flex flex-col items-start">
-                      <span className="font-bold text-sm">Il tuo Ordine</span>
-                      <span className="text-[10px] opacity-80 font-normal">Clicca per rivedere</span>
+                      <span className="font-bold text-base">Il tuo Ordine</span>
+                      <span className="text-xs opacity-90 font-medium">Tocca per vedere</span>
                     </div>
                   </div>
-                  <span className="font-bold text-lg tracking-tight">€ {cartTotal.toFixed(2)}</span>
+                  <span className="font-bold text-xl tracking-tight">€ {cartTotal.toFixed(2)}</span>
                 </Button>
               </DrawerTrigger>
 
@@ -719,52 +727,52 @@ export default function CustomerMenu({ tableId: propTableId, onExit, interfaceMo
         )}
       </AnimatePresence>
 
-      {/* Popup Dettagli Piatto */}
+      {/* Popup Dettagli Piatto Elegante */}
       <Dialog open={!!selectedDish} onOpenChange={(open) => !open && setSelectedDish(null)}>
-        <DialogContent className="sm:max-w-md p-0 overflow-hidden bg-card border-none gap-0">
+        <DialogContent className="sm:max-w-lg p-0 overflow-hidden bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-800 shadow-2xl gap-0 rounded-3xl">
           {selectedDish && (
             <>
-              <div className="relative h-64 w-full">
+              <div className="relative h-72 w-full">
                 {selectedDish.image_url ? (
                   <img src={selectedDish.image_url} alt={selectedDish.name} className="w-full h-full object-cover" />
                 ) : (
-                  <div className="w-full h-full bg-muted flex items-center justify-center">
-                    <Utensils className="w-16 h-16 text-muted-foreground/20" />
+                  <div className="w-full h-full bg-gradient-to-br from-slate-100 to-slate-200 dark:from-slate-800 dark:to-slate-700 flex items-center justify-center">
+                    <Utensils className="w-20 h-20 text-slate-400 dark:text-slate-600" />
                   </div>
                 )}
                 <Button
                   variant="ghost"
                   size="icon"
-                  className="absolute top-3 right-3 bg-black/40 hover:bg-black/60 text-white rounded-full h-9 w-9 backdrop-blur-sm transition-colors"
+                  className="absolute top-4 right-4 bg-black/50 hover:bg-black/70 text-white rounded-full h-10 w-10 backdrop-blur-md transition-all shadow-lg hover:scale-110"
                   onClick={() => setSelectedDish(null)}
                 >
                   <X className="w-5 h-5" />
                 </Button>
-                <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/90 via-black/50 to-transparent p-5 pt-16">
-                  <h2 className="text-2xl font-bold text-white leading-tight">{selectedDish.name}</h2>
-                  <p className="text-white/90 font-medium mt-1 text-lg">€ {selectedDish.price.toFixed(2)}</p>
+                <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/95 via-black/60 to-transparent p-6 pt-20">
+                  <h2 className="text-3xl font-bold text-white leading-tight">{selectedDish.name}</h2>
+                  <p className="text-white font-bold mt-2 text-2xl">€ {selectedDish.price.toFixed(2)}</p>
                 </div>
               </div>
 
-              <div className="p-6 space-y-5">
+              <div className="p-6 space-y-6">
                 {selectedDish.description && (
-                  <div className="space-y-1.5">
-                    <h3 className="font-semibold text-sm text-foreground/80">Descrizione</h3>
-                    <p className="text-sm text-muted-foreground leading-relaxed">
+                  <div className="space-y-2">
+                    <h3 className="font-bold text-sm text-slate-900 dark:text-white">Descrizione</h3>
+                    <p className="text-sm text-slate-600 dark:text-slate-400 leading-relaxed">
                       {selectedDish.description}
                     </p>
                   </div>
                 )}
 
                 {selectedDish.allergens && selectedDish.allergens.length > 0 && (
-                  <div className="space-y-2">
-                    <h3 className="font-semibold text-sm flex items-center gap-2 text-foreground/80">
-                      <Info className="w-4 h-4 text-orange-500" />
+                  <div className="space-y-3">
+                    <h3 className="font-bold text-sm flex items-center gap-2 text-slate-900 dark:text-white">
+                      <Info className="w-4 h-4 text-amber-500" />
                       Allergeni
                     </h3>
                     <div className="flex flex-wrap gap-2">
                       {selectedDish.allergens.map(allergen => (
-                        <Badge key={allergen} variant="outline" className="text-xs font-medium border-orange-200 text-orange-700 bg-orange-50 px-2.5 py-0.5">
+                        <Badge key={allergen} className="text-xs font-medium bg-amber-100 dark:bg-amber-900/30 text-amber-700 dark:text-amber-400 border-amber-200 dark:border-amber-800 px-3 py-1">
                           {allergen}
                         </Badge>
                       ))}
@@ -772,22 +780,22 @@ export default function CustomerMenu({ tableId: propTableId, onExit, interfaceMo
                   </div>
                 )}
 
-                <div className="space-y-2 pt-2">
-                  <label className="text-xs font-bold uppercase text-muted-foreground tracking-wider flex items-center gap-2">
+                <div className="space-y-3 pt-2">
+                  <label className="text-xs font-bold uppercase text-slate-600 dark:text-slate-400 tracking-wider flex items-center gap-2">
                     Note per la cucina <span className="text-[10px] font-normal normal-case opacity-70">(Opzionale)</span>
                   </label>
                   <Textarea
                     placeholder="Es. Niente prezzemolo, cottura media..."
-                    className="resize-none text-sm bg-muted/30 border-border/50 focus:border-primary/50 min-h-[80px]"
+                    className="resize-none text-sm bg-slate-50 dark:bg-slate-800 border-slate-200 dark:border-slate-700 focus-visible:ring-2 focus-visible:ring-emerald-500/50 min-h-[90px] rounded-2xl"
                     value={dishNote}
                     onChange={(e) => setDishNote(e.target.value)}
                   />
                 </div>
               </div>
 
-              <DialogFooter className="p-4 bg-muted/10 border-t border-border/5">
+              <DialogFooter className="p-5 bg-slate-50/50 dark:bg-slate-800/50 border-t border-slate-200 dark:border-slate-700">
                 <Button
-                  className="w-full h-12 text-base font-bold shadow-md rounded-xl"
+                  className="w-full h-14 text-base font-bold shadow-xl rounded-2xl bg-gradient-to-r from-emerald-500 to-teal-600 hover:from-emerald-600 hover:to-teal-700 text-white transition-all hover:scale-105 active:scale-95"
                   onClick={() => addToCart(selectedDish, 1, dishNote)}
                 >
                   Aggiungi all'ordine - € {selectedDish.price.toFixed(2)}
