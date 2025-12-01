@@ -1,0 +1,244 @@
+import { useState, useEffect } from 'react'
+import LoginPage from './components/LoginPage'
+import AdminDashboard from './components/AdminDashboard'
+import RestaurantDashboard from './components/RestaurantDashboard'
+import CustomerMenu from './components/CustomerMenu'
+import { Toaster } from 'sonner'
+import { User, Table } from './services/types'
+import { DataInitializer } from './services/DataInitializer'
+import WaiterDashboard from './components/waiter/WaiterDashboard'
+
+import ClientTableAccess from './components/ClientTableAccess'
+
+function App() {
+  const [currentUser, setCurrentUser] = useState<User | null>(() => {
+    const saved = localStorage.getItem('session_user')
+    const savedTime = localStorage.getItem('session_timestamp')
+
+    // Check if session is expired (10 minutes = 600000 ms)
+    if (saved && savedTime) {
+      const now = Date.now()
+      const sessionTime = parseInt(savedTime)
+      const elapsed = now - sessionTime
+
+      // If more than 10 minutes have passed, clear the session
+      if (elapsed > 600000) {
+        localStorage.removeItem('session_user')
+        localStorage.removeItem('session_table')
+        localStorage.removeItem('session_timestamp')
+        return null
+      }
+
+      return JSON.parse(saved)
+    }
+    return saved ? JSON.parse(saved) : null
+  })
+  const [currentTable, setCurrentTable] = useState<string | null>(() => {
+    return localStorage.getItem('session_table')
+  })
+
+  // New state for client access route
+  const [clientAccessTableId, setClientAccessTableId] = useState<string | null>(null)
+
+  // Persist session changes
+  useEffect(() => {
+    if (currentUser) {
+      localStorage.setItem('session_user', JSON.stringify(currentUser))
+      // Update timestamp on every change
+      if (currentUser.role === 'CUSTOMER') {
+        localStorage.setItem('session_timestamp', Date.now().toString())
+      }
+    } else {
+      localStorage.removeItem('session_user')
+      localStorage.removeItem('session_timestamp')
+    }
+  }, [currentUser])
+
+  useEffect(() => {
+    if (currentTable) {
+      localStorage.setItem('session_table', currentTable)
+    } else {
+      localStorage.removeItem('session_table')
+    }
+  }, [currentTable])
+
+  // Check session expiration periodically (every minute)
+  useEffect(() => {
+    if (!currentUser || currentUser.role !== 'CUSTOMER') return
+
+    const interval = setInterval(() => {
+      const savedTime = localStorage.getItem('session_timestamp')
+      if (savedTime) {
+        const now = Date.now()
+        const sessionTime = parseInt(savedTime)
+        const elapsed = now - sessionTime
+
+        // If more than 10 minutes have passed, log out
+        if (elapsed > 600000) {
+          handleLogout()
+        }
+      }
+    }, 60000) // Check every minute
+
+    return () => clearInterval(interval)
+  }, [currentUser])
+
+  // Handle URL parameters for table access (QR code scan)
+  useEffect(() => {
+    const path = window.location.pathname
+
+    // Check for /waiter/table/:tableId
+    const waiterTableMatch = path.match(/\/waiter\/table\/([^/]+)/)
+    if (waiterTableMatch && waiterTableMatch[1]) {
+      // We are in waiter mode for a specific table
+      // We need to ensure the user is logged in as staff/owner
+      // If logged in, we set currentTable and maybe a flag for waiter mode
+      // But App structure relies on roles.
+      // Let's handle this in the render logic or a separate state
+    }
+
+    // Check for /client/table/:tableId
+    const match = path.match(/\/client\/table\/([^/]+)/)
+    let newTableId: string | null = null
+
+    if (match && match[1]) {
+      newTableId = match[1]
+    } else {
+      // Fallback for legacy query param ?table=...
+      const urlParams = new URLSearchParams(window.location.search)
+      const tableId = urlParams.get('table')
+      if (tableId) {
+        newTableId = tableId
+      }
+    }
+
+    if (newTableId) {
+      setClientAccessTableId(newTableId)
+
+      // CRITICAL FIX: Prevent order mixing.
+      // If the user is already logged in as a CUSTOMER and the table in the URL is different
+      // from the current session table, we MUST log them out to force a new login/PIN for the new table.
+      if (currentUser && currentUser.role === 'CUSTOMER' && currentTable && currentTable !== newTableId) {
+        console.log('Detected table switch from', currentTable, 'to', newTableId, '- Resetting session.')
+        handleLogout()
+        // We need to set the clientAccessTableId again because handleLogout clears it
+        // But we can't do it immediately because state updates are async.
+        // However, since this effect runs on mount/URL change, and handleLogout clears everything,
+        // the next render will see no user and clientAccessTableId might be null if we don't preserve it.
+        // Actually handleLogout sets it to null. We should probably NOT set it to null in handleLogout if we are just switching.
+        // Or better: we just let the effect run again? No, handleLogout might not trigger a reload.
+        // Let's just force a reload to be safe and clean?
+        // Or simpler: just setClientAccessTableId(newTableId) AFTER handleLogout?
+        // But handleLogout is a function in this scope.
+        // Let's modify handleLogout to accept a "keepClientAccess" flag?
+        // Or just manually do the cleanup here without clearing clientAccessTableId.
+
+        setCurrentUser(null)
+        setCurrentTable(null)
+        localStorage.removeItem('session_user')
+        localStorage.removeItem('session_table')
+        // Do NOT clear clientAccessTableId here, so the PIN screen appears for the new table.
+      }
+    }
+  }, [currentUser, currentTable]) // Added dependencies to check on change too
+
+  const handleLogin = (user: User, table?: Table) => {
+    setCurrentUser(user)
+    if (table) {
+      setCurrentTable(table.id)
+    }
+    // Set initial timestamp for customer sessions
+    if (user.role === 'CUSTOMER') {
+      localStorage.setItem('session_timestamp', Date.now().toString())
+    }
+  }
+
+  const handleLogout = () => {
+    setCurrentUser(null)
+    setCurrentTable(null)
+    setClientAccessTableId(null) // Reset client access on logout
+    localStorage.removeItem('session_user')
+    localStorage.removeItem('session_table')
+    // Clear URL to avoid re-triggering client access
+    window.history.replaceState({}, document.title, '/')
+  }
+
+  // If we have a table ID from URL but no user, show Client Access (PIN entry)
+  if (clientAccessTableId && !currentUser) {
+    return (
+      <>
+        <DataInitializer />
+        <ClientTableAccess
+          tableId={clientAccessTableId}
+          onAccessGranted={(user) => {
+            setCurrentUser(user)
+            setCurrentTable(clientAccessTableId)
+          }}
+        />
+        <Toaster position="top-center" />
+      </>
+    )
+  }
+
+  if (!currentUser) {
+    return (
+      <>
+        <DataInitializer />
+        <LoginPage onLogin={handleLogin} />
+        <Toaster position="top-center" />
+      </>
+    )
+  }
+
+  return (
+    <>
+      <DataInitializer />
+      {currentUser.role === 'ADMIN' && (
+        <AdminDashboard user={currentUser} onLogout={handleLogout} />
+      )}
+      {/* Owner sees RestaurantDashboard, Staff sees WaiterDashboard unless on specific route */}
+      {currentUser.role === 'OWNER' && !window.location.pathname.startsWith('/waiter') && (
+        <RestaurantDashboard user={currentUser} onLogout={handleLogout} />
+      )}
+      {(currentUser.role === 'STAFF' || (currentUser.role === 'OWNER' && window.location.pathname.startsWith('/waiter'))) && !window.location.pathname.includes('/table/') && (
+        <WaiterDashboard user={currentUser} onLogout={handleLogout} />
+      )}
+      {currentUser.role === 'CUSTOMER' && (
+        <CustomerMenu tableId={currentTable || ''} onExit={handleLogout} interfaceMode="customer" />
+      )}
+
+      {/* Waiter Mode Routing - Basic Implementation */}
+      {/* If user is STAFF/OWNER and URL is /waiter/table/:id, show CustomerMenu in waiter mode */}
+      {/* This is a bit hacky without a proper router, but works for now */}
+      {(() => {
+        const path = window.location.pathname
+        const waiterTableMatch = path.match(/\/waiter\/table\/([^/]+)/)
+        if ((currentUser.role === 'STAFF' || currentUser.role === 'OWNER') && waiterTableMatch && waiterTableMatch[1]) {
+          return (
+            <div className="fixed inset-0 z-50 bg-background">
+              <CustomerMenu
+                tableId={waiterTableMatch[1]}
+                onExit={() => window.history.back()}
+                interfaceMode="waiter"
+              />
+            </div>
+          )
+        }
+        // If user is STAFF and not in a specific table, show WaiterDashboard
+        // Or if OWNER and explicitly navigating to /waiter (we can add a button in AdminDashboard)
+        if (currentUser.role === 'STAFF' || (currentUser.role === 'OWNER' && path.startsWith('/waiter'))) {
+          // If we are showing RestaurantDashboard above, we need to hide it or override it.
+          // Since we return early in the map above, we can just return WaiterDashboard here if we want to force it.
+          // But the logic above:
+          // {(currentUser.role === 'OWNER' || currentUser.role === 'STAFF') && (<RestaurantDashboard ... />)}
+          // This will render RestaurantDashboard for Staff too. We should change that.
+          return null
+        }
+      })()}
+
+      <Toaster position="top-center" />
+    </>
+  )
+}
+
+export default App
