@@ -355,12 +355,12 @@ export default function CustomerMenu({ tableId: propTableId, onExit, interfaceMo
             </div>
           </div>
 
-          {/* Categorie con stile elegante */}
-          <ScrollArea className="w-full -mx-5 px-5 pb-2">
+          {/* Categorie con stile elegante - Fixed scrolling */}
+          <div className="w-full overflow-x-auto -mx-5 px-5 pb-2 scrollbar-hide">
             <div className="flex gap-2.5 pb-2 min-w-max">
               <button
                 onClick={() => setActiveCategory('all')}
-                className={`px-5 py-2 rounded-full text-sm font-semibold transition-all duration-300 shadow-sm ${
+                className={`px-5 py-2 rounded-full text-sm font-semibold transition-all duration-300 shadow-sm flex-shrink-0 ${
                   activeCategory === 'all'
                     ? 'bg-gradient-to-r from-emerald-500 to-teal-600 text-white shadow-lg shadow-emerald-500/30 scale-105'
                     : 'bg-white dark:bg-slate-800 text-slate-600 dark:text-slate-300 border border-slate-200 dark:border-slate-700 hover:bg-slate-50 dark:hover:bg-slate-750 hover:scale-105'
@@ -372,7 +372,7 @@ export default function CustomerMenu({ tableId: propTableId, onExit, interfaceMo
                 <button
                   key={cat.id}
                   onClick={() => setActiveCategory(cat.id)}
-                  className={`px-5 py-2 rounded-full text-sm font-semibold transition-all duration-300 shadow-sm ${
+                  className={`px-5 py-2 rounded-full text-sm font-semibold transition-all duration-300 shadow-sm flex-shrink-0 ${
                     activeCategory === cat.id
                       ? 'bg-gradient-to-r from-emerald-500 to-teal-600 text-white shadow-lg shadow-emerald-500/30 scale-105'
                       : 'bg-white dark:bg-slate-800 text-slate-600 dark:text-slate-300 border border-slate-200 dark:border-slate-700 hover:bg-slate-50 dark:hover:bg-slate-750 hover:scale-105'
@@ -382,7 +382,7 @@ export default function CustomerMenu({ tableId: propTableId, onExit, interfaceMo
                 </button>
               ))}
             </div>
-          </ScrollArea>
+          </div>
         </div>
       </header>
 
@@ -561,9 +561,9 @@ export default function CustomerMenu({ tableId: propTableId, onExit, interfaceMo
                                   </div>
                                 </div>
                                 {item.notes && (
-                                  <div className="text-[10px] text-orange-600 bg-orange-50/50 border border-orange-100 px-2 py-1.5 rounded-lg flex items-start gap-1.5">
-                                    <Info className="w-3 h-3 shrink-0 mt-0.5" />
-                                    <span className="italic">{item.notes}</span>
+                                  <div className="text-xs font-medium text-amber-900 dark:text-amber-100 bg-amber-100 dark:bg-amber-900/50 border-2 border-amber-300 dark:border-amber-700 px-3 py-2 rounded-lg flex items-start gap-2 shadow-sm">
+                                    <Info className="w-4 h-4 shrink-0 mt-0.5 text-amber-700 dark:text-amber-300" />
+                                    <span className="italic leading-relaxed">{item.notes}</span>
                                   </div>
                                 )}
                               </div>

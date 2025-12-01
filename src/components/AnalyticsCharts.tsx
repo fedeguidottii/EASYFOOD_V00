@@ -152,6 +152,9 @@ export default function AnalyticsCharts({ orders, completedOrders, dishes, categ
     const dailyData: DailyData[] = []
     const days = Math.max(1, Math.ceil((end - start) / (24 * 60 * 60 * 1000)))
 
+    // Check if we're looking at a single day
+    const isSingleDay = days === 1 || dateFilter === 'today' || dateFilter === 'yesterday'
+
     for (let i = 0; i < days; i++) {
       const dayStart = start + (i * 24 * 60 * 60 * 1000)
       const dayEnd = dayStart + (24 * 60 * 60 * 1000)
@@ -163,7 +166,7 @@ export default function AnalyticsCharts({ orders, completedOrders, dishes, categ
       const date = new Date(dayStart)
       const dayRevenue = dayOrders.reduce((sum, order) => sum + (order.filteredAmount || order.total_amount || 0), 0)
       dailyData.push({
-        date: date.toLocaleDateString('it-IT', { month: 'short', day: 'numeric' }),
+        date: isSingleDay ? 'Oggi' : date.toLocaleDateString('it-IT', { month: 'short', day: 'numeric' }),
         orders: dayOrders.length,
         revenue: dayRevenue,
         averageValue: dayOrders.length > 0 ? dayRevenue / dayOrders.length : 0
@@ -225,7 +228,8 @@ export default function AnalyticsCharts({ orders, completedOrders, dishes, categ
       activeOrders: activeOrdersCount,
       dailyData,
       categoryStats,
-      dishStats
+      dishStats,
+      isSingleDay
     }
   }, [categoryFilteredOrders, orders, categories, dishes, dateFilter, start, end, activeCategoryIds, categoryMetric])
 
@@ -410,43 +414,77 @@ export default function AnalyticsCharts({ orders, completedOrders, dishes, categ
             </CardHeader>
             <CardContent className="pt-6">
               <ResponsiveContainer width="100%" height={350}>
-                <AreaChart data={analytics.dailyData} margin={{ top: 10, right: 10, left: 0, bottom: 0 }}>
-                  <defs>
-                    <linearGradient id="colorMetric" x1="0" y1="0" x2="0" y2="1">
-                      <stop offset="5%" stopColor="#C9A152" stopOpacity={0.3} />
-                      <stop offset="95%" stopColor="#C9A152" stopOpacity={0} />
-                    </linearGradient>
-                  </defs>
-                  <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="var(--border)" />
-                  <XAxis
-                    dataKey="date"
-                    axisLine={false}
-                    tickLine={false}
-                    tick={{ fontSize: 12, fill: 'var(--muted-foreground)' }}
-                    dy={10}
-                  />
-                  <YAxis
-                    axisLine={false}
-                    tickLine={false}
-                    tick={{ fontSize: 12, fill: 'var(--muted-foreground)' }}
-                    tickFormatter={(value) => timeSeriesMetric === 'orders' ? value : `€${value}`}
-                  />
-                  <Tooltip
-                    contentStyle={{ borderRadius: '8px', border: 'none', boxShadow: '0 4px 12px rgba(0,0,0,0.1)' }}
-                    formatter={(value: number) => [
-                      timeSeriesMetric === 'orders' ? value : `€${value.toFixed(2)}`,
-                      timeSeriesMetric === 'orders' ? 'Ordini' : timeSeriesMetric === 'revenue' ? 'Ricavi' : 'Valore Medio'
-                    ]}
-                  />
-                  <Area
-                    type="monotone"
-                    dataKey={timeSeriesMetric === 'orders' ? 'orders' : timeSeriesMetric === 'revenue' ? 'revenue' : 'averageValue'}
-                    stroke="#C9A152"
-                    strokeWidth={3}
-                    fillOpacity={1}
-                    fill="url(#colorMetric)"
-                  />
-                </AreaChart>
+                {analytics.isSingleDay ? (
+                  // Use BarChart for single day
+                  <BarChart data={analytics.dailyData} margin={{ top: 10, right: 10, left: 0, bottom: 0 }}>
+                    <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="var(--border)" />
+                    <XAxis
+                      dataKey="date"
+                      axisLine={false}
+                      tickLine={false}
+                      tick={{ fontSize: 12, fill: 'var(--muted-foreground)' }}
+                      dy={10}
+                    />
+                    <YAxis
+                      axisLine={false}
+                      tickLine={false}
+                      tick={{ fontSize: 12, fill: 'var(--muted-foreground)' }}
+                      tickFormatter={(value) => timeSeriesMetric === 'orders' ? value : `€${value}`}
+                    />
+                    <Tooltip
+                      contentStyle={{ borderRadius: '8px', border: 'none', boxShadow: '0 4px 12px rgba(0,0,0,0.1)' }}
+                      formatter={(value: number) => [
+                        timeSeriesMetric === 'orders' ? value : `€${value.toFixed(2)}`,
+                        timeSeriesMetric === 'orders' ? 'Ordini' : timeSeriesMetric === 'revenue' ? 'Ricavi' : 'Valore Medio'
+                      ]}
+                    />
+                    <Bar
+                      dataKey={timeSeriesMetric === 'orders' ? 'orders' : timeSeriesMetric === 'revenue' ? 'revenue' : 'averageValue'}
+                      fill="#C9A152"
+                      radius={[8, 8, 0, 0]}
+                      barSize={100}
+                    />
+                  </BarChart>
+                ) : (
+                  // Use AreaChart for multiple days
+                  <AreaChart data={analytics.dailyData} margin={{ top: 10, right: 10, left: 0, bottom: 0 }}>
+                    <defs>
+                      <linearGradient id="colorMetric" x1="0" y1="0" x2="0" y2="1">
+                        <stop offset="5%" stopColor="#C9A152" stopOpacity={0.3} />
+                        <stop offset="95%" stopColor="#C9A152" stopOpacity={0} />
+                      </linearGradient>
+                    </defs>
+                    <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="var(--border)" />
+                    <XAxis
+                      dataKey="date"
+                      axisLine={false}
+                      tickLine={false}
+                      tick={{ fontSize: 12, fill: 'var(--muted-foreground)' }}
+                      dy={10}
+                    />
+                    <YAxis
+                      axisLine={false}
+                      tickLine={false}
+                      tick={{ fontSize: 12, fill: 'var(--muted-foreground)' }}
+                      tickFormatter={(value) => timeSeriesMetric === 'orders' ? value : `€${value}`}
+                    />
+                    <Tooltip
+                      contentStyle={{ borderRadius: '8px', border: 'none', boxShadow: '0 4px 12px rgba(0,0,0,0.1)' }}
+                      formatter={(value: number) => [
+                        timeSeriesMetric === 'orders' ? value : `€${value.toFixed(2)}`,
+                        timeSeriesMetric === 'orders' ? 'Ordini' : timeSeriesMetric === 'revenue' ? 'Ricavi' : 'Valore Medio'
+                      ]}
+                    />
+                    <Area
+                      type="monotone"
+                      dataKey={timeSeriesMetric === 'orders' ? 'orders' : timeSeriesMetric === 'revenue' ? 'revenue' : 'averageValue'}
+                      stroke="#C9A152"
+                      strokeWidth={3}
+                      fillOpacity={1}
+                      fill="url(#colorMetric)"
+                    />
+                  </AreaChart>
+                )}
               </ResponsiveContainer>
             </CardContent>
           </Card>

@@ -13,6 +13,24 @@ import ClientTableAccess from './components/ClientTableAccess'
 function App() {
   const [currentUser, setCurrentUser] = useState<User | null>(() => {
     const saved = localStorage.getItem('session_user')
+    const savedTime = localStorage.getItem('session_timestamp')
+
+    // Check if session is expired (10 minutes = 600000 ms)
+    if (saved && savedTime) {
+      const now = Date.now()
+      const sessionTime = parseInt(savedTime)
+      const elapsed = now - sessionTime
+
+      // If more than 10 minutes have passed, clear the session
+      if (elapsed > 600000) {
+        localStorage.removeItem('session_user')
+        localStorage.removeItem('session_table')
+        localStorage.removeItem('session_timestamp')
+        return null
+      }
+
+      return JSON.parse(saved)
+    }
     return saved ? JSON.parse(saved) : null
   })
   const [currentTable, setCurrentTable] = useState<string | null>(() => {
@@ -26,8 +44,13 @@ function App() {
   useEffect(() => {
     if (currentUser) {
       localStorage.setItem('session_user', JSON.stringify(currentUser))
+      // Update timestamp on every change
+      if (currentUser.role === 'CUSTOMER') {
+        localStorage.setItem('session_timestamp', Date.now().toString())
+      }
     } else {
       localStorage.removeItem('session_user')
+      localStorage.removeItem('session_timestamp')
     }
   }, [currentUser])
 
@@ -38,6 +61,27 @@ function App() {
       localStorage.removeItem('session_table')
     }
   }, [currentTable])
+
+  // Check session expiration periodically (every minute)
+  useEffect(() => {
+    if (!currentUser || currentUser.role !== 'CUSTOMER') return
+
+    const interval = setInterval(() => {
+      const savedTime = localStorage.getItem('session_timestamp')
+      if (savedTime) {
+        const now = Date.now()
+        const sessionTime = parseInt(savedTime)
+        const elapsed = now - sessionTime
+
+        // If more than 10 minutes have passed, log out
+        if (elapsed > 600000) {
+          handleLogout()
+        }
+      }
+    }, 60000) // Check every minute
+
+    return () => clearInterval(interval)
+  }, [currentUser])
 
   // Handle URL parameters for table access (QR code scan)
   useEffect(() => {
@@ -102,6 +146,10 @@ function App() {
     setCurrentUser(user)
     if (table) {
       setCurrentTable(table.id)
+    }
+    // Set initial timestamp for customer sessions
+    if (user.role === 'CUSTOMER') {
+      localStorage.setItem('session_timestamp', Date.now().toString())
     }
   }
 

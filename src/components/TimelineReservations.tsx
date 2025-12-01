@@ -7,7 +7,7 @@ import { Label } from '@/components/ui/label'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { Badge } from '@/components/ui/badge'
 import { toast } from 'sonner'
-import { Plus, Trash } from '@phosphor-icons/react'
+import { Plus, Trash, MagnifyingGlass as Search, Check } from '@phosphor-icons/react'
 import type { Table, Booking, User } from '../services/types'
 import { DatabaseService } from '../services/DatabaseService'
 
@@ -45,6 +45,13 @@ export default function TimelineReservations({ user, restaurantId, tables, booki
   const [draggedBookingId, setDraggedBookingId] = useState<string | null>(null)
   const [dropTarget, setDropTarget] = useState<{ tableId: string, time: string } | null>(null)
   const [showDragConfirmDialog, setShowDragConfirmDialog] = useState(false)
+
+  // Smart table search states
+  const [showSmartSearch, setShowSmartSearch] = useState(false)
+  const [searchTime, setSearchTime] = useState('')
+  const [searchGuests, setSearchGuests] = useState<number>(2)
+  const [availableTables, setAvailableTables] = useState<Table[]>([])
+  const [highlightedTableId, setHighlightedTableId] = useState<string | null>(null)
 
   // New reservation form state
   const [newReservation, setNewReservation] = useState({
@@ -119,23 +126,18 @@ export default function TimelineReservations({ user, restaurantId, tables, booki
         const table = restaurantTables.find(t => t.id === booking.table_id)
         if (!table) return null // Skip if table not found
 
-        // Fix: Use local time instead of UTC string parsing
-        // We parse the string manually to ignore timezone conversions
-        // Expected format: YYYY-MM-DDTHH:MM:SS or similar ISO
+        // FIX: Correct time parsing to show actual booking time
+        // Parse the time correctly from ISO format
         const dateStr = booking.date_time.includes('T') ? booking.date_time.split('T')[1] : booking.date_time
         const timeParts = dateStr.split(':')
         const hours = parseInt(timeParts[0], 10)
         const minutes = parseInt(timeParts[1], 10)
 
-        // FIX: Add 30 minutes buffer BEFORE the reservation
-        // The user requested "mezz'ora d'anticipo" (half an hour advance)
-        // So we shift the start time back by 30 minutes
-        const startMinutes = (hours * 60 + minutes) - 30
+        // Calculate start minutes from the actual reservation time
+        const startMinutes = hours * 60 + minutes
 
-        // And we extend the duration by 30 minutes so the end time remains the same
-        // (Original Start + Duration) = (New Start + New Duration)
-        // (S + 120) = ((S - 30) + (120 + 30))
-        const duration = 120 + 30
+        // Standard 2-hour duration for reservations
+        const duration = 120
 
         return {
           booking,
@@ -277,6 +279,52 @@ export default function TimelineReservations({ user, restaurantId, tables, booki
     }
   }
 
+  // Complete booking handler
+  const handleCompleteBooking = async (bookingId: string) => {
+    try {
+      await DatabaseService.updateBooking({
+        id: bookingId,
+        status: 'COMPLETED'
+      })
+      toast.success('Prenotazione completata! 👍')
+      onRefresh?.()
+    } catch (error) {
+      console.error('Complete error:', error)
+      toast.error('Errore completamento prenotazione')
+    }
+  }
+
+  // Smart table search handler
+  const handleSmartSearch = () => {
+    if (!searchTime) {
+      toast.error('Seleziona un orario')
+      return
+    }
+
+    // Find available tables for the selected time and guest count
+    const available = restaurantTables.filter(table => {
+      // Check capacity
+      if (table.seats < searchGuests) return false
+
+      // Check if there's a conflict at this time
+      return !hasConflict(table.id, searchTime, 120)
+    })
+
+    setAvailableTables(available)
+
+    if (available.length === 0) {
+      toast.error('Nessun tavolo disponibile per questo orario')
+    } else {
+      toast.success(`${available.length} tavolo/i disponibile/i`)
+      // Highlight the first available table
+      if (available.length > 0) {
+        setHighlightedTableId(available[0].id)
+        // Clear highlight after 5 seconds
+        setTimeout(() => setHighlightedTableId(null), 5000)
+      }
+    }
+  }
+
   // Current time indicator position
   const getCurrentTimePosition = () => {
     const now = new Date()
@@ -299,13 +347,21 @@ export default function TimelineReservations({ user, restaurantId, tables, booki
   return (
     <div className="space-y-6">
       {/* Header Info */}
-      <div className="flex items-center justify-between">
+      <div className="flex items-center justify-between flex-wrap gap-4">
         <div className="flex items-center gap-4">
           <h3 className="text-lg font-semibold text-muted-foreground">Timeline</h3>
+          <div className="text-sm text-muted-foreground">
+            {dayBookings.length} prenotazioni
+          </div>
         </div>
-        <div className="text-sm text-muted-foreground">
-          {dayBookings.length} prenotazioni
-        </div>
+        <Button
+          variant="outline"
+          onClick={() => setShowSmartSearch(true)}
+          className="gap-2"
+        >
+          <Search size={16} />
+          Ricerca Tavolo Intelligente
+        </Button>
       </div>
 
       {/* Timeline Header - Time Labels */}
@@ -335,12 +391,30 @@ export default function TimelineReservations({ user, restaurantId, tables, booki
             )}
 
             {/* Table Rows */}
-            {restaurantTables.map((table, tableIndex) => (
+            {restaurantTables.map((table, tableIndex) => {
+              // Check if table has any bookings today
+              const hasBookings = reservationBlocks.some(block => block.table.id === table.id)
+              const isHighlighted = highlightedTableId === table.id
+              const isAvailable = availableTables.some(t => t.id === table.id)
+
+              let tableColor = hasBookings ? 'bg-green-50 border-green-200 text-green-800' : 'bg-muted/10'
+              if (isHighlighted) {
+                tableColor = 'bg-yellow-100 border-yellow-400 text-yellow-900 animate-pulse'
+              } else if (isAvailable && searchTime) {
+                tableColor = 'bg-emerald-100 border-emerald-400 text-emerald-900'
+              }
+
+              return (
               <div key={table.id} className="relative">
-                {/* Table Name */}
-                <div className="absolute left-0 top-0 bottom-0 w-32 flex items-center justify-center border-r border-border/50 bg-muted/10 z-10">
-                  <span className="font-medium text-sm">{table.number}</span>
-                  <span className="text-xs text-muted-foreground ml-2">({table.seats})</span>
+                {/* Table Name with capacity and status */}
+                <div className={`absolute left-0 top-0 bottom-0 w-32 flex flex-col items-center justify-center border-r-2 border-border/50 z-10 transition-all duration-300 ${tableColor}`}>
+                  <span className="font-bold text-base">{table.number}</span>
+                  <span className="text-xs font-semibold text-muted-foreground mt-0.5">
+                    👥 {table.seats} posti
+                  </span>
+                  {isAvailable && searchTime && (
+                    <Badge className="mt-1 text-[10px] bg-emerald-600">Disponibile</Badge>
+                  )}
                 </div>
 
                 {/* Timeline Row */}
@@ -351,10 +425,10 @@ export default function TimelineReservations({ user, restaurantId, tables, booki
                   onDrop={(e) => handleDrop(e, table.id)}
                   ref={tableIndex === 0 ? timelineRef : undefined}
                 >
-                  {/* Grid Lines */}
+                  {/* Enhanced Grid Lines - Thicker and more visible */}
                   <div className="absolute inset-0 flex pointer-events-none">
                     {timeSlots.map((_, i) => (
-                      <div key={i} className="h-full border-r border-border/10 flex-1"></div>
+                      <div key={i} className="h-full border-r-2 border-slate-200 dark:border-slate-700 flex-1"></div>
                     ))}
                   </div>
 
@@ -367,12 +441,17 @@ export default function TimelineReservations({ user, restaurantId, tables, booki
                       const bgColor = isCompleted ? '#e5e7eb' : COLORS[colorIndex]
                       const textColor = isCompleted ? '#9ca3af' : (['#F4E6D1', '#F0D86F'].includes(bgColor) ? '#000' : '#fff')
 
+                      // Check if booking time has passed (can be completed)
+                      const now = new Date()
+                      const bookingTime = new Date(block.booking.date_time)
+                      const canComplete = !isCompleted && now >= bookingTime
+
                       return (
                         <div
                           key={block.booking.id}
                           draggable={!isCompleted}
                           onDragStart={(e) => handleDragStart(e, block.booking.id)}
-                          className={`absolute top-2 bottom-2 rounded-md shadow-sm border border-black/10 flex items-center justify-between px-2 overflow-hidden transition-all hover:shadow-md hover:scale-[1.02] z-20 ${isCompleted ? 'opacity-60' : 'cursor-move'}`}
+                          className={`absolute top-2 bottom-2 rounded-md shadow-sm border border-black/10 flex items-center justify-between px-2 overflow-hidden transition-all hover:shadow-md hover:scale-[1.02] z-20 ${isCompleted ? 'opacity-60' : 'cursor-move'} ${canComplete ? 'ring-2 ring-green-400 ring-offset-1' : ''}`}
                           style={{
                             left: `${getBlockStyle(block.startMinutes, block.duration).left}`,
                             width: `${getBlockStyle(block.startMinutes, block.duration).width}`,
@@ -389,27 +468,44 @@ export default function TimelineReservations({ user, restaurantId, tables, booki
                             <span className="text-[10px] truncate opacity-90">{block.booking.guests} ospiti</span>
                           </div>
 
-                          {!isCompleted && onDeleteBooking && (
-                            <Button
-                              variant="ghost"
-                              size="icon"
-                              className="h-6 w-6 hover:bg-black/10 rounded-full shrink-0 ml-1"
-                              onClick={(e) => {
-                                e.stopPropagation()
-                                if (confirm('Sei sicuro di voler eliminare questa prenotazione?')) {
-                                  onDeleteBooking(block.booking.id)
-                                }
-                              }}
-                            >
-                              <Trash size={12} weight="bold" />
-                            </Button>
-                          )}
+                          <div className="flex items-center gap-1 shrink-0">
+                            {canComplete && (
+                              <Button
+                                variant="ghost"
+                                size="icon"
+                                className="h-6 w-6 hover:bg-green-500/20 rounded-full shrink-0"
+                                onClick={(e) => {
+                                  e.stopPropagation()
+                                  handleCompleteBooking(block.booking.id)
+                                }}
+                                title="Segna come completata"
+                              >
+                                <Check size={14} weight="bold" className="text-green-600" />
+                              </Button>
+                            )}
+                            {!isCompleted && onDeleteBooking && (
+                              <Button
+                                variant="ghost"
+                                size="icon"
+                                className="h-6 w-6 hover:bg-black/10 rounded-full shrink-0"
+                                onClick={(e) => {
+                                  e.stopPropagation()
+                                  if (confirm('Sei sicuro di voler eliminare questa prenotazione?')) {
+                                    onDeleteBooking(block.booking.id)
+                                  }
+                                }}
+                              >
+                                <Trash size={12} weight="bold" />
+                              </Button>
+                            )}
+                          </div>
                         </div>
                       )
                     })}
                 </div>
               </div>
-            ))}
+            )
+            })}
 
             {restaurantTables.length === 0 && (
               <div className="p-8 text-center text-muted-foreground">
@@ -511,6 +607,81 @@ export default function TimelineReservations({ user, restaurantId, tables, booki
           <div className="flex justify-end gap-2">
             <Button variant="outline" onClick={() => setShowDragConfirmDialog(false)}>Annulla</Button>
             <Button onClick={confirmMove}>Conferma</Button>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* Smart Table Search Dialog */}
+      <Dialog open={showSmartSearch} onOpenChange={setShowSmartSearch}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle>Ricerca Tavolo Intelligente</DialogTitle>
+            <DialogDescription>
+              Trova il tavolo perfetto per orario e numero di ospiti
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4 py-4">
+            <div className="space-y-2">
+              <Label htmlFor="search-time">Orario Prenotazione</Label>
+              <Input
+                id="search-time"
+                type="time"
+                value={searchTime}
+                onChange={(e) => setSearchTime(e.target.value)}
+                className="text-lg"
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="search-guests">Numero Ospiti</Label>
+              <Input
+                id="search-guests"
+                type="number"
+                min="1"
+                max="20"
+                value={searchGuests}
+                onChange={(e) => setSearchGuests(parseInt(e.target.value) || 1)}
+                className="text-lg"
+              />
+            </div>
+
+            {availableTables.length > 0 && (
+              <div className="mt-4 p-4 bg-emerald-50 dark:bg-emerald-950/20 rounded-lg border border-emerald-200 dark:border-emerald-800">
+                <h4 className="font-semibold text-sm text-emerald-900 dark:text-emerald-100 mb-2">
+                  Tavoli Disponibili:
+                </h4>
+                <div className="space-y-1">
+                  {availableTables.map(table => (
+                    <div key={table.id} className="flex items-center justify-between text-sm">
+                      <span className="font-medium">{table.number}</span>
+                      <span className="text-muted-foreground">Capacità: {table.seats} posti</span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            <div className="flex gap-3 pt-4">
+              <Button
+                variant="outline"
+                onClick={() => {
+                  setShowSmartSearch(false)
+                  setAvailableTables([])
+                  setHighlightedTableId(null)
+                  setSearchTime('')
+                  setSearchGuests(2)
+                }}
+                className="flex-1"
+              >
+                Chiudi
+              </Button>
+              <Button
+                onClick={handleSmartSearch}
+                className="flex-1 gap-2"
+              >
+                <Search size={16} />
+                Cerca
+              </Button>
+            </div>
           </div>
         </DialogContent>
       </Dialog>
