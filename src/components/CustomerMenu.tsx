@@ -709,7 +709,6 @@ export default function CustomerMenu({ tableId: propTableId, onExit, interfaceMo
         >
           <Plus className="w-4 h-4" />
         </Button>
-      </div>
     </div>
   )
 
