@@ -162,6 +162,7 @@ export default function CustomerMenu({ tableId: propTableId, onExit, interfaceMo
   const isWaiterMode = interfaceMode === 'waiter'
 
   const [restaurantId, setRestaurantId] = useState<string | null>(null)
+  const [restaurantName, setRestaurantName] = useState<string>('')
   const [error, setError] = useState<string | null>(null)
   const [isLoading, setIsLoading] = useState(true)
   const [tableName, setTableName] = useState<string>('')
@@ -204,6 +205,16 @@ export default function CustomerMenu({ tableId: propTableId, onExit, interfaceMo
       if (tableData?.restaurant_id) {
         setRestaurantId(tableData.restaurant_id)
         setTableName(tableData.number || '')
+
+        const { data: restaurantData } = await supabase
+          .from('restaurants')
+          .select('name')
+          .eq('id', tableData.restaurant_id)
+          .single()
+
+        if (restaurantData?.name) {
+          setRestaurantName(restaurantData.name)
+        }
         return
       }
 
@@ -217,6 +228,16 @@ export default function CustomerMenu({ tableId: propTableId, onExit, interfaceMo
 
       if (sessionData?.restaurant_id) {
         setRestaurantId(sessionData.restaurant_id)
+
+        const { data: restaurantData } = await supabase
+          .from('restaurants')
+          .select('name')
+          .eq('id', sessionData.restaurant_id)
+          .single()
+
+        if (restaurantData?.name) {
+          setRestaurantName(restaurantData.name)
+        }
         return
       }
 
@@ -652,16 +673,10 @@ export default function CustomerMenu({ tableId: propTableId, onExit, interfaceMo
 
   // CUSTOMER MODE - Professional UI with Category Dividers
   const DishCard = ({ dish }: { dish: Dish }) => (
-    <motion.div
-      initial={{ opacity: 0, y: 10 }}
-      animate={{ opacity: 1, y: 0 }}
-      exit={{ opacity: 0 }}
-      transition={{ duration: 0.2 }}
+    <div
+      className="flex items-center gap-3 p-3 bg-white/60 dark:bg-slate-900/60 backdrop-blur-sm rounded-2xl border border-white/20 dark:border-slate-800/50 shadow-sm hover:shadow-lg hover:bg-white/80 dark:hover:bg-slate-900/80 transition-all duration-300 cursor-pointer group active:scale-[0.98]"
+      onClick={() => setSelectedDish(dish)}
     >
-      <div
-        className="flex items-center gap-3 p-3 bg-white/60 dark:bg-slate-900/60 backdrop-blur-sm rounded-2xl border border-white/20 dark:border-slate-800/50 shadow-sm hover:shadow-lg hover:bg-white/80 dark:hover:bg-slate-900/80 transition-all duration-300 cursor-pointer group active:scale-[0.98]"
-        onClick={() => setSelectedDish(dish)}
-      >
         <div className="w-16 h-16 shrink-0 relative rounded-xl overflow-hidden bg-gradient-to-br from-slate-100 to-slate-200 dark:from-slate-800 dark:to-slate-700 shadow-inner">
           {dish.image_url ? (
             <img src={dish.image_url} alt={dish.name} className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-110" loading="lazy" />
@@ -695,7 +710,7 @@ export default function CustomerMenu({ tableId: propTableId, onExit, interfaceMo
           <Plus className="w-4 h-4" />
         </Button>
       </div>
-    </motion.div>
+    </div>
   )
 
   return (
@@ -705,6 +720,14 @@ export default function CustomerMenu({ tableId: propTableId, onExit, interfaceMo
           <>
             <header className="flex-none z-20 bg-white/70 dark:bg-slate-900/70 backdrop-blur-xl border-b border-white/20 dark:border-slate-800/50 shadow-sm shadow-slate-200/50 dark:shadow-black/10">
               <div className="max-w-2xl mx-auto px-4 py-3">
+                {restaurantName && (
+                  <div className="text-center mb-3 pb-3 border-b border-slate-200/50 dark:border-slate-700/50">
+                    <h1 className="font-bold text-2xl leading-tight tracking-tight text-slate-900 dark:text-white">
+                      {restaurantName}
+                    </h1>
+                    <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">Benvenuti</p>
+                  </div>
+                )}
                 <div className="flex items-center justify-between mb-3">
                   <div className="flex items-center gap-3">
                     <div className="relative">
@@ -714,7 +737,7 @@ export default function CustomerMenu({ tableId: propTableId, onExit, interfaceMo
                       {session && <div className="absolute -top-1 -right-1 w-3 h-3 rounded-full bg-green-500 border-2 border-white dark:border-slate-900 animate-pulse" />}
                     </div>
                     <div>
-                      <h1 className="font-bold text-lg leading-none tracking-tight text-slate-900 dark:text-white">Menu</h1>
+                      <h2 className="font-bold text-base leading-none tracking-tight text-slate-900 dark:text-white">Menu</h2>
                       <div className="flex items-center gap-1.5 mt-1">
                         {session ? (
                           <span className="text-[11px] text-emerald-600 dark:text-emerald-400 font-semibold flex items-center gap-1.5 bg-emerald-500/10 px-2.5 py-0.5 rounded-full">
@@ -769,28 +792,26 @@ export default function CustomerMenu({ tableId: propTableId, onExit, interfaceMo
             </header>
 
             <main className="flex-1 overflow-y-auto scrollbar-hide px-4 py-4 space-y-2 max-w-2xl mx-auto w-full pb-32">
-              <AnimatePresence mode="popLayout">
-                {activeCategory === 'all' && dishesByCategory ? (
-                  dishesByCategory.map(({ category, dishes: catDishes }) => (
-                    <div key={category.id} className="space-y-2">
-                      <div className="flex items-center gap-3 pt-4 pb-2 first:pt-0">
-                        <div className="h-px flex-1 bg-gradient-to-r from-transparent via-slate-300 dark:via-slate-700 to-transparent" />
-                        <span className="text-xs font-bold uppercase tracking-widest text-slate-500 dark:text-slate-400 px-3 py-1.5 bg-white/50 dark:bg-slate-800/50 backdrop-blur-sm rounded-full border border-white/30 dark:border-slate-700/30 shadow-sm">
-                          {category.name}
-                        </span>
-                        <div className="h-px flex-1 bg-gradient-to-r from-transparent via-slate-300 dark:via-slate-700 to-transparent" />
-                      </div>
-                      {catDishes.map(dish => (
-                        <DishCard key={dish.id} dish={dish} />
-                      ))}
+              {activeCategory === 'all' && dishesByCategory ? (
+                dishesByCategory.map(({ category, dishes: catDishes }) => (
+                  <div key={category.id} className="space-y-2">
+                    <div className="flex items-center gap-3 pt-4 pb-2 first:pt-0">
+                      <div className="h-px flex-1 bg-gradient-to-r from-transparent via-slate-300 dark:via-slate-700 to-transparent" />
+                      <span className="text-xs font-bold uppercase tracking-widest text-slate-500 dark:text-slate-400 px-3 py-1.5 bg-white/50 dark:bg-slate-800/50 backdrop-blur-sm rounded-full border border-white/30 dark:border-slate-700/30 shadow-sm">
+                        {category.name}
+                      </span>
+                      <div className="h-px flex-1 bg-gradient-to-r from-transparent via-slate-300 dark:via-slate-700 to-transparent" />
                     </div>
-                  ))
-                ) : (
-                  filteredDishes.map(dish => (
-                    <DishCard key={dish.id} dish={dish} />
-                  ))
-                )}
-              </AnimatePresence>
+                    {catDishes.map(dish => (
+                      <DishCard key={dish.id} dish={dish} />
+                    ))}
+                  </div>
+                ))
+              ) : (
+                filteredDishes.map(dish => (
+                  <DishCard key={dish.id} dish={dish} />
+                ))
+              )}
               {filteredDishes.length === 0 && (
                 <div className="flex flex-col items-center justify-center py-20 opacity-60">
                   <div className="w-16 h-16 bg-slate-100 dark:bg-slate-800 rounded-full flex items-center justify-center mb-4 shadow-inner">
@@ -1043,27 +1064,27 @@ export default function CustomerMenu({ tableId: propTableId, onExit, interfaceMo
                 <Button variant="ghost" size="icon" className="absolute top-4 right-4 bg-black/30 backdrop-blur-md text-white rounded-full hover:bg-black/50 transition-colors" onClick={() => setSelectedDish(null)}>
                   <X className="w-5 h-5" />
                 </Button>
-                <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/80 via-black/40 to-transparent p-6 pt-16">
-                  <h2 className="text-xl font-bold text-white leading-tight">{selectedDish.name}</h2>
-                  <p className="text-emerald-400 font-bold text-lg mt-1">€{selectedDish.price.toFixed(2)}</p>
+                <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/80 via-black/40 to-transparent p-6 pt-16 text-center">
+                  <h2 className="text-3xl font-bold text-white leading-tight">{selectedDish.name}</h2>
+                  <p className="text-emerald-400 font-bold text-xl mt-2">€{selectedDish.price.toFixed(2)}</p>
                 </div>
               </div>
 
               <div className="p-5 space-y-4">
                 {selectedDish.description && (
-                  <div>
-                    <h3 className="font-semibold text-sm text-slate-900 dark:text-white mb-1.5">Descrizione</h3>
+                  <div className="text-center">
+                    <h3 className="font-semibold text-base text-slate-900 dark:text-white mb-2">Descrizione</h3>
                     <p className="text-sm text-slate-500 dark:text-slate-400 leading-relaxed">{selectedDish.description}</p>
                   </div>
                 )}
 
                 {selectedDish.allergens && selectedDish.allergens.length > 0 && (
-                  <div>
-                    <h3 className="font-semibold text-sm text-slate-900 dark:text-white mb-1.5 flex items-center gap-2">
+                  <div className="text-center">
+                    <h3 className="font-semibold text-base text-slate-900 dark:text-white mb-2 flex items-center justify-center gap-2">
                       <Info className="w-4 h-4 text-amber-500" />
                       Allergeni
                     </h3>
-                    <div className="flex flex-wrap gap-1.5">
+                    <div className="flex flex-wrap gap-1.5 justify-center">
                       {selectedDish.allergens.map(a => (
                         <Badge key={a} variant="secondary" className="bg-amber-50 text-amber-700 border-amber-100 dark:bg-amber-900/20 dark:text-amber-400 dark:border-amber-900/30 text-xs">
                           {a}
@@ -1074,10 +1095,10 @@ export default function CustomerMenu({ tableId: propTableId, onExit, interfaceMo
                 )}
 
                 <div>
-                  <label className="text-xs font-semibold uppercase text-slate-400 mb-1.5 block tracking-wider">Note per la cucina</label>
+                  <label className="text-[10px] font-semibold uppercase text-slate-400 mb-1.5 block tracking-wider text-center">Note per la cucina</label>
                   <Textarea
                     placeholder="Es. Niente cipolla, ben cotto..."
-                    className="resize-none text-sm min-h-[70px] rounded-xl bg-slate-50 dark:bg-slate-800 border-slate-200 dark:border-slate-700 focus:ring-emerald-500"
+                    className="resize-none text-xs min-h-[60px] rounded-xl bg-slate-50 dark:bg-slate-800 border-slate-200 dark:border-slate-700 focus:ring-emerald-500"
                     value={dishNote}
                     onChange={(e) => setDishNote(e.target.value)}
                   />

@@ -141,13 +141,13 @@ export function KitchenView({ orders, tables, dishes, selectedCategoryIds = [], 
                                                 {/* Course separator */}
                                                 {hasMultipleCourses && (
                                                     <div className={cn(
-                                                        "flex items-center gap-2 mb-2 py-1 px-2 rounded-md",
+                                                        "flex items-center justify-center gap-2 mb-2 py-2 px-3 rounded-md",
                                                         courseNum === 1 ? "bg-emerald-500/20 border-l-4 border-emerald-500" :
                                                             courseNum === 2 ? "bg-amber-500/20 border-l-4 border-amber-500" :
                                                                 "bg-purple-500/20 border-l-4 border-purple-500"
                                                     )}>
-                                                        <span className="text-lg font-black uppercase tracking-wider">
-                                                            Portata {courseNum}
+                                                        <span className="text-lg font-black uppercase tracking-wider text-center w-full">
+                                                            {courseNum === 1 ? 'Prima Uscita' : courseNum === 2 ? 'Seconda Uscita' : courseNum === 3 ? 'Terza Uscita' : `Uscita ${courseNum}`}
                                                         </span>
                                                     </div>
                                                 )}
@@ -156,6 +156,11 @@ export function KitchenView({ orders, tables, dishes, selectedCategoryIds = [], 
                                                 {itemsByCourse[courseNum].map((item, idx) => {
                                                     const dish = getDish(item.dish_id)
                                                     const isItemDone = item.status === 'SERVED' || item.status === 'READY'
+
+                                                    // Log warning if dish not found
+                                                    if (!dish) {
+                                                        console.warn('Dish not found for order item:', item.dish_id, item)
+                                                    }
 
                                                     return (
                                                         <div
@@ -173,11 +178,11 @@ export function KitchenView({ orders, tables, dishes, selectedCategoryIds = [], 
                                                                         {item.quantity}
                                                                     </span>
                                                                     <span className="text-3xl font-bold leading-tight text-foreground">
-                                                                        {dish?.name || '???'}
+                                                                        {dish?.name || `Piatto non trovato (${item.dish_id.slice(0, 8)}...)`}
                                                                     </span>
                                                                 </div>
                                                                 {item.note && (
-                                                                    <div className="mt-1 text-red-600 font-bold text-xl bg-red-50 inline-block px-2 rounded border border-red-200">
+                                                                    <div className="mt-1 text-red-600 font-bold text-xl bg-red-50 dark:bg-red-900/20 inline-block px-2 rounded border border-red-200 dark:border-red-800">
                                                                         NOTE: {item.note}
                                                                     </div>
                                                                 )}

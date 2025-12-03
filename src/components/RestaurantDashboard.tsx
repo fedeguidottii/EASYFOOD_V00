@@ -196,6 +196,10 @@ const RestaurantDashboard = ({ user, onLogout }: RestaurantDashboardProps) => {
   const [waiterPassword, setWaiterPassword] = useState('')
   const [waiterCredentialsDirty, setWaiterCredentialsDirty] = useState(false)
 
+  // Restaurant Name Settings
+  const [restaurantName, setRestaurantName] = useState('')
+  const [restaurantNameDirty, setRestaurantNameDirty] = useState(false)
+
   // Reservations Date Filter
   const [selectedReservationDate, setSelectedReservationDate] = useState<Date>(new Date())
 
@@ -255,6 +259,7 @@ const RestaurantDashboard = ({ user, onLogout }: RestaurantDashboardProps) => {
       setWaiterModeEnabled(currentRestaurant.waiter_mode_enabled || false)
       setAllowWaiterPayments(currentRestaurant.allow_waiter_payments || false)
       setWaiterPassword(currentRestaurant.waiter_password || '')
+      setRestaurantName(currentRestaurant.name || '')
     }
   }, [currentRestaurant])
 
@@ -1512,6 +1517,61 @@ const RestaurantDashboard = ({ user, onLogout }: RestaurantDashboardProps) => {
               </CardContent>
             </Card>
 
+            <Card className="shadow-lg border-none overflow-hidden bg-gradient-to-br from-emerald-50 to-white dark:from-emerald-950/20 dark:to-background">
+              <CardHeader className="bg-muted/10 pb-6">
+                <CardTitle className="text-lg font-semibold flex items-center gap-2">
+                  <span className="inline-flex h-9 w-9 items-center justify-center rounded-lg bg-primary/10 text-primary">
+                    <ChefHat size={18} />
+                  </span>
+                  Informazioni Ristorante
+                </CardTitle>
+                <CardDescription>
+                  Modifica il nome del tuo ristorante visibile ai clienti
+                </CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                <div className="space-y-2">
+                  <Label htmlFor="restaurant-name" className="text-base font-medium">Nome Ristorante</Label>
+                  <div className="flex gap-2">
+                    <Input
+                      id="restaurant-name"
+                      type="text"
+                      value={restaurantName}
+                      onChange={(e) => {
+                        setRestaurantName(e.target.value)
+                        setRestaurantNameDirty(true)
+                      }}
+                      placeholder="Nome del ristorante..."
+                      className="text-base"
+                    />
+                    {restaurantNameDirty && (
+                      <Button
+                        onClick={async () => {
+                          if (restaurantId && restaurantName.trim()) {
+                            try {
+                              await DatabaseService.updateRestaurant({ id: restaurantId, name: restaurantName.trim() })
+                              toast.success('Nome ristorante aggiornato!')
+                              setRestaurantNameDirty(false)
+                              refreshRestaurants()
+                            } catch (error) {
+                              console.error('Error updating restaurant name:', error)
+                              toast.error('Errore durante il salvataggio')
+                            }
+                          }
+                        }}
+                        disabled={!restaurantName.trim()}
+                      >
+                        Salva
+                      </Button>
+                    )}
+                  </div>
+                  <p className="text-sm text-muted-foreground">
+                    Questo nome verrà visualizzato nel menu del cliente
+                  </p>
+                </div>
+              </CardContent>
+            </Card>
+
             <Card className="shadow-lg border-none overflow-hidden bg-gradient-to-br from-blue-50 to-white dark:from-blue-950/20 dark:to-background">
               <CardHeader className="bg-muted/10 pb-6">
                 <CardTitle className="text-lg font-semibold flex items-center gap-2">
@@ -1659,14 +1719,14 @@ const RestaurantDashboard = ({ user, onLogout }: RestaurantDashboardProps) => {
                             <SelectValue placeholder="Seleziona suono" />
                           </SelectTrigger>
                           <SelectContent>
-                            <SelectItem value="classic">Classico</SelectItem>
-                            <SelectItem value="double">Doppio Beep</SelectItem>
-                            <SelectItem value="chime">Campanello</SelectItem>
-                            <SelectItem value="alert">Allarme</SelectItem>
-                            <SelectItem value="soft">Delicato</SelectItem>
-                            <SelectItem value="success">Successo</SelectItem>
-                            <SelectItem value="warning">Avviso</SelectItem>
-                            <SelectItem value="arcade">Arcade</SelectItem>
+                            <SelectItem value="classic">Campanello Cucina</SelectItem>
+                            <SelectItem value="double">Doppio Campanello</SelectItem>
+                            <SelectItem value="chime">Campanello Servizio</SelectItem>
+                            <SelectItem value="alert">Allarme Urgente</SelectItem>
+                            <SelectItem value="soft">Notifica Discreta</SelectItem>
+                            <SelectItem value="success">Ordine Completato</SelectItem>
+                            <SelectItem value="warning">Campanello Attenzione</SelectItem>
+                            <SelectItem value="kitchen-bell">Campanello Professionale</SelectItem>
                           </SelectContent>
                         </Select>
                         <Button variant="outline" size="icon" onClick={() => soundManager.play(selectedSound)}>
