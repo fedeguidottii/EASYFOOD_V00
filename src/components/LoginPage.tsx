@@ -75,7 +75,9 @@ export default function LoginPage({ onLogin }: Props) {
             setIsLoading(false)
             return
           }
-          onLogin(user)
+          // Attach restaurant_id to the user object
+          const userWithRestaurant = { ...user, restaurant_id: userRestaurant.id }
+          onLogin(userWithRestaurant)
           toast.success(`Benvenuto, ${userRestaurant.name}`)
           return
         }

@@ -39,7 +39,8 @@ interface RestaurantDashboardProps {
 }
 
 const RestaurantDashboard = ({ user, onLogout }: RestaurantDashboardProps) => {
-  const restaurantId = user?.user_metadata?.restaurant_id
+  // Check both root level (from our custom login) and metadata (from Supabase Auth if used directly)
+  const restaurantId = user?.restaurant_id || user?.user_metadata?.restaurant_id
   const [activeSection, setActiveSection] = useState('orders')
   const [activeTab, setActiveTab] = useState('orders')
   const [sidebarExpanded, setSidebarExpanded] = useState(false)
