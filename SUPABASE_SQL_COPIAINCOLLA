@@ -1,0 +1,34 @@
+-- =====================================================
+-- EASYFOOD - Aggiornamento Database per Portate
+-- Esegui questo script in Supabase SQL Editor
+-- =====================================================
+
+-- Aggiungi colonna course_number alla tabella order_items
+ALTER TABLE order_items 
+ADD COLUMN IF NOT EXISTS course_number INTEGER DEFAULT 1;
+
+-- Commento sulla colonna
+COMMENT ON COLUMN order_items.course_number IS 'Numero della portata (1 = prima portata, 2 = seconda, ecc.)';
+
+-- Aggiungi colonna seats alla tabella tables (se non esiste)
+ALTER TABLE tables 
+ADD COLUMN IF NOT EXISTS seats INTEGER DEFAULT 4;
+
+-- Commento sulla colonna
+COMMENT ON COLUMN tables.seats IS 'Capacità massima del tavolo (numero di posti)';
+
+-- Aggiorna i record esistenti
+UPDATE order_items SET course_number = 1 WHERE course_number IS NULL;
+UPDATE tables SET seats = 4 WHERE seats IS NULL;
+
+-- =====================================================
+-- Verifica che le colonne siano state aggiunte
+-- =====================================================
+SELECT 
+    table_name,
+    column_name,
+    data_type,
+    column_default
+FROM information_schema.columns 
+WHERE table_name IN ('order_items', 'tables') 
+AND column_name IN ('course_number', 'seats');
