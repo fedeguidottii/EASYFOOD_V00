@@ -657,6 +657,18 @@ const RestaurantDashboard = ({ user, onLogout }: RestaurantDashboardProps) => {
   const handleCompleteDish = async (orderId: string, itemId: string, showToast = true) => {
     await updateOrderItemStatus(orderId, itemId, 'SERVED')
 
+    // Update local orders state immediately for UI refresh
+    setOrders(prevOrders => prevOrders.map(order => {
+      if (order.id === orderId) {
+        return {
+          ...order,
+          items: order.items?.map(item =>
+            item.id === itemId ? { ...item, status: 'SERVED' as const } : item
+          )
+        }
+      }
+      return order
+    }))
   }
 
 
