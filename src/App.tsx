@@ -121,14 +121,15 @@ function App() {
   }
 
   // PRIORITY: If URL is /client/table/:id, ALWAYS show customer access flow
-  // This ensures QR codes work independently from any logged-in session
+  // This ensures QR codes work COMPLETELY INDEPENDENTLY from any logged-in session
+  // (whether restaurant owner OR customer on another table)
   const path = window.location.pathname
   const clientTableMatch = path.match(/\/client\/table\/([^/]+)/)
 
   if (clientTableMatch && clientTableMatch[1]) {
     const tableIdFromUrl = clientTableMatch[1]
 
-    // If already logged in as CUSTOMER for THIS table, show CustomerMenu
+    // If already logged in as CUSTOMER for THIS EXACT table, show CustomerMenu
     if (currentUser && currentUser.role === 'CUSTOMER' && currentTable === tableIdFromUrl) {
       return (
         <>
@@ -139,13 +140,16 @@ function App() {
       )
     }
 
-    // Otherwise, show PIN entry for customer access
+    // For ANY other case (no user, owner logged in, customer on different table):
+    // ALWAYS show PIN entry for customer access to this table
+    // This completely disconnects QR codes from restaurant login
     return (
       <>
         <DataInitializer />
         <ClientTableAccess
           tableId={tableIdFromUrl}
           onAccessGranted={(user) => {
+            // Clear any existing session first, then set new customer session
             setCurrentUser(user)
             setCurrentTable(tableIdFromUrl)
           }}
