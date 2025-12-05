@@ -545,7 +545,7 @@ export default function CustomerMenu({ tableId: propTableId, onExit, interfaceMo
                 <ArrowLeft className="w-5 h-5" />
               </Button>
               <div>
-                <h1 className="font-bold text-lg text-white">Tavolo {tableName}</h1>
+                <h1 className="font-bold text-lg text-white">{tableName}</h1>
                 <p className="text-xs text-slate-400">{session ? 'Sessione attiva' : 'Nessuna sessione'}</p>
               </div>
             </div>
@@ -604,7 +604,7 @@ export default function CustomerMenu({ tableId: propTableId, onExit, interfaceMo
                   <DrawerContent className="bg-slate-900 border-slate-700 text-white max-h-[80vh]">
                     <DrawerHeader>
                       <DrawerTitle>Riepilogo Ordine</DrawerTitle>
-                      <DrawerDescription className="text-slate-400">Tavolo {tableName}</DrawerDescription>
+                      <DrawerDescription className="text-slate-400">{tableName}</DrawerDescription>
                     </DrawerHeader>
                     <ScrollArea className="flex-1 p-4 max-h-[50vh]">
                       <div className="space-y-4">
@@ -677,38 +677,38 @@ export default function CustomerMenu({ tableId: propTableId, onExit, interfaceMo
       className="flex items-center gap-3 p-3 bg-white/60 dark:bg-slate-900/60 backdrop-blur-sm rounded-2xl border border-white/20 dark:border-slate-800/50 shadow-sm hover:shadow-lg hover:bg-white/80 dark:hover:bg-slate-900/80 transition-all duration-300 cursor-pointer group active:scale-[0.98]"
       onClick={() => setSelectedDish(dish)}
     >
-        <div className="w-16 h-16 shrink-0 relative rounded-xl overflow-hidden bg-gradient-to-br from-slate-100 to-slate-200 dark:from-slate-800 dark:to-slate-700 shadow-inner">
-          {dish.image_url ? (
-            <img src={dish.image_url} alt={dish.name} className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-110" loading="lazy" />
-          ) : (
-            <div className="w-full h-full flex items-center justify-center">
-              <Utensils className="w-5 h-5 text-slate-400" />
-            </div>
-          )}
-          {dish.allergens && dish.allergens.length > 0 && (
-            <div className="absolute bottom-1 right-1 bg-white/90 dark:bg-slate-900/90 p-0.5 rounded-full shadow-sm">
-              <Info className="w-2.5 h-2.5 text-amber-500" />
-            </div>
-          )}
-        </div>
-
-        <div className="flex-1 min-w-0 py-0.5">
-          <h3 className="font-semibold text-sm leading-tight text-slate-900 dark:text-white line-clamp-1 mb-0.5">{dish.name}</h3>
-          {dish.description && (
-            <p className="text-xs text-slate-500 dark:text-slate-400 line-clamp-1 leading-snug">{dish.description}</p>
-          )}
-          <div className="flex items-center justify-between mt-1.5">
-            <span className="font-bold text-sm text-emerald-600 dark:text-emerald-400">€{dish.price.toFixed(2)}</span>
+      <div className="w-16 h-16 shrink-0 relative rounded-xl overflow-hidden bg-gradient-to-br from-slate-100 to-slate-200 dark:from-slate-800 dark:to-slate-700 shadow-inner">
+        {dish.image_url ? (
+          <img src={dish.image_url} alt={dish.name} className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-110" loading="lazy" />
+        ) : (
+          <div className="w-full h-full flex items-center justify-center">
+            <Utensils className="w-5 h-5 text-slate-400" />
           </div>
-        </div>
+        )}
+        {dish.allergens && dish.allergens.length > 0 && (
+          <div className="absolute bottom-1 right-1 bg-white/90 dark:bg-slate-900/90 p-0.5 rounded-full shadow-sm">
+            <Info className="w-2.5 h-2.5 text-amber-500" />
+          </div>
+        )}
+      </div>
 
-        <Button
-          size="sm"
-          className="h-8 w-8 rounded-full p-0 shadow-lg shadow-emerald-500/20 bg-gradient-to-br from-emerald-500 to-emerald-600 hover:from-emerald-600 hover:to-emerald-700 text-white transition-all hover:scale-110 shrink-0"
-          onClick={(e) => { e.stopPropagation(); setSelectedDish(dish) }}
-        >
-          <Plus className="w-4 h-4" />
-        </Button>
+      <div className="flex-1 min-w-0 py-0.5">
+        <h3 className="font-semibold text-sm leading-tight text-slate-900 dark:text-white line-clamp-1 mb-0.5">{dish.name}</h3>
+        {dish.description && (
+          <p className="text-xs text-slate-500 dark:text-slate-400 line-clamp-1 leading-snug">{dish.description}</p>
+        )}
+        <div className="flex items-center justify-between mt-1.5">
+          <span className="font-bold text-sm text-emerald-600 dark:text-emerald-400">€{dish.price.toFixed(2)}</span>
+        </div>
+      </div>
+
+      <Button
+        size="sm"
+        className="h-8 w-8 rounded-full p-0 shadow-lg shadow-emerald-500/20 bg-gradient-to-br from-emerald-500 to-emerald-600 hover:from-emerald-600 hover:to-emerald-700 text-white transition-all hover:scale-110 shrink-0"
+        onClick={(e) => { e.stopPropagation(); setSelectedDish(dish) }}
+      >
+        <Plus className="w-4 h-4" />
+      </Button>
     </div>
   )
 
@@ -741,7 +741,7 @@ export default function CustomerMenu({ tableId: propTableId, onExit, interfaceMo
                         {session ? (
                           <span className="text-[11px] text-emerald-600 dark:text-emerald-400 font-semibold flex items-center gap-1.5 bg-emerald-500/10 px-2.5 py-0.5 rounded-full">
                             <div className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
-                            Tavolo {tableName}
+                            {tableName}
                           </span>
                         ) : (
                           <span className="text-[11px] text-amber-600 dark:text-amber-400 font-semibold bg-amber-500/10 px-2.5 py-0.5 rounded-full">

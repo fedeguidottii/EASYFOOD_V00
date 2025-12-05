@@ -130,9 +130,8 @@ export default function ClientTableAccess({ tableId, onAccessGranted }: ClientTa
                 <CardContent className="px-8 pb-10 pt-6 space-y-8">
                     <div className="text-center space-y-8">
                         {tableName && (
-                            <div className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-slate-800/50 border border-slate-700/50 backdrop-blur-sm">
-                                <span className="text-slate-400 text-xs font-medium uppercase tracking-wider">Tavolo</span>
-                                <span className="text-white font-bold text-lg">{tableName}</span>
+                            <div className="inline-flex items-center gap-2 px-5 py-2 rounded-full bg-slate-800/50 border border-slate-700/50 backdrop-blur-sm">
+                                <span className="text-white font-bold text-2xl">{tableName}</span>
                             </div>
                         )}
 
