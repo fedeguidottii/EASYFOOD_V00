@@ -120,6 +120,41 @@ function App() {
     window.history.replaceState({}, document.title, '/')
   }
 
+  // PRIORITY: If URL is /client/table/:id, ALWAYS show customer access flow
+  // This ensures QR codes work independently from any logged-in session
+  const path = window.location.pathname
+  const clientTableMatch = path.match(/\/client\/table\/([^/]+)/)
+
+  if (clientTableMatch && clientTableMatch[1]) {
+    const tableIdFromUrl = clientTableMatch[1]
+
+    // If already logged in as CUSTOMER for THIS table, show CustomerMenu
+    if (currentUser && currentUser.role === 'CUSTOMER' && currentTable === tableIdFromUrl) {
+      return (
+        <>
+          <DataInitializer />
+          <CustomerMenu tableId={currentTable} onExit={handleLogout} interfaceMode="customer" />
+          <Toaster position="top-center" />
+        </>
+      )
+    }
+
+    // Otherwise, show PIN entry for customer access
+    return (
+      <>
+        <DataInitializer />
+        <ClientTableAccess
+          tableId={tableIdFromUrl}
+          onAccessGranted={(user) => {
+            setCurrentUser(user)
+            setCurrentTable(tableIdFromUrl)
+          }}
+        />
+        <Toaster position="top-center" />
+      </>
+    )
+  }
+
   // If we have a table ID from URL but no user, show Client Access (PIN entry)
   if (clientAccessTableId && !currentUser) {
     return (

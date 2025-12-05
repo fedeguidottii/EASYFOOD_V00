@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo } from 'react'
+import { useState, useEffect, useMemo, memo, useCallback } from 'react'
 import { useParams } from 'react-router-dom'
 import { useSupabaseData } from '../hooks/useSupabaseData'
 import { DatabaseService } from '../services/DatabaseService'
@@ -671,11 +671,11 @@ export default function CustomerMenu({ tableId: propTableId, onExit, interfaceMo
     )
   }
 
-  // CUSTOMER MODE - Professional UI with Category Dividers
-  const DishCard = ({ dish }: { dish: Dish }) => (
+  // CUSTOMER MODE - Professional UI with Category Dividers - memoized to prevent re-renders
+  const DishCard = memo(({ dish, onSelect }: { dish: Dish; onSelect: (dish: Dish) => void }) => (
     <div
       className="flex items-center gap-3 p-3 bg-white/60 dark:bg-slate-900/60 backdrop-blur-sm rounded-2xl border border-white/20 dark:border-slate-800/50 shadow-sm hover:shadow-lg hover:bg-white/80 dark:hover:bg-slate-900/80 transition-all duration-300 cursor-pointer group active:scale-[0.98]"
-      onClick={() => setSelectedDish(dish)}
+      onClick={() => onSelect(dish)}
     >
       <div className="w-16 h-16 shrink-0 relative rounded-xl overflow-hidden bg-gradient-to-br from-slate-100 to-slate-200 dark:from-slate-800 dark:to-slate-700 shadow-inner">
         {dish.image_url ? (
@@ -705,12 +705,17 @@ export default function CustomerMenu({ tableId: propTableId, onExit, interfaceMo
       <Button
         size="sm"
         className="h-8 w-8 rounded-full p-0 shadow-lg shadow-emerald-500/20 bg-gradient-to-br from-emerald-500 to-emerald-600 hover:from-emerald-600 hover:to-emerald-700 text-white transition-all hover:scale-110 shrink-0"
-        onClick={(e) => { e.stopPropagation(); setSelectedDish(dish) }}
+        onClick={(e) => { e.stopPropagation(); onSelect(dish) }}
       >
         <Plus className="w-4 h-4" />
       </Button>
     </div>
-  )
+  ))
+
+  // Stable callback for dish selection
+  const handleDishSelect = useCallback((dish: Dish) => {
+    setSelectedDish(dish)
+  }, [])
 
   return (
     <div className="h-[100dvh] bg-gradient-to-b from-slate-50 via-white to-slate-100 dark:from-slate-950 dark:via-slate-900 dark:to-slate-950 font-sans select-none flex flex-col overflow-hidden">
@@ -802,13 +807,13 @@ export default function CustomerMenu({ tableId: propTableId, onExit, interfaceMo
                       <div className="h-px flex-1 bg-gradient-to-r from-transparent via-slate-300 dark:via-slate-700 to-transparent" />
                     </div>
                     {catDishes.map(dish => (
-                      <DishCard key={dish.id} dish={dish} />
+                      <DishCard key={dish.id} dish={dish} onSelect={handleDishSelect} />
                     ))}
                   </div>
                 ))
               ) : (
                 filteredDishes.map(dish => (
-                  <DishCard key={dish.id} dish={dish} />
+                  <DishCard key={dish.id} dish={dish} onSelect={handleDishSelect} />
                 ))
               )}
               {filteredDishes.length === 0 && (
