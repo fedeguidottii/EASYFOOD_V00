@@ -92,17 +92,29 @@ function NewCourseDropZone({ onClick }: { onClick: () => void }) {
   )
 }
 
-// Helper for course container drop zone
+// Helper for course container drop zone with smooth animations
 function DroppableCourse({ id, children, className }: { id: string, children: React.ReactNode, className?: string }) {
   const { setNodeRef, isOver } = useDroppable({ id })
   return (
-    <div ref={setNodeRef} className={`${className} transition-all duration-200 ${isOver ? 'ring-2 ring-emerald-500 bg-emerald-50/50 dark:bg-emerald-900/20 scale-[1.01]' : ''}`}>
+    <motion.div
+      ref={setNodeRef}
+      layout
+      initial={{ opacity: 0, y: 20 }}
+      animate={{
+        opacity: 1,
+        y: 0,
+        scale: isOver ? 1.02 : 1,
+        borderColor: isOver ? 'rgb(16 185 129)' : undefined
+      }}
+      transition={{ duration: 0.3, ease: 'easeOut' }}
+      className={`${className} transition-all duration-300 ${isOver ? 'ring-2 ring-emerald-500 bg-emerald-50/50 dark:bg-emerald-900/20 shadow-lg shadow-emerald-500/10' : ''}`}
+    >
       {children}
-    </div>
+    </motion.div>
   )
 }
 
-// Sortable Item Component
+// Sortable Item Component with smooth animations
 function SortableDishItem({ item, courseNum }: { item: CartItem, courseNum: number }) {
   const {
     attributes,
@@ -115,31 +127,40 @@ function SortableDishItem({ item, courseNum }: { item: CartItem, courseNum: numb
 
   const style = {
     transform: CSS.Transform.toString(transform),
-    transition,
-    opacity: isDragging ? 0.8 : 1,
+    transition: transition || 'transform 250ms cubic-bezier(0.25, 1, 0.5, 1)',
+    opacity: isDragging ? 0.9 : 1,
     zIndex: isDragging ? 999 : 'auto',
     touchAction: 'none',
-    scale: isDragging ? 1.05 : 1,
   }
 
   return (
-    <div
+    <motion.div
       ref={setNodeRef}
       style={style}
       {...attributes}
       {...listeners}
-      className={`flex items-center justify-between bg-slate-50 dark:bg-slate-800 p-2 rounded-xl border border-slate-100 dark:border-slate-700 group relative cursor-grab active:cursor-grabbing touch-none select-none transition-shadow ${isDragging ? 'shadow-xl ring-1 ring-emerald-500/50' : ''}`}
+      layout
+      initial={{ opacity: 0, y: 10 }}
+      animate={{
+        opacity: 1,
+        y: 0,
+        scale: isDragging ? 1.02 : 1,
+        boxShadow: isDragging ? '0 10px 40px -10px rgba(0,0,0,0.2)' : '0 1px 3px rgba(0,0,0,0.1)'
+      }}
+      exit={{ opacity: 0, y: -10 }}
+      transition={{ duration: 0.2, ease: 'easeOut' }}
+      className={`flex items-center justify-between bg-slate-50 dark:bg-slate-800 p-3 rounded-xl border border-slate-100 dark:border-slate-700 group relative cursor-grab active:cursor-grabbing touch-none select-none ${isDragging ? 'ring-2 ring-emerald-500 bg-white dark:bg-slate-700' : ''}`}
     >
       <div className="flex items-center gap-3 pointer-events-none">
-        <div className="p-1 text-slate-400">
+        <div className={`p-1.5 rounded-lg ${isDragging ? 'text-emerald-500 bg-emerald-50 dark:bg-emerald-900/30' : 'text-slate-400'}`}>
           <GripVertical className="w-4 h-4" />
         </div>
         <div>
-          <p className="font-bold text-slate-900 dark:text-white text-xs">{item.name}</p>
-          <p className="text-[10px] text-slate-500">{item.quantity}x</p>
+          <p className="font-bold text-slate-900 dark:text-white text-sm">{item.name}</p>
+          <p className="text-xs text-slate-500">{item.quantity}x · €{(item.price * item.quantity).toFixed(2)}</p>
         </div>
       </div>
-    </div>
+    </motion.div>
   )
 }
 
@@ -148,6 +169,11 @@ interface CartItem extends Dish {
   quantity: number
   notes?: string
   courseNumber: number
+}
+
+// Helper function for consistent course titles
+const getCourseTitle = (courseNum: number): string => {
+  return `Uscita ${courseNum}`
 }
 
 interface CustomerMenuProps {
@@ -176,6 +202,7 @@ export default function CustomerMenu({ tableId: propTableId, onExit, interfaceMo
   const [searchTerm, setSearchTerm] = useState('')
   const [selectedDish, setSelectedDish] = useState<Dish | null>(null)
   const [dishNote, setDishNote] = useState('')
+  const [dishQuantity, setDishQuantity] = useState(1)
 
   const [maxCourse, setMaxCourse] = useState(1)
   const [currentCourse, setCurrentCourse] = useState(1)
@@ -374,6 +401,7 @@ export default function CustomerMenu({ tableId: propTableId, onExit, interfaceMo
     }
     setSelectedDish(null)
     setDishNote('')
+    setDishQuantity(1)
   }
 
   const updateCartItemQuantity = (cartId: string, delta: number) => {
@@ -672,10 +700,15 @@ export default function CustomerMenu({ tableId: propTableId, onExit, interfaceMo
   }
 
   // CUSTOMER MODE - Professional UI with Category Dividers
-  const DishCard = ({ dish }: { dish: Dish }) => (
-    <div
+  const DishCard = ({ dish, index }: { dish: Dish, index: number }) => (
+    <motion.div
+      layout
+      initial={{ opacity: 0, y: 20 }}
+      animate={{ opacity: 1, y: 0 }}
+      exit={{ opacity: 0, y: -20 }}
+      transition={{ duration: 0.3, delay: index * 0.03 }}
       className="flex items-center gap-3 p-3 bg-white/60 dark:bg-slate-900/60 backdrop-blur-sm rounded-2xl border border-white/20 dark:border-slate-800/50 shadow-sm hover:shadow-lg hover:bg-white/80 dark:hover:bg-slate-900/80 transition-all duration-300 cursor-pointer group active:scale-[0.98]"
-      onClick={() => setSelectedDish(dish)}
+      onClick={() => { setSelectedDish(dish); setDishQuantity(1); }}
     >
       <div className="w-16 h-16 shrink-0 relative rounded-xl overflow-hidden bg-gradient-to-br from-slate-100 to-slate-200 dark:from-slate-800 dark:to-slate-700 shadow-inner">
         {dish.image_url ? (
@@ -705,11 +738,11 @@ export default function CustomerMenu({ tableId: propTableId, onExit, interfaceMo
       <Button
         size="sm"
         className="h-8 w-8 rounded-full p-0 shadow-lg shadow-emerald-500/20 bg-gradient-to-br from-emerald-500 to-emerald-600 hover:from-emerald-600 hover:to-emerald-700 text-white transition-all hover:scale-110 shrink-0"
-        onClick={(e) => { e.stopPropagation(); setSelectedDish(dish) }}
+        onClick={(e) => { e.stopPropagation(); setSelectedDish(dish); setDishQuantity(1); }}
       >
         <Plus className="w-4 h-4" />
       </Button>
-    </div>
+    </motion.div>
   )
 
   return (
@@ -791,34 +824,51 @@ export default function CustomerMenu({ tableId: propTableId, onExit, interfaceMo
             </header>
 
             <main className="flex-1 overflow-y-auto scrollbar-hide px-4 py-4 space-y-2 max-w-2xl mx-auto w-full pb-32">
+              <AnimatePresence mode="popLayout">
               {activeCategory === 'all' && dishesByCategory ? (
-                dishesByCategory.map(({ category, dishes: catDishes }) => (
-                  <div key={category.id} className="space-y-2">
-                    <div className="flex items-center gap-3 pt-4 pb-2 first:pt-0">
+                dishesByCategory.map(({ category, dishes: catDishes }, catIndex) => (
+                  <motion.div
+                    key={category.id}
+                    className="space-y-2"
+                    initial={{ opacity: 0 }}
+                    animate={{ opacity: 1 }}
+                    transition={{ duration: 0.3, delay: catIndex * 0.1 }}
+                  >
+                    <motion.div
+                      className="flex items-center gap-3 pt-4 pb-2 first:pt-0"
+                      initial={{ opacity: 0, scale: 0.9 }}
+                      animate={{ opacity: 1, scale: 1 }}
+                      transition={{ duration: 0.4 }}
+                    >
                       <div className="h-px flex-1 bg-gradient-to-r from-transparent via-slate-300 dark:via-slate-700 to-transparent" />
                       <span className="text-xs font-bold uppercase tracking-widest text-slate-500 dark:text-slate-400 px-3 py-1.5 bg-white/50 dark:bg-slate-800/50 backdrop-blur-sm rounded-full border border-white/30 dark:border-slate-700/30 shadow-sm">
                         {category.name}
                       </span>
                       <div className="h-px flex-1 bg-gradient-to-r from-transparent via-slate-300 dark:via-slate-700 to-transparent" />
-                    </div>
-                    {catDishes.map(dish => (
-                      <DishCard key={dish.id} dish={dish} />
+                    </motion.div>
+                    {catDishes.map((dish, index) => (
+                      <DishCard key={dish.id} dish={dish} index={index} />
                     ))}
-                  </div>
+                  </motion.div>
                 ))
               ) : (
-                filteredDishes.map(dish => (
-                  <DishCard key={dish.id} dish={dish} />
+                filteredDishes.map((dish, index) => (
+                  <DishCard key={dish.id} dish={dish} index={index} />
                 ))
               )}
               {filteredDishes.length === 0 && (
-                <div className="flex flex-col items-center justify-center py-20 opacity-60">
+                <motion.div
+                  initial={{ opacity: 0, scale: 0.9 }}
+                  animate={{ opacity: 1, scale: 1 }}
+                  className="flex flex-col items-center justify-center py-20 opacity-60"
+                >
                   <div className="w-16 h-16 bg-slate-100 dark:bg-slate-800 rounded-full flex items-center justify-center mb-4 shadow-inner">
                     <Search className="w-8 h-8 text-slate-400" />
                   </div>
                   <p className="text-sm font-medium text-slate-500">Nessun piatto trovato</p>
-                </div>
+                </motion.div>
               )}
+              </AnimatePresence>
             </main>
           </>
         )}
@@ -864,7 +914,7 @@ export default function CustomerMenu({ tableId: propTableId, onExit, interfaceMo
                             <div className="flex items-center gap-1 px-2 py-0.5 bg-slate-100/80 dark:bg-slate-800/80 rounded-lg">
                               <Layers className="w-3 h-3 text-slate-400" />
                               <span className="text-[10px] font-semibold text-slate-500 uppercase">
-                                {item.courseNumber === 1 ? '1ª Uscita' : item.courseNumber === 2 ? '2ª Uscita' : `${item.courseNumber}ª Uscita`}
+                                {getCourseTitle(item.courseNumber)}
                               </span>
                             </div>
 
@@ -1094,6 +1144,26 @@ export default function CustomerMenu({ tableId: propTableId, onExit, interfaceMo
                 )}
 
                 <div>
+                  <label className="text-[10px] font-semibold uppercase text-slate-400 mb-1.5 block tracking-wider text-center">Quantità</label>
+                  <div className="flex items-center justify-center gap-4 bg-slate-50 dark:bg-slate-800 rounded-xl p-2">
+                    <button
+                      onClick={() => setDishQuantity(q => Math.max(1, q - 1))}
+                      className="w-12 h-12 flex items-center justify-center bg-white dark:bg-slate-700 rounded-xl shadow-sm text-slate-600 dark:text-slate-300 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 transition-all active:scale-95 disabled:opacity-40"
+                      disabled={dishQuantity <= 1}
+                    >
+                      <Minus className="w-5 h-5" />
+                    </button>
+                    <span className="font-bold text-3xl w-12 text-center text-slate-900 dark:text-white">{dishQuantity}</span>
+                    <button
+                      onClick={() => setDishQuantity(q => q + 1)}
+                      className="w-12 h-12 flex items-center justify-center bg-white dark:bg-slate-700 rounded-xl shadow-sm text-slate-600 dark:text-slate-300 hover:text-emerald-500 hover:bg-emerald-50 dark:hover:bg-emerald-900/20 transition-all active:scale-95"
+                    >
+                      <Plus className="w-5 h-5" />
+                    </button>
+                  </div>
+                </div>
+
+                <div>
                   <label className="text-[10px] font-semibold uppercase text-slate-400 mb-1.5 block tracking-wider text-center">Note per la cucina</label>
                   <Textarea
                     placeholder="Es. Niente cipolla, ben cotto..."
@@ -1108,11 +1178,11 @@ export default function CustomerMenu({ tableId: propTableId, onExit, interfaceMo
                 <Button
                   className="w-full h-13 text-base font-bold rounded-xl bg-gradient-to-r from-emerald-600 to-emerald-500 hover:from-emerald-700 hover:to-emerald-600 text-white shadow-lg shadow-emerald-500/30 transition-all active:scale-[0.98]"
                   onClick={() => {
-                    addToCart(selectedDish, 1, dishNote, 1);
+                    addToCart(selectedDish, dishQuantity, dishNote, 1);
                     setActiveTab('menu');
                   }}
                 >
-                  Aggiungi al carrello - €{selectedDish.price.toFixed(2)}
+                  Aggiungi {dishQuantity > 1 ? `${dishQuantity}x ` : ''}al carrello - €{(selectedDish.price * dishQuantity).toFixed(2)}
                 </Button>
                 <p className="text-center text-[10px] text-slate-400 mt-2">
                   Potrai gestire le portate direttamente nel carrello
@@ -1135,8 +1205,8 @@ export default function CustomerMenu({ tableId: propTableId, onExit, interfaceMo
               {courseNumbers.map(n => (
                 cartByCourse[n]?.length > 0 && (
                   <div key={n} className="space-y-2">
-                    <h4 className="font-bold text-emerald-600 dark:text-emerald-400 text-xs uppercase tracking-wider sticky top-0 bg-slate-50 dark:bg-slate-800 py-1 z-10">
-                      {n === 1 ? 'Prima Uscita' : n === 2 ? 'Seconda Uscita' : `Uscita ${n}`}
+                    <h4 className="font-bold text-emerald-600 dark:text-emerald-400 text-xs uppercase tracking-wider sticky top-0 bg-slate-50 dark:bg-slate-800 py-1 z-10 text-center">
+                      {getCourseTitle(n)}
                     </h4>
                     <div className="space-y-1 pl-2 border-l-2 border-slate-200 dark:border-slate-700">
                       {cartByCourse[n].map((item) => (
@@ -1191,16 +1261,11 @@ export default function CustomerMenu({ tableId: propTableId, onExit, interfaceMo
                       id={`course-${courseNum}`}
                       className="bg-white dark:bg-slate-900 rounded-2xl p-3 shadow-sm border border-slate-200 dark:border-slate-800"
                     >
-                      <div className="flex items-center justify-between mb-2">
-                        <h3 className="font-bold text-emerald-600 dark:text-emerald-400 uppercase tracking-wider text-xs flex items-center gap-2">
+                      <div className="flex items-center justify-center mb-3">
+                        <h3 className="font-bold text-emerald-600 dark:text-emerald-400 uppercase tracking-wider text-sm flex items-center gap-2 bg-emerald-50 dark:bg-emerald-900/20 px-4 py-2 rounded-full border border-emerald-200 dark:border-emerald-800">
                           <Layers className="w-4 h-4" />
-                          {courseNum === 1 ? 'Prima Uscita' : courseNum === 2 ? 'Seconda Uscita' : `Uscita ${courseNum}`}
+                          {getCourseTitle(courseNum)}
                         </h3>
-                        {courseNum > 1 && cartByCourse[courseNum]?.length === 0 && (
-                          <Button variant="ghost" size="sm" className="h-6 text-red-400 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20" onClick={() => { }}>
-                            <Trash className="w-3 h-3" />
-                          </Button>
-                        )}
                       </div>
 
                       <div className="space-y-2 min-h-[40px]">
