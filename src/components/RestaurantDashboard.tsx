@@ -46,7 +46,7 @@ const RestaurantDashboard = ({ user, onLogout }: RestaurantDashboardProps) => {
   const [sidebarExpanded, setSidebarExpanded] = useState(false)
   const [tableSearchTerm, setTableSearchTerm] = useState('')
 
-  const [orders, , refreshOrders, setOrders] = useSupabaseData<Order>('orders', [], { column: 'restaurant_id', value: restaurantId })
+  const [orders, setOrders] = useState<Order[]>([])
   const [dishes, , , setDishes] = useSupabaseData<Dish>('dishes', [], { column: 'restaurant_id', value: restaurantId })
   const [tables, , , setTables] = useSupabaseData<Table>('tables', [], { column: 'restaurant_id', value: restaurantId })
   const [categories, , , setCategories] = useSupabaseData<Category>('categories', [], { column: 'restaurant_id', value: restaurantId })
@@ -74,15 +74,18 @@ const RestaurantDashboard = ({ user, onLogout }: RestaurantDashboardProps) => {
     localStorage.setItem('selectedSound', selectedSound)
   }, [selectedSound])
 
-  // ... existing effects ...
+  // Fetch Orders with Relations
+  const fetchOrders = async () => {
+    if (!restaurantId) return
+    try {
+      const data = await DatabaseService.getOrders(restaurantId)
+      setOrders(data)
+    } catch (error) {
+      console.error('Error fetching orders:', error)
+    }
+  }
 
   useEffect(() => {
-    if (!restaurantId) return
-
-    const fetchOrders = async () => {
-      // ... existing fetch ...
-    }
-
     fetchOrders()
 
     const channel = supabase
