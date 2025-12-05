@@ -602,7 +602,9 @@ export default function TimelineReservations({ user, restaurantId, tables, booki
                           >
                             <div className="flex flex-col overflow-hidden">
                               <span className="font-bold text-xs truncate">{block.booking.name}</span>
-                              <span className="text-[10px] truncate opacity-90">{block.booking.guests} ospiti</span>
+                              <span className="text-[10px] truncate opacity-90">
+                                🕐 {minutesToTime(block.startMinutes)} • {block.booking.guests} ospiti
+                              </span>
                             </div>
 
                             <div className="flex items-center gap-1 shrink-0">
