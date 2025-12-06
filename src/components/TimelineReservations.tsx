@@ -528,9 +528,9 @@ export default function TimelineReservations({ user, restaurantId, tables, booki
               }
 
               return (
-                <div key={table.id} className="relative h-24 border-b border-border/20"> {/* Increased height to h-24 */}
+                <div key={table.id} className="relative h-24 border-b border-slate-200 dark:border-border/20"> {/* Increased height to h-24 */}
                   {/* Table Name with capacity and status */}
-                  <div className={`absolute left-0 top-0 bottom-0 w-32 flex flex-col items-center justify-center border-r-2 border-border/50 z-10 transition-all duration-300 ${tableColor}`}>
+                  <div className={`absolute left-0 top-0 bottom-0 w-32 flex flex-col items-center justify-center border-r-2 border-slate-200 dark:border-border/50 z-10 transition-all duration-300 ${tableColor}`}>
                     <span className="font-bold text-xl">{table.number}</span>
                     <span className="text-sm font-bold text-foreground mt-1">
                       👥 {table.seats || 4}

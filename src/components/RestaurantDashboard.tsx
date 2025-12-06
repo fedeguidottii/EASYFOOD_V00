@@ -1365,7 +1365,7 @@ const RestaurantDashboard = ({ user, onLogout }: RestaurantDashboardProps) => {
                     </div>
                     <div className="grid gap-3 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
                       {categoryDishes.map(dish => (
-                        <Card key={dish.id} className={`group hover:shadow-md transition-all border border-border bg-card shadow-sm ${!dish.is_active ? 'opacity-60 grayscale' : ''}`}>
+                        <Card key={dish.id} className={`group hover:shadow-md transition-all border border-border bg-white dark:bg-card shadow-sm ${!dish.is_active ? 'opacity-60 grayscale' : ''}`}>
                           <CardContent className="p-0">
                             <div className="flex gap-3 p-3">
                               {/* Compact Image */}
