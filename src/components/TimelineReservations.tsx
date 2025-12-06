@@ -201,11 +201,9 @@ export default function TimelineReservations({ user, restaurantId, tables, booki
     const newStart = timeToMinutes(time)
     const newEnd = newStart + durationMinutes
 
-    return reservationBlocks.some(block => {
-      if (block.table.id !== tableId) return false
-      // Exclude the booking we're moving
-      if (excludeBookingId && block.booking.id === excludeBookingId) return false
+    const blocksToCheck = reservationBlocks.filter(block => block.table.id === tableId && block.booking.id !== excludeBookingId)
 
+    return blocksToCheck.some(block => {
       const blockEnd = block.startMinutes + block.duration
 
       // Check overlap
@@ -468,7 +466,7 @@ export default function TimelineReservations({ user, restaurantId, tables, booki
       </div>
 
       {/* Timeline Header - Time Labels */}
-      <div className="relative ml-32 mr-4 h-10 flex">
+      <div className="relative ml-32 mr-4 h-12 flex items-end px-2 bg-muted/40 rounded-t-xl border border-border/40">
         {timeSlots.map((slot, i) => {
           const minutes = slot.hour * 60 + slot.minute
           const relativeStart = minutes - TIMELINE_START_MINUTES
@@ -480,8 +478,8 @@ export default function TimelineReservations({ user, restaurantId, tables, booki
               className="absolute top-0 flex flex-col items-center"
               style={{ left: `${left}%`, transform: 'translateX(-50%)' }}
             >
-              <span className="text-sm font-semibold text-foreground bg-muted/50 px-2 py-0.5 rounded">{slot.time}</span>
-              <div className="h-3 w-0.5 bg-primary/30 mt-1"></div>
+              <span className="text-sm font-semibold text-foreground bg-background/80 px-2 py-0.5 rounded shadow-sm border">{slot.time}</span>
+              <div className="h-3 w-0.5 bg-primary/40 mt-1"></div>
             </div>
           )
         })}
@@ -540,7 +538,7 @@ export default function TimelineReservations({ user, restaurantId, tables, booki
                 <div key={table.id} className="relative h-24 border-b border-border/20"> {/* Increased height to h-24 */}
                   {/* Table Name with capacity and status */}
                   <div className={`absolute left-0 top-0 bottom-0 w-32 flex flex-col items-center justify-center border-r-2 border-border/50 z-10 transition-all duration-300 ${tableColor}`}>
-                    <span className="font-bold text-xl">{table.number}</span>
+                    <span className="font-bold text-xl whitespace-nowrap">{table.number}</span>
                     <span className="text-sm font-bold text-foreground mt-1">
                       👥 {table.seats || 4}
                     </span>

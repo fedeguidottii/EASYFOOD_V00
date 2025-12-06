@@ -17,9 +17,10 @@ interface KitchenViewProps {
     onCompleteDish: (orderId: string, itemId: string) => void
     onCompleteOrder: (orderId: string) => void
     sessions: TableSession[]
+    zoom?: number
 }
 
-export function KitchenView({ orders, tables, dishes, selectedCategoryIds = [], viewMode, columns, onCompleteDish, onCompleteOrder, sessions }: KitchenViewProps) {
+export function KitchenView({ orders, tables, dishes, selectedCategoryIds = [], viewMode, columns, onCompleteDish, onCompleteOrder, sessions, zoom = 1 }: KitchenViewProps) {
     const [now, setNow] = useState(new Date())
 
     useEffect(() => {
@@ -95,7 +96,15 @@ export function KitchenView({ orders, tables, dishes, selectedCategoryIds = [], 
     }, [activeOrders, dishes, selectedCategoryIds])
 
     return (
-        <div className="p-2 h-screen flex flex-col bg-background">
+        <div
+            className="p-2 h-screen flex flex-col bg-background"
+            style={{
+                transform: `scale(${zoom})`,
+                transformOrigin: 'top left',
+                width: `${100 / zoom}%`,
+                transition: 'transform 200ms ease, width 200ms ease'
+            }}
+        >
             <div className="flex items-center justify-between mb-4 bg-muted/20 p-2 rounded-lg border hidden">
                 {/* Controls moved to parent */}
             </div>
@@ -158,7 +167,7 @@ export function KitchenView({ orders, tables, dishes, selectedCategoryIds = [], 
                             >
                                 <CardHeader className="pb-3 pt-4 px-4 bg-gradient-to-r from-emerald-500/10 via-transparent to-cyan-500/10 border-b border-white/5">
                                     <div className="flex justify-between items-center w-full">
-                                        <span className="text-4xl font-black bg-gradient-to-r from-white to-slate-300 bg-clip-text text-transparent drop-shadow-sm">
+                                        <span className="text-4xl font-black bg-gradient-to-r from-white to-slate-300 bg-clip-text text-transparent drop-shadow-sm whitespace-nowrap">
                                             {tableName}
                                         </span>
 

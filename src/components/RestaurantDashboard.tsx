@@ -170,6 +170,9 @@ const RestaurantDashboard = ({ user, onLogout }: RestaurantDashboardProps) => {
   const [orderSortMode, setOrderSortMode] = useState<'oldest' | 'newest'>('oldest')
   const [tableHistorySearch, setTableHistorySearch] = useState('')
   const [tableHistoryDateFilter, setTableHistoryDateFilter] = useState<'today' | 'week' | 'month' | 'all'>('week')
+  const [tableHistoryMinTotal, setTableHistoryMinTotal] = useState('')
+  const [tableHistoryMinCovers, setTableHistoryMinCovers] = useState('')
+  const [tableHistorySort, setTableHistorySort] = useState<'recent' | 'amount' | 'duration' | 'covers'>('recent')
   const [isAddItemDialogOpen, setIsAddItemDialogOpen] = useState(false)
   const [currentSessionPin, setCurrentSessionPin] = useState<string>('')
   const [allergenInput, setAllergenInput] = useState('')
@@ -179,6 +182,7 @@ const RestaurantDashboard = ({ user, onLogout }: RestaurantDashboardProps) => {
   const [kitchenViewMode, setKitchenViewMode] = useState<'table' | 'dish'>('table')
   const [kitchenColumns, setKitchenColumns] = useState(3)
   const [selectedKitchenCategories, setSelectedKitchenCategories] = useState<string[]>([])
+  const [kitchenZoom, setKitchenZoom] = useState(1)
 
   // AYCE and Coperto Settings
   const [ayceEnabled, setAyceEnabled] = useState(false)
@@ -951,11 +955,32 @@ const RestaurantDashboard = ({ user, onLogout }: RestaurantDashboardProps) => {
 
                 <div className="flex items-center gap-2 bg-muted p-1 rounded-lg mr-2">
                   <span className="text-[10px] font-bold uppercase text-muted-foreground px-2">Zoom</span>
-                  <Button variant="ghost" size="sm" onClick={() => setKitchenColumns(prev => Math.min(8, prev + 1))} className="h-7 w-7 p-0">
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => setKitchenZoom(prev => Math.max(0.7, Math.round((prev - 0.1) * 10) / 10))}
+                    className="h-7 w-7 p-0"
+                  >
                     <Minus size={14} />
                   </Button>
-                  <span className="w-4 text-center text-xs font-bold">{kitchenColumns}</span>
+                  <span className="w-10 text-center text-xs font-bold">{Math.round(kitchenZoom * 100)}%</span>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => setKitchenZoom(prev => Math.min(1.4, Math.round((prev + 0.1) * 10) / 10))}
+                    className="h-7 w-7 p-0"
+                  >
+                    <Plus size={14} />
+                  </Button>
+                </div>
+
+                <div className="flex items-center gap-2 bg-muted p-1 rounded-lg mr-2">
+                  <span className="text-[10px] font-bold uppercase text-muted-foreground px-2">Griglia</span>
                   <Button variant="ghost" size="sm" onClick={() => setKitchenColumns(prev => Math.max(1, prev - 1))} className="h-7 w-7 p-0">
+                    <Minus size={14} />
+                  </Button>
+                  <span className="w-6 text-center text-xs font-bold">{kitchenColumns}</span>
+                  <Button variant="ghost" size="sm" onClick={() => setKitchenColumns(prev => Math.min(8, prev + 1))} className="h-7 w-7 p-0">
                     <Plus size={14} />
                   </Button>
                 </div>
@@ -1034,13 +1059,14 @@ const RestaurantDashboard = ({ user, onLogout }: RestaurantDashboardProps) => {
                 onCompleteDish={handleCompleteDish}
                 onCompleteOrder={handleCompleteOrder}
                 sessions={sessions || []}
+                zoom={kitchenZoom}
               />
             )}
           </TabsContent >
 
           {/* Tables Tab */}
           < TabsContent value="tables" className="space-y-6" >
-            <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between bg-card/50 p-4 rounded-xl shadow-sm backdrop-blur-sm">
+            <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between p-4 rounded-xl">
               <div className="flex items-center gap-3">
                 <div className="w-11 h-11 rounded-xl bg-primary/10 flex items-center justify-center text-primary">
                   <MapPin size={20} weight="duotone" />
@@ -1097,6 +1123,31 @@ const RestaurantDashboard = ({ user, onLogout }: RestaurantDashboardProps) => {
                           <SelectItem value="all">Tutto</SelectItem>
                         </SelectContent>
                       </Select>
+                      <Input
+                        type="number"
+                        placeholder="€ minimo"
+                        value={tableHistoryMinTotal}
+                        onChange={(e) => setTableHistoryMinTotal(e.target.value)}
+                        className="w-[120px] h-9"
+                      />
+                      <Input
+                        type="number"
+                        placeholder="Coperti min"
+                        value={tableHistoryMinCovers}
+                        onChange={(e) => setTableHistoryMinCovers(e.target.value)}
+                        className="w-[120px] h-9"
+                      />
+                      <Select value={tableHistorySort} onValueChange={(v: any) => setTableHistorySort(v)}>
+                        <SelectTrigger className="w-[170px] h-9">
+                          <SelectValue placeholder="Ordina per" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="recent">Più recenti</SelectItem>
+                          <SelectItem value="amount">Incasso</SelectItem>
+                          <SelectItem value="duration">Durata</SelectItem>
+                          <SelectItem value="covers">Coperti</SelectItem>
+                        </SelectContent>
+                      </Select>
                     </div>
                     <div className="flex-1 overflow-y-auto py-4 space-y-3">
                       {(() => {
@@ -1125,7 +1176,30 @@ const RestaurantDashboard = ({ user, onLogout }: RestaurantDashboardProps) => {
                               s.session_pin?.toLowerCase().includes(searchLower)
                             )
                           })
-                          .sort((a, b) => new Date(b.closed_at || b.created_at).getTime() - new Date(a.closed_at || a.created_at).getTime())
+                          .map(session => {
+                            const table = restaurantTables.find(t => t.id === session.table_id)
+                            const sessionOrders = restaurantCompletedOrders.filter(o => o.table_session_id === session.id)
+                            const totalAmount = sessionOrders.reduce((sum, o) => sum + (o.total_amount || 0), 0)
+                            const totalItems = sessionOrders.reduce((sum, o) => sum + (o.items?.length || 0), 0)
+                            const openDate = new Date(session.created_at)
+                            const closeDate = session.closed_at ? new Date(session.closed_at) : null
+                            const duration = closeDate ? Math.round((closeDate.getTime() - openDate.getTime()) / (1000 * 60)) : 0
+
+                            return { session, table, sessionOrders, totalAmount, totalItems, openDate, closeDate, duration }
+                          })
+                          .filter(summary => {
+                            const minTotal = parseFloat(tableHistoryMinTotal || '0')
+                            const minCovers = parseInt(tableHistoryMinCovers || '0')
+                            const coversOk = minCovers ? (summary.session.customer_count || 0) >= minCovers : true
+                            const totalOk = minTotal ? summary.totalAmount >= minTotal : true
+                            return coversOk && totalOk
+                          })
+                          .sort((a, b) => {
+                            if (tableHistorySort === 'amount') return b.totalAmount - a.totalAmount
+                            if (tableHistorySort === 'duration') return (b.duration || 0) - (a.duration || 0)
+                            if (tableHistorySort === 'covers') return (b.session.customer_count || 0) - (a.session.customer_count || 0)
+                            return new Date(b.session.closed_at || b.session.created_at).getTime() - new Date(a.session.closed_at || a.session.created_at).getTime()
+                          })
 
                         if (closedSessions.length === 0) {
                           return (
@@ -1137,15 +1211,7 @@ const RestaurantDashboard = ({ user, onLogout }: RestaurantDashboardProps) => {
                           )
                         }
 
-                        return closedSessions.map(session => {
-                          const table = restaurantTables.find(t => t.id === session.table_id)
-                          const sessionOrders = restaurantCompletedOrders.filter(o => o.table_session_id === session.id)
-                          const totalAmount = sessionOrders.reduce((sum, o) => sum + (o.total_amount || 0), 0)
-                          const totalItems = sessionOrders.reduce((sum, o) => sum + (o.items?.length || 0), 0)
-                          const openDate = new Date(session.created_at)
-                          const closeDate = session.closed_at ? new Date(session.closed_at) : null
-                          const duration = closeDate ? Math.round((closeDate.getTime() - openDate.getTime()) / (1000 * 60)) : 0
-
+                        return closedSessions.map(({ session, table, sessionOrders, totalAmount, totalItems, openDate, closeDate, duration }) => {
                           return (
                             <div key={session.id} className="p-4 rounded-xl bg-muted/30 hover:bg-muted/50 transition-colors border border-border/50">
                               <div className="flex items-start justify-between gap-4 flex-wrap">
@@ -1189,6 +1255,12 @@ const RestaurantDashboard = ({ user, onLogout }: RestaurantDashboardProps) => {
                                     <p className="text-xs text-muted-foreground">Totale</p>
                                     <p className="font-bold text-lg text-emerald-600">€{totalAmount.toFixed(2)}</p>
                                   </div>
+                                </div>
+                                <div className="flex flex-wrap gap-3 mt-2 text-xs text-muted-foreground">
+                                  <span className="px-2 py-1 bg-background/50 rounded-md border border-border/50">€{session.customer_count ? (totalAmount / session.customer_count).toFixed(2) : '0.00'} a coperto</span>
+                                  {duration > 0 && <span className="px-2 py-1 bg-background/50 rounded-md border border-border/50">Durata {duration} min</span>}
+                                  <span className="px-2 py-1 bg-background/50 rounded-md border border-border/50">{totalItems} piatti totali</span>
+                                  {sessionOrders.length > 0 && <span className="px-2 py-1 bg-background/50 rounded-md border border-border/50">~{Math.round(duration / sessionOrders.length || 0)} min/ordine</span>}
                                 </div>
                               </div>
                             </div>
@@ -1629,7 +1701,7 @@ const RestaurantDashboard = ({ user, onLogout }: RestaurantDashboardProps) => {
 
           {/* Settings Tab */}
           < TabsContent value="settings" className="space-y-6" >
-            <div className="flex items-center justify-between mb-6 bg-card/50 p-4 rounded-xl shadow-sm backdrop-blur-sm">
+            <div className="flex items-center justify-between mb-6 p-4 rounded-xl">
               <div className="flex items-center gap-3">
                 <div className="w-11 h-11 rounded-xl bg-primary/10 flex items-center justify-center text-primary">
                   <Gear size={20} weight="duotone" />
