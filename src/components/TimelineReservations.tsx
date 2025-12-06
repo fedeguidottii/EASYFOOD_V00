@@ -196,13 +196,15 @@ export default function TimelineReservations({ user, restaurantId, tables, booki
     return 0
   })
 
-  // Check for conflicts
-  const hasConflict = (tableId: string, time: string, durationMinutes: number = reservationDuration) => {
+  // Check for conflicts - excludeBookingId allows excluding a booking when moving it
+  const hasConflict = (tableId: string, time: string, durationMinutes: number = reservationDuration, excludeBookingId?: string) => {
     const newStart = timeToMinutes(time)
     const newEnd = newStart + durationMinutes
 
     return reservationBlocks.some(block => {
       if (block.table.id !== tableId) return false
+      // Exclude the booking we're moving
+      if (excludeBookingId && block.booking.id === excludeBookingId) return false
 
       const blockEnd = block.startMinutes + block.duration
 
@@ -292,8 +294,8 @@ export default function TimelineReservations({ user, restaurantId, tables, booki
     const roundedMinutes = Math.round(clickedMinutes / 15) * 15 // Snap to 15 mins
     const newTime = minutesToTime(roundedMinutes)
 
-    // Check conflicts
-    if (hasConflict(tableId, newTime, 120)) { // Assuming 2h duration
+    // Check conflicts - exclude the booking being moved
+    if (hasConflict(tableId, newTime, reservationDuration, bookingId)) {
       toast.error('Orario occupato o sovrapposto')
       return
     }
@@ -344,6 +346,14 @@ export default function TimelineReservations({ user, restaurantId, tables, booki
     try {
       const currentDateTime = new Date(booking.date_time)
       currentDateTime.setMinutes(currentDateTime.getMinutes() + minutes)
+      const newTime = `${currentDateTime.getHours().toString().padStart(2, '0')}:${currentDateTime.getMinutes().toString().padStart(2, '0')}`
+
+      // Check for conflicts at new time, excluding current booking
+      if (hasConflict(booking.table_id || '', newTime, reservationDuration, booking.id)) {
+        toast.error('Nuovo orario sovrapposto con altra prenotazione')
+        return
+      }
+
       const newDateTime = currentDateTime.toISOString()
 
       await DatabaseService.updateBooking({
@@ -458,9 +468,8 @@ export default function TimelineReservations({ user, restaurantId, tables, booki
       </div>
 
       {/* Timeline Header - Time Labels */}
-      <div className="relative pl-32 pr-4 h-8">
+      <div className="relative ml-32 mr-4 h-10 flex">
         {timeSlots.map((slot, i) => {
-          // Calculate position exactly like reservations
           const minutes = slot.hour * 60 + slot.minute
           const relativeStart = minutes - TIMELINE_START_MINUTES
           const left = (relativeStart / TIMELINE_DURATION) * 100
@@ -468,11 +477,11 @@ export default function TimelineReservations({ user, restaurantId, tables, booki
           return (
             <div
               key={i}
-              className="absolute top-0 flex flex-col items-center -translate-x-1/2"
-              style={{ left: `calc(8rem + ${left}% * (100% - 9rem) / 100)` }}
+              className="absolute top-0 flex flex-col items-center"
+              style={{ left: `${left}%`, transform: 'translateX(-50%)' }}
             >
-              <span className="text-xs text-muted-foreground">{slot.time}</span>
-              <div className="h-2 w-px bg-border/50 mt-1"></div>
+              <span className="text-sm font-semibold text-foreground bg-muted/50 px-2 py-0.5 rounded">{slot.time}</span>
+              <div className="h-3 w-0.5 bg-primary/30 mt-1"></div>
             </div>
           )
         })}
@@ -486,9 +495,9 @@ export default function TimelineReservations({ user, restaurantId, tables, booki
             {currentTimePos >= 0 && (
               <div
                 className="absolute top-0 bottom-0 w-0.5 bg-red-500 z-30 pointer-events-none"
-                style={{ left: `calc(8rem + ${currentTimePos} * (100% - 9rem) / 100)` }}
+                style={{ left: `calc(8rem + ${currentTimePos}%)` }}
               >
-                <div className="absolute -top-1 -left-1.5 w-3 h-3 rounded-full bg-red-500"></div>
+                <div className="absolute -top-1 -left-1.5 w-3 h-3 rounded-full bg-red-500 shadow-lg shadow-red-500/50"></div>
               </div>
             )}
 
@@ -528,9 +537,9 @@ export default function TimelineReservations({ user, restaurantId, tables, booki
               }
 
               return (
-                <div key={table.id} className="relative h-24 border-b border-slate-200 dark:border-border/20"> {/* Increased height to h-24 */}
+                <div key={table.id} className="relative h-24 border-b border-border/20"> {/* Increased height to h-24 */}
                   {/* Table Name with capacity and status */}
-                  <div className={`absolute left-0 top-0 bottom-0 w-32 flex flex-col items-center justify-center border-r-2 border-slate-200 dark:border-border/50 z-10 transition-all duration-300 ${tableColor}`}>
+                  <div className={`absolute left-0 top-0 bottom-0 w-32 flex flex-col items-center justify-center border-r-2 border-border/50 z-10 transition-all duration-300 ${tableColor}`}>
                     <span className="font-bold text-xl">{table.number}</span>
                     <span className="text-sm font-bold text-foreground mt-1">
                       👥 {table.seats || 4}

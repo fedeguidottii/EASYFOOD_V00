@@ -143,9 +143,9 @@ const WaiterDashboard = ({ user, onLogout }: WaiterDashboardProps) => {
 
     const getStatusColor = (status: string) => {
         switch (status) {
-            case 'free': return 'bg-white hover:bg-gray-50 border-gray-200'
-            case 'occupied': return 'bg-green-100 border-green-300'
-            default: return 'bg-gray-100'
+            case 'free': return 'bg-gradient-to-br from-slate-100 to-white dark:from-slate-900 dark:to-slate-800 border-slate-200 dark:border-slate-700 hover:shadow-lg'
+            case 'occupied': return 'bg-gradient-to-br from-emerald-100 to-emerald-50 dark:from-emerald-950/40 dark:to-slate-900 border-emerald-300 dark:border-emerald-700 ring-2 ring-emerald-400/30 dark:ring-emerald-500/30 shadow-lg shadow-emerald-500/10'
+            default: return 'bg-slate-100 dark:bg-slate-800'
         }
     }
 
@@ -204,24 +204,24 @@ const WaiterDashboard = ({ user, onLogout }: WaiterDashboardProps) => {
     if (loading) return <div className="flex items-center justify-center h-screen text-2xl font-bold text-muted-foreground">Caricamento...</div>
 
     return (
-        <div className="min-h-screen bg-gray-100 p-4">
+        <div className="min-h-screen bg-gradient-to-br from-slate-50 via-white to-slate-100 dark:from-slate-950 dark:via-slate-900 dark:to-slate-950 p-4 md:p-6">
             {/* Header */}
-            <header className="flex items-center justify-between mb-6 bg-white p-4 rounded-xl shadow-sm border border-gray-200">
+            <header className="flex items-center justify-between mb-6 bg-white/80 dark:bg-slate-900/80 backdrop-blur-xl p-4 md:p-5 rounded-2xl shadow-lg border border-white/20 dark:border-slate-800/50">
                 <div className="flex items-center gap-4">
-                    <div className="w-12 h-12 rounded-full bg-primary flex items-center justify-center text-primary-foreground shadow-md">
-                        <User size={24} weight="bold" />
+                    <div className="w-14 h-14 rounded-2xl bg-gradient-to-br from-emerald-500 to-emerald-600 flex items-center justify-center text-white shadow-lg shadow-emerald-500/30">
+                        <User size={28} weight="bold" />
                     </div>
                     <div>
-                        <h1 className="text-2xl font-black tracking-tight text-gray-900">SALA</h1>
-                        <div className="flex items-center gap-2">
-                            <span className="w-2 h-2 rounded-full bg-green-500 animate-pulse"></span>
-                            <p className="text-sm font-medium text-muted-foreground">Online</p>
+                        <h1 className="text-2xl md:text-3xl font-black tracking-tight text-slate-900 dark:text-white">Gestione Sala</h1>
+                        <div className="flex items-center gap-2 mt-1">
+                            <span className="w-2.5 h-2.5 rounded-full bg-emerald-500 animate-pulse shadow-lg shadow-emerald-500/50"></span>
+                            <p className="text-sm font-semibold text-emerald-600 dark:text-emerald-400">Cameriere Online</p>
                         </div>
                     </div>
                 </div>
-                <Button variant="destructive" size="lg" className="font-bold" onClick={onLogout}>
+                <Button variant="outline" size="lg" className="font-bold border-2 hover:bg-red-50 hover:text-red-600 hover:border-red-300 dark:hover:bg-red-950/30" onClick={onLogout}>
                     <SignOut size={20} className="mr-2" />
-                    ESCI
+                    Esci
                 </Button>
             </header>
 
@@ -236,61 +236,83 @@ const WaiterDashboard = ({ user, onLogout }: WaiterDashboardProps) => {
                     return (
                         <Card
                             key={table.id}
-                            className={`cursor-pointer transition-all duration-200 shadow-sm hover:shadow-xl border-2 relative overflow-hidden ${getStatusColor(status)} h-48`}
+                            className={`cursor-pointer transition-all duration-300 border-2 relative overflow-hidden hover:scale-[1.02] active:scale-[0.98] ${getStatusColor(status)}`}
                             onClick={() => handleTableClick(table)}
                         >
-                            <CardContent className="p-0 h-full flex flex-col justify-between relative">
-                                {/* Table Number */}
-                                <div className="absolute top-3 left-4">
-                                    <span className="text-5xl font-black text-gray-900 opacity-90">{table.number}</span>
-                                </div>
-
-                                {/* Status Indicators */}
-                                <div className="absolute top-4 right-4 flex flex-col items-end gap-1">
-                                    {status === 'occupied' && (
-                                        <Badge className="bg-green-600 hover:bg-green-700 text-white font-bold px-2 py-1 text-xs shadow-sm">
-                                            OCCUPATO
-                                        </Badge>
-                                    )}
-                                    {status === 'free' && (
-                                        <Badge variant="outline" className="bg-white text-gray-500 border-gray-300 font-bold px-2 py-1 text-xs">
-                                            LIBERO
-                                        </Badge>
-                                    )}
-                                    {session && (
-                                        <div className="flex items-center gap-1 text-xs font-bold text-gray-600 bg-white/50 px-2 py-1 rounded-full mt-1">
-                                            <ArrowsClockwise size={14} />
-                                            {duration}
+                            <CardContent className="p-0 flex flex-col h-full">
+                                {/* Header */}
+                                <div className="p-4 flex items-center justify-between border-b border-black/5 dark:border-white/5">
+                                    <div className="flex items-center gap-3">
+                                        <span className="text-2xl font-black text-slate-900 dark:text-white whitespace-nowrap">
+                                            {table.number}
+                                        </span>
+                                        <div className="flex items-center gap-1.5 text-slate-600 dark:text-slate-300 bg-slate-100 dark:bg-slate-800 px-2.5 py-1 rounded-full">
+                                            <User size={14} weight="bold" />
+                                            <span className="text-sm font-bold">{table.seats || 4}</span>
                                         </div>
-                                    )}
-                                </div>
-
-                                {/* Bottom Info */}
-                                <div className="mt-auto p-4 w-full flex items-end justify-between bg-gradient-to-t from-black/5 to-transparent">
-                                    <div className="flex items-center gap-1 text-gray-700 font-bold">
-                                        <User size={18} weight="fill" />
-                                        <span>{session?.customer_count || '-'}</span>
                                     </div>
+                                    {status === 'occupied' ? (
+                                        <Badge className="bg-emerald-500 hover:bg-emerald-600 text-white font-bold shadow-lg shadow-emerald-500/30">
+                                            Attivo
+                                        </Badge>
+                                    ) : (
+                                        <Badge variant="outline" className="text-slate-500 dark:text-slate-400 font-medium border-slate-300 dark:border-slate-600">
+                                            Libero
+                                        </Badge>
+                                    )}
+                                </div>
 
-                                    {status === 'occupied' && (
-                                        <div className="text-2xl font-black text-gray-900">
-                                            € {total.toFixed(2)}
+                                {/* Content */}
+                                <div className="flex-1 p-4 flex flex-col justify-between">
+                                    {session ? (
+                                        <>
+                                            <div className="space-y-2">
+                                                <div className="flex items-center gap-2 text-sm">
+                                                    <User size={16} className="text-slate-400" weight="fill" />
+                                                    <span className="font-bold text-slate-700 dark:text-slate-200">{session.customer_count || 0} coperti</span>
+                                                </div>
+                                                <div className="flex items-center gap-2 text-sm">
+                                                    <ArrowsClockwise size={16} className="text-slate-400" />
+                                                    <span className="text-slate-500 dark:text-slate-400">{duration}</span>
+                                                </div>
+                                            </div>
+                                            <div className="mt-3 pt-3 border-t border-slate-200/50 dark:border-slate-700/50">
+                                                <div className="text-3xl font-black text-emerald-600 dark:text-emerald-400">
+                                                    €{total.toFixed(2)}
+                                                </div>
+                                            </div>
+                                        </>
+                                    ) : (
+                                        <div className="flex-1 flex items-center justify-center">
+                                            <p className="text-sm text-slate-400 dark:text-slate-500 font-medium">Clicca per ordinare</p>
                                         </div>
                                     )}
                                 </div>
 
-                                {/* Quick Actions - Payment Button */}
-                                {status === 'occupied' && restaurant?.allow_waiter_payments && (
-                                    <div className="absolute bottom-3 left-3 z-10">
+                                {/* Payment Button - Always visible for occupied tables, but only functional if allowed */}
+                                {status === 'occupied' && (
+                                    <div className="p-3 pt-0 flex gap-2">
                                         <Button
-                                            variant="secondary"
-                                            size="icon"
-                                            className="h-12 w-12 rounded-full shadow-md bg-white hover:bg-blue-50 text-blue-700 border-2 border-blue-100 hover:border-blue-300 transition-colors"
-                                            onClick={(e) => openPaymentDialog(e, table)}
-                                            title="Conto / Chiudi Tavolo"
+                                            variant="outline"
+                                            size="sm"
+                                            className="flex-1 h-10 font-bold border-2 text-sm"
+                                            onClick={(e) => {
+                                                e.stopPropagation()
+                                                handleTableClick(table)
+                                            }}
                                         >
-                                            <Receipt size={24} weight="fill" />
+                                            Ordina
                                         </Button>
+                                        {restaurant?.allow_waiter_payments && (
+                                            <Button
+                                                size="sm"
+                                                className="flex-1 h-10 font-bold bg-emerald-600 hover:bg-emerald-700 text-white text-sm"
+                                                onClick={(e) => openPaymentDialog(e, table)}
+                                            >
+                                                <Receipt size={16} className="mr-1" weight="fill" />
+                                                Conto
+                                            </Button>
+                                        )}
                                     </div>
                                 )}
                             </CardContent>

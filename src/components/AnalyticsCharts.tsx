@@ -71,6 +71,7 @@ export default function AnalyticsCharts({ orders, completedOrders, dishes, categ
   const [inventoryCustomStart, setInventoryCustomStart] = useState('')
   const [inventoryCustomEnd, setInventoryCustomEnd] = useState('')
   const [inventoryCategories, setInventoryCategories] = useState<string[]>([])
+  const [inventorySortBy, setInventorySortBy] = useState<'quantity' | 'revenue' | 'category' | 'price'>('quantity')
 
   // Chart Toggles
   const [timeSeriesMetric, setTimeSeriesMetric] = useState<'orders' | 'revenue' | 'average'>('orders')
@@ -321,7 +322,20 @@ export default function AnalyticsCharts({ orders, completedOrders, dishes, categ
           price: dish.price
         }
       })
-      .sort((a, b) => b.periodQuantity - a.periodQuantity)
+      .sort((a, b) => {
+        switch (inventorySortBy) {
+          case 'quantity':
+            return b.periodQuantity - a.periodQuantity
+          case 'revenue':
+            return (b.periodQuantity * b.price) - (a.periodQuantity * a.price)
+          case 'category':
+            return a.category.localeCompare(b.category)
+          case 'price':
+            return b.price - a.price
+          default:
+            return b.periodQuantity - a.periodQuantity
+        }
+      })
 
     // Generate trend alerts for significant variations (>30% or <-30%)
     const trendAlerts = dishInventory
@@ -340,14 +354,14 @@ export default function AnalyticsCharts({ orders, completedOrders, dishes, categ
       totalPortions: dishInventory.reduce((sum, d) => sum + d.periodQuantity, 0),
       trendAlerts
     }
-  }, [allOrders, dishes, categories, inventoryPeriod, inventoryCustomStart, inventoryCustomEnd])
+  }, [allOrders, dishes, categories, inventoryPeriod, inventoryCustomStart, inventoryCustomEnd, inventorySortBy])
 
   return (
     <>
       {/* All analytics content in a single view */}
       <div className="space-y-8">
         {/* Filter Controls */}
-        <div className="flex items-center justify-between flex-wrap gap-4 bg-card/50 p-4 rounded-xl border shadow-sm backdrop-blur-sm">
+        <div className="flex items-center justify-between flex-wrap gap-4 bg-card/50 p-4 rounded-xl shadow-sm backdrop-blur-sm">
           <h2 className="text-2xl font-bold text-foreground">Analitiche</h2>
           <div className="flex items-center gap-3">
             <Popover>
@@ -472,12 +486,27 @@ export default function AnalyticsCharts({ orders, completedOrders, dishes, categ
           <Card className="shadow-lg border-none bg-gradient-to-br from-orange-500/5 to-orange-500/10">
             <CardContent className="p-6">
               <div className="flex items-center gap-3">
-                <div className="p-3 bg-orange-500/10 rounded-xl">
-                  <Clock size={24} className="text-orange-600" />
+                <div className={`p-3 rounded-xl ${inventoryData.trendAlerts?.[0]?.change > 0 ? 'bg-green-500/10' : inventoryData.trendAlerts?.[0]?.change < 0 ? 'bg-red-500/10' : 'bg-orange-500/10'}`}>
+                  {inventoryData.trendAlerts?.[0]?.change > 0 ? (
+                    <TrendUp size={24} className="text-green-600" />
+                  ) : inventoryData.trendAlerts?.[0]?.change < 0 ? (
+                    <TrendDown size={24} className="text-red-600" />
+                  ) : (
+                    <Star size={24} className="text-orange-600" weight="fill" />
+                  )}
                 </div>
-                <div>
-                  <p className="text-sm text-muted-foreground font-medium">Ordini Attivi</p>
-                  <p className="text-3xl font-bold tracking-tight">{analytics.activeOrders}</p>
+                <div className="min-w-0 flex-1">
+                  <p className="text-sm text-muted-foreground font-medium">Trend del Periodo</p>
+                  {inventoryData.trendAlerts && inventoryData.trendAlerts.length > 0 ? (
+                    <div className="flex items-center gap-2">
+                      <p className="text-lg font-bold tracking-tight truncate">{inventoryData.trendAlerts[0].name}</p>
+                      <span className={`text-sm font-bold ${inventoryData.trendAlerts[0].change > 0 ? 'text-green-600' : 'text-red-600'}`}>
+                        {inventoryData.trendAlerts[0].change > 0 ? '+' : ''}{inventoryData.trendAlerts[0].change}%
+                      </span>
+                    </div>
+                  ) : (
+                    <p className="text-lg font-bold tracking-tight text-muted-foreground">Nessun trend</p>
+                  )}
                 </div>
               </div>
             </CardContent>
@@ -632,66 +661,6 @@ export default function AnalyticsCharts({ orders, completedOrders, dishes, categ
           </Card>
         </div>
 
-        {/* Best Selling Dishes List */}
-        <Card className="shadow-lg border-none">
-          <CardHeader className="bg-muted/10 pb-6">
-            <div className="flex items-center justify-between">
-              <CardTitle className="flex items-center gap-2 text-lg">
-                <Users size={20} className="text-primary" />
-                Classifica Piatti
-              </CardTitle>
-              <Badge variant="outline" className="font-normal">
-                Top {analytics.dishStats.length}
-              </Badge>
-            </div>
-          </CardHeader>
-          <CardContent className="pt-6">
-            <div>
-              {analytics.dishStats.length === 0 ? (
-                <div className="text-center py-12 text-muted-foreground">
-                  <ShoppingBag size={48} className="mx-auto mb-4 opacity-20" />
-                  <p>Nessun dato disponibile per i filtri selezionati</p>
-                </div>
-              ) : (
-                <div className="grid gap-2">
-                  {analytics.dishStats.map((dish, index) => (
-                    <div
-                      key={dish.name}
-                      className="flex items-center justify-between p-3 rounded-lg hover:bg-muted/50 transition-colors group"
-                    >
-                      <div className="flex items-center gap-4">
-                        <div className={`
-                          w-8 h-8 rounded-full flex items-center justify-center font-bold text-sm
-                          ${index === 0 ? 'bg-yellow-100 text-yellow-700' :
-                            index === 1 ? 'bg-gray-100 text-gray-700' :
-                              index === 2 ? 'bg-orange-100 text-orange-700' :
-                                'bg-muted text-muted-foreground'}
-                        `}>
-                          {index + 1}
-                        </div>
-                        <div>
-                          <p className="font-semibold text-foreground group-hover:text-primary transition-colors">{dish.name}</p>
-                          <p className="text-xs text-muted-foreground">{dish.category}</p>
-                        </div>
-                      </div>
-                      <div className="text-right flex items-center gap-6">
-                        <div className="hidden sm:block">
-                          <p className="text-xs text-muted-foreground uppercase tracking-wider">Venduti</p>
-                          <p className="font-bold">{dish.quantity}</p>
-                        </div>
-                        <div className="min-w-[80px]">
-                          <p className="text-xs text-muted-foreground uppercase tracking-wider">Incasso</p>
-                          <p className="font-bold text-primary">€{dish.revenue.toFixed(2)}</p>
-                        </div>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              )}
-            </div>
-          </CardContent>
-        </Card>
-
         {/* INTEGRATED INVENTORY SECTION */}
         <Card className="shadow-lg border-none overflow-hidden">
           <CardHeader className="bg-gradient-to-r from-primary/5 to-primary/10">
@@ -717,6 +686,20 @@ export default function AnalyticsCharts({ orders, completedOrders, dishes, categ
                     {inventoryPeriods.map(period => (
                       <SelectItem key={period.value} value={period.value}>{period.label}</SelectItem>
                     ))}
+                  </SelectContent>
+                </Select>
+
+                {/* Sort By Selector */}
+                <Select value={inventorySortBy} onValueChange={(v: any) => setInventorySortBy(v)}>
+                  <SelectTrigger className="w-44 h-10">
+                    <List size={16} className="mr-2 text-muted-foreground" />
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="quantity">Piatti Venduti</SelectItem>
+                    <SelectItem value="revenue">Incassi</SelectItem>
+                    <SelectItem value="category">Categoria</SelectItem>
+                    <SelectItem value="price">Prezzo</SelectItem>
                   </SelectContent>
                 </Select>
 
@@ -791,7 +774,7 @@ export default function AnalyticsCharts({ orders, completedOrders, dishes, categ
               </div>
             )}
 
-            {/* Scrollable Inventory Table */}
+            {/* Scrollable Inventory Grid */}
             {inventoryData.dishes.length === 0 ? (
               <div className="text-center py-16 text-muted-foreground">
                 <Package size={48} className="mx-auto mb-4 opacity-20" />
@@ -799,67 +782,73 @@ export default function AnalyticsCharts({ orders, completedOrders, dishes, categ
                 <p className="text-sm">Seleziona almeno una categoria per visualizzare i dati</p>
               </div>
             ) : (
-              <div className="rounded-xl border overflow-hidden">
-                <div className="overflow-x-auto max-h-[400px] overflow-y-auto">
-                  <table className="w-full">
-                    <thead className="bg-muted/30 sticky top-0 z-10">
-                      <tr>
-                        <th className="text-left px-4 py-3 text-xs font-semibold uppercase tracking-wider text-muted-foreground">Piatto</th>
-                        <th className="text-left px-4 py-3 text-xs font-semibold uppercase tracking-wider text-muted-foreground">Categoria</th>
-                        <th className="text-center px-4 py-3 text-xs font-semibold uppercase tracking-wider text-muted-foreground">Venduti</th>
-                        <th className="text-center px-4 py-3 text-xs font-semibold uppercase tracking-wider text-muted-foreground">Media Periodo</th>
-                        <th className="text-center px-4 py-3 text-xs font-semibold uppercase tracking-wider text-muted-foreground">Media Storica</th>
-                        <th className="text-center px-4 py-3 text-xs font-semibold uppercase tracking-wider text-muted-foreground">Variazione</th>
-                      </tr>
-                    </thead>
-                    <tbody className="divide-y divide-border/50">
-                      {inventoryData.dishes.map((dish, index) => (
-                        <tr key={dish.id} className={`hover:bg-muted/20 transition-colors ${dish.periodQuantity === 0 ? 'opacity-50' : ''}`}>
-                          <td className="px-4 py-3">
-                            <div className="flex items-center gap-3">
-                              <div className={`w-8 h-8 rounded-lg flex items-center justify-center text-xs font-bold ${dish.periodQuantity > 0 && index < 3 ? 'bg-primary/10 text-primary' : 'bg-muted text-muted-foreground'
-                                }`}>
-                                {dish.periodQuantity > 0 ? index + 1 : '-'}
-                              </div>
-                              <span className="font-medium text-sm">{dish.name}</span>
-                            </div>
-                          </td>
-                          <td className="px-4 py-3">
-                            <Badge variant="outline" className="text-xs font-normal">
-                              {dish.category}
-                            </Badge>
-                          </td>
-                          <td className="px-4 py-3 text-center">
-                            <span className={`font-bold text-lg ${dish.periodQuantity === 0 ? 'text-muted-foreground' : ''}`}>{dish.periodQuantity}</span>
-                          </td>
-                          <td className="px-4 py-3 text-center">
-                            <span className="font-semibold">{dish.periodAvgPerDay}/gg</span>
-                          </td>
-                          <td className="px-4 py-3 text-center">
-                            <span className="text-muted-foreground">{dish.allTimeAvgPerDay}/gg</span>
-                          </td>
-                          <td className="px-4 py-3 text-center">
-                            <div className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-semibold ${dish.percentageChange > 10
-                              ? 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400'
-                              : dish.percentageChange < -10
-                                ? 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400'
-                                : 'bg-muted text-muted-foreground'
-                              }`}>
-                              {dish.percentageChange > 0 ? (
-                                <TrendUp size={14} />
-                              ) : dish.percentageChange < 0 ? (
-                                <TrendDown size={14} />
-                              ) : (
-                                <Minus size={14} />
-                              )}
-                              {dish.percentageChange > 0 ? '+' : ''}{dish.percentageChange}%
-                            </div>
-                          </td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                </div>
+              <div className="grid gap-3 max-h-[500px] overflow-y-auto pr-2">
+                {inventoryData.dishes.map((dish, index) => {
+                  const revenue = dish.periodQuantity * dish.price
+                  return (
+                    <div
+                      key={dish.id}
+                      className={`flex items-center justify-between p-4 rounded-xl border transition-all hover:shadow-md ${
+                        dish.periodQuantity === 0
+                          ? 'bg-muted/20 opacity-60'
+                          : dish.percentageChange > 30
+                            ? 'bg-gradient-to-r from-green-50 to-green-100/50 dark:from-green-950/30 dark:to-green-900/20 border-green-200 dark:border-green-800'
+                            : dish.percentageChange < -30
+                              ? 'bg-gradient-to-r from-red-50 to-red-100/50 dark:from-red-950/30 dark:to-red-900/20 border-red-200 dark:border-red-800'
+                              : 'bg-card hover:bg-muted/30'
+                      }`}
+                    >
+                      <div className="flex items-center gap-4 min-w-0">
+                        <div className={`w-10 h-10 rounded-xl flex items-center justify-center text-sm font-bold shrink-0 ${
+                          index < 3 && dish.periodQuantity > 0
+                            ? 'bg-primary text-primary-foreground'
+                            : 'bg-muted text-muted-foreground'
+                        }`}>
+                          {dish.periodQuantity > 0 ? index + 1 : '-'}
+                        </div>
+                        <div className="min-w-0">
+                          <p className="font-bold text-foreground truncate">{dish.name}</p>
+                          <div className="flex items-center gap-2 mt-0.5">
+                            <Badge variant="outline" className="text-[10px]">{dish.category}</Badge>
+                            <span className="text-xs text-muted-foreground">€{dish.price.toFixed(2)}</span>
+                          </div>
+                        </div>
+                      </div>
+
+                      <div className="flex items-center gap-6 shrink-0">
+                        <div className="text-center">
+                          <p className="text-[10px] text-muted-foreground uppercase font-semibold">Venduti</p>
+                          <p className="text-xl font-bold">{dish.periodQuantity}</p>
+                        </div>
+                        <div className="text-center">
+                          <p className="text-[10px] text-muted-foreground uppercase font-semibold">Media/gg</p>
+                          <p className="text-sm font-semibold">{dish.periodAvgPerDay}</p>
+                          <p className="text-[10px] text-muted-foreground">storica: {dish.allTimeAvgPerDay}</p>
+                        </div>
+                        <div className="text-center min-w-[70px]">
+                          <p className="text-[10px] text-muted-foreground uppercase font-semibold">Incasso</p>
+                          <p className="text-sm font-bold text-emerald-600">€{revenue.toFixed(0)}</p>
+                        </div>
+                        <div className={`flex items-center gap-1.5 px-3 py-2 rounded-lg text-sm font-bold ${
+                          dish.percentageChange > 10
+                            ? 'bg-green-100 text-green-700 dark:bg-green-900/40 dark:text-green-400'
+                            : dish.percentageChange < -10
+                              ? 'bg-red-100 text-red-700 dark:bg-red-900/40 dark:text-red-400'
+                              : 'bg-muted text-muted-foreground'
+                        }`}>
+                          {dish.percentageChange > 0 ? (
+                            <TrendUp size={16} />
+                          ) : dish.percentageChange < 0 ? (
+                            <TrendDown size={16} />
+                          ) : (
+                            <Minus size={16} />
+                          )}
+                          {dish.percentageChange > 0 ? '+' : ''}{dish.percentageChange}%
+                        </div>
+                      </div>
+                    </div>
+                  )
+                })}
               </div>
             )}
           </CardContent>
