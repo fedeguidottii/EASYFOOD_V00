@@ -154,18 +154,18 @@ export function KitchenView({ orders, tables, dishes, selectedCategoryIds = [], 
                         return (
                             <Card
                                 key={`table-${tableName}`}
-                                className="flex flex-col overflow-hidden rounded-2xl border-0 bg-gradient-to-br from-slate-900/95 via-slate-800/90 to-slate-900/95 backdrop-blur-xl shadow-[0_8px_32px_rgba(0,0,0,0.4),0_0_0_1px_rgba(255,255,255,0.05)] transition-all duration-300 hover:shadow-[0_12px_48px_rgba(0,0,0,0.5),0_0_0_1px_rgba(255,255,255,0.1)] hover:scale-[1.01]"
+                                className="flex flex-col overflow-hidden rounded-2xl border bg-white dark:bg-transparent dark:border-0 dark:bg-gradient-to-br dark:from-slate-900/95 dark:via-slate-800/90 dark:to-slate-900/95 backdrop-blur-xl shadow-lg transition-all duration-300 hover:shadow-xl hover:scale-[1.01] dark:shadow-[0_8px_32px_rgba(0,0,0,0.4),0_0_0_1px_rgba(255,255,255,0.05)]"
                             >
-                                <CardHeader className="pb-3 pt-4 px-4 bg-gradient-to-r from-emerald-500/10 via-transparent to-cyan-500/10 border-b border-white/5">
+                                <CardHeader className="pb-3 pt-4 px-4 border-b bg-muted/20 dark:bg-gradient-to-r dark:from-emerald-500/10 dark:via-transparent dark:to-cyan-500/10 dark:border-white/5">
                                     <div className="flex justify-between items-center w-full">
-                                        <span className="text-4xl font-black bg-gradient-to-r from-white to-slate-300 bg-clip-text text-transparent drop-shadow-sm">
+                                        <span className="text-4xl font-black text-foreground dark:bg-gradient-to-r dark:from-white dark:to-slate-300 dark:bg-clip-text dark:text-transparent dark:drop-shadow-sm">
                                             {tableName}
                                         </span>
 
                                         <div className="flex items-center gap-3">
-                                            <div className="flex items-center gap-2 px-3 py-1.5 rounded-xl font-bold text-2xl bg-slate-800/80 border border-white/10 shadow-inner">
-                                                <Clock weight="fill" className="h-7 w-7 text-amber-400" />
-                                                <span className="text-white">{formatTime(timeDiff)}</span>
+                                            <div className="flex items-center gap-2 px-3 py-1.5 rounded-xl font-bold text-2xl bg-muted border border-border dark:bg-slate-800/80 dark:border-white/10 shadow-inner">
+                                                <Clock weight="fill" className="h-7 w-7 text-primary dark:text-amber-400" />
+                                                <span className="text-foreground dark:text-white">{formatTime(timeDiff)}</span>
                                             </div>
                                             {tableOrders.length > 1 && (
                                                 <div className="px-3 py-1.5 rounded-xl text-xs font-bold bg-gradient-to-r from-amber-500/20 to-orange-500/20 text-amber-300 border border-amber-500/20 shadow-lg shadow-amber-500/10">
@@ -194,21 +194,21 @@ export function KitchenView({ orders, tables, dishes, selectedCategoryIds = [], 
                                                         className={cn(
                                                             "flex items-center justify-between p-3 rounded-xl border transition-all duration-300 mb-2 group",
                                                             isItemDone
-                                                                ? "opacity-40 bg-slate-800/30 border-transparent scale-[0.98]"
-                                                                : "bg-gradient-to-r from-slate-800/60 to-slate-700/40 border-white/5 hover:from-slate-700/70 hover:to-slate-600/50 hover:border-white/10 hover:shadow-lg hover:shadow-emerald-500/5"
+                                                                ? "opacity-40 bg-muted/50 border-transparent scale-[0.98]"
+                                                                : "bg-white border-border shadow-sm hover:shadow-md hover:border-emerald-500/30 dark:bg-gradient-to-r dark:from-slate-800/60 dark:to-slate-700/40 dark:border-white/5 dark:hover:from-slate-700/70 dark:hover:to-slate-600/50 dark:hover:border-white/10 dark:hover:shadow-lg dark:hover:shadow-emerald-500/5"
                                                         )}
                                                     >
                                                         <div className="flex-1">
                                                             <div className="flex items-baseline gap-3">
                                                                 <span className={cn(
                                                                     "text-4xl font-black transition-colors duration-300",
-                                                                    isItemDone ? "text-slate-500" : "text-emerald-400 group-hover:text-emerald-300"
+                                                                    isItemDone ? "text-muted-foreground" : "text-emerald-600 dark:text-emerald-400 group-hover:text-emerald-500 dark:group-hover:text-emerald-300"
                                                                 )}>
                                                                     {item.quantity}
                                                                 </span>
                                                                 <span className={cn(
                                                                     "text-3xl font-bold leading-tight transition-colors duration-300",
-                                                                    isItemDone ? "text-slate-500" : "text-white group-hover:text-slate-100"
+                                                                    isItemDone ? "text-muted-foreground" : "text-foreground dark:text-white group-hover:text-slate-700 dark:group-hover:text-slate-100"
                                                                 )}>
                                                                     {dish?.name || `Piatto non trovato (${item.dish_id.slice(0, 8)}...)`}
                                                                 </span>
