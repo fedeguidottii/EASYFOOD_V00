@@ -824,7 +824,7 @@ export default function CustomerMenu({ tableId: propTableId, onExit, interfaceMo
             </header>
 
             <main className="flex-1 overflow-y-auto scrollbar-hide px-4 py-4 space-y-2 max-w-2xl mx-auto w-full pb-32">
-              <AnimatePresence mode="popLayout">
+              <AnimatePresence mode="sync">
               {activeCategory === 'all' && dishesByCategory ? (
                 dishesByCategory.map(({ category, dishes: catDishes }, catIndex) => (
                   <motion.div
@@ -1008,28 +1008,61 @@ export default function CustomerMenu({ tableId: propTableId, onExit, interfaceMo
                         </span>
                       </div>
                       <Badge
-                        className={`text-[10px] font-semibold ${order.status === 'OPEN' || order.status === 'pending'
-                          ? 'bg-amber-500/10 text-amber-600 border-amber-500/20'
-                          : order.status === 'preparing'
-                            ? 'bg-blue-500/10 text-blue-600 border-blue-500/20'
-                            : order.status === 'ready'
-                              ? 'bg-emerald-500/10 text-emerald-600 border-emerald-500/20'
-                              : 'bg-slate-500/10 text-slate-600 border-slate-500/20'
-                          }`}
+                        className={`text-[10px] font-semibold ${(() => {
+                          const items = (order as any).items || []
+                          const allReady = items.length > 0 && items.every((item: any) => item.status === 'SERVED' || item.status === 'READY' || item.status === 'ready')
+                          const someReady = items.some((item: any) => item.status === 'SERVED' || item.status === 'READY' || item.status === 'ready')
+
+                          if (allReady || order.status === 'ready') {
+                            return 'bg-emerald-500/10 text-emerald-600 border-emerald-500/20'
+                          } else if (someReady || order.status === 'preparing') {
+                            return 'bg-blue-500/10 text-blue-600 border-blue-500/20'
+                          } else {
+                            return 'bg-amber-500/10 text-amber-600 border-amber-500/20'
+                          }
+                        })()}`}
                       >
-                        {order.status === 'OPEN' || order.status === 'pending' ? 'In attesa' :
-                          order.status === 'preparing' ? 'In preparazione' :
-                            order.status === 'ready' ? 'Pronto' : order.status}
+                        {(() => {
+                          const items = (order as any).items || []
+                          const allReady = items.length > 0 && items.every((item: any) => item.status === 'SERVED' || item.status === 'READY' || item.status === 'ready')
+                          const someReady = items.some((item: any) => item.status === 'SERVED' || item.status === 'READY' || item.status === 'ready')
+
+                          if (allReady || order.status === 'ready') {
+                            return 'Pronto'
+                          } else if (someReady || order.status === 'preparing') {
+                            return 'In preparazione'
+                          } else {
+                            return 'In attesa'
+                          }
+                        })()}
                       </Badge>
                     </div>
                     <div className="px-4 py-3 space-y-2">
                       {(order as any).items?.map((item: any, idx: number) => {
                         const d = dishes?.find(dd => dd.id === item.dish_id)
                         return (
-                          <div key={idx} className="flex justify-between items-center text-sm">
-                            <div className="flex items-center gap-2">
-                              <span className="font-bold text-slate-900 dark:text-white w-5">{item.quantity}x</span>
-                              <span className="text-slate-600 dark:text-slate-300">{d?.name}</span>
+                          <div
+                            key={idx}
+                            className="flex justify-between items-center text-sm p-2 rounded-lg hover:bg-slate-100/50 dark:hover:bg-slate-800/50 cursor-pointer transition-colors"
+                            onClick={() => d && setSelectedDish(d)}
+                          >
+                            <div className="flex items-center gap-3">
+                              {d?.image_url ? (
+                                <img src={d.image_url} alt={d.name} className="w-10 h-10 rounded-lg object-cover shadow-sm" />
+                              ) : (
+                                <div className="w-10 h-10 rounded-lg bg-slate-100 dark:bg-slate-800 flex items-center justify-center">
+                                  <Utensils className="w-4 h-4 text-slate-300" />
+                                </div>
+                              )}
+                              <div>
+                                <div className="flex items-center gap-2">
+                                  <span className="font-bold text-slate-900 dark:text-white">{item.quantity}x</span>
+                                  <span className="text-slate-600 dark:text-slate-300">{d?.name}</span>
+                                </div>
+                                {d?.description && (
+                                  <p className="text-[10px] text-slate-400 line-clamp-1">{d.description}</p>
+                                )}
+                              </div>
                             </div>
                             {item.status === 'SERVED' && <CheckCircle className="w-4 h-4 text-emerald-500" />}
                           </div>
@@ -1145,20 +1178,20 @@ export default function CustomerMenu({ tableId: propTableId, onExit, interfaceMo
 
                 <div>
                   <label className="text-[10px] font-semibold uppercase text-slate-400 mb-1.5 block tracking-wider text-center">Quantità</label>
-                  <div className="flex items-center justify-center gap-4 bg-slate-50 dark:bg-slate-800 rounded-xl p-2">
+                  <div className="flex items-center justify-center gap-3 bg-slate-50 dark:bg-slate-800 rounded-xl p-2">
                     <button
                       onClick={() => setDishQuantity(q => Math.max(1, q - 1))}
-                      className="w-12 h-12 flex items-center justify-center bg-white dark:bg-slate-700 rounded-xl shadow-sm text-slate-600 dark:text-slate-300 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 transition-all active:scale-95 disabled:opacity-40"
+                      className="w-9 h-9 flex items-center justify-center bg-white dark:bg-slate-700 rounded-lg shadow-sm text-slate-600 dark:text-slate-300 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 transition-all active:scale-95 disabled:opacity-40"
                       disabled={dishQuantity <= 1}
                     >
-                      <Minus className="w-5 h-5" />
+                      <Minus className="w-4 h-4" />
                     </button>
-                    <span className="font-bold text-3xl w-12 text-center text-slate-900 dark:text-white">{dishQuantity}</span>
+                    <span className="font-bold text-2xl w-10 text-center text-slate-900 dark:text-white">{dishQuantity}</span>
                     <button
                       onClick={() => setDishQuantity(q => q + 1)}
-                      className="w-12 h-12 flex items-center justify-center bg-white dark:bg-slate-700 rounded-xl shadow-sm text-slate-600 dark:text-slate-300 hover:text-emerald-500 hover:bg-emerald-50 dark:hover:bg-emerald-900/20 transition-all active:scale-95"
+                      className="w-9 h-9 flex items-center justify-center bg-white dark:bg-slate-700 rounded-lg shadow-sm text-slate-600 dark:text-slate-300 hover:text-emerald-500 hover:bg-emerald-50 dark:hover:bg-emerald-900/20 transition-all active:scale-95"
                     >
-                      <Plus className="w-5 h-5" />
+                      <Plus className="w-4 h-4" />
                     </button>
                   </div>
                 </div>

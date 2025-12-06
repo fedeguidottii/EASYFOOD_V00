@@ -39,7 +39,7 @@ interface ReservationBlock {
   table: Table
 }
 
-const COLORS = ['#C9A152', '#8B7355', '#F4E6D1', '#E8C547', '#D4B366', '#A68B5B', '#F0D86F', '#C09853']
+const COLORS = ['#10B981', '#3B82F6', '#8B5CF6', '#EC4899', '#F59E0B', '#06B6D4', '#6366F1', '#14B8A6']
 
 export default function TimelineReservations({ user, restaurantId, tables, bookings, selectedDate, openingTime = '10:00', closingTime = '23:00', reservationDuration = 120, onRefresh, onEditBooking, onDeleteBooking }: TimelineReservationsProps) {
   const [showReservationDialog, setShowReservationDialog] = useState(false)
@@ -466,7 +466,7 @@ export default function TimelineReservations({ user, restaurantId, tables, booki
       </div>
 
       {/* Timeline Header - Time Labels */}
-      <div className="relative ml-32 mr-4 h-12 flex items-end px-2 bg-muted/40 rounded-t-xl border border-border/40">
+      <div className="relative ml-32 mr-4 h-14 flex items-end px-2 bg-gradient-to-r from-slate-100/80 to-slate-50/50 dark:from-slate-800/50 dark:to-slate-900/30 rounded-t-2xl border border-slate-200/50 dark:border-slate-700/30 shadow-sm">
         {timeSlots.map((slot, i) => {
           const minutes = slot.hour * 60 + slot.minute
           const relativeStart = minutes - TIMELINE_START_MINUTES
@@ -478,8 +478,8 @@ export default function TimelineReservations({ user, restaurantId, tables, booki
               className="absolute top-0 flex flex-col items-center"
               style={{ left: `${left}%`, transform: 'translateX(-50%)' }}
             >
-              <span className="text-sm font-semibold text-foreground bg-background/80 px-2 py-0.5 rounded shadow-sm border">{slot.time}</span>
-              <div className="h-3 w-0.5 bg-primary/40 mt-1"></div>
+              <span className="text-sm font-bold text-slate-700 dark:text-slate-200 bg-white dark:bg-slate-800 px-3 py-1 rounded-lg shadow-md border border-slate-200/50 dark:border-slate-600/50 mt-2">{slot.time}</span>
+              <div className="h-4 w-0.5 bg-gradient-to-b from-primary/60 to-transparent mt-1"></div>
             </div>
           )
         })}
@@ -589,29 +589,38 @@ export default function TimelineReservations({ user, restaurantId, tables, booki
                         const bookingTime = new Date(block.booking.date_time)
                         const canComplete = !isCompleted && now >= bookingTime
 
+                        // Calculate end time for display
+                        const endMinutes = block.startMinutes + block.duration
+                        const displayStartTime = minutesToTime(block.startMinutes)
+                        const displayEndTime = minutesToTime(endMinutes)
+
                         return (
                           <div
                             key={block.booking.id}
                             draggable={!isCompleted}
                             onDragStart={(e) => handleDragStart(e, block.booking.id)}
-                            className={`absolute top-2 bottom-2 rounded-md shadow-sm border border-black/10 flex items-center justify-between px-2 overflow-hidden transition-all hover:shadow-md hover:scale-[1.02] z-20 ${isCompleted ? 'opacity-40' : 'cursor-move'} ${canComplete ? 'ring-2 ring-green-400 ring-offset-1' : ''}`}
+                            className={`absolute top-2 bottom-2 rounded-xl shadow-lg flex items-center justify-between px-3 overflow-hidden transition-all hover:shadow-xl hover:scale-[1.02] z-20 ${isCompleted ? 'opacity-40' : 'cursor-move'} ${canComplete ? 'ring-2 ring-green-400 ring-offset-2' : ''}`}
                             style={{
                               left: `${getBlockStyle(block.startMinutes, block.duration).left}`,
                               width: `${getBlockStyle(block.startMinutes, block.duration).width}`,
                               backgroundColor: bgColor,
-                              color: textColor
+                              color: textColor,
+                              boxShadow: `0 4px 15px ${bgColor}40`
                             }}
                             onClick={(e) => {
                               e.stopPropagation()
-                              // If completed, maybe just show info or allow un-complete? For now edit.
                               onEditBooking?.(block.booking)
                             }}
                           >
                             <div className="flex flex-col overflow-hidden">
-                              <span className="font-bold text-xs truncate">{block.booking.name}</span>
-                              <span className="text-[10px] truncate opacity-90">
-                                🕐 {minutesToTime(block.startMinutes)} • {block.booking.guests} ospiti
-                              </span>
+                              <span className="font-bold text-sm truncate">{block.booking.name}</span>
+                              <div className="flex items-center gap-2 text-[11px] opacity-95 mt-0.5">
+                                <span className="font-semibold bg-white/20 px-1.5 py-0.5 rounded">{displayStartTime} - {displayEndTime}</span>
+                                <span className="flex items-center gap-1">
+                                  <span>👥</span>
+                                  <span className="font-semibold">{block.booking.guests}</span>
+                                </span>
+                              </div>
                             </div>
 
                             <div className="flex items-center gap-1 shrink-0">

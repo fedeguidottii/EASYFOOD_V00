@@ -337,16 +337,69 @@ export default function AnalyticsCharts({ orders, completedOrders, dishes, categ
         }
       })
 
-    // Generate trend alerts for significant variations (>30% or <-30%)
-    const trendAlerts = dishInventory
-      .filter(dish => Math.abs(dish.percentageChange) >= 30 && dish.periodQuantity > 0)
-      .sort((a, b) => Math.abs(b.percentageChange) - Math.abs(a.percentageChange))
-      .slice(0, 2) // Top 2 significant changes
-      .map(dish => ({
-        name: dish.name,
-        category: dish.category,
-        change: dish.percentageChange
-      }))
+    // Generate trend alerts - always show something meaningful
+    // Collect various types of trends
+    const trendTypes: { name: string; category: string; change: number; type: string; description: string }[] = []
+
+    // 1. Biggest positive change
+    const biggestIncrease = dishInventory.filter(d => d.periodQuantity > 0 && d.percentageChange > 0).sort((a, b) => b.percentageChange - a.percentageChange)[0]
+    if (biggestIncrease) {
+      trendTypes.push({ name: biggestIncrease.name, category: biggestIncrease.category, change: biggestIncrease.percentageChange, type: 'increase', description: 'Piatto in crescita' })
+    }
+
+    // 2. Biggest negative change
+    const biggestDecrease = dishInventory.filter(d => d.periodQuantity > 0 && d.percentageChange < 0).sort((a, b) => a.percentageChange - b.percentageChange)[0]
+    if (biggestDecrease) {
+      trendTypes.push({ name: biggestDecrease.name, category: biggestDecrease.category, change: biggestDecrease.percentageChange, type: 'decrease', description: 'Piatto in calo' })
+    }
+
+    // 3. Best seller
+    const bestSeller = dishInventory.filter(d => d.periodQuantity > 0).sort((a, b) => b.periodQuantity - a.periodQuantity)[0]
+    if (bestSeller) {
+      trendTypes.push({ name: bestSeller.name, category: bestSeller.category, change: bestSeller.periodQuantity, type: 'bestseller', description: 'Più venduto' })
+    }
+
+    // 4. Highest revenue
+    const highestRevenue = dishInventory.filter(d => d.periodQuantity > 0).sort((a, b) => (b.periodQuantity * b.price) - (a.periodQuantity * a.price))[0]
+    if (highestRevenue && highestRevenue.id !== bestSeller?.id) {
+      trendTypes.push({ name: highestRevenue.name, category: highestRevenue.category, change: highestRevenue.periodQuantity * highestRevenue.price, type: 'revenue', description: 'Top incasso' })
+    }
+
+    // 5. New hit (high sales with no historical average)
+    const newHit = dishInventory.filter(d => d.periodQuantity > 2 && d.allTimeAvgPerDay === 0).sort((a, b) => b.periodQuantity - a.periodQuantity)[0]
+    if (newHit) {
+      trendTypes.push({ name: newHit.name, category: newHit.category, change: newHit.periodQuantity, type: 'new', description: 'Novità popolare' })
+    }
+
+    // 6. Consistent performer (stable sales)
+    const stablePerformer = dishInventory.filter(d => d.periodQuantity > 3 && Math.abs(d.percentageChange) < 10).sort((a, b) => b.periodQuantity - a.periodQuantity)[0]
+    if (stablePerformer) {
+      trendTypes.push({ name: stablePerformer.name, category: stablePerformer.category, change: 0, type: 'stable', description: 'Vendite costanti' })
+    }
+
+    // 7. Total dishes sold
+    const totalDishes = dishInventory.reduce((sum, d) => sum + d.periodQuantity, 0)
+    if (totalDishes > 0) {
+      trendTypes.push({ name: `${totalDishes} piatti`, category: 'Totale', change: totalDishes, type: 'total', description: 'Piatti totali venduti' })
+    }
+
+    // 8. Average daily sales
+    const avgDaily = totalDishes / periodDays
+    if (avgDaily > 0) {
+      trendTypes.push({ name: `${avgDaily.toFixed(1)}/giorno`, category: 'Media', change: avgDaily, type: 'average', description: 'Media giornaliera' })
+    }
+
+    // Select one trend based on date/time to rotate through them
+    const trendIndex = Math.floor(Date.now() / (1000 * 60 * 5)) % trendTypes.length // Changes every 5 minutes
+    const selectedTrend = trendTypes.length > 0 ? [trendTypes[trendIndex]] : []
+
+    const trendAlerts = selectedTrend.map(t => ({
+      name: t.name,
+      category: t.category,
+      change: t.type === 'increase' || t.type === 'decrease' ? t.change : 0,
+      type: t.type,
+      description: t.description
+    }))
 
     return {
       dishes: dishInventory,
@@ -483,29 +536,39 @@ export default function AnalyticsCharts({ orders, completedOrders, dishes, categ
             </CardContent>
           </Card>
 
-          <Card className="shadow-lg border-none bg-gradient-to-br from-orange-500/5 to-orange-500/10">
+          <Card className="shadow-lg border-none bg-gradient-to-br from-primary/5 to-primary/10">
             <CardContent className="p-6">
               <div className="flex items-center gap-3">
-                <div className={`p-3 rounded-xl ${inventoryData.trendAlerts?.[0]?.change > 0 ? 'bg-green-500/10' : inventoryData.trendAlerts?.[0]?.change < 0 ? 'bg-red-500/10' : 'bg-orange-500/10'}`}>
-                  {inventoryData.trendAlerts?.[0]?.change > 0 ? (
+                <div className={`p-3 rounded-xl ${
+                  (inventoryData.trendAlerts?.[0] as any)?.type === 'increase' ? 'bg-green-500/10' :
+                  (inventoryData.trendAlerts?.[0] as any)?.type === 'decrease' ? 'bg-red-500/10' :
+                  (inventoryData.trendAlerts?.[0] as any)?.type === 'bestseller' ? 'bg-amber-500/10' :
+                  (inventoryData.trendAlerts?.[0] as any)?.type === 'revenue' ? 'bg-emerald-500/10' :
+                  'bg-primary/10'
+                }`}>
+                  {(inventoryData.trendAlerts?.[0] as any)?.type === 'increase' ? (
                     <TrendUp size={24} className="text-green-600" />
-                  ) : inventoryData.trendAlerts?.[0]?.change < 0 ? (
+                  ) : (inventoryData.trendAlerts?.[0] as any)?.type === 'decrease' ? (
                     <TrendDown size={24} className="text-red-600" />
+                  ) : (inventoryData.trendAlerts?.[0] as any)?.type === 'bestseller' ? (
+                    <Star size={24} className="text-amber-600" weight="fill" />
                   ) : (
-                    <Star size={24} className="text-orange-600" weight="fill" />
+                    <ChartLine size={24} className="text-primary" />
                   )}
                 </div>
                 <div className="min-w-0 flex-1">
-                  <p className="text-sm text-muted-foreground font-medium">Trend del Periodo</p>
+                  <p className="text-sm text-muted-foreground font-medium">{(inventoryData.trendAlerts?.[0] as any)?.description || 'Trend del Periodo'}</p>
                   {inventoryData.trendAlerts && inventoryData.trendAlerts.length > 0 ? (
                     <div className="flex items-center gap-2">
                       <p className="text-lg font-bold tracking-tight truncate">{inventoryData.trendAlerts[0].name}</p>
-                      <span className={`text-sm font-bold ${inventoryData.trendAlerts[0].change > 0 ? 'text-green-600' : 'text-red-600'}`}>
-                        {inventoryData.trendAlerts[0].change > 0 ? '+' : ''}{inventoryData.trendAlerts[0].change}%
-                      </span>
+                      {inventoryData.trendAlerts[0].change !== 0 && ((inventoryData.trendAlerts[0] as any)?.type === 'increase' || (inventoryData.trendAlerts[0] as any)?.type === 'decrease') && (
+                        <span className={`text-sm font-bold ${inventoryData.trendAlerts[0].change > 0 ? 'text-green-600' : 'text-red-600'}`}>
+                          {inventoryData.trendAlerts[0].change > 0 ? '+' : ''}{inventoryData.trendAlerts[0].change.toFixed(1)}%
+                        </span>
+                      )}
                     </div>
                   ) : (
-                    <p className="text-lg font-bold tracking-tight text-muted-foreground">Nessun trend</p>
+                    <p className="text-lg font-bold tracking-tight text-muted-foreground">Nessun dato</p>
                   )}
                 </div>
               </div>
@@ -728,51 +791,23 @@ export default function AnalyticsCharts({ orders, completedOrders, dishes, categ
           <CardContent className="pt-6">
             {/* Summary Stats */}
             <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
-              <div className="bg-muted/30 rounded-xl p-4 text-center">
-                <p className="text-2xl font-bold text-primary">{inventoryData.totalPortions}</p>
-                <p className="text-xs text-muted-foreground font-medium">Porzioni Totali</p>
+              <div className="bg-muted/30 rounded-xl p-5 text-center">
+                <p className="text-4xl font-bold text-primary">{inventoryData.totalPortions}</p>
+                <p className="text-sm text-muted-foreground font-medium mt-1">Porzioni Totali</p>
               </div>
-              <div className="bg-muted/30 rounded-xl p-4 text-center">
-                <p className="text-2xl font-bold">{inventoryData.dishes.length}</p>
-                <p className="text-xs text-muted-foreground font-medium">Piatti nel Menù</p>
+              <div className="bg-muted/30 rounded-xl p-5 text-center">
+                <p className="text-4xl font-bold text-foreground">{inventoryData.dishes.length}</p>
+                <p className="text-sm text-muted-foreground font-medium mt-1">Piatti nel Menù</p>
               </div>
-              <div className="bg-muted/30 rounded-xl p-4 text-center">
-                <p className="text-2xl font-bold">{inventoryData.periodDays}</p>
-                <p className="text-xs text-muted-foreground font-medium">Giorni Periodo</p>
+              <div className="bg-muted/30 rounded-xl p-5 text-center">
+                <p className="text-4xl font-bold text-foreground">{inventoryData.periodDays}</p>
+                <p className="text-sm text-muted-foreground font-medium mt-1">Giorni Periodo</p>
               </div>
-              <div className="bg-muted/30 rounded-xl p-4 text-center">
-                <p className="text-2xl font-bold">{inventoryData.dishes.filter(d => d.periodQuantity > 0).length}</p>
-                <p className="text-xs text-muted-foreground font-medium">Piatti Venduti</p>
+              <div className="bg-muted/30 rounded-xl p-5 text-center">
+                <p className="text-4xl font-bold text-foreground">{inventoryData.dishes.filter(d => d.periodQuantity > 0).length}</p>
+                <p className="text-sm text-muted-foreground font-medium mt-1">Piatti Venduti</p>
               </div>
             </div>
-
-            {/* Trend Alerts */}
-            {inventoryData.trendAlerts && inventoryData.trendAlerts.length > 0 && (
-              <div className="mb-6 p-4 rounded-xl bg-gradient-to-r from-amber-500/10 to-orange-500/10 border border-amber-500/20">
-                <div className="flex items-center gap-2 mb-3">
-                  <Star size={18} className="text-amber-500" weight="fill" />
-                  <span className="font-semibold text-amber-700 dark:text-amber-400">Variazioni Significative</span>
-                </div>
-                <div className="grid gap-2">
-                  {inventoryData.trendAlerts.map((alert, idx) => (
-                    <div key={idx} className="flex items-center justify-between p-3 rounded-lg bg-background/60 backdrop-blur-sm">
-                      <div className="flex items-center gap-3">
-                        <div className={`p-2 rounded-lg ${alert.change > 0 ? 'bg-green-100 dark:bg-green-900/30' : 'bg-red-100 dark:bg-red-900/30'}`}>
-                          {alert.change > 0 ? <TrendUp size={20} className="text-green-600 dark:text-green-400" /> : <TrendDown size={20} className="text-red-600 dark:text-red-400" />}
-                        </div>
-                        <div>
-                          <p className="font-semibold">{alert.name}</p>
-                          <p className="text-xs text-muted-foreground">{alert.category}</p>
-                        </div>
-                      </div>
-                      <div className={`px-3 py-1.5 rounded-full text-sm font-bold ${alert.change > 0 ? 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400' : 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400'}`}>
-                        {alert.change > 0 ? '+' : ''}{alert.change}%
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            )}
 
             {/* Scrollable Inventory Grid */}
             {inventoryData.dishes.length === 0 ? (
@@ -815,19 +850,19 @@ export default function AnalyticsCharts({ orders, completedOrders, dishes, categ
                         </div>
                       </div>
 
-                      <div className="flex items-center gap-6 shrink-0">
-                        <div className="text-center">
-                          <p className="text-[10px] text-muted-foreground uppercase font-semibold">Venduti</p>
-                          <p className="text-xl font-bold">{dish.periodQuantity}</p>
+                      <div className="flex items-center gap-8 shrink-0">
+                        <div className="text-center min-w-[80px]">
+                          <p className="text-xs text-muted-foreground uppercase font-semibold">Venduti</p>
+                          <p className="text-3xl font-bold text-foreground">{dish.periodQuantity}</p>
                         </div>
-                        <div className="text-center">
-                          <p className="text-[10px] text-muted-foreground uppercase font-semibold">Media/gg</p>
-                          <p className="text-sm font-semibold">{dish.periodAvgPerDay}</p>
-                          <p className="text-[10px] text-muted-foreground">storica: {dish.allTimeAvgPerDay}</p>
+                        <div className="text-center min-w-[90px]">
+                          <p className="text-xs text-muted-foreground uppercase font-semibold">Media/gg</p>
+                          <p className="text-xl font-bold text-foreground">{dish.periodAvgPerDay}</p>
+                          <p className="text-xs text-muted-foreground">storica: {dish.allTimeAvgPerDay}</p>
                         </div>
-                        <div className="text-center min-w-[70px]">
-                          <p className="text-[10px] text-muted-foreground uppercase font-semibold">Incasso</p>
-                          <p className="text-sm font-bold text-emerald-600">€{revenue.toFixed(0)}</p>
+                        <div className="text-center min-w-[90px]">
+                          <p className="text-xs text-muted-foreground uppercase font-semibold">Incasso</p>
+                          <p className="text-xl font-bold text-emerald-600">€{revenue.toFixed(0)}</p>
                         </div>
                         <div className={`flex items-center gap-1.5 px-3 py-2 rounded-lg text-sm font-bold ${
                           dish.percentageChange > 10
