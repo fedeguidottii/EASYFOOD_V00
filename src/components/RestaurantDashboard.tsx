@@ -19,7 +19,7 @@ import {
   Plus, Minus, Trash, Pencil, Check, X,
   CaretDown, CaretUp, Funnel, MagnifyingGlass,
   ChefHat, SignOut, SpeakerHigh, ForkKnife, Receipt, ClockCounterClockwise,
-  Users, CheckCircle, QrCode, PencilSimple, List, DotsSixVertical, Tag, Eye, EyeSlash, ArrowLeft, Palette
+  Users, CheckCircle, QrCode, PencilSimple, List, DotsSixVertical, Tag, Eye, EyeSlash
 } from '@phosphor-icons/react'
 import { useRestaurantLogic } from '../hooks/useRestaurantLogic'
 import { DatabaseService } from '../services/DatabaseService'
@@ -113,7 +113,6 @@ const RestaurantDashboard = ({ user, onLogout }: RestaurantDashboardProps) => {
   }
 
   const [newTableName, setNewTableName] = useState('')
-  const [settingsView, setSettingsView] = useState<'MAIN' | 'APPEARANCE' | 'GENERAL' | 'STAFF' | 'COSTS' | 'RESERVATIONS'>('MAIN')
   const [newTableSeats, setNewTableSeats] = useState<number | string>(4)
   const [editTableSeats, setEditTableSeats] = useState<number | string>(4)
   const [newDish, setNewDish] = useState<{
@@ -169,6 +168,8 @@ const RestaurantDashboard = ({ user, onLogout }: RestaurantDashboardProps) => {
   const [customerCount, setCustomerCount] = useState('')
   const [showOrderHistory, setShowOrderHistory] = useState(false)
   const [orderSortMode, setOrderSortMode] = useState<'oldest' | 'newest'>('oldest')
+  const [tableHistorySearch, setTableHistorySearch] = useState('')
+  const [tableHistoryDateFilter, setTableHistoryDateFilter] = useState<'today' | 'week' | 'month' | 'all'>('week')
   const [isAddItemDialogOpen, setIsAddItemDialogOpen] = useState(false)
   const [currentSessionPin, setCurrentSessionPin] = useState<string>('')
   const [allergenInput, setAllergenInput] = useState('')
@@ -950,7 +951,7 @@ const RestaurantDashboard = ({ user, onLogout }: RestaurantDashboardProps) => {
 
                 <div className="flex items-center gap-2 bg-muted p-1 rounded-lg mr-2">
                   <span className="text-[10px] font-bold uppercase text-muted-foreground px-2">Zoom</span>
-                  <Button variant="ghost" size="sm" onClick={() => setKitchenColumns(prev => prev + 1)} className="h-7 w-7 p-0">
+                  <Button variant="ghost" size="sm" onClick={() => setKitchenColumns(prev => Math.min(8, prev + 1))} className="h-7 w-7 p-0">
                     <Minus size={14} />
                   </Button>
                   <span className="w-4 text-center text-xs font-bold">{kitchenColumns}</span>
@@ -1039,7 +1040,7 @@ const RestaurantDashboard = ({ user, onLogout }: RestaurantDashboardProps) => {
 
           {/* Tables Tab */}
           < TabsContent value="tables" className="space-y-6" >
-            <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between bg-card/50 p-4 rounded-xl border shadow-sm backdrop-blur-sm">
+            <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between bg-card/50 p-4 rounded-xl shadow-sm backdrop-blur-sm">
               <div className="flex items-center gap-3">
                 <div className="w-11 h-11 rounded-xl bg-primary/10 flex items-center justify-center text-primary">
                   <MapPin size={20} weight="duotone" />
@@ -1070,12 +1071,131 @@ const RestaurantDashboard = ({ user, onLogout }: RestaurantDashboardProps) => {
                       Storico
                     </Button>
                   </DialogTrigger>
-                  <DialogContent className="max-w-3xl max-h-[80vh] overflow-y-auto">
+                  <DialogContent className="max-w-4xl max-h-[85vh] overflow-hidden flex flex-col">
                     <DialogHeader>
                       <DialogTitle>Storico Tavoli Chiusi</DialogTitle>
-                      <DialogDescription>Visualizza le sessioni dei tavoli concluse.</DialogDescription>
+                      <DialogDescription>Visualizza le sessioni dei tavoli concluse con dettagli e incassi.</DialogDescription>
                     </DialogHeader>
-                    {/* History Logic here if needed, keeping simple for now */}
+                    <div className="flex flex-wrap gap-3 py-3 border-b">
+                      <div className="relative flex-1 min-w-[200px]">
+                        <MagnifyingGlass className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" size={16} />
+                        <Input
+                          placeholder="Cerca per tavolo, PIN..."
+                          value={tableHistorySearch}
+                          onChange={(e) => setTableHistorySearch(e.target.value)}
+                          className="pl-9 h-9"
+                        />
+                      </div>
+                      <Select value={tableHistoryDateFilter} onValueChange={(v: any) => setTableHistoryDateFilter(v)}>
+                        <SelectTrigger className="w-[150px] h-9">
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="today">Oggi</SelectItem>
+                          <SelectItem value="week">Ultima settimana</SelectItem>
+                          <SelectItem value="month">Ultimo mese</SelectItem>
+                          <SelectItem value="all">Tutto</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+                    <div className="flex-1 overflow-y-auto py-4 space-y-3">
+                      {(() => {
+                        const now = new Date()
+                        const closedSessions = sessions
+                          .filter(s => s.status === 'CLOSED' && s.restaurant_id === restaurantId)
+                          .filter(s => {
+                            const sessionDate = new Date(s.created_at)
+                            if (tableHistoryDateFilter === 'today') {
+                              return sessionDate.toDateString() === now.toDateString()
+                            } else if (tableHistoryDateFilter === 'week') {
+                              const weekAgo = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000)
+                              return sessionDate >= weekAgo
+                            } else if (tableHistoryDateFilter === 'month') {
+                              const monthAgo = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000)
+                              return sessionDate >= monthAgo
+                            }
+                            return true
+                          })
+                          .filter(s => {
+                            if (!tableHistorySearch) return true
+                            const table = restaurantTables.find(t => t.id === s.table_id)
+                            const searchLower = tableHistorySearch.toLowerCase()
+                            return (
+                              table?.number?.toLowerCase().includes(searchLower) ||
+                              s.session_pin?.toLowerCase().includes(searchLower)
+                            )
+                          })
+                          .sort((a, b) => new Date(b.closed_at || b.created_at).getTime() - new Date(a.closed_at || a.created_at).getTime())
+
+                        if (closedSessions.length === 0) {
+                          return (
+                            <div className="text-center py-12 text-muted-foreground">
+                              <ClockCounterClockwise size={48} className="mx-auto mb-4 opacity-30" />
+                              <p className="font-medium">Nessuna sessione trovata</p>
+                              <p className="text-sm">Prova a modificare i filtri di ricerca</p>
+                            </div>
+                          )
+                        }
+
+                        return closedSessions.map(session => {
+                          const table = restaurantTables.find(t => t.id === session.table_id)
+                          const sessionOrders = restaurantCompletedOrders.filter(o => o.table_session_id === session.id)
+                          const totalAmount = sessionOrders.reduce((sum, o) => sum + (o.total_amount || 0), 0)
+                          const totalItems = sessionOrders.reduce((sum, o) => sum + (o.items?.length || 0), 0)
+                          const openDate = new Date(session.created_at)
+                          const closeDate = session.closed_at ? new Date(session.closed_at) : null
+                          const duration = closeDate ? Math.round((closeDate.getTime() - openDate.getTime()) / (1000 * 60)) : 0
+
+                          return (
+                            <div key={session.id} className="p-4 rounded-xl bg-muted/30 hover:bg-muted/50 transition-colors border border-border/50">
+                              <div className="flex items-start justify-between gap-4 flex-wrap">
+                                <div className="flex items-center gap-4">
+                                  <div className="w-14 h-14 rounded-xl bg-primary/10 flex items-center justify-center">
+                                    <span className="text-lg font-bold text-primary">{table?.number || '?'}</span>
+                                  </div>
+                                  <div>
+                                    <div className="flex items-center gap-2 mb-1">
+                                      <span className="font-bold text-foreground">Tavolo {table?.number}</span>
+                                      <Badge variant="outline" className="text-[10px] font-mono">{session.session_pin}</Badge>
+                                    </div>
+                                    <div className="flex items-center gap-3 text-xs text-muted-foreground">
+                                      <span className="flex items-center gap-1">
+                                        <Calendar size={12} />
+                                        {openDate.toLocaleDateString('it-IT', { day: '2-digit', month: 'short', year: 'numeric' })}
+                                      </span>
+                                      <span className="flex items-center gap-1">
+                                        <Clock size={12} />
+                                        {openDate.toLocaleTimeString('it-IT', { hour: '2-digit', minute: '2-digit' })}
+                                        {closeDate && ` - ${closeDate.toLocaleTimeString('it-IT', { hour: '2-digit', minute: '2-digit' })}`}
+                                      </span>
+                                      {duration > 0 && <span>({duration} min)</span>}
+                                    </div>
+                                  </div>
+                                </div>
+                                <div className="flex items-center gap-6">
+                                  <div className="text-center">
+                                    <p className="text-xs text-muted-foreground">Coperti</p>
+                                    <p className="font-bold text-lg">{session.customer_count || '-'}</p>
+                                  </div>
+                                  <div className="text-center">
+                                    <p className="text-xs text-muted-foreground">Ordini</p>
+                                    <p className="font-bold text-lg">{sessionOrders.length}</p>
+                                  </div>
+                                  <div className="text-center">
+                                    <p className="text-xs text-muted-foreground">Piatti</p>
+                                    <p className="font-bold text-lg">{totalItems}</p>
+                                  </div>
+                                  <div className="text-center min-w-[80px]">
+                                    <p className="text-xs text-muted-foreground">Totale</p>
+                                    <p className="font-bold text-lg text-emerald-600">€{totalAmount.toFixed(2)}</p>
+                                  </div>
+                                </div>
+                              </div>
+                            </div>
+                          )
+                        })
+                      })()}
+                    </div>
                   </DialogContent>
                 </Dialog>
               </div>
@@ -1091,14 +1211,14 @@ const RestaurantDashboard = ({ user, onLogout }: RestaurantDashboardProps) => {
                   <Card
                     key={table.id}
                     className={`relative overflow-hidden transition-all duration-300 group ${isActive
-                      ? 'bg-white border-2 border-emerald-500/20 dark:border-none dark:bg-gradient-to-br dark:from-emerald-950/30 dark:to-background shadow-lg shadow-emerald-500/10 ring-1 ring-emerald-300/50 dark:ring-emerald-800/50'
-                      : 'bg-white border border-border dark:border-none dark:bg-gradient-to-br dark:from-slate-900/50 dark:to-background shadow-md hover:shadow-lg'
+                      ? 'bg-gradient-to-br from-emerald-100 to-emerald-50 dark:from-emerald-950/30 dark:to-background shadow-lg shadow-emerald-500/20 ring-2 ring-emerald-400/50 dark:ring-emerald-800/50 border-emerald-200 dark:border-emerald-800'
+                      : 'bg-gradient-to-br from-slate-100 to-white dark:from-slate-900/50 dark:to-background shadow-md hover:shadow-lg border-slate-200 dark:border-slate-800'
                       }`}
                   >
                     <CardContent className="p-0 flex flex-col h-full">
                       <div className="p-4 flex items-center justify-between border-b border-border/5">
                         <div className="flex items-center gap-3">
-                          <span className="text-2xl font-bold text-foreground tracking-tight">
+                          <span className="text-2xl font-bold text-foreground tracking-tight whitespace-nowrap">
                             {table.number}
                           </span>
                           <div className="flex items-center gap-1.5 text-foreground bg-muted px-3 py-1 rounded-full">
@@ -1365,7 +1485,7 @@ const RestaurantDashboard = ({ user, onLogout }: RestaurantDashboardProps) => {
                     </div>
                     <div className="grid gap-3 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
                       {categoryDishes.map(dish => (
-                        <Card key={dish.id} className={`group hover:shadow-md transition-all border border-border bg-white dark:bg-card shadow-sm ${!dish.is_active ? 'opacity-60 grayscale' : ''}`}>
+                        <Card key={dish.id} className={`group hover:shadow-md transition-all border-border/50 bg-card shadow-sm ${!dish.is_active ? 'opacity-60 grayscale' : ''}`}>
                           <CardContent className="p-0">
                             <div className="flex gap-3 p-3">
                               {/* Compact Image */}
@@ -1508,9 +1628,8 @@ const RestaurantDashboard = ({ user, onLogout }: RestaurantDashboardProps) => {
           </TabsContent >
 
           {/* Settings Tab */}
-          {/* Settings Tab */}
-          <TabsContent value="settings" className="space-y-6">
-            <div className="flex items-center justify-between mb-6 bg-card/50 p-4 rounded-xl border shadow-sm backdrop-blur-sm">
+          < TabsContent value="settings" className="space-y-6" >
+            <div className="flex items-center justify-between mb-6 bg-card/50 p-4 rounded-xl shadow-sm backdrop-blur-sm">
               <div className="flex items-center gap-3">
                 <div className="w-11 h-11 rounded-xl bg-primary/10 flex items-center justify-center text-primary">
                   <Gear size={20} weight="duotone" />
@@ -1520,362 +1639,272 @@ const RestaurantDashboard = ({ user, onLogout }: RestaurantDashboardProps) => {
                   <p className="text-xs text-muted-foreground mt-0.5">Configura il tuo ristorante</p>
                 </div>
               </div>
-              {settingsView !== 'MAIN' && (
-                <Button variant="ghost" onClick={() => setSettingsView('MAIN')} className="gap-2">
-                  <ArrowLeft size={16} />
-                  Indietro
-                </Button>
-              )}
             </div>
 
-            {settingsView === 'MAIN' && (
-              <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
-                <Card
-                  className="cursor-pointer hover:shadow-lg transition-all hover:border-primary/50 group"
-                  onClick={() => setSettingsView('GENERAL')}
-                >
-                  <CardHeader>
-                    <CardTitle className="flex items-center gap-3">
-                      <div className="p-2 rounded-lg bg-emerald-500/10 text-emerald-600 group-hover:bg-emerald-500 group-hover:text-white transition-colors">
-                        <ChefHat size={24} />
-                      </div>
-                      Generali
-                    </CardTitle>
-                    <CardDescription>Nome ristorante e info di base</CardDescription>
-                  </CardHeader>
-                </Card>
+            <Card className="shadow-lg border-none overflow-hidden bg-gradient-to-br from-purple-50 to-white dark:from-purple-950/20 dark:to-background">
+              <CardHeader className="bg-muted/10 pb-6">
+                <CardTitle className="text-lg font-semibold flex items-center gap-2">
+                  <span className="inline-flex h-9 w-9 items-center justify-center rounded-lg bg-primary/10 text-primary">
+                    <Gear size={18} />
+                  </span>
+                  Aspetto
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="pt-6">
+                <div className="flex items-center justify-between p-4 bg-muted/30 rounded-lg border border-border/50">
+                  <div className="space-y-1">
+                    <Label className="text-base font-medium">Tema Scuro</Label>
+                    <p className="text-sm text-muted-foreground">Attiva o disattiva il tema scuro</p>
+                  </div>
+                  <ModeToggle />
+                </div>
+              </CardContent>
+            </Card>
 
-                <Card
-                  className="cursor-pointer hover:shadow-lg transition-all hover:border-primary/50 group"
-                  onClick={() => setSettingsView('APPEARANCE')}
-                >
-                  <CardHeader>
-                    <CardTitle className="flex items-center gap-3">
-                      <div className="p-2 rounded-lg bg-violet-500/10 text-violet-600 group-hover:bg-violet-500 group-hover:text-white transition-colors">
-                        <Palette size={24} />
-                      </div>
-                      Aspetto
-                    </CardTitle>
-                    <CardDescription>Tema scuro e personalizzazione</CardDescription>
-                  </CardHeader>
-                </Card>
-
-                <Card
-                  className="cursor-pointer hover:shadow-lg transition-all hover:border-primary/50 group"
-                  onClick={() => setSettingsView('STAFF')}
-                >
-                  <CardHeader>
-                    <CardTitle className="flex items-center gap-3">
-                      <div className="p-2 rounded-lg bg-blue-500/10 text-blue-600 group-hover:bg-blue-500 group-hover:text-white transition-colors">
-                        <Users size={24} />
-                      </div>
-                      Staff & Sala
-                    </CardTitle>
-                    <CardDescription>Camerieri, credenziali e permessi</CardDescription>
-                  </CardHeader>
-                </Card>
-
-                <Card
-                  className="cursor-pointer hover:shadow-lg transition-all hover:border-primary/50 group"
-                  onClick={() => setSettingsView('COSTS')}
-                >
-                  <CardHeader>
-                    <CardTitle className="flex items-center gap-3">
-                      <div className="p-2 rounded-lg bg-amber-500/10 text-amber-600 group-hover:bg-amber-500 group-hover:text-white transition-colors">
-                        <Receipt size={24} />
-                      </div>
-                      Listini & Costi
-                    </CardTitle>
-                    <CardDescription>All You Can Eat e Coperto</CardDescription>
-                  </CardHeader>
-                </Card>
-
-                <Card
-                  className="cursor-pointer hover:shadow-lg transition-all hover:border-primary/50 group"
-                  onClick={() => setSettingsView('RESERVATIONS')}
-                >
-                  <CardHeader>
-                    <CardTitle className="flex items-center gap-3">
-                      <div className="p-2 rounded-lg bg-cyan-500/10 text-cyan-600 group-hover:bg-cyan-500 group-hover:text-white transition-colors">
-                        <Clock size={24} />
-                      </div>
-                      Orari & Prenotazioni
-                    </CardTitle>
-                    <CardDescription>Orari apertura e durata slot</CardDescription>
-                  </CardHeader>
-                </Card>
-              </div>
-            )}
-
-            {settingsView === 'APPEARANCE' && (
-              <div className="space-y-6 animate-in fade-in slide-in-from-right-4 duration-300">
-                <Card className="shadow-lg border-none overflow-hidden bg-gradient-to-br from-purple-50 to-white dark:from-purple-950/20 dark:to-background">
-                  <CardHeader className="bg-muted/10 pb-6">
-                    <CardTitle className="text-lg font-semibold flex items-center gap-2">
-                      <span className="inline-flex h-9 w-9 items-center justify-center rounded-lg bg-primary/10 text-primary">
-                        <Palette size={18} />
-                      </span>
-                      Aspetto
-                    </CardTitle>
-                  </CardHeader>
-                  <CardContent className="pt-6">
-                    <div className="flex items-center justify-between p-4 bg-muted/30 rounded-lg border border-border/50">
-                      <div className="space-y-1">
-                        <Label className="text-base font-medium">Tema Scuro</Label>
-                        <p className="text-sm text-muted-foreground">Attiva o disattiva il tema scuro</p>
-                      </div>
-                      <ModeToggle />
-                    </div>
-                  </CardContent>
-                </Card>
-
-                {/* Sound Settings moved here as it relates to UI/UX experience */}
-                <Card>
-                  <CardHeader>
-                    <CardTitle className="flex items-center gap-2">
-                      <SpeakerHigh className="w-5 h-5 text-emerald-500" />
-                      Suoni e Notifiche
-                    </CardTitle>
-                    <CardDescription>Gestisci gli avvisi sonori per i nuovi ordini</CardDescription>
-                  </CardHeader>
-                  <CardContent className="space-y-6">
-                    <div className="flex items-center justify-between">
-                      <div className="space-y-0.5">
-                        <Label className="text-base">Abilita Suoni</Label>
-                        <p className="text-sm text-slate-500">Riproduci un suono all'arrivo di un nuovo ordine</p>
-                      </div>
-                      <Switch
-                        checked={soundEnabled}
-                        onCheckedChange={setSoundEnabled}
-                      />
-                    </div>
-
-                    {soundEnabled && (
-                      <div className="space-y-3">
-                        <Label>Suono Notifica</Label>
-                        <div className="flex gap-3">
-                          <Select value={selectedSound} onValueChange={(v) => setSelectedSound(v as SoundType)}>
-                            <SelectTrigger className="w-full">
-                              <SelectValue placeholder="Seleziona suono" />
-                            </SelectTrigger>
-                            <SelectContent>
-                              <SelectItem value="classic">Campanello Cucina</SelectItem>
-                              <SelectItem value="double">Doppio Campanello</SelectItem>
-                              <SelectItem value="chime">Campanello Servizio</SelectItem>
-                              <SelectItem value="alert">Allarme Urgente</SelectItem>
-                              <SelectItem value="soft">Notifica Discreta</SelectItem>
-                              <SelectItem value="success">Ordine Completato</SelectItem>
-                              <SelectItem value="warning">Campanello Attenzione</SelectItem>
-                              <SelectItem value="kitchen-bell">Campanello Professionale</SelectItem>
-                            </SelectContent>
-                          </Select>
-                          <Button variant="outline" size="icon" onClick={() => soundManager.play(selectedSound)}>
-                            <SpeakerHigh className="w-4 h-4" />
-                          </Button>
-                        </div>
-                      </div>
+            <Card className="shadow-lg border-none overflow-hidden bg-gradient-to-br from-emerald-50 to-white dark:from-emerald-950/20 dark:to-background">
+              <CardHeader className="bg-muted/10 pb-6">
+                <CardTitle className="text-lg font-semibold flex items-center gap-2">
+                  <span className="inline-flex h-9 w-9 items-center justify-center rounded-lg bg-primary/10 text-primary">
+                    <ChefHat size={18} />
+                  </span>
+                  Informazioni Ristorante
+                </CardTitle>
+                <CardDescription>
+                  Modifica il nome del tuo ristorante visibile ai clienti
+                </CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                <div className="space-y-2">
+                  <Label htmlFor="restaurant-name" className="text-base font-medium">Nome Ristorante</Label>
+                  <div className="flex gap-2">
+                    <Input
+                      id="restaurant-name"
+                      type="text"
+                      value={restaurantName}
+                      onChange={(e) => {
+                        setRestaurantName(e.target.value)
+                        setRestaurantNameDirty(true)
+                      }}
+                      placeholder="Nome del ristorante..."
+                      className="text-base"
+                    />
+                    {restaurantNameDirty && (
+                      <Button
+                        onClick={async () => {
+                          if (restaurantId && restaurantName.trim()) {
+                            try {
+                              await DatabaseService.updateRestaurant({ id: restaurantId, name: restaurantName.trim() })
+                              toast.success('Nome ristorante aggiornato!')
+                              setRestaurantNameDirty(false)
+                              refreshRestaurants()
+                            } catch (error) {
+                              console.error('Error updating restaurant name:', error)
+                              toast.error('Errore durante il salvataggio')
+                            }
+                          }
+                        }}
+                        disabled={!restaurantName.trim()}
+                      >
+                        Salva
+                      </Button>
                     )}
-                  </CardContent>
-                </Card>
-              </div>
-            )}
+                  </div>
+                  <p className="text-sm text-muted-foreground">
+                    Questo nome verrà visualizzato nel menu del cliente
+                  </p>
+                </div>
+              </CardContent>
+            </Card>
 
-            {settingsView === 'GENERAL' && (
-              <div className="space-y-6 animate-in fade-in slide-in-from-right-4 duration-300">
-                <Card className="shadow-lg border-none overflow-hidden bg-gradient-to-br from-emerald-50 to-white dark:from-emerald-950/20 dark:to-background">
-                  <CardHeader className="bg-muted/10 pb-6">
-                    <CardTitle className="text-lg font-semibold flex items-center gap-2">
-                      <span className="inline-flex h-9 w-9 items-center justify-center rounded-lg bg-primary/10 text-primary">
-                        <ChefHat size={18} />
-                      </span>
-                      Informazioni Ristorante
-                    </CardTitle>
-                    <CardDescription>
-                      Modifica il nome del tuo ristorante visibile ai clienti
-                    </CardDescription>
-                  </CardHeader>
-                  <CardContent className="space-y-4">
-                    <div className="space-y-2">
-                      <Label htmlFor="restaurant-name" className="text-base font-medium">Nome Ristorante</Label>
-                      <div className="flex gap-2">
-                        <Input
-                          id="restaurant-name"
-                          type="text"
-                          value={restaurantName}
-                          onChange={(e) => {
-                            setRestaurantName(e.target.value)
-                            setRestaurantNameDirty(true)
-                          }}
-                          placeholder="Nome del ristorante..."
-                          className="text-base"
-                        />
-                        {restaurantNameDirty && (
-                          <Button
-                            onClick={async () => {
-                              if (restaurantId && restaurantName.trim()) {
-                                try {
-                                  await DatabaseService.updateRestaurant({ id: restaurantId, name: restaurantName.trim() })
-                                  toast.success('Nome ristorante aggiornato!')
-                                  setRestaurantNameDirty(false)
-                                  refreshRestaurants()
-                                } catch (error) {
-                                  console.error('Error updating restaurant name:', error)
-                                  toast.error('Errore durante il salvataggio')
-                                }
+            <Card className="shadow-lg border-none overflow-hidden bg-gradient-to-br from-blue-50 to-white dark:from-blue-950/20 dark:to-background">
+              <CardHeader className="bg-muted/10 pb-6">
+                <CardTitle className="text-lg font-semibold flex items-center gap-2">
+                  <span className="inline-flex h-9 w-9 items-center justify-center rounded-lg bg-primary/10 text-primary">
+                    <ClockCounterClockwise size={18} />
+                  </span>
+                  Sala & Servizio
+                </CardTitle>
+                <CardDescription>
+                  Gestisci le impostazioni per il personale di sala e la modalità cameriere.
+                </CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-6">
+                <div className="flex items-center justify-between">
+                  <div className="space-y-1">
+                    <Label htmlFor="waiter-mode">Abilita Modalità Cameriere</Label>
+                    <p className="text-sm text-muted-foreground">Permette allo staff di prendere ordini da tablet/telefono dedicato.</p>
+                  </div>
+                  <Switch
+                    id="waiter-mode"
+                    checked={waiterModeEnabled}
+                    onCheckedChange={async (checked) => {
+                      setWaiterModeEnabled(checked)
+                      if (restaurantId) {
+                        try {
+                          await DatabaseService.updateRestaurant({ id: restaurantId, waiter_mode_enabled: checked })
+                          toast.success('Impostazioni salvate')
+                          refreshRestaurants()
+                        } catch (error) {
+                          console.error('Error updating waiter mode:', error)
+                          toast.error('Errore durante il salvataggio')
+                          setWaiterModeEnabled(!checked)
+                        }
+                      }
+                    }}
+                  />
+                </div>
+
+                <Separator />
+
+                <div className="grid gap-4 md:grid-cols-2">
+                  <div className="space-y-2">
+                    <Label>Username Cameriere</Label>
+                    <div className="p-2 bg-muted rounded-md border text-sm font-mono">
+                      {restaurantSlug}_cameriere
+                    </div>
+                    <p className="text-xs text-muted-foreground">Usa questo username per accedere come cameriere.</p>
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="waiter-password">Password Cameriere</Label>
+                    <div className="flex gap-2">
+                      <Input
+                        id="waiter-password"
+                        type="text"
+                        value={waiterPassword}
+                        onChange={(e) => {
+                          setWaiterPassword(e.target.value)
+                          setWaiterCredentialsDirty(true)
+                        }}
+                        placeholder="Imposta password..."
+                      />
+                      {waiterCredentialsDirty && (
+                        <Button
+                          size="sm"
+                          onClick={async () => {
+                            if (restaurantId) {
+                              try {
+                                await DatabaseService.updateRestaurant({ id: restaurantId, waiter_password: waiterPassword })
+                                toast.success('Password salvata')
+                                setWaiterCredentialsDirty(false)
+                                refreshRestaurants()
+                              } catch (error) {
+                                console.error('Error saving password:', error)
+                                toast.error('Errore nel salvataggio')
                               }
-                            }}
-                            disabled={!restaurantName.trim()}
-                          >
-                            Salva
-                          </Button>
-                        )}
-                      </div>
-                      <p className="text-sm text-muted-foreground">
-                        Questo nome verrà visualizzato nel menu del cliente
-                      </p>
-                    </div>
-                  </CardContent>
-                </Card>
-              </div>
-            )}
-
-            {settingsView === 'STAFF' && (
-              <div className="space-y-6 animate-in fade-in slide-in-from-right-4 duration-300">
-                <Card className="shadow-lg border-none overflow-hidden bg-gradient-to-br from-blue-50 to-white dark:from-blue-950/20 dark:to-background">
-                  <CardHeader className="bg-muted/10 pb-6">
-                    <CardTitle className="text-lg font-semibold flex items-center gap-2">
-                      <span className="inline-flex h-9 w-9 items-center justify-center rounded-lg bg-primary/10 text-primary">
-                        <Users size={18} />
-                      </span>
-                      Sala & Servizio
-                    </CardTitle>
-                    <CardDescription>
-                      Gestisci le impostazioni per il personale di sala e la modalità cameriere.
-                    </CardDescription>
-                  </CardHeader>
-                  <CardContent className="space-y-6">
-                    <div className="flex items-center justify-between">
-                      <div className="space-y-1">
-                        <Label htmlFor="waiter-mode">Abilita Modalità Cameriere</Label>
-                        <p className="text-sm text-muted-foreground">Permette allo staff di prendere ordini da tablet/telefono dedicato.</p>
-                      </div>
-                      <Switch
-                        id="waiter-mode"
-                        checked={waiterModeEnabled}
-                        onCheckedChange={async (checked) => {
-                          setWaiterModeEnabled(checked)
-                          if (restaurantId) {
-                            try {
-                              await DatabaseService.updateRestaurant({ id: restaurantId, waiter_mode_enabled: checked })
-                              toast.success('Impostazioni salvate')
-                              refreshRestaurants()
-                            } catch (error) {
-                              console.error('Error updating waiter mode:', error)
-                              toast.error('Errore durante il salvataggio')
-                              setWaiterModeEnabled(!checked)
                             }
-                          }
-                        }}
-                      />
+                          }}
+                        >
+                          Salva
+                        </Button>
+                      )}
                     </div>
+                    <p className="text-xs text-muted-foreground">Password per l'accesso staff.</p>
+                  </div>
+                </div>
 
-                    <Separator />
+                <Separator />
 
-                    <div className="grid gap-4 md:grid-cols-2">
-                      <div className="space-y-2">
-                        <Label>Username Cameriere</Label>
-                        <div className="p-2 bg-muted rounded-md border text-sm font-mono">
-                          {restaurantSlug}_cameriere
-                        </div>
-                        <p className="text-xs text-muted-foreground">Usa questo username per accedere come cameriere.</p>
-                      </div>
-                      <div className="space-y-2">
-                        <Label htmlFor="waiter-password">Password Cameriere</Label>
-                        <div className="flex gap-2">
-                          <Input
-                            id="waiter-password"
-                            type="text"
-                            value={waiterPassword}
-                            onChange={(e) => {
-                              setWaiterPassword(e.target.value)
-                              setWaiterCredentialsDirty(true)
-                            }}
-                            placeholder="Imposta password..."
-                          />
-                          {waiterCredentialsDirty && (
-                            <Button
-                              size="sm"
-                              onClick={async () => {
-                                if (restaurantId) {
-                                  try {
-                                    await DatabaseService.updateRestaurant({ id: restaurantId, waiter_password: waiterPassword })
-                                    toast.success('Password salvata')
-                                    setWaiterCredentialsDirty(false)
-                                    refreshRestaurants()
-                                  } catch (error) {
-                                    console.error('Error saving password:', error)
-                                    toast.error('Errore nel salvataggio')
-                                  }
-                                }
-                              }}
-                            >
-                              Salva
-                            </Button>
-                          )}
-                        </div>
-                        <p className="text-xs text-muted-foreground">Password per l'accesso staff.</p>
+                <div className="flex items-center justify-between">
+                  <div className="space-y-1">
+                    <Label htmlFor="waiter-payments">Consenti Incasso ai Camerieri</Label>
+                    <p className="text-sm text-muted-foreground">Abilita il tasto 'Segna come Pagato' sull'interfaccia camerieri.</p>
+                  </div>
+                  <Switch
+                    id="waiter-payments"
+                    checked={allowWaiterPayments}
+                    disabled={!waiterModeEnabled}
+                    onCheckedChange={async (checked) => {
+                      setAllowWaiterPayments(checked)
+                      if (restaurantId) {
+                        try {
+                          await DatabaseService.updateRestaurant({ id: restaurantId, allow_waiter_payments: checked })
+                          toast.success('Impostazioni salvate')
+                          refreshRestaurants()
+                        } catch (error) {
+                          console.error('Error updating waiter payments:', error)
+                          toast.error('Errore durante il salvataggio')
+                          setAllowWaiterPayments(!checked)
+                        }
+                      }
+                    }}
+                  />
+                </div>
+              </CardContent>
+            </Card>
+
+            <div className="grid gap-6 md:grid-cols-2">
+              {/* Sound Settings */}
+              <Card>
+                <CardHeader>
+                  <CardTitle className="flex items-center gap-2">
+                    <SpeakerHigh className="w-5 h-5 text-emerald-500" />
+                    Suoni e Notifiche
+                  </CardTitle>
+                  <CardDescription>Gestisci gli avvisi sonori per i nuovi ordini</CardDescription>
+                </CardHeader>
+                <CardContent className="space-y-6">
+                  <div className="flex items-center justify-between">
+                    <div className="space-y-0.5">
+                      <Label className="text-base">Abilita Suoni</Label>
+                      <p className="text-sm text-slate-500">Riproduci un suono all'arrivo di un nuovo ordine</p>
+                    </div>
+                    <Switch
+                      checked={soundEnabled}
+                      onCheckedChange={setSoundEnabled}
+                    />
+                  </div>
+
+                  {soundEnabled && (
+                    <div className="space-y-3">
+                      <Label>Suono Notifica</Label>
+                      <div className="flex gap-3">
+                        <Select value={selectedSound} onValueChange={(v) => setSelectedSound(v as SoundType)}>
+                          <SelectTrigger className="w-full">
+                            <SelectValue placeholder="Seleziona suono" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="classic">Campanello Cucina</SelectItem>
+                            <SelectItem value="double">Doppio Campanello</SelectItem>
+                            <SelectItem value="chime">Campanello Servizio</SelectItem>
+                            <SelectItem value="alert">Allarme Urgente</SelectItem>
+                            <SelectItem value="soft">Notifica Discreta</SelectItem>
+                            <SelectItem value="success">Ordine Completato</SelectItem>
+                            <SelectItem value="warning">Campanello Attenzione</SelectItem>
+                            <SelectItem value="kitchen-bell">Campanello Professionale</SelectItem>
+                          </SelectContent>
+                        </Select>
+                        <Button variant="outline" size="icon" onClick={() => soundManager.play(selectedSound)}>
+                          <SpeakerHigh className="w-4 h-4" />
+                        </Button>
                       </div>
                     </div>
+                  )}
+                </CardContent>
+              </Card>
 
-                    <Separator />
-
+              <Card className="shadow-lg border-none overflow-hidden bg-gradient-to-br from-amber-50 to-white dark:from-amber-950/20 dark:to-background md:col-span-2">
+                <CardHeader className="bg-muted/10 pb-6">
+                  <CardTitle className="text-lg font-semibold flex items-center gap-2">
+                    <span className="inline-flex h-9 w-9 items-center justify-center rounded-lg bg-primary/10 text-primary">
+                      <Receipt size={18} />
+                    </span>
+                    Prezzi & Coperti
+                  </CardTitle>
+                  <CardDescription>
+                    Configura All You Can Eat e costo del coperto
+                  </CardDescription>
+                </CardHeader>
+                <CardContent className="space-y-6">
+                  {/* All You Can Eat Section */}
+                  <div className="space-y-4 p-4 rounded-xl bg-muted/20 border border-border/30">
                     <div className="flex items-center justify-between">
-                      <div className="space-y-1">
-                        <Label htmlFor="waiter-payments">Consenti Incasso ai Camerieri</Label>
-                        <p className="text-sm text-muted-foreground">Abilita il tasto 'Segna come Pagato' sull'interfaccia camerieri.</p>
+                      <div className="flex items-center gap-3">
+                        <ForkKnife size={20} className="text-amber-600" />
+                        <div>
+                          <Label htmlFor="ayce-enabled" className="text-base font-medium">All You Can Eat</Label>
+                          <p className="text-xs text-muted-foreground">Prezzo fisso per ordini illimitati</p>
+                        </div>
                       </div>
-                      <Switch
-                        id="waiter-payments"
-                        checked={allowWaiterPayments}
-                        disabled={!waiterModeEnabled}
-                        onCheckedChange={async (checked) => {
-                          setAllowWaiterPayments(checked)
-                          if (restaurantId) {
-                            try {
-                              await DatabaseService.updateRestaurant({ id: restaurantId, allow_waiter_payments: checked })
-                              toast.success('Impostazioni salvate')
-                              refreshRestaurants()
-                            } catch (error) {
-                              console.error('Error updating waiter payments:', error)
-                              toast.error('Errore durante il salvataggio')
-                              setAllowWaiterPayments(!checked)
-                            }
-                          }
-                        }}
-                      />
-                    </div>
-                  </CardContent>
-                </Card>
-              </div>
-            )}
-
-            {settingsView === 'COSTS' && (
-              <div className="space-y-6 animate-in fade-in slide-in-from-right-4 duration-300">
-                <Card className="shadow-lg border-none overflow-hidden bg-gradient-to-br from-amber-50 to-white dark:from-amber-950/20 dark:to-background">
-                  <CardHeader className="bg-muted/10 pb-6">
-                    <CardTitle className="text-lg font-semibold flex items-center gap-2">
-                      <span className="inline-flex h-9 w-9 items-center justify-center rounded-lg bg-primary/10 text-primary">
-                        <ForkKnife size={18} />
-                      </span>
-                      Impostazioni All You Can Eat
-                    </CardTitle>
-                    <CardDescription>
-                      Configura le opzioni per la modalità All You Can Eat.
-                    </CardDescription>
-                  </CardHeader>
-                  <CardContent className="space-y-4">
-                    <div className="flex items-center justify-between p-4 bg-muted/30 rounded-lg border border-border/50">
-                      <Label htmlFor="ayce-enabled" className="text-base font-medium">Abilita All You Can Eat</Label>
                       <Switch
                         id="ayce-enabled"
                         checked={ayceEnabled}
@@ -1886,9 +1915,9 @@ const RestaurantDashboard = ({ user, onLogout }: RestaurantDashboardProps) => {
                       />
                     </div>
                     {ayceEnabled && (
-                      <div className="grid gap-4 md:grid-cols-2 animate-in fade-in slide-in-from-top-2">
+                      <div className="grid gap-4 md:grid-cols-2 animate-in fade-in slide-in-from-top-2 pt-2 border-t border-border/30">
                         <div className="space-y-2">
-                          <Label htmlFor="ayce-price" className="text-muted-foreground">Prezzo a persona (€)</Label>
+                          <Label htmlFor="ayce-price" className="text-muted-foreground text-sm">Prezzo a persona</Label>
                           <div className="relative">
                             <Input
                               id="ayce-price"
@@ -1905,7 +1934,7 @@ const RestaurantDashboard = ({ user, onLogout }: RestaurantDashboardProps) => {
                           </div>
                         </div>
                         <div className="space-y-2">
-                          <Label htmlFor="ayce-max-orders" className="text-muted-foreground">Max Ordini per persona</Label>
+                          <Label htmlFor="ayce-max-orders" className="text-muted-foreground text-sm">Max ordini per persona</Label>
                           <Input
                             id="ayce-max-orders"
                             type="number"
@@ -1919,26 +1948,17 @@ const RestaurantDashboard = ({ user, onLogout }: RestaurantDashboardProps) => {
                         </div>
                       </div>
                     )}
-                  </CardContent>
-                </Card>
+                  </div>
 
-                <Card className="shadow-lg border-none overflow-hidden bg-gradient-to-br from-amber-50 to-white dark:from-amber-950/20 dark:to-background">
-                  <CardHeader className="bg-muted/10 pb-6">
-                    <CardTitle className="text-lg font-semibold flex items-center gap-2">
-                      <span className="inline-flex h-9 w-9 items-center justify-center rounded-lg bg-primary/10 text-primary">
-                        <Receipt size={18} />
-                      </span>
-                      Impostazioni Coperto
-                    </CardTitle>
-                    <CardDescription>Gestisci il costo del coperto</CardDescription>
-                  </CardHeader>
-                  <CardContent className="space-y-4">
-                    <div className="flex items-center justify-between p-4 bg-muted/30 rounded-lg border border-border/50">
-                      <div className="space-y-0.5">
-                        <Label className="text-base font-medium">Abilita Coperto</Label>
-                        <p className="text-xs text-muted-foreground">
-                          Aggiungi automaticamente il coperto
-                        </p>
+                  {/* Coperto Section */}
+                  <div className="space-y-4 p-4 rounded-xl bg-muted/20 border border-border/30">
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-3">
+                        <Users size={20} className="text-amber-600" />
+                        <div>
+                          <Label className="text-base font-medium">Coperto</Label>
+                          <p className="text-xs text-muted-foreground">Costo aggiuntivo per persona</p>
+                        </div>
                       </div>
                       <Switch
                         checked={copertoEnabled}
@@ -1949,103 +1969,111 @@ const RestaurantDashboard = ({ user, onLogout }: RestaurantDashboardProps) => {
                       />
                     </div>
                     {copertoEnabled && (
-                      <div className="space-y-2 animate-in fade-in slide-in-from-top-2">
-                        <Label htmlFor="coperto-price" className="text-muted-foreground">Costo Coperto (€)</Label>
-                        <div className="relative">
-                          <Input
-                            id="coperto-price"
-                            type="number"
-                            value={copertoPrice}
-                            onChange={(e) => {
-                              const val = e.target.value
-                              setCopertoPrice(val === '' ? '' : parseFloat(val))
-                              setCopertoDirty(true)
-                            }}
-                            className="pl-8"
-                          />
-                          <span className="absolute left-3 top-2.5 text-muted-foreground">€</span>
+                      <div className="animate-in fade-in slide-in-from-top-2 pt-2 border-t border-border/30">
+                        <div className="space-y-2 max-w-xs">
+                          <Label htmlFor="coperto-price" className="text-muted-foreground text-sm">Costo coperto</Label>
+                          <div className="relative">
+                            <Input
+                              id="coperto-price"
+                              type="number"
+                              value={copertoPrice}
+                              onChange={(e) => {
+                                const val = e.target.value
+                                setCopertoPrice(val === '' ? '' : parseFloat(val))
+                                setCopertoDirty(true)
+                              }}
+                              className="pl-8"
+                            />
+                            <span className="absolute left-3 top-2.5 text-muted-foreground">€</span>
+                          </div>
                         </div>
                       </div>
                     )}
-                    {copertoDirty && (
-                      <Button onClick={saveCopertoSettings} className="w-full">
-                        Salva Impostazioni Coperto
-                      </Button>
-                    )}
-                  </CardContent>
-                </Card>
-              </div>
-            )}
+                  </div>
 
-            {settingsView === 'RESERVATIONS' && (
-              <div className="space-y-6 animate-in fade-in slide-in-from-right-4 duration-300">
-                <Card className="shadow-lg border-none overflow-hidden bg-gradient-to-br from-cyan-50 to-white dark:from-cyan-950/20 dark:to-background">
-                  <CardHeader className="bg-muted/10 pb-6">
-                    <CardTitle className="text-lg font-semibold flex items-center gap-2">
-                      <span className="inline-flex h-9 w-9 items-center justify-center rounded-lg bg-primary/10 text-primary">
-                        <Clock size={18} />
+                  {(ayceDirty || copertoDirty) && (
+                    <div className="flex gap-2 pt-2">
+                      {ayceDirty && (
+                        <Button onClick={saveAyceSettings} className="flex-1">
+                          Salva AYCE
+                        </Button>
+                      )}
+                      {copertoDirty && (
+                        <Button onClick={saveCopertoSettings} className="flex-1" variant="outline">
+                          Salva Coperto
+                        </Button>
+                      )}
+                    </div>
+                  )}
+                </CardContent>
+              </Card>
+
+              <Card className="shadow-lg border-none overflow-hidden bg-gradient-to-br from-cyan-50 to-white dark:from-cyan-950/20 dark:to-background">
+                <CardHeader className="bg-muted/10 pb-6">
+                  <CardTitle className="text-lg font-semibold flex items-center gap-2">
+                    <span className="inline-flex h-9 w-9 items-center justify-center rounded-lg bg-primary/10 text-primary">
+                      <Clock size={18} />
+                    </span>
+                    Orari di Apertura e Prenotazioni
+                  </CardTitle>
+                  <CardDescription>Imposta gli orari per le prenotazioni e la loro durata</CardDescription>
+                </CardHeader>
+                <CardContent className="space-y-6">
+                  <div className="grid grid-cols-2 gap-4">
+                    <div className="space-y-2">
+                      <Label htmlFor="opening-time">Apertura</Label>
+                      <Input
+                        id="opening-time"
+                        type="time"
+                        value={openingTime}
+                        onChange={(e) => setOpeningTime(e.target.value)}
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <Label htmlFor="closing-time">Chiusura</Label>
+                      <Input
+                        id="closing-time"
+                        type="time"
+                        value={closingTime}
+                        onChange={(e) => setClosingTime(e.target.value)}
+                      />
+                    </div>
+                  </div>
+                  <div className="space-y-3 pt-2 border-t">
+                    <Label htmlFor="reservation-duration" className="text-base font-medium">
+                      Durata Prenotazione (minuti)
+                    </Label>
+                    <p className="text-sm text-muted-foreground">
+                      Imposta quanto tempo occupa visivamente una prenotazione nella timeline.
+                    </p>
+                    <div className="flex items-center gap-3">
+                      <Select
+                        value={reservationDuration.toString()}
+                        onValueChange={(value) => {
+                          setReservationDuration(parseInt(value))
+                          localStorage.setItem('reservationDuration', value)
+                          toast.success(`Durata prenotazione impostata a ${value} minuti`)
+                        }}
+                      >
+                        <SelectTrigger className="w-[200px]">
+                          <SelectValue placeholder="Seleziona durata" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="60">1 ora (60 min)</SelectItem>
+                          <SelectItem value="90">1 ora e 30 min</SelectItem>
+                          <SelectItem value="120">2 ore (120 min)</SelectItem>
+                          <SelectItem value="150">2 ore e 30 min</SelectItem>
+                          <SelectItem value="180">3 ore (180 min)</SelectItem>
+                        </SelectContent>
+                      </Select>
+                      <span className="text-sm text-muted-foreground">
+                        Attuale: {Math.floor(reservationDuration / 60)}h {reservationDuration % 60 > 0 ? `${reservationDuration % 60}m` : ''}
                       </span>
-                      Orari di Apertura e Prenotazioni
-                    </CardTitle>
-                    <CardDescription>Imposta gli orari per le prenotazioni e la loro durata</CardDescription>
-                  </CardHeader>
-                  <CardContent className="space-y-6">
-                    <div className="grid grid-cols-2 gap-4">
-                      <div className="space-y-2">
-                        <Label htmlFor="opening-time">Apertura</Label>
-                        <Input
-                          id="opening-time"
-                          type="time"
-                          value={openingTime}
-                          onChange={(e) => setOpeningTime(e.target.value)}
-                        />
-                      </div>
-                      <div className="space-y-2">
-                        <Label htmlFor="closing-time">Chiusura</Label>
-                        <Input
-                          id="closing-time"
-                          type="time"
-                          value={closingTime}
-                          onChange={(e) => setClosingTime(e.target.value)}
-                        />
-                      </div>
                     </div>
-                    <div className="space-y-3 pt-2 border-t">
-                      <Label htmlFor="reservation-duration" className="text-base font-medium">
-                        Durata Prenotazione (minuti)
-                      </Label>
-                      <p className="text-sm text-muted-foreground">
-                        Imposta quanto tempo occupa visivamente una prenotazione nella timeline.
-                      </p>
-                      <div className="flex items-center gap-3">
-                        <Select
-                          value={reservationDuration.toString()}
-                          onValueChange={(value) => {
-                            setReservationDuration(parseInt(value))
-                            localStorage.setItem('reservationDuration', value)
-                            toast.success(`Durata prenotazione impostata a ${value} minuti`)
-                          }}
-                        >
-                          <SelectTrigger className="w-[200px]">
-                            <SelectValue placeholder="Seleziona durata" />
-                          </SelectTrigger>
-                          <SelectContent>
-                            <SelectItem value="60">1 ora (60 min)</SelectItem>
-                            <SelectItem value="90">1 ora e 30 min</SelectItem>
-                            <SelectItem value="120">2 ore (120 min)</SelectItem>
-                            <SelectItem value="150">2 ore e 30 min</SelectItem>
-                            <SelectItem value="180">3 ore (180 min)</SelectItem>
-                          </SelectContent>
-                        </Select>
-                        <span className="text-sm text-muted-foreground">
-                          Attuale: {Math.floor(reservationDuration / 60)}h {reservationDuration % 60 > 0 ? `${reservationDuration % 60}m` : ''}
-                        </span>
-                      </div>
-                    </div>
-                  </CardContent>
-                </Card>
-              </div>
-            )}
+                  </div>
+                </CardContent>
+              </Card>
+            </div>
           </TabsContent>
         </Tabs>
       </div>
