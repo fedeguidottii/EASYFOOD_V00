@@ -1463,6 +1463,5 @@ export default function CustomerMenu({ tableId: propTableId, onExit, interfaceMo
         </DialogContent>
       </Dialog>
     </div>
-    </div >
   )
 }
