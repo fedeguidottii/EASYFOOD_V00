@@ -692,11 +692,11 @@ export default function TimelineReservations({ user, restaurantId, tables, booki
 
       {/* Search Table Dialog */}
       <Dialog open={showSmartSearch} onOpenChange={setShowSmartSearch}>
-        <DialogContent>
+        <DialogContent className="sm:max-w-md">
           <DialogHeader>
             <DialogTitle>Ricerca Tavolo Disponibile</DialogTitle>
             <DialogDescription>
-              Inserisci orario e numero di persone per trovare un tavolo libero.
+              Trova un tavolo libero per la prenotazione.
             </DialogDescription>
           </DialogHeader>
           <div className="space-y-4 py-4">
@@ -707,7 +707,10 @@ export default function TimelineReservations({ user, restaurantId, tables, booki
                   id="search-time"
                   type="time"
                   value={searchTime}
-                  onChange={(e) => setSearchTime(e.target.value)}
+                  onChange={(e) => {
+                    setSearchTime(e.target.value)
+                    setAvailableTables([]) // Reset results on change
+                  }}
                 />
               </div>
               <div className="space-y-2">
@@ -717,13 +720,58 @@ export default function TimelineReservations({ user, restaurantId, tables, booki
                   type="number"
                   min="1"
                   value={searchGuests}
-                  onChange={(e) => setSearchGuests(e.target.value)}
+                  onChange={(e) => {
+                    setSearchGuests(e.target.value)
+                    setAvailableTables([])
+                  }}
                 />
               </div>
             </div>
+
             <Button onClick={handleSmartSearch} className="w-full">
-              <Search className="mr-2" size={16} /> Cerca
+              <Search className="mr-2" size={16} /> Cerca Tavoli
             </Button>
+
+            {availableTables.length > 0 && (
+              <div className="mt-4 border rounded-md overflow-hidden animate-in fade-in slide-in-from-top-2">
+                <div className="bg-muted px-4 py-2 border-b text-xs font-semibold text-muted-foreground">
+                  Risultati Disponibili ({availableTables.length})
+                </div>
+                <div className="max-h-[200px] overflow-y-auto">
+                  {availableTables.map(table => (
+                    <div key={table.id} className="flex items-center justify-between p-3 border-b last:border-0 hover:bg-muted/50 transition-colors">
+                      <div className="flex flex-col">
+                        <span className="font-bold">Tavolo {table.number}</span>
+                        <span className="text-xs text-muted-foreground">{table.seats} Posti</span>
+                      </div>
+                      <Button
+                        size="sm"
+                        variant="default"
+                        onClick={() => {
+                          setNewReservation({
+                            name: '',
+                            phone: '',
+                            guests: searchGuests,
+                            time: searchTime,
+                            tableId: table.id
+                          })
+                          setShowSmartSearch(false)
+                          setShowReservationDialog(true)
+                        }}
+                      >
+                        Prenota
+                      </Button>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {availableTables.length === 0 && searchTime && (
+              <div className="text-center text-sm text-muted-foreground mt-2">
+                Clicca su "Cerca" per vedere i risultati.
+              </div>
+            )}
           </div>
         </DialogContent>
       </Dialog>
