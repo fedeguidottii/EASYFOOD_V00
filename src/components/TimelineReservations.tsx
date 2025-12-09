@@ -385,19 +385,8 @@ export default function TimelineReservations({ user, restaurantId, tables, booki
     }
   }
 
-  const handleCompleteBooking = async (bookingId: string) => {
-    try {
-      await DatabaseService.updateBooking({
-        id: bookingId,
-        status: 'COMPLETED'
-      })
-      toast.success('Prenotazione completata! 👍')
-      onRefresh?.()
-    } catch (error) {
-      console.error('Complete error:', error)
-      toast.error('Errore completamento prenotazione')
-    }
-  }
+
+
 
   const handlePostponeBooking = async (booking: Booking, minutes: number) => {
     try {
