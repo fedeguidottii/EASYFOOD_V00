@@ -625,7 +625,8 @@ export const DatabaseService = {
                 return false
             }
 
-            return sessions.session_pin === pin
+            // Robust comparison: handle string/number mismatch and whitespace
+            return String(sessions.session_pin).trim() === String(pin).trim()
         } catch (error) {
             console.error('Error in verifySessionPin:', error)
             return false
