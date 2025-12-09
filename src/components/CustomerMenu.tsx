@@ -96,21 +96,12 @@ function NewCourseDropZone({ onClick }: { onClick: () => void }) {
 function DroppableCourse({ id, children, className }: { id: string, children: React.ReactNode, className?: string }) {
   const { setNodeRef, isOver } = useDroppable({ id })
   return (
-    <motion.div
+    <div
       ref={setNodeRef}
-      layout
-      initial={{ opacity: 0, y: 20 }}
-      animate={{
-        opacity: 1,
-        y: 0,
-        scale: isOver ? 1.02 : 1,
-        borderColor: isOver ? 'rgb(16 185 129)' : undefined
-      }}
-      transition={{ duration: 0.3, ease: 'easeOut' }}
       className={`${className} transition-all duration-300 ${isOver ? 'ring-2 ring-emerald-500 bg-emerald-50/50 dark:bg-emerald-900/20 shadow-lg shadow-emerald-500/10' : ''}`}
     >
       {children}
-    </motion.div>
+    </div>
   )
 }
 
@@ -134,21 +125,11 @@ function SortableDishItem({ item, courseNum }: { item: CartItem, courseNum: numb
   }
 
   return (
-    <motion.div
+    <div
       ref={setNodeRef}
       style={style}
       {...attributes}
       {...listeners}
-      layout
-      initial={{ opacity: 0, y: 10 }}
-      animate={{
-        opacity: 1,
-        y: 0,
-        scale: isDragging ? 1.02 : 1,
-        boxShadow: isDragging ? '0 10px 40px -10px rgba(0,0,0,0.2)' : '0 1px 3px rgba(0,0,0,0.1)'
-      }}
-      exit={{ opacity: 0, y: -10 }}
-      transition={{ duration: 0.2, ease: 'easeOut' }}
       className={`flex items-center justify-between bg-slate-50 dark:bg-slate-800 p-3 rounded-xl border border-slate-100 dark:border-slate-700 group relative cursor-grab active:cursor-grabbing touch-none select-none ${isDragging ? 'ring-2 ring-emerald-500 bg-white dark:bg-slate-700' : ''}`}
     >
       <div className="flex items-center gap-3 pointer-events-none">
@@ -160,7 +141,7 @@ function SortableDishItem({ item, courseNum }: { item: CartItem, courseNum: numb
           <p className="text-xs text-slate-500">{item.quantity}x · €{(item.price * item.quantity).toFixed(2)}</p>
         </div>
       </div>
-    </motion.div>
+    </div>
   )
 }
 
