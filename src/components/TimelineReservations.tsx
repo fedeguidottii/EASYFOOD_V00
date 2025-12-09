@@ -45,6 +45,7 @@ export default function TimelineReservations({ user, restaurantId, tables, booki
   const [selectedTimeSlot, setSelectedTimeSlot] = useState<{ tableId: string, time: string } | null>(null)
   const [draggedBookingId, setDraggedBookingId] = useState<string | null>(null)
   const [dropTarget, setDropTarget] = useState<{ tableId: string, time: string } | null>(null)
+  const [showDragConfirmDialog, setShowDragConfirmDialog] = useState(false)
   const [showDeleteConfirmDialog, setShowDeleteConfirmDialog] = useState(false)
   const [bookingToDelete, setBookingToDelete] = useState<Booking | null>(null)
   const [showArriveConfirmDialog, setShowArriveConfirmDialog] = useState(false)
