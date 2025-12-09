@@ -236,6 +236,15 @@ export function SettingsView({
                             {waiterModeEnabled && (
                                 <div className="grid gap-6 p-4 border border-border/50 rounded-xl bg-card">
                                     <div className="grid gap-2">
+                                        <Label>Username Accesso (Generato)</Label>
+                                        <Input
+                                            value={restaurantName.toLowerCase().replace(/\s+/g, '-') + '_cameriere'}
+                                            readOnly
+                                            className="font-mono bg-muted text-muted-foreground"
+                                        />
+                                        <p className="text-xs text-muted-foreground">Utilizza questo username per il login dei camerieri</p>
+                                    </div>
+                                    <div className="grid gap-2">
                                         <Label>Password Accesso Camerieri</Label>
                                         <div className="flex gap-2">
                                             <Input
