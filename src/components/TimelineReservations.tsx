@@ -544,6 +544,15 @@ export default function TimelineReservations({ user, restaurantId, tables, booki
                 borderClass = 'border-l-4 border-l-emerald-500/50'
               }
 
+              // Collision check for ghost block
+              const isHoverColliding = hoveredSlot && hoveredSlot.tableId === table.id && reservationBlocks.some(block => {
+                if (block.table.id !== table.id) return false
+                const blockEnd = block.startMinutes + block.duration
+                const ghostStart = hoveredSlot.startMinutes
+                const ghostEnd = ghostStart + 120 // Default duration 120
+                return (ghostStart < blockEnd && ghostEnd > block.startMinutes)
+              })
+
               return (
                 <div key={table.id} className={`flex h-24 border-b border-border/10 ${bgClass} ${borderClass}`}>
 
@@ -565,8 +574,8 @@ export default function TimelineReservations({ user, restaurantId, tables, booki
                     onDragOver={handleDragOver}
                     onDrop={(e) => handleDrop(e, table.id)}
                   >
-                    {/* GHOST BLOCK ON HOVER */}
-                    {hoveredSlot && hoveredSlot.tableId === table.id && !draggedBookingId && (
+                    {/* GHOST BLOCK ON HOVER - Only if no collision */}
+                    {hoveredSlot && hoveredSlot.tableId === table.id && !draggedBookingId && !isHoverColliding && (
                       <div
                         className="absolute top-2 bottom-2 rounded-md bg-primary/20 border-2 border-primary/50 border-dashed z-0 pointer-events-none transition-all duration-75 ease-out"
                         style={{
@@ -613,13 +622,14 @@ export default function TimelineReservations({ user, restaurantId, tables, booki
                         const colorIndex = i % COLORS.length
                         const bgColor = COLORS[colorIndex]
 
-                        // FIXED: Opacity for completed items - "becomes too transparent" -> use opacity-80 or 90 instead of 40
+                        // FIXED: Opacity for completed items
                         return (
                           <div
                             key={block.booking.id}
                             draggable={!isCompleted}
                             onDragStart={(e) => handleDragStart(e, block.booking.id, block.duration)}
-                            className={`absolute top-2 bottom-2 rounded-md border border-white/20 shadow-sm px-2 flex flex-col justify-center overflow-hidden transition-all hover:z-20 hover:scale-[1.02] ${isCompleted ? 'opacity-70 grayscale' : 'shadow-md'}`}
+                            // INCREASED SCALE: hover:scale-105 for more pop
+                            className={`absolute top-2 bottom-2 rounded-md border border-white/20 shadow-sm px-2 flex flex-col justify-center overflow-hidden transition-all duration-200 hover:z-50 hover:scale-105 hover:shadow-xl ${isCompleted ? 'opacity-70 grayscale' : 'shadow-md'}`}
                             style={{
                               left: `${getBlockStyle(block.startMinutes, block.duration).left}`,
                               width: `${getBlockStyle(block.startMinutes, block.duration).width}`,
@@ -630,16 +640,17 @@ export default function TimelineReservations({ user, restaurantId, tables, booki
                               e.stopPropagation()
                               onEditBooking?.(block.booking)
                             }}
+                            onMouseEnter={() => setHoveredSlot(null)} // Hide ghost block explicitly when entering a block
                           >
-                            <div className="font-bold text-base truncate leading-tight"> {/* INCREASED FONT SIZE */}
+                            <div className="font-bold text-base truncate leading-tight">
                               {block.booking.name}
                             </div>
-                            <div className="text-sm truncate opacity-90 mt-1 font-medium"> {/* INCREASED FONT SIZE */}
+                            <div className="text-sm truncate opacity-90 mt-1 font-medium">
                               {minutesToTime(block.startMinutes)} • {block.booking.guests}p
                             </div>
 
                             {!isCompleted && (
-                              <div className="absolute top-1 right-1 flex gap-1">
+                              <div className="absolute top-1 right-1 flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity"> {/* Hide buttons by default */}
                                 <Button
                                   variant="ghost"
                                   size="icon"
@@ -669,7 +680,6 @@ export default function TimelineReservations({ user, restaurantId, tables, booki
                           </div>
                         )
                       })}
-
                   </div>
                 </div>
               )
