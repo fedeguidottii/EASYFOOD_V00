@@ -878,7 +878,7 @@ const RestaurantDashboard = ({ user, onLogout }: RestaurantDashboardProps) => {
         <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
           {/* Orders Tab */}
           <TabsContent value="orders" className="space-y-6">
-            <div className="flex flex-col md:flex-row items-start md:items-center justify-between mb-6 gap-4">
+            <div className="flex flex-col gap-4 mb-6">
               <div className="flex items-center gap-3">
                 <div className="w-11 h-11 rounded-xl bg-primary/10 flex items-center justify-center text-primary">
                   <Clock size={20} weight="duotone" />
@@ -888,122 +888,112 @@ const RestaurantDashboard = ({ user, onLogout }: RestaurantDashboardProps) => {
                   <p className="text-xs text-muted-foreground mt-0.5">Gestisci gli ordini in tempo reale</p>
                 </div>
               </div>
-              <div className="flex items-center gap-2">
-                <div className="flex bg-muted p-1 rounded-lg mr-2">
-                  <Button
-                    variant={kitchenViewMode === 'table' ? 'default' : 'ghost'}
-                    size="sm"
-                    onClick={() => setKitchenViewMode('table')}
-                    className="h-7 text-xs font-bold"
-                  >
-                    Tavoli
-                  </Button>
-                  <Button
-                    variant={kitchenViewMode === 'dish' ? 'default' : 'ghost'}
-                    size="sm"
-                    onClick={() => setKitchenViewMode('dish')}
-                    className="h-7 text-xs font-bold"
-                  >
-                    Piatti
-                  </Button>
-                </div>
-
-                {/* Category Filter */}
-                <Popover>
-                  <PopoverTrigger asChild>
-                    <Button variant={selectedKitchenCategories.length > 0 ? "default" : "outline"} size="sm" className="mr-2 h-9 border-dashed">
-                      <Funnel size={16} className="mr-2" />
-                      Filtra Categorie
-                      {selectedKitchenCategories.length > 0 && (
-                        <span className="ml-1 rounded-full bg-primary-foreground text-primary w-4 h-4 text-[10px] flex items-center justify-center">
-                          {selectedKitchenCategories.length}
-                        </span>
-                      )}
+              <div className="overflow-x-auto scrollbar-hide -mx-2 px-2">
+                <div className="flex items-center gap-2 min-w-max">
+                  <div className="flex bg-muted p-1 rounded-lg">
+                    <Button
+                      variant={kitchenViewMode === 'table' ? 'default' : 'ghost'}
+                      size="sm"
+                      onClick={() => setKitchenViewMode('table')}
+                      className="h-7 text-xs font-bold"
+                    >
+                      Tavoli
                     </Button>
-                  </PopoverTrigger>
-                  <PopoverContent className="w-56 p-0" align="start">
-                    <div className="p-2 border-b border-border/10">
-                      <h4 className="font-medium text-xs text-muted-foreground uppercase tracking-wider">Seleziona Categorie</h4>
-                    </div>
-                    <div className="p-2 max-h-64 overflow-y-auto space-y-1">
-                      {categories?.map(cat => (
-                        <div key={cat.id} className="flex items-center space-x-2 p-1 hover:bg-muted/50 rounded cursor-pointer"
-                          onClick={() => {
-                            setSelectedKitchenCategories(prev =>
-                              prev.includes(cat.id)
-                                ? prev.filter(id => id !== cat.id)
-                                : [...prev, cat.id]
-                            )
-                          }}
-                        >
-                          <div className={`w-4 h-4 rounded border flex items-center justify-center ${selectedKitchenCategories.includes(cat.id) ? 'bg-primary border-primary text-primary-foreground' : 'border-muted-foreground'}`}>
-                            {selectedKitchenCategories.includes(cat.id) && <Check size={10} weight="bold" />}
-                          </div>
-                          <span className="text-sm">{cat.name}</span>
-                        </div>
-                      ))}
-                    </div>
-                    {selectedKitchenCategories.length > 0 && (
-                      <div className="p-2 border-t border-border/10">
-                        <Button variant="ghost" size="sm" className="w-full h-7 text-xs" onClick={() => setSelectedKitchenCategories([])}>
-                          Resetta Filtri
-                        </Button>
+                    <Button
+                      variant={kitchenViewMode === 'dish' ? 'default' : 'ghost'}
+                      size="sm"
+                      onClick={() => setKitchenViewMode('dish')}
+                      className="h-7 text-xs font-bold"
+                    >
+                      Piatti
+                    </Button>
+                  </div>
+
+                  {/* Category Filter */}
+                  <Popover>
+                    <PopoverTrigger asChild>
+                      <Button variant={selectedKitchenCategories.length > 0 ? "default" : "outline"} size="sm" className="h-9 border-dashed">
+                        <Funnel size={16} className="mr-2" />
+                        Filtra
+                        {selectedKitchenCategories.length > 0 && (
+                          <span className="ml-1 rounded-full bg-primary-foreground text-primary w-4 h-4 text-[10px] flex items-center justify-center">
+                            {selectedKitchenCategories.length}
+                          </span>
+                        )}
+                      </Button>
+                    </PopoverTrigger>
+                    <PopoverContent className="w-56 p-0" align="start">
+                      <div className="p-2 border-b border-border/10">
+                        <h4 className="font-medium text-xs text-muted-foreground uppercase tracking-wider">Seleziona Categorie</h4>
                       </div>
-                    )}
-                  </PopoverContent>
-                </Popover>
+                      <div className="p-2 max-h-64 overflow-y-auto space-y-1">
+                        {categories?.map(cat => (
+                          <div key={cat.id} className="flex items-center space-x-2 p-1 hover:bg-muted/50 rounded cursor-pointer"
+                            onClick={() => {
+                              setSelectedKitchenCategories(prev =>
+                                prev.includes(cat.id)
+                                  ? prev.filter(id => id !== cat.id)
+                                  : [...prev, cat.id]
+                              )
+                            }}
+                          >
+                            <div className={`w-4 h-4 rounded border flex items-center justify-center ${selectedKitchenCategories.includes(cat.id) ? 'bg-primary border-primary text-primary-foreground' : 'border-muted-foreground'}`}>
+                              {selectedKitchenCategories.includes(cat.id) && <Check size={10} weight="bold" />}
+                            </div>
+                            <span className="text-sm">{cat.name}</span>
+                          </div>
+                        ))}
+                      </div>
+                      {selectedKitchenCategories.length > 0 && (
+                        <div className="p-2 border-t border-border/10">
+                          <Button variant="ghost" size="sm" className="w-full h-7 text-xs" onClick={() => setSelectedKitchenCategories([])}>
+                            Resetta Filtri
+                          </Button>
+                        </div>
+                      )}
+                    </PopoverContent>
+                  </Popover>
 
-                <div className="flex items-center gap-2 bg-muted p-1 rounded-lg mr-2">
-                  <span className="text-[10px] font-bold uppercase text-muted-foreground px-2">Zoom</span>
+                  <div className="flex items-center gap-1 bg-muted p-1 rounded-lg">
+                    <span className="text-[10px] font-bold uppercase text-muted-foreground px-2">Zoom</span>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => setKitchenZoom(prev => Math.max(0.6, Math.round((prev - 0.1) * 10) / 10))}
+                      className="h-7 w-7 p-0"
+                    >
+                      <Minus size={14} />
+                    </Button>
+                    <span className="w-10 text-center text-xs font-bold">{Math.round(kitchenZoom * 100)}%</span>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => setKitchenZoom(prev => Math.min(1.5, Math.round((prev + 0.1) * 10) / 10))}
+                      className="h-7 w-7 p-0"
+                    >
+                      <Plus size={14} />
+                    </Button>
+                  </div>
+
+                  <Select value={orderSortMode} onValueChange={(value: 'oldest' | 'newest') => setOrderSortMode(value)}>
+                    <SelectTrigger className="w-[130px] h-9 shadow-sm">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="oldest">Meno recenti</SelectItem>
+                      <SelectItem value="newest">Più recenti</SelectItem>
+                    </SelectContent>
+                  </Select>
+
                   <Button
-                    variant="ghost"
+                    variant={showOrderHistory ? "default" : "outline"}
                     size="sm"
-                    onClick={() => setKitchenZoom(prev => Math.max(0.7, Math.round((prev - 0.1) * 10) / 10))}
-                    className="h-7 w-7 p-0"
+                    onClick={() => setShowOrderHistory(!showOrderHistory)}
                   >
-                    <Minus size={14} />
-                  </Button>
-                  <span className="w-10 text-center text-xs font-bold">{Math.round(kitchenZoom * 100)}%</span>
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    onClick={() => setKitchenZoom(prev => Math.min(1.4, Math.round((prev + 0.1) * 10) / 10))}
-                    className="h-7 w-7 p-0"
-                  >
-                    <Plus size={14} />
+                    <ClockCounterClockwise size={16} className="mr-1" />
+                    Storico
                   </Button>
                 </div>
-
-                <div className="flex items-center gap-2 bg-muted p-1 rounded-lg mr-2">
-                  <span className="text-[10px] font-bold uppercase text-muted-foreground px-2">Griglia</span>
-                  <Button variant="ghost" size="sm" onClick={() => setKitchenColumns(prev => Math.max(1, prev - 1))} className="h-7 w-7 p-0">
-                    <Minus size={14} />
-                  </Button>
-                  <span className="w-6 text-center text-xs font-bold">{kitchenColumns}</span>
-                  <Button variant="ghost" size="sm" onClick={() => setKitchenColumns(prev => Math.min(8, prev + 1))} className="h-7 w-7 p-0">
-                    <Plus size={14} />
-                  </Button>
-                </div>
-
-                <Select value={orderSortMode} onValueChange={(value: 'oldest' | 'newest') => setOrderSortMode(value)}>
-                  <SelectTrigger className="w-[140px] h-9 shadow-sm">
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="oldest">Meno recenti</SelectItem>
-                    <SelectItem value="newest">Più recenti</SelectItem>
-                  </SelectContent>
-                </Select>
-
-                <Button
-                  variant={showOrderHistory ? "default" : "outline"}
-                  size="sm"
-                  onClick={() => setShowOrderHistory(!showOrderHistory)}
-                  className="ml-2"
-                >
-                  <ClockCounterClockwise size={16} className="mr-2" />
-                  Storico
-                </Button>
               </div>
             </div>
 
@@ -1288,21 +1278,21 @@ const RestaurantDashboard = ({ user, onLogout }: RestaurantDashboardProps) => {
                       }`}
                   >
                     <CardContent className="p-0 flex flex-col h-full">
-                      <div className="p-4 flex items-center justify-between border-b border-border/5">
-                        <div className="flex items-center gap-3">
-                          <span className="text-2xl font-bold text-foreground tracking-tight whitespace-nowrap">
+                      <div className="p-4 flex items-center justify-between gap-2 border-b border-border/5">
+                        <div className="flex items-center gap-2 min-w-0 flex-1">
+                          <span className="text-xl font-bold text-foreground tracking-tight truncate">
                             {table.number}
                           </span>
-                          <div className="flex items-center gap-1.5 text-foreground bg-muted px-3 py-1 rounded-full">
-                            <Users size={16} weight="bold" />
+                          <div className="flex items-center gap-1 text-foreground bg-muted px-2 py-0.5 rounded-full shrink-0">
+                            <Users size={14} weight="bold" />
                             <span className="text-sm font-bold">{table.seats || 4}</span>
                           </div>
                         </div>
                         <Badge
                           variant={isActive ? 'default' : 'outline'}
-                          className={isActive ? 'bg-red-600 hover:bg-red-700 border-none text-white shadow-sm font-semibold' : 'bg-green-600 text-white border-none font-semibold'}
+                          className={`shrink-0 text-xs ${isActive ? 'bg-red-600 hover:bg-red-700 border-none text-white shadow-sm font-semibold' : 'bg-green-600 text-white border-none font-semibold'}`}
                         >
-                          {isActive ? 'Occupato' : 'Libero'}
+                          {isActive ? 'Occ.' : 'Libero'}
                         </Badge>
                       </div>
 
@@ -1555,14 +1545,14 @@ const RestaurantDashboard = ({ user, onLogout }: RestaurantDashboardProps) => {
                       </div>
                       <h3 className="text-xl font-bold text-foreground">{category.name}</h3>
                     </div>
-                    <div className="grid gap-3 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+                    <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
                       {categoryDishes.map(dish => (
-                        <Card key={dish.id} className={`group hover:shadow-md transition-all border-border/50 bg-card shadow-sm ${!dish.is_active ? 'opacity-60 grayscale' : ''}`}>
+                        <Card key={dish.id} className={`group hover:shadow-lg transition-all border-border/50 bg-card shadow-sm overflow-hidden ${!dish.is_active ? 'opacity-60 grayscale' : ''}`}>
                           <CardContent className="p-0">
-                            <div className="flex gap-3 p-3">
-                              {/* Compact Image */}
+                            <div className="flex gap-4 p-4">
+                              {/* Image */}
                               {dish.image_url ? (
-                                <div className="relative w-16 h-16 shrink-0 overflow-hidden rounded-lg">
+                                <div className="relative w-20 h-20 shrink-0 overflow-hidden rounded-xl">
                                   <img
                                     src={dish.image_url}
                                     alt={dish.name}
@@ -1570,58 +1560,58 @@ const RestaurantDashboard = ({ user, onLogout }: RestaurantDashboardProps) => {
                                   />
                                 </div>
                               ) : (
-                                <div className="w-16 h-16 shrink-0 rounded-lg bg-muted flex items-center justify-center">
-                                  <ForkKnife size={20} className="text-muted-foreground" />
+                                <div className="w-20 h-20 shrink-0 rounded-xl bg-muted flex items-center justify-center">
+                                  <ForkKnife size={24} className="text-muted-foreground" />
                                 </div>
                               )}
 
                               {/* Content */}
-                              <div className="flex-1 min-w-0">
-                                <div className="flex items-start justify-between gap-2">
-                                  <h4 className="font-semibold text-sm leading-tight line-clamp-2">{dish.name}</h4>
-                                  <span className="font-bold text-primary text-sm whitespace-nowrap">€{dish.price.toFixed(2)}</span>
-                                </div>
-                                {dish.description && (
-                                  <p className="text-xs text-muted-foreground mt-1 line-clamp-1">{dish.description}</p>
-                                )}
-                                <div className="flex items-center gap-1.5 mt-2">
-                                  {dish.is_ayce && (
-                                    <Badge className="bg-orange-500 hover:bg-orange-600 text-[10px] text-white border-none px-1.5 py-0">
-                                      AYCE
-                                    </Badge>
+                              <div className="flex-1 min-w-0 flex flex-col justify-between">
+                                <div>
+                                  <div className="flex items-start justify-between gap-2">
+                                    <h4 className="font-bold text-base leading-tight line-clamp-2 text-foreground">{dish.name}</h4>
+                                    <span className="font-bold text-primary text-base whitespace-nowrap">€{dish.price.toFixed(2)}</span>
+                                  </div>
+                                  {dish.description && (
+                                    <p className="text-xs text-muted-foreground mt-1 line-clamp-2">{dish.description}</p>
                                   )}
                                 </div>
+                                <div className="flex items-center justify-between mt-2">
+                                  <div className="flex items-center gap-1.5">
+                                    {dish.is_ayce && (
+                                      <Badge className="bg-orange-500 hover:bg-orange-600 text-[10px] text-white border-none px-1.5 py-0">
+                                        AYCE
+                                      </Badge>
+                                    )}
+                                  </div>
+                                  <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                                    <Button
+                                      variant="ghost"
+                                      size="icon"
+                                      className="h-7 w-7 hover:bg-muted"
+                                      onClick={() => handleEditDish(dish)}
+                                    >
+                                      <PencilSimple size={14} />
+                                    </Button>
+                                    <Button
+                                      variant="ghost"
+                                      size="icon"
+                                      className={`h-7 w-7 hover:bg-muted ${!dish.is_active ? 'text-muted-foreground' : 'text-green-600'}`}
+                                      onClick={() => handleToggleDish(dish.id)}
+                                    >
+                                      {dish.is_active ? <Eye size={14} /> : <EyeSlash size={14} />}
+                                    </Button>
+                                    <Button
+                                      variant="ghost"
+                                      size="icon"
+                                      className="h-7 w-7 text-destructive hover:bg-destructive/10"
+                                      onClick={() => handleDeleteDish(dish.id)}
+                                    >
+                                      <Trash size={14} />
+                                    </Button>
+                                  </div>
+                                </div>
                               </div>
-                            </div>
-
-                            {/* Actions */}
-                            <div className="flex items-center justify-between px-3 py-2 border-t border-border/10 bg-muted/20">
-                              <div className="flex gap-1">
-                                <Button
-                                  variant="ghost"
-                                  size="icon"
-                                  className="h-7 w-7 hover:bg-muted"
-                                  onClick={() => handleEditDish(dish)}
-                                >
-                                  <PencilSimple size={14} />
-                                </Button>
-                                <Button
-                                  variant="ghost"
-                                  size="icon"
-                                  className={`h-7 w-7 hover:bg-muted ${!dish.is_active ? 'text-muted-foreground' : 'text-green-600'}`}
-                                  onClick={() => handleToggleDish(dish.id)}
-                                >
-                                  {dish.is_active ? <Eye size={14} /> : <EyeSlash size={14} />}
-                                </Button>
-                              </div>
-                              <Button
-                                variant="ghost"
-                                size="icon"
-                                className="h-7 w-7 text-destructive hover:bg-destructive/10"
-                                onClick={() => handleDeleteDish(dish.id)}
-                              >
-                                <Trash size={14} />
-                              </Button>
                             </div>
                           </CardContent>
                         </Card>
@@ -1700,7 +1690,7 @@ const RestaurantDashboard = ({ user, onLogout }: RestaurantDashboardProps) => {
           </TabsContent >
 
           {/* Settings Tab */}
-          < TabsContent value="settings" className="space-y-6" >
+          < TabsContent value="settings" className="space-y-8" >
             <div className="flex items-center justify-between mb-6 p-4 rounded-xl">
               <div className="flex items-center gap-3">
                 <div className="w-11 h-11 rounded-xl bg-primary/10 flex items-center justify-center text-primary">
@@ -1713,212 +1703,197 @@ const RestaurantDashboard = ({ user, onLogout }: RestaurantDashboardProps) => {
               </div>
             </div>
 
-            <Card className="shadow-lg border-none overflow-hidden bg-gradient-to-br from-purple-50 to-white dark:from-purple-950/20 dark:to-background">
-              <CardHeader className="bg-muted/10 pb-6">
-                <CardTitle className="text-lg font-semibold flex items-center gap-2">
-                  <span className="inline-flex h-9 w-9 items-center justify-center rounded-lg bg-primary/10 text-primary">
-                    <Gear size={18} />
-                  </span>
-                  Aspetto
-                </CardTitle>
-              </CardHeader>
-              <CardContent className="pt-6">
-                <div className="flex items-center justify-between p-4 bg-muted/30 rounded-lg border border-border/50">
-                  <div className="space-y-1">
-                    <Label className="text-base font-medium">Tema Scuro</Label>
-                    <p className="text-sm text-muted-foreground">Attiva o disattiva il tema scuro</p>
-                  </div>
-                  <ModeToggle />
-                </div>
-              </CardContent>
-            </Card>
-
-            <Card className="shadow-lg border-none overflow-hidden bg-gradient-to-br from-emerald-50 to-white dark:from-emerald-950/20 dark:to-background">
-              <CardHeader className="bg-muted/10 pb-6">
-                <CardTitle className="text-lg font-semibold flex items-center gap-2">
-                  <span className="inline-flex h-9 w-9 items-center justify-center rounded-lg bg-primary/10 text-primary">
-                    <ChefHat size={18} />
-                  </span>
-                  Informazioni Ristorante
-                </CardTitle>
-                <CardDescription>
-                  Modifica il nome del tuo ristorante visibile ai clienti
-                </CardDescription>
-              </CardHeader>
-              <CardContent className="space-y-4">
-                <div className="space-y-2">
-                  <Label htmlFor="restaurant-name" className="text-base font-medium">Nome Ristorante</Label>
-                  <div className="flex gap-2">
-                    <Input
-                      id="restaurant-name"
-                      type="text"
-                      value={restaurantName}
-                      onChange={(e) => {
-                        setRestaurantName(e.target.value)
-                        setRestaurantNameDirty(true)
-                      }}
-                      placeholder="Nome del ristorante..."
-                      className="text-base"
-                    />
-                    {restaurantNameDirty && (
-                      <Button
-                        onClick={async () => {
-                          if (restaurantId && restaurantName.trim()) {
-                            try {
-                              await DatabaseService.updateRestaurant({ id: restaurantId, name: restaurantName.trim() })
-                              toast.success('Nome ristorante aggiornato!')
-                              setRestaurantNameDirty(false)
-                              refreshRestaurants()
-                            } catch (error) {
-                              console.error('Error updating restaurant name:', error)
-                              toast.error('Errore durante il salvataggio')
-                            }
-                          }
-                        }}
-                        disabled={!restaurantName.trim()}
-                      >
-                        Salva
-                      </Button>
-                    )}
-                  </div>
-                  <p className="text-sm text-muted-foreground">
-                    Questo nome verrà visualizzato nel menu del cliente
-                  </p>
-                </div>
-              </CardContent>
-            </Card>
-
-            <Card className="shadow-lg border-none overflow-hidden bg-gradient-to-br from-blue-50 to-white dark:from-blue-950/20 dark:to-background">
-              <CardHeader className="bg-muted/10 pb-6">
-                <CardTitle className="text-lg font-semibold flex items-center gap-2">
-                  <span className="inline-flex h-9 w-9 items-center justify-center rounded-lg bg-primary/10 text-primary">
-                    <ClockCounterClockwise size={18} />
-                  </span>
-                  Sala & Servizio
-                </CardTitle>
-                <CardDescription>
-                  Gestisci le impostazioni per il personale di sala e la modalità cameriere.
-                </CardDescription>
-              </CardHeader>
-              <CardContent className="space-y-6">
-                <div className="flex items-center justify-between">
-                  <div className="space-y-1">
-                    <Label htmlFor="waiter-mode">Abilita Modalità Cameriere</Label>
-                    <p className="text-sm text-muted-foreground">Permette allo staff di prendere ordini da tablet/telefono dedicato.</p>
-                  </div>
-                  <Switch
-                    id="waiter-mode"
-                    checked={waiterModeEnabled}
-                    onCheckedChange={async (checked) => {
-                      setWaiterModeEnabled(checked)
-                      if (restaurantId) {
-                        try {
-                          await DatabaseService.updateRestaurant({ id: restaurantId, waiter_mode_enabled: checked })
-                          toast.success('Impostazioni salvate')
-                          refreshRestaurants()
-                        } catch (error) {
-                          console.error('Error updating waiter mode:', error)
-                          toast.error('Errore durante il salvataggio')
-                          setWaiterModeEnabled(!checked)
-                        }
-                      }
-                    }}
-                  />
-                </div>
-
-                <Separator />
-
-                <div className="grid gap-4 md:grid-cols-2">
-                  <div className="space-y-2">
-                    <Label>Username Cameriere</Label>
-                    <div className="p-2 bg-muted rounded-md border text-sm font-mono">
-                      {restaurantSlug}_cameriere
+            {/* SEZIONE 1: ASPETTO E VISUALIZZAZIONE */}
+            <div className="space-y-4">
+              <h3 className="text-lg font-bold text-foreground flex items-center gap-2 border-b border-border/50 pb-2">
+                <Gear size={20} className="text-primary" />
+                Aspetto e Visualizzazione
+              </h3>
+              <Card className="shadow-md border border-border/50 bg-card">
+                <CardContent className="p-4">
+                  <div className="flex items-center justify-between p-4 bg-muted/30 rounded-lg border border-border/50">
+                    <div className="space-y-1">
+                      <Label className="text-base font-medium text-foreground">Tema Scuro</Label>
+                      <p className="text-sm text-muted-foreground">Attiva o disattiva il tema scuro</p>
                     </div>
-                    <p className="text-xs text-muted-foreground">Usa questo username per accedere come cameriere.</p>
+                    <ModeToggle />
                   </div>
+                </CardContent>
+              </Card>
+            </div>
+
+            {/* SEZIONE 2: INFORMAZIONI RISTORANTE */}
+            <div className="space-y-4">
+              <h3 className="text-lg font-bold text-foreground flex items-center gap-2 border-b border-border/50 pb-2">
+                <ChefHat size={20} className="text-primary" />
+                Informazioni Ristorante
+              </h3>
+              <Card className="shadow-md border border-border/50 bg-card">
+                <CardContent className="p-4 space-y-4">
                   <div className="space-y-2">
-                    <Label htmlFor="waiter-password">Password Cameriere</Label>
+                    <Label htmlFor="restaurant-name" className="text-base font-medium text-foreground">Nome Ristorante</Label>
                     <div className="flex gap-2">
                       <Input
-                        id="waiter-password"
+                        id="restaurant-name"
                         type="text"
-                        value={waiterPassword}
+                        value={restaurantName}
                         onChange={(e) => {
-                          setWaiterPassword(e.target.value)
-                          setWaiterCredentialsDirty(true)
+                          setRestaurantName(e.target.value)
+                          setRestaurantNameDirty(true)
                         }}
-                        placeholder="Imposta password..."
+                        placeholder="Nome del ristorante..."
+                        className="text-base bg-background text-foreground border-border"
                       />
-                      {waiterCredentialsDirty && (
+                      {restaurantNameDirty && (
                         <Button
-                          size="sm"
                           onClick={async () => {
-                            if (restaurantId) {
+                            if (restaurantId && restaurantName.trim()) {
                               try {
-                                await DatabaseService.updateRestaurant({ id: restaurantId, waiter_password: waiterPassword })
-                                toast.success('Password salvata')
-                                setWaiterCredentialsDirty(false)
+                                await DatabaseService.updateRestaurant({ id: restaurantId, name: restaurantName.trim() })
+                                toast.success('Nome ristorante aggiornato!')
+                                setRestaurantNameDirty(false)
                                 refreshRestaurants()
                               } catch (error) {
-                                console.error('Error saving password:', error)
-                                toast.error('Errore nel salvataggio')
+                                console.error('Error updating restaurant name:', error)
+                                toast.error('Errore durante il salvataggio')
                               }
                             }
                           }}
+                          disabled={!restaurantName.trim()}
                         >
                           Salva
                         </Button>
                       )}
                     </div>
-                    <p className="text-xs text-muted-foreground">Password per l'accesso staff.</p>
+                    <p className="text-sm text-muted-foreground">
+                      Questo nome verrà visualizzato nel menu del cliente
+                    </p>
                   </div>
-                </div>
+                </CardContent>
+              </Card>
+            </div>
 
-                <Separator />
-
-                <div className="flex items-center justify-between">
-                  <div className="space-y-1">
-                    <Label htmlFor="waiter-payments">Consenti Incasso ai Camerieri</Label>
-                    <p className="text-sm text-muted-foreground">Abilita il tasto 'Segna come Pagato' sull'interfaccia camerieri.</p>
-                  </div>
-                  <Switch
-                    id="waiter-payments"
-                    checked={allowWaiterPayments}
-                    disabled={!waiterModeEnabled}
-                    onCheckedChange={async (checked) => {
-                      setAllowWaiterPayments(checked)
-                      if (restaurantId) {
-                        try {
-                          await DatabaseService.updateRestaurant({ id: restaurantId, allow_waiter_payments: checked })
-                          toast.success('Impostazioni salvate')
-                          refreshRestaurants()
-                        } catch (error) {
-                          console.error('Error updating waiter payments:', error)
-                          toast.error('Errore durante il salvataggio')
-                          setAllowWaiterPayments(!checked)
+            {/* SEZIONE 3: GESTIONE SALA */}
+            <div className="space-y-4">
+              <h3 className="text-lg font-bold text-foreground flex items-center gap-2 border-b border-border/50 pb-2">
+                <Users size={20} className="text-primary" />
+                Gestione Sala e Camerieri
+              </h3>
+              <Card className="shadow-md border border-border/50 bg-card">
+                <CardContent className="p-4 space-y-6">
+                  <div className="flex items-center justify-between p-3 bg-muted/30 rounded-lg border border-border/50">
+                    <div className="space-y-1">
+                      <Label htmlFor="waiter-mode" className="text-foreground font-medium">Abilita Modalità Cameriere</Label>
+                      <p className="text-sm text-muted-foreground">Permette allo staff di prendere ordini da tablet/telefono dedicato.</p>
+                    </div>
+                    <Switch
+                      id="waiter-mode"
+                      checked={waiterModeEnabled}
+                      onCheckedChange={async (checked) => {
+                        setWaiterModeEnabled(checked)
+                        if (restaurantId) {
+                          try {
+                            await DatabaseService.updateRestaurant({ id: restaurantId, waiter_mode_enabled: checked })
+                            toast.success('Impostazioni salvate')
+                            refreshRestaurants()
+                          } catch (error) {
+                            console.error('Error updating waiter mode:', error)
+                            toast.error('Errore durante il salvataggio')
+                            setWaiterModeEnabled(!checked)
+                          }
                         }
-                      }
-                    }}
-                  />
-                </div>
-              </CardContent>
-            </Card>
+                      }}
+                    />
+                  </div>
 
-            <div className="grid gap-6 md:grid-cols-2">
-              {/* Sound Settings */}
-              <Card>
-                <CardHeader>
-                  <CardTitle className="flex items-center gap-2">
-                    <SpeakerHigh className="w-5 h-5 text-emerald-500" />
-                    Suoni e Notifiche
-                  </CardTitle>
-                  <CardDescription>Gestisci gli avvisi sonori per i nuovi ordini</CardDescription>
-                </CardHeader>
-                <CardContent className="space-y-6">
-                  <div className="flex items-center justify-between">
+                  <div className="grid gap-4 md:grid-cols-2">
+                    <div className="space-y-2">
+                      <Label className="text-foreground">Username Cameriere</Label>
+                      <div className="p-2 bg-muted rounded-md border border-border text-sm font-mono text-foreground">
+                        {restaurantSlug}_cameriere
+                      </div>
+                      <p className="text-xs text-muted-foreground">Usa questo username per accedere come cameriere.</p>
+                    </div>
+                    <div className="space-y-2">
+                      <Label htmlFor="waiter-password" className="text-foreground">Password Cameriere</Label>
+                      <div className="flex gap-2">
+                        <Input
+                          id="waiter-password"
+                          type="text"
+                          value={waiterPassword}
+                          onChange={(e) => {
+                            setWaiterPassword(e.target.value)
+                            setWaiterCredentialsDirty(true)
+                          }}
+                          placeholder="Imposta password..."
+                          className="bg-background text-foreground border-border"
+                        />
+                        {waiterCredentialsDirty && (
+                          <Button
+                            size="sm"
+                            onClick={async () => {
+                              if (restaurantId) {
+                                try {
+                                  await DatabaseService.updateRestaurant({ id: restaurantId, waiter_password: waiterPassword })
+                                  toast.success('Password salvata')
+                                  setWaiterCredentialsDirty(false)
+                                  refreshRestaurants()
+                                } catch (error) {
+                                  console.error('Error saving password:', error)
+                                  toast.error('Errore nel salvataggio')
+                                }
+                              }
+                            }}
+                          >
+                            Salva
+                          </Button>
+                        )}
+                      </div>
+                      <p className="text-xs text-muted-foreground">Password per l'accesso staff.</p>
+                    </div>
+                  </div>
+
+                  <div className="flex items-center justify-between p-3 bg-muted/30 rounded-lg border border-border/50">
+                    <div className="space-y-1">
+                      <Label htmlFor="waiter-payments" className="text-foreground font-medium">Consenti Incasso ai Camerieri</Label>
+                      <p className="text-sm text-muted-foreground">Abilita il tasto 'Segna come Pagato' sull'interfaccia camerieri.</p>
+                    </div>
+                    <Switch
+                      id="waiter-payments"
+                      checked={allowWaiterPayments}
+                      disabled={!waiterModeEnabled}
+                      onCheckedChange={async (checked) => {
+                        setAllowWaiterPayments(checked)
+                        if (restaurantId) {
+                          try {
+                            await DatabaseService.updateRestaurant({ id: restaurantId, allow_waiter_payments: checked })
+                            toast.success('Impostazioni salvate')
+                            refreshRestaurants()
+                          } catch (error) {
+                            console.error('Error updating waiter payments:', error)
+                            toast.error('Errore durante il salvataggio')
+                            setAllowWaiterPayments(!checked)
+                          }
+                        }
+                      }}
+                    />
+                  </div>
+                </CardContent>
+              </Card>
+            </div>
+
+            {/* SEZIONE 4: SUONI E NOTIFICHE */}
+            <div className="space-y-4">
+              <h3 className="text-lg font-bold text-foreground flex items-center gap-2 border-b border-border/50 pb-2">
+                <SpeakerHigh size={20} className="text-primary" />
+                Suoni e Notifiche
+              </h3>
+              <Card className="shadow-md border border-border/50 bg-card">
+                <CardContent className="p-4 space-y-6">
+                  <div className="flex items-center justify-between p-3 bg-muted/30 rounded-lg border border-border/50">
                     <div className="space-y-0.5">
-                      <Label className="text-base">Abilita Suoni</Label>
-                      <p className="text-sm text-slate-500">Riproduci un suono all'arrivo di un nuovo ordine</p>
+                      <Label className="text-base text-foreground font-medium">Abilita Suoni</Label>
+                      <p className="text-sm text-muted-foreground">Riproduci un suono all'arrivo di un nuovo ordine</p>
                     </div>
                     <Switch
                       checked={soundEnabled}
@@ -1928,10 +1903,10 @@ const RestaurantDashboard = ({ user, onLogout }: RestaurantDashboardProps) => {
 
                   {soundEnabled && (
                     <div className="space-y-3">
-                      <Label>Suono Notifica</Label>
+                      <Label className="text-foreground">Suono Notifica</Label>
                       <div className="flex gap-3">
                         <Select value={selectedSound} onValueChange={(v) => setSelectedSound(v as SoundType)}>
-                          <SelectTrigger className="w-full">
+                          <SelectTrigger className="w-full bg-background text-foreground border-border">
                             <SelectValue placeholder="Seleziona suono" />
                           </SelectTrigger>
                           <SelectContent>
@@ -1945,7 +1920,7 @@ const RestaurantDashboard = ({ user, onLogout }: RestaurantDashboardProps) => {
                             <SelectItem value="kitchen-bell">Campanello Professionale</SelectItem>
                           </SelectContent>
                         </Select>
-                        <Button variant="outline" size="icon" onClick={() => soundManager.play(selectedSound)}>
+                        <Button variant="outline" size="icon" onClick={() => soundManager.play(selectedSound)} className="border-border">
                           <SpeakerHigh className="w-4 h-4" />
                         </Button>
                       </div>
@@ -1953,27 +1928,23 @@ const RestaurantDashboard = ({ user, onLogout }: RestaurantDashboardProps) => {
                   )}
                 </CardContent>
               </Card>
+            </div>
 
-              <Card className="shadow-lg border-none overflow-hidden bg-gradient-to-br from-amber-50 to-white dark:from-amber-950/20 dark:to-background md:col-span-2">
-                <CardHeader className="bg-muted/10 pb-6">
-                  <CardTitle className="text-lg font-semibold flex items-center gap-2">
-                    <span className="inline-flex h-9 w-9 items-center justify-center rounded-lg bg-primary/10 text-primary">
-                      <Receipt size={18} />
-                    </span>
-                    Prezzi & Coperti
-                  </CardTitle>
-                  <CardDescription>
-                    Configura All You Can Eat e costo del coperto
-                  </CardDescription>
-                </CardHeader>
-                <CardContent className="space-y-6">
+            {/* SEZIONE 5: PREZZI E TARIFFE */}
+            <div className="space-y-4">
+              <h3 className="text-lg font-bold text-foreground flex items-center gap-2 border-b border-border/50 pb-2">
+                <Receipt size={20} className="text-primary" />
+                Prezzi e Tariffe
+              </h3>
+              <Card className="shadow-md border border-border/50 bg-card">
+                <CardContent className="p-4 space-y-6">
                   {/* All You Can Eat Section */}
-                  <div className="space-y-4 p-4 rounded-xl bg-muted/20 border border-border/30">
+                  <div className="space-y-4 p-4 rounded-xl bg-muted/20 border border-border/50">
                     <div className="flex items-center justify-between">
                       <div className="flex items-center gap-3">
-                        <ForkKnife size={20} className="text-amber-600" />
+                        <ForkKnife size={20} className="text-amber-600 dark:text-amber-400" />
                         <div>
-                          <Label htmlFor="ayce-enabled" className="text-base font-medium">All You Can Eat</Label>
+                          <Label htmlFor="ayce-enabled" className="text-base font-medium text-foreground">All You Can Eat</Label>
                           <p className="text-xs text-muted-foreground">Prezzo fisso per ordini illimitati</p>
                         </div>
                       </div>
@@ -2000,7 +1971,7 @@ const RestaurantDashboard = ({ user, onLogout }: RestaurantDashboardProps) => {
                                 setAycePrice(val === '' ? '' : parseFloat(val))
                                 setAyceDirty(true)
                               }}
-                              className="pl-8"
+                              className="pl-8 bg-background text-foreground border-border"
                             />
                             <span className="absolute left-3 top-2.5 text-muted-foreground">€</span>
                           </div>
@@ -2016,6 +1987,7 @@ const RestaurantDashboard = ({ user, onLogout }: RestaurantDashboardProps) => {
                               setAyceMaxOrders(val === '' ? '' : parseInt(val))
                               setAyceDirty(true)
                             }}
+                            className="bg-background text-foreground border-border"
                           />
                         </div>
                       </div>
@@ -2023,12 +1995,12 @@ const RestaurantDashboard = ({ user, onLogout }: RestaurantDashboardProps) => {
                   </div>
 
                   {/* Coperto Section */}
-                  <div className="space-y-4 p-4 rounded-xl bg-muted/20 border border-border/30">
+                  <div className="space-y-4 p-4 rounded-xl bg-muted/20 border border-border/50">
                     <div className="flex items-center justify-between">
                       <div className="flex items-center gap-3">
-                        <Users size={20} className="text-amber-600" />
+                        <Users size={20} className="text-amber-600 dark:text-amber-400" />
                         <div>
-                          <Label className="text-base font-medium">Coperto</Label>
+                          <Label className="text-base font-medium text-foreground">Coperto</Label>
                           <p className="text-xs text-muted-foreground">Costo aggiuntivo per persona</p>
                         </div>
                       </div>
@@ -2054,7 +2026,7 @@ const RestaurantDashboard = ({ user, onLogout }: RestaurantDashboardProps) => {
                                 setCopertoPrice(val === '' ? '' : parseFloat(val))
                                 setCopertoDirty(true)
                               }}
-                              className="pl-8"
+                              className="pl-8 bg-background text-foreground border-border"
                             />
                             <span className="absolute left-3 top-2.5 text-muted-foreground">€</span>
                           </div>
@@ -2079,40 +2051,40 @@ const RestaurantDashboard = ({ user, onLogout }: RestaurantDashboardProps) => {
                   )}
                 </CardContent>
               </Card>
+            </div>
 
-              <Card className="shadow-lg border-none overflow-hidden bg-gradient-to-br from-cyan-50 to-white dark:from-cyan-950/20 dark:to-background">
-                <CardHeader className="bg-muted/10 pb-6">
-                  <CardTitle className="text-lg font-semibold flex items-center gap-2">
-                    <span className="inline-flex h-9 w-9 items-center justify-center rounded-lg bg-primary/10 text-primary">
-                      <Clock size={18} />
-                    </span>
-                    Orari di Apertura e Prenotazioni
-                  </CardTitle>
-                  <CardDescription>Imposta gli orari per le prenotazioni e la loro durata</CardDescription>
-                </CardHeader>
-                <CardContent className="space-y-6">
+            {/* SEZIONE 6: ORARI E PRENOTAZIONI */}
+            <div className="space-y-4">
+              <h3 className="text-lg font-bold text-foreground flex items-center gap-2 border-b border-border/50 pb-2">
+                <Clock size={20} className="text-primary" />
+                Orari e Prenotazioni
+              </h3>
+              <Card className="shadow-md border border-border/50 bg-card">
+                <CardContent className="p-4 space-y-6">
                   <div className="grid grid-cols-2 gap-4">
                     <div className="space-y-2">
-                      <Label htmlFor="opening-time">Apertura</Label>
+                      <Label htmlFor="opening-time" className="text-foreground">Apertura</Label>
                       <Input
                         id="opening-time"
                         type="time"
                         value={openingTime}
                         onChange={(e) => setOpeningTime(e.target.value)}
+                        className="bg-background text-foreground border-border"
                       />
                     </div>
                     <div className="space-y-2">
-                      <Label htmlFor="closing-time">Chiusura</Label>
+                      <Label htmlFor="closing-time" className="text-foreground">Chiusura</Label>
                       <Input
                         id="closing-time"
                         type="time"
                         value={closingTime}
                         onChange={(e) => setClosingTime(e.target.value)}
+                        className="bg-background text-foreground border-border"
                       />
                     </div>
                   </div>
-                  <div className="space-y-3 pt-2 border-t">
-                    <Label htmlFor="reservation-duration" className="text-base font-medium">
+                  <div className="space-y-3 pt-2 border-t border-border/50">
+                    <Label htmlFor="reservation-duration" className="text-base font-medium text-foreground">
                       Durata Prenotazione (minuti)
                     </Label>
                     <p className="text-sm text-muted-foreground">
@@ -2127,7 +2099,7 @@ const RestaurantDashboard = ({ user, onLogout }: RestaurantDashboardProps) => {
                           toast.success(`Durata prenotazione impostata a ${value} minuti`)
                         }}
                       >
-                        <SelectTrigger className="w-[200px]">
+                        <SelectTrigger className="w-[200px] bg-background text-foreground border-border">
                           <SelectValue placeholder="Seleziona durata" />
                         </SelectTrigger>
                         <SelectContent>
@@ -2142,6 +2114,39 @@ const RestaurantDashboard = ({ user, onLogout }: RestaurantDashboardProps) => {
                         Attuale: {Math.floor(reservationDuration / 60)}h {reservationDuration % 60 > 0 ? `${reservationDuration % 60}m` : ''}
                       </span>
                     </div>
+                  </div>
+                </CardContent>
+              </Card>
+            </div>
+
+            {/* SEZIONE 7: IMPOSTAZIONI ORDINI */}
+            <div className="space-y-4">
+              <h3 className="text-lg font-bold text-foreground flex items-center gap-2 border-b border-border/50 pb-2">
+                <Receipt size={20} className="text-primary" />
+                Impostazioni Ordini Cliente
+              </h3>
+              <Card className="shadow-md border border-border/50 bg-card">
+                <CardContent className="p-4 space-y-6">
+                  <div className="flex items-center justify-between p-3 bg-muted/30 rounded-lg border border-border/50">
+                    <div className="space-y-1">
+                      <Label className="text-base text-foreground font-medium">Abilita Divisione Portate</Label>
+                      <p className="text-sm text-muted-foreground">Permetti ai clienti di organizzare i piatti in portate diverse (Uscita 1, Uscita 2, ecc.)</p>
+                    </div>
+                    <Switch
+                      checked={currentRestaurant?.courses_enabled !== false}
+                      onCheckedChange={async (checked) => {
+                        if (restaurantId) {
+                          try {
+                            await DatabaseService.updateRestaurant({ id: restaurantId, courses_enabled: checked })
+                            toast.success(checked ? 'Divisione portate attivata' : 'Divisione portate disattivata')
+                            refreshRestaurants()
+                          } catch (error) {
+                            console.error('Error updating courses setting:', error)
+                            toast.error('Errore durante il salvataggio')
+                          }
+                        }
+                      }}
+                    />
                   </div>
                 </CardContent>
               </Card>

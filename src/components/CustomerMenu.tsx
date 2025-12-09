@@ -192,6 +192,8 @@ export default function CustomerMenu({ tableId: propTableId, onExit, interfaceMo
   const [error, setError] = useState<string | null>(null)
   const [isLoading, setIsLoading] = useState(true)
   const [tableName, setTableName] = useState<string>('')
+  const [coursesEnabled, setCoursesEnabled] = useState<boolean>(true)
+  const [sessionClosed, setSessionClosed] = useState<boolean>(false)
 
   const [activeCategory, setActiveCategory] = useState<string>('all')
   const [cart, setCart] = useState<CartItem[]>([])
@@ -235,12 +237,13 @@ export default function CustomerMenu({ tableId: propTableId, onExit, interfaceMo
 
         const { data: restaurantData } = await supabase
           .from('restaurants')
-          .select('name')
+          .select('name, courses_enabled')
           .eq('id', tableData.restaurant_id)
           .single()
 
         if (restaurantData?.name) {
           setRestaurantName(restaurantData.name)
+          setCoursesEnabled(restaurantData.courses_enabled !== false)
         }
         return
       }
@@ -258,12 +261,13 @@ export default function CustomerMenu({ tableId: propTableId, onExit, interfaceMo
 
         const { data: restaurantData } = await supabase
           .from('restaurants')
-          .select('name')
+          .select('name, courses_enabled')
           .eq('id', sessionData.restaurant_id)
           .single()
 
         if (restaurantData?.name) {
           setRestaurantName(restaurantData.name)
+          setCoursesEnabled(restaurantData.courses_enabled !== false)
         }
         return
       }
@@ -348,6 +352,7 @@ export default function CustomerMenu({ tableId: propTableId, onExit, interfaceMo
 
       if (sessions && sessions.length > 0) {
         setSession(sessions[0])
+        setSessionClosed(false)
         const { data: orders } = await supabase
           .from('orders')
           .select('*, items:order_items(*)')
@@ -356,15 +361,22 @@ export default function CustomerMenu({ tableId: propTableId, onExit, interfaceMo
 
         if (orders) setPreviousOrders(orders as any[])
       } else {
-        setSession(null)
+        // Session closed or doesn't exist - redirect to PIN page
+        if (session !== null) {
+          setSessionClosed(true)
+          setSession(null)
+          setCart([])
+          setPreviousOrders([])
+        }
       }
     }
 
     fetchSessionAndOrders()
     const channel = supabase
-      .channel(`public:orders:table-${tableId}`)
+      .channel(`public:session-${tableId}`)
       .on('postgres_changes', { event: '*', schema: 'public', table: 'orders' }, () => fetchSessionAndOrders())
       .on('postgres_changes', { event: '*', schema: 'public', table: 'order_items' }, () => fetchSessionAndOrders())
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'table_sessions', filter: `table_id=eq.${tableId}` }, () => fetchSessionAndOrders())
       .subscribe()
 
     return () => { supabase.removeChannel(channel) }
@@ -490,7 +502,8 @@ export default function CustomerMenu({ tableId: propTableId, onExit, interfaceMo
 
     if (isWaiterMode) {
       setShowConfirmDialog(true)
-    } else if (uniqueCourses.length === 1 && uniqueCourses[0] === 1) {
+    } else if (coursesEnabled && uniqueCourses.length === 1 && uniqueCourses[0] === 1) {
+      // Only show course alert if courses are enabled
       setShowCourseAlert(true)
     } else {
       setShowConfirmDialog(true)
@@ -555,6 +568,35 @@ export default function CustomerMenu({ tableId: propTableId, onExit, interfaceMo
             <p className="text-sm text-slate-500 dark:text-slate-400">{error || "Ristorante non trovato."}</p>
             <Button onClick={() => window.location.reload()} className="w-full mt-2 gap-2 bg-slate-900 dark:bg-white hover:bg-slate-800 dark:hover:bg-slate-100 text-white dark:text-slate-900 rounded-xl h-12 font-semibold shadow-lg">
               <RefreshCw className="w-4 h-4" />Riprova
+            </Button>
+          </CardContent>
+        </Card>
+      </div>
+    )
+  }
+
+  // Session closed - redirect to PIN page
+  if (sessionClosed || (!session && !isLoading && !isWaiterMode)) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-slate-50 via-white to-slate-100 dark:from-slate-950 dark:via-slate-900 dark:to-slate-950 p-6">
+        <Card className="w-full max-w-sm border-0 bg-white/80 dark:bg-slate-900/80 backdrop-blur-xl shadow-2xl shadow-slate-200/50 dark:shadow-black/20">
+          <CardContent className="flex flex-col items-center text-center p-8 gap-4">
+            <div className="w-16 h-16 bg-gradient-to-br from-amber-500 to-orange-600 rounded-2xl flex items-center justify-center shadow-lg shadow-amber-500/30">
+              <AlertCircle className="w-8 h-8 text-white" />
+            </div>
+            <h2 className="text-xl font-bold text-slate-900 dark:text-white">Sessione terminata</h2>
+            <p className="text-sm text-slate-500 dark:text-slate-400">
+              Il tavolo è stato chiuso dal ristorante. Per continuare a ordinare, inserisci il nuovo PIN.
+            </p>
+            <Button
+              onClick={() => {
+                const currentPath = window.location.pathname
+                const basePath = currentPath.replace(/\/menu.*$/, '')
+                window.location.href = basePath || '/'
+              }}
+              className="w-full mt-2 gap-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl h-12 font-semibold shadow-lg"
+            >
+              Inserisci nuovo PIN
             </Button>
           </CardContent>
         </Card>
@@ -824,7 +866,7 @@ export default function CustomerMenu({ tableId: propTableId, onExit, interfaceMo
             </header>
 
             <main className="flex-1 overflow-y-auto scrollbar-hide px-4 py-4 space-y-2 max-w-2xl mx-auto w-full pb-32">
-              <AnimatePresence mode="popLayout">
+              <AnimatePresence mode="wait">
               {activeCategory === 'all' && dishesByCategory ? (
                 dishesByCategory.map(({ category, dishes: catDishes }, catIndex) => (
                   <motion.div
@@ -939,16 +981,18 @@ export default function CustomerMenu({ tableId: propTableId, onExit, interfaceMo
                     ))}
                   </div>
 
-                  <div>
-                    <Button
-                      variant="outline"
-                      className="w-full h-11 border-dashed border-emerald-500/50 text-emerald-600 hover:bg-emerald-50 dark:hover:bg-emerald-900/20 gap-2 rounded-xl font-semibold"
-                      onClick={() => setShowCourseManagement(true)}
-                    >
-                      <Layers className="w-4 h-4" />
-                      Dividi / Organizza Portate
-                    </Button>
-                  </div>
+                  {coursesEnabled && (
+                    <div>
+                      <Button
+                        variant="outline"
+                        className="w-full h-11 border-dashed border-emerald-500/50 text-emerald-600 hover:bg-emerald-50 dark:hover:bg-emerald-900/20 gap-2 rounded-xl font-semibold"
+                        onClick={() => setShowCourseManagement(true)}
+                      >
+                        <Layers className="w-4 h-4" />
+                        Dividi / Organizza Portate
+                      </Button>
+                    </div>
+                  )}
 
                   <div className="bg-white/80 dark:bg-slate-900/80 backdrop-blur-sm rounded-2xl p-4 shadow-lg border border-white/30 dark:border-slate-800/50">
                     <div className="flex justify-between items-center mb-4">
@@ -1026,13 +1070,30 @@ export default function CustomerMenu({ tableId: propTableId, onExit, interfaceMo
                       {(order as any).items?.map((item: any, idx: number) => {
                         const d = dishes?.find(dd => dd.id === item.dish_id)
                         return (
-                          <div key={idx} className="flex justify-between items-center text-sm">
-                            <div className="flex items-center gap-2">
-                              <span className="font-bold text-slate-900 dark:text-white w-5">{item.quantity}x</span>
-                              <span className="text-slate-600 dark:text-slate-300">{d?.name}</span>
+                          <button
+                            key={idx}
+                            className="w-full flex items-center gap-3 text-sm p-2 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors cursor-pointer"
+                            onClick={() => d && setSelectedDish(d)}
+                          >
+                            {d?.image_url ? (
+                              <img src={d.image_url} alt={d.name} className="w-10 h-10 rounded-lg object-cover shadow-sm" />
+                            ) : (
+                              <div className="w-10 h-10 rounded-lg bg-slate-100 dark:bg-slate-800 flex items-center justify-center">
+                                <Utensils className="w-4 h-4 text-slate-400" />
+                              </div>
+                            )}
+                            <div className="flex-1 text-left">
+                              <div className="flex items-center gap-2">
+                                <span className="font-bold text-slate-900 dark:text-white">{item.quantity}x</span>
+                                <span className="text-slate-700 dark:text-slate-300 font-medium">{d?.name}</span>
+                              </div>
+                              {d?.price && <span className="text-xs text-slate-500">€{(d.price * item.quantity).toFixed(2)}</span>}
                             </div>
-                            {item.status === 'SERVED' && <CheckCircle className="w-4 h-4 text-emerald-500" />}
-                          </div>
+                            <div className="flex items-center gap-2">
+                              {item.status === 'SERVED' && <CheckCircle className="w-4 h-4 text-emerald-500" />}
+                              <ChevronRight className="w-4 h-4 text-slate-400" />
+                            </div>
+                          </button>
                         )
                       })}
                     </div>
@@ -1144,21 +1205,21 @@ export default function CustomerMenu({ tableId: propTableId, onExit, interfaceMo
                 )}
 
                 <div>
-                  <label className="text-[10px] font-semibold uppercase text-slate-400 mb-1.5 block tracking-wider text-center">Quantità</label>
-                  <div className="flex items-center justify-center gap-4 bg-slate-50 dark:bg-slate-800 rounded-xl p-2">
+                  <label className="text-[10px] font-semibold uppercase text-slate-400 mb-1 block tracking-wider text-center">Quantità</label>
+                  <div className="flex items-center justify-center gap-3 bg-slate-50 dark:bg-slate-800 rounded-lg p-1.5">
                     <button
                       onClick={() => setDishQuantity(q => Math.max(1, q - 1))}
-                      className="w-12 h-12 flex items-center justify-center bg-white dark:bg-slate-700 rounded-xl shadow-sm text-slate-600 dark:text-slate-300 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 transition-all active:scale-95 disabled:opacity-40"
+                      className="w-9 h-9 flex items-center justify-center bg-white dark:bg-slate-700 rounded-lg shadow-sm text-slate-600 dark:text-slate-300 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 transition-all active:scale-95 disabled:opacity-40"
                       disabled={dishQuantity <= 1}
                     >
-                      <Minus className="w-5 h-5" />
+                      <Minus className="w-4 h-4" />
                     </button>
-                    <span className="font-bold text-3xl w-12 text-center text-slate-900 dark:text-white">{dishQuantity}</span>
+                    <span className="font-bold text-2xl w-8 text-center text-slate-900 dark:text-white">{dishQuantity}</span>
                     <button
                       onClick={() => setDishQuantity(q => q + 1)}
-                      className="w-12 h-12 flex items-center justify-center bg-white dark:bg-slate-700 rounded-xl shadow-sm text-slate-600 dark:text-slate-300 hover:text-emerald-500 hover:bg-emerald-50 dark:hover:bg-emerald-900/20 transition-all active:scale-95"
+                      className="w-9 h-9 flex items-center justify-center bg-white dark:bg-slate-700 rounded-lg shadow-sm text-slate-600 dark:text-slate-300 hover:text-emerald-500 hover:bg-emerald-50 dark:hover:bg-emerald-900/20 transition-all active:scale-95"
                     >
-                      <Plus className="w-5 h-5" />
+                      <Plus className="w-4 h-4" />
                     </button>
                   </div>
                 </div>

@@ -260,6 +260,65 @@ export default function AnalyticsCharts({ orders, completedOrders, dishes, categ
     }
   }, [categoryFilteredOrders, orders, categories, dishes, dateFilter, start, end, activeCategoryIds, categoryMetric])
 
+  // Period Trend calculation - uses the main date filter for trend analysis
+  const periodTrendData = useMemo(() => {
+    const periodDays = Math.max(1, Math.ceil((end - start) / (24 * 60 * 60 * 1000)))
+
+    // Calculate historical average (limit to last 2 years for relevance)
+    const twoYearsAgo = Date.now() - (2 * 365 * 24 * 60 * 60 * 1000)
+    const historicalOrders = allOrders.filter(order => {
+      const orderTime = new Date(order.created_at).getTime()
+      return orderTime >= twoYearsAgo && orderTime < start // Before current period
+    })
+
+    const historicalDays = historicalOrders.length > 0
+      ? Math.max(1, Math.ceil((start - Math.max(twoYearsAgo, new Date(Math.min(...historicalOrders.map(o => new Date(o.created_at).getTime()))).getTime())) / (24 * 60 * 60 * 1000)))
+      : 1
+
+    // Calculate per-dish stats for the selected period
+    const dishTrends = dishes
+      .filter(dish => dish.is_active !== false && activeCategoryIds.includes(dish.category_id))
+      .map(dish => {
+        // Current period sales
+        const periodSales = categoryFilteredOrders.flatMap(order =>
+          (order.items || []).filter(item => item.dish_id === dish.id)
+        )
+        const periodQuantity = periodSales.reduce((sum, item) => sum + item.quantity, 0)
+        const periodAvgPerDay = periodQuantity / periodDays
+
+        // Historical average
+        const historicalSales = historicalOrders.flatMap(order =>
+          (order.items || []).filter(item => item.dish_id === dish.id)
+        )
+        const historicalQuantity = historicalSales.reduce((sum, item) => sum + item.quantity, 0)
+        const historicalAvgPerDay = historicalQuantity / historicalDays
+
+        // Calculate percentage change
+        let percentageChange = 0
+        if (historicalAvgPerDay > 0) {
+          percentageChange = ((periodAvgPerDay - historicalAvgPerDay) / historicalAvgPerDay) * 100
+        } else if (periodAvgPerDay > 0) {
+          percentageChange = 100 // New dish with sales
+        }
+
+        const category = categories.find(c => c.id === dish.category_id)
+
+        return {
+          name: dish.name,
+          category: category?.name || 'Sconosciuta',
+          change: Math.round(percentageChange * 10) / 10,
+          periodQuantity
+        }
+      })
+      .filter(dish => Math.abs(dish.change) >= 20 && dish.periodQuantity > 0) // Significant changes only
+      .sort((a, b) => Math.abs(b.change) - Math.abs(a.change))
+
+    return {
+      topTrend: dishTrends[0] || null,
+      allTrends: dishTrends.slice(0, 5)
+    }
+  }, [categoryFilteredOrders, allOrders, dishes, categories, start, end, activeCategoryIds])
+
   // Inventory (Magazzino) calculations
   const inventoryData = useMemo(() => {
     const { start: invStart, end: invEnd } = getInventoryDateRange(inventoryPeriod)
@@ -486,10 +545,10 @@ export default function AnalyticsCharts({ orders, completedOrders, dishes, categ
           <Card className="shadow-lg border-none bg-gradient-to-br from-orange-500/5 to-orange-500/10">
             <CardContent className="p-6">
               <div className="flex items-center gap-3">
-                <div className={`p-3 rounded-xl ${inventoryData.trendAlerts?.[0]?.change > 0 ? 'bg-green-500/10' : inventoryData.trendAlerts?.[0]?.change < 0 ? 'bg-red-500/10' : 'bg-orange-500/10'}`}>
-                  {inventoryData.trendAlerts?.[0]?.change > 0 ? (
+                <div className={`p-3 rounded-xl ${periodTrendData.topTrend?.change > 0 ? 'bg-green-500/10' : periodTrendData.topTrend?.change < 0 ? 'bg-red-500/10' : 'bg-orange-500/10'}`}>
+                  {periodTrendData.topTrend?.change > 0 ? (
                     <TrendUp size={24} className="text-green-600" />
-                  ) : inventoryData.trendAlerts?.[0]?.change < 0 ? (
+                  ) : periodTrendData.topTrend?.change < 0 ? (
                     <TrendDown size={24} className="text-red-600" />
                   ) : (
                     <Star size={24} className="text-orange-600" weight="fill" />
@@ -497,11 +556,11 @@ export default function AnalyticsCharts({ orders, completedOrders, dishes, categ
                 </div>
                 <div className="min-w-0 flex-1">
                   <p className="text-sm text-muted-foreground font-medium">Trend del Periodo</p>
-                  {inventoryData.trendAlerts && inventoryData.trendAlerts.length > 0 ? (
+                  {periodTrendData.topTrend ? (
                     <div className="flex items-center gap-2">
-                      <p className="text-lg font-bold tracking-tight truncate">{inventoryData.trendAlerts[0].name}</p>
-                      <span className={`text-sm font-bold ${inventoryData.trendAlerts[0].change > 0 ? 'text-green-600' : 'text-red-600'}`}>
-                        {inventoryData.trendAlerts[0].change > 0 ? '+' : ''}{inventoryData.trendAlerts[0].change}%
+                      <p className="text-lg font-bold tracking-tight truncate">{periodTrendData.topTrend.name}</p>
+                      <span className={`text-sm font-bold ${periodTrendData.topTrend.change > 0 ? 'text-green-600' : 'text-red-600'}`}>
+                        {periodTrendData.topTrend.change > 0 ? '+' : ''}{periodTrendData.topTrend.change}%
                       </span>
                     </div>
                   ) : (

@@ -42,6 +42,7 @@ export interface Restaurant {
     waiter_mode_enabled?: boolean
     allow_waiter_payments?: boolean
     waiter_password?: string
+    courses_enabled?: boolean
 }
 
 export interface Category {

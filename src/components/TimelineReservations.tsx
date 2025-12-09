@@ -466,7 +466,7 @@ export default function TimelineReservations({ user, restaurantId, tables, booki
       </div>
 
       {/* Timeline Header - Time Labels */}
-      <div className="relative ml-32 mr-4 h-12 flex items-end px-2 bg-muted/40 rounded-t-xl border border-border/40">
+      <div className="relative ml-32 mr-4 h-10 flex items-center px-2 bg-muted/40 rounded-t-xl border border-border/40 border-b-0">
         {timeSlots.map((slot, i) => {
           const minutes = slot.hour * 60 + slot.minute
           const relativeStart = minutes - TIMELINE_START_MINUTES
@@ -475,11 +475,10 @@ export default function TimelineReservations({ user, restaurantId, tables, booki
           return (
             <div
               key={i}
-              className="absolute top-0 flex flex-col items-center"
+              className="absolute top-0 bottom-0 flex items-center"
               style={{ left: `${left}%`, transform: 'translateX(-50%)' }}
             >
               <span className="text-sm font-semibold text-foreground bg-background/80 px-2 py-0.5 rounded shadow-sm border">{slot.time}</span>
-              <div className="h-3 w-0.5 bg-primary/40 mt-1"></div>
             </div>
           )
         })}
@@ -530,8 +529,12 @@ export default function TimelineReservations({ user, restaurantId, tables, booki
 
               if (isHighlighted) {
                 tableColor = 'bg-gradient-to-r from-amber-50 to-amber-100/80 dark:from-amber-950/40 dark:to-amber-900/30 border-l-4 border-amber-400 animate-pulse'
+              } else if (isCurrentlyOccupied) {
+                tableColor = 'bg-gradient-to-r from-red-50 to-red-100/80 dark:from-red-950/40 dark:to-red-900/30 border-l-4 border-red-400'
               } else if (isAvailable && searchTime) {
                 tableColor = 'bg-gradient-to-r from-teal-50/80 to-teal-100/50 dark:from-teal-950/30 dark:to-teal-900/20 border-l-4 border-teal-400'
+              } else {
+                tableColor = 'bg-gradient-to-r from-green-50 to-green-100/80 dark:from-green-950/40 dark:to-green-900/30 border-l-4 border-green-400'
               }
 
               return (
@@ -594,7 +597,7 @@ export default function TimelineReservations({ user, restaurantId, tables, booki
                             key={block.booking.id}
                             draggable={!isCompleted}
                             onDragStart={(e) => handleDragStart(e, block.booking.id)}
-                            className={`absolute top-2 bottom-2 rounded-md shadow-sm border border-black/10 flex items-center justify-between px-2 overflow-hidden transition-all hover:shadow-md hover:scale-[1.02] z-20 ${isCompleted ? 'opacity-40' : 'cursor-move'} ${canComplete ? 'ring-2 ring-green-400 ring-offset-1' : ''}`}
+                            className={`absolute top-2 bottom-2 rounded-lg shadow-md border border-black/10 flex items-center justify-between px-3 overflow-hidden transition-all hover:shadow-lg hover:scale-[1.02] z-20 ${isCompleted ? 'opacity-70' : 'cursor-move'} ${canComplete ? 'ring-2 ring-green-400 ring-offset-1' : ''}`}
                             style={{
                               left: `${getBlockStyle(block.startMinutes, block.duration).left}`,
                               width: `${getBlockStyle(block.startMinutes, block.duration).width}`,
@@ -607,10 +610,10 @@ export default function TimelineReservations({ user, restaurantId, tables, booki
                               onEditBooking?.(block.booking)
                             }}
                           >
-                            <div className="flex flex-col overflow-hidden">
-                              <span className="font-bold text-xs truncate">{block.booking.name}</span>
-                              <span className="text-[10px] truncate opacity-90">
-                                🕐 {minutesToTime(block.startMinutes)} • {block.booking.guests} ospiti
+                            <div className="flex flex-col overflow-hidden min-w-0 flex-1">
+                              <span className="font-bold text-base truncate">{block.booking.name}</span>
+                              <span className="text-sm truncate opacity-90 font-medium">
+                                {minutesToTime(block.startMinutes)} • {block.booking.guests} ospiti
                               </span>
                             </div>
 
