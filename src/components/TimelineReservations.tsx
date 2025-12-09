@@ -260,11 +260,177 @@ export default function TimelineReservations({ user, restaurantId, tables, booki
     setShowReservationDialog(true)
   }
 
-  // ... (keep creating handleCreateReservation)
+  const handleCreateReservation = async () => {
+    if (!newReservation.name || !newReservation.guests || !newReservation.time || !newReservation.tableId) {
+      toast.error('Compila tutti i campi')
+      return
+    }
 
-  // ... (keep drag handlers)
+    try {
+      const dateTime = `${selectedDate}T${newReservation.time}:00`
 
-  // ... (keep render loop)
+      await DatabaseService.createBooking({
+        restaurant_id: restaurantId,
+        table_id: newReservation.tableId,
+        date_time: dateTime,
+        guests: Number(newReservation.guests),
+        status: 'CONFIRMED',
+        name: newReservation.name,
+        phone: newReservation.phone,
+        notes: ''
+      })
+
+      toast.success('Prenotazione creata')
+      setShowReservationDialog(false)
+      setNewReservation({ name: '', phone: '', guests: 2, time: '', tableId: '' })
+      onRefresh?.()
+    } catch (error) {
+      console.error('Error creating reservation:', error)
+      toast.error('Errore creazione prenotazione')
+    }
+  }
+
+  // Drag and Drop Handlers
+  const handleDragStart = (e: React.DragEvent, bookingId: string, duration: number) => {
+    e.dataTransfer.setData('bookingId', bookingId)
+    setDraggedBookingId(bookingId)
+
+    // Calculate click offset relative to the block
+    const rect = e.currentTarget.getBoundingClientRect()
+    const clickX = e.clientX - rect.left
+    const offsetPercentage = clickX / rect.width
+    const offsetMinutes = Math.round(offsetPercentage * duration)
+    setDragOffsetMinutes(offsetMinutes)
+  }
+
+  const handleDragOver = (e: React.DragEvent) => {
+    e.preventDefault()
+  }
+
+  const handleDrop = (e: React.DragEvent, tableId: string) => {
+    e.preventDefault()
+    const bookingId = e.dataTransfer.getData('bookingId')
+    if (!bookingId) return
+
+    const rect = e.currentTarget.getBoundingClientRect()
+    const clickX = e.clientX - rect.left
+    const percentage = (clickX / rect.width) * 100
+    const totalMinutes = TIMELINE_DURATION
+
+    // Position on timeline in minutes
+    const mouseMinutes = TIMELINE_START_MINUTES + (percentage / 100) * totalMinutes
+
+    // Adjust for the drag offset
+    const adjustedStartMinutes = mouseMinutes - dragOffsetMinutes
+
+    // Snap to 15 mins
+    const roundedMinutes = Math.round(adjustedStartMinutes / 15) * 15
+    const newTime = minutesToTime(roundedMinutes)
+
+    if (hasConflict(tableId, newTime, reservationDuration, bookingId)) {
+      toast.error('Orario occupato o sovrapposto')
+      return
+    }
+
+    setDropTarget({ tableId, time: newTime })
+    setShowDragConfirmDialog(true)
+  }
+
+  const confirmMove = async () => {
+    if (!draggedBookingId || !dropTarget) return
+
+    try {
+      const dateTime = `${selectedDate}T${dropTarget.time}:00`
+      await DatabaseService.updateBooking({
+        id: draggedBookingId,
+        table_id: dropTarget.tableId,
+        date_time: dateTime
+      })
+      toast.success('Prenotazione spostata')
+      onRefresh?.()
+    } catch (error) {
+      console.error('Move error:', error)
+      toast.error('Errore spostamento')
+    } finally {
+      setShowDragConfirmDialog(false)
+      setDraggedBookingId(null)
+      setDropTarget(null)
+    }
+  }
+
+  const handleCompleteBooking = (booking: Booking) => {
+    setBookingToArrive(booking)
+    setShowArriveConfirmDialog(true)
+  }
+
+  const confirmCompleteBooking = async () => {
+    if (!bookingToArrive) return
+
+    try {
+      await DatabaseService.updateBooking({
+        id: bookingToArrive.id,
+        status: 'COMPLETED'
+      })
+      toast.success('Prenotazione completata! 👍')
+      onRefresh?.()
+    } catch (error) {
+      console.error('Complete error:', error)
+      toast.error('Errore completamento prenotazione')
+    } finally {
+      setShowArriveConfirmDialog(false)
+      setBookingToArrive(null)
+    }
+  }
+
+  const handleDeleteReservation = (booking: Booking) => {
+    setBookingToDelete(booking)
+    setShowDeleteConfirmDialog(true)
+  }
+
+  const confirmDeleteReservation = async () => {
+    if (!bookingToDelete) return
+
+    try {
+      if (onDeleteBooking) {
+        onDeleteBooking(bookingToDelete.id)
+      } else {
+        await DatabaseService.deleteBooking(bookingToDelete.id)
+      }
+      toast.success('Prenotazione eliminata')
+      onRefresh?.()
+    } catch (error) {
+      console.error('Delete error:', error)
+      toast.error('Errore durante l\'eliminazione')
+    } finally {
+      setShowDeleteConfirmDialog(false)
+      setBookingToDelete(null)
+    }
+  }
+
+  const handleSmartSearch = () => {
+    if (!searchTime) {
+      toast.error('Seleziona un orario')
+      return
+    }
+
+    const available = restaurantTables.filter(table => {
+      const guests = typeof searchGuests === 'string' ? parseInt(searchGuests) || 1 : searchGuests
+      if ((table.seats || 0) < guests) return false
+      return !hasConflict(table.id, searchTime, 120)
+    })
+
+    setAvailableTables(available)
+
+    if (available.length === 0) {
+      toast.error('Nessun tavolo disponibile per questo orario')
+    } else {
+      toast.success(`${available.length} tavolo/i disponibile/i`)
+      if (available.length > 0) {
+        setHighlightedTableId(available[0].id)
+        setTimeout(() => setHighlightedTableId(null), 5000)
+      }
+    }
+  }
 
   const getCurrentTimePosition = () => {
     const now = new Date()
