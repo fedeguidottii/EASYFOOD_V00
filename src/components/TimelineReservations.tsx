@@ -490,11 +490,12 @@ export default function TimelineReservations({ user, restaurantId, tables, booki
                         )
                       })}
 
-                  </div >
-                  )
-      })}
+                  </div>
                 </div>
-  </CardContent>
+              )
+            })}
+          </div>
+        </CardContent>
       </Card >
 
       {/* DIALOGS */}
