@@ -644,78 +644,67 @@ export default function CustomerMenu({ tableId: propTableId, onExit, interfaceMo
         </header>
 
         <main className="p-3 pb-32">
-          <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-2">
+          <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-3">
             {filteredDishes.map((dish) => (
-              <Card key={dish.id} className="overflow-hidden border-slate-700/50 bg-slate-800/50 hover:bg-slate-800 transition-all cursor-pointer group" onClick={() => setSelectedDish(dish)}>
-                <CardContent className="p-2">
-                  <div className="flex items-start justify-between gap-2">
-                    <h3 className="font-semibold text-xs text-white leading-tight line-clamp-2 flex-1">{dish.name}</h3>
-                    <span className="text-emerald-400 font-bold text-xs whitespace-nowrap">€{dish.price.toFixed(2)}</span>
+              <button
+                key={dish.id}
+                onClick={() => setSelectedDish(dish)}
+                className="relative overflow-hidden bg-slate-800 hover:bg-slate-700 active:scale-[0.98] transition-all rounded-xl p-3 h-24 flex flex-col justify-between items-start text-left border border-slate-700 shadow-sm group"
+              >
+                <div className="w-full">
+                  <h3 className="font-bold text-sm text-white leading-tight line-clamp-2">{dish.name}</h3>
+                </div>
+                <div className="w-full flex justify-between items-end mt-2">
+                  <span className="text-emerald-400 font-bold text-sm">€{dish.price.toFixed(2)}</span>
+                  <div className="bg-slate-700 p-1.5 rounded-lg group-hover:bg-slate-600 transition-colors">
+                    <Plus className="w-4 h-4 text-emerald-500" />
                   </div>
-                </CardContent>
-              </Card>
+                </div>
+              </button>
             ))}
           </div>
         </main>
 
         {/* Add Dish Dialog (Waiter Mode) */}
         <Dialog open={!!selectedDish} onOpenChange={(open) => !open && setSelectedDish(null)}>
-          <DialogContent className="sm:max-w-sm bg-white dark:bg-slate-900 rounded-3xl border-0 shadow-2xl p-0 overflow-hidden">
+          <DialogContent className="sm:max-w-[340px] bg-slate-900 border border-slate-800 text-white p-0 gap-0 overflow-hidden shadow-2xl rounded-3xl translate-y-[-50%] top-[50%]">
             {selectedDish && (
-              <>
-                <div className="h-48 relative">
-                  {selectedDish.image_url ? (
-                    <img src={selectedDish.image_url} alt={selectedDish.name} className="w-full h-full object-cover" />
-                  ) : (
-                    <div className="w-full h-full bg-slate-100 dark:bg-slate-800 flex items-center justify-center">
-                      <Utensils className="w-12 h-12 text-slate-300" />
-                    </div>
-                  )}
-                  <Button
-                    variant="ghost"
-                    size="icon"
-                    className="absolute top-2 right-2 bg-black/20 hover:bg-black/40 text-white rounded-full backdrop-blur-sm"
-                    onClick={() => setSelectedDish(null)}
-                  >
-                    <X className="w-5 h-5" />
+              <div className="flex flex-col h-full bg-slate-900 text-white">
+                <div className="flex items-start justify-between p-5 border-b border-slate-800 bg-slate-900/50">
+                  <div>
+                    <h2 className="text-lg font-bold leading-tight pr-4">{selectedDish.name}</h2>
+                    <p className="text-emerald-400 font-bold mt-1">€{selectedDish.price.toFixed(2)}</p>
+                  </div>
+                  <Button variant="ghost" size="icon" onClick={() => setSelectedDish(null)} className="-mt-1 -mr-2 text-slate-400 hover:text-white hover:bg-slate-800 rounded-full h-10 w-10">
+                    <X className="w-6 h-6" />
                   </Button>
                 </div>
 
-                <div className="p-6 pt-4 space-y-4">
-                  <div>
-                    <h2 className="text-xl font-bold text-slate-900 dark:text-white leading-tight">{selectedDish.name}</h2>
-                    <p className="text-sm text-slate-500 mt-1 line-clamp-2">{selectedDish.description}</p>
-                    <p className="text-lg font-bold text-emerald-600 mt-2">€{selectedDish.price.toFixed(2)}</p>
-                  </div>
-
-                  {/* Quantity Selector */}
-                  <div className="flex items-center justify-between bg-slate-50 dark:bg-slate-800 p-2 rounded-xl border border-slate-100 dark:border-slate-700">
-                    <span className="text-sm font-medium pl-2">Quantità</span>
+                <div className="p-5 space-y-5">
+                  {/* Quantity */}
+                  <div className="flex items-center justify-between bg-slate-800/50 p-2 rounded-xl border border-slate-800">
+                    <span className="text-sm font-medium pl-2 text-slate-300">Quantità</span>
                     <div className="flex items-center gap-3">
-                      <Button variant="outline" size="icon" className="h-8 w-8 rounded-lg shrink-0" onClick={() => setDishQuantity(q => Math.max(1, q - 1))} disabled={dishQuantity <= 1}>
-                        <Minus className="w-4 h-4" />
-                      </Button>
-                      <span className="w-8 text-center font-bold text-lg">{dishQuantity}</span>
-                      <Button variant="outline" size="icon" className="h-8 w-8 rounded-lg shrink-0" onClick={() => setDishQuantity(q => q + 1)}>
-                        <Plus className="w-4 h-4" />
-                      </Button>
+                      <Button variant="outline" size="icon" className="h-10 w-10 border-slate-600 bg-slate-700 hover:bg-slate-600 hover:text-white text-white rounded-lg" onClick={() => setDishQuantity(q => Math.max(1, q - 1))} disabled={dishQuantity <= 1}><Minus className="w-5 h-5" /></Button>
+                      <span className="w-8 text-center font-bold text-xl">{dishQuantity}</span>
+                      <Button variant="outline" size="icon" className="h-10 w-10 border-slate-600 bg-slate-700 hover:bg-slate-600 hover:text-white text-white rounded-lg" onClick={() => setDishQuantity(q => q + 1)}><Plus className="w-5 h-5" /></Button>
                     </div>
                   </div>
 
-                  {/* Course Selector (Dialog) */}
+                  {/* Course */}
                   <div className="space-y-2">
-                    <span className="text-sm font-medium text-slate-700 dark:text-slate-300">Portata</span>
-                    <div className="flex gap-2 overflow-x-auto pb-2 scrollbar-hide">
+                    <span className="text-xs font-bold text-slate-500 uppercase tracking-wider">Portata</span>
+                    <div className="grid grid-cols-5 gap-2">
                       {[1, 2, 3, 4, 5].map(num => (
                         <button
                           key={num}
-                          onClick={() => setActiveWaitCourse(num)} // Syncs with main header
-                          className={`px-3 py-2 text-xs font-bold rounded-lg border transition-all whitespace-nowrap ${activeWaitCourse === num
-                            ? 'bg-emerald-600 text-white border-emerald-500'
-                            : 'bg-slate-50 dark:bg-slate-800 text-slate-500 border-slate-200 dark:border-slate-700'
+                          onClick={() => setActiveWaitCourse(num)}
+                          className={`h-10 text-sm font-bold rounded-lg border transition-all ${activeWaitCourse === num
+                            ? 'bg-emerald-600 text-white border-emerald-500 shadow-lg shadow-emerald-900/20'
+                            : 'bg-slate-800 text-slate-400 border-slate-700 hover:bg-slate-700'
                             }`}
                         >
-                          Portata {num}
+                          {num}
                         </button>
                       ))}
                     </div>
@@ -723,25 +712,25 @@ export default function CustomerMenu({ tableId: propTableId, onExit, interfaceMo
 
                   {/* Notes */}
                   <div className="space-y-2">
-                    <span className="text-sm font-medium text-slate-700 dark:text-slate-300">Note cucina</span>
+                    <span className="text-xs font-bold text-slate-500 uppercase tracking-wider">Note</span>
                     <Textarea
                       placeholder="Es. Senza cipolla..."
-                      className="bg-slate-50 dark:bg-slate-800 border-slate-200 dark:border-slate-700 resize-none h-20 text-sm"
+                      className="bg-slate-800 border-slate-700 text-white min-h-[80px] focus:ring-emerald-500/50 focus:border-emerald-500 placeholder:text-slate-600"
                       value={dishNote}
                       onChange={(e) => setDishNote(e.target.value)}
                     />
                   </div>
 
                   <Button
-                    className="w-full h-12 bg-emerald-600 hover:bg-emerald-700 text-white font-bold rounded-xl shadow-lg shadow-emerald-500/20"
+                    className="w-full h-14 bg-emerald-600 hover:bg-emerald-700 text-white font-bold rounded-xl text-lg shadow-lg shadow-emerald-500/20 mt-2 active:scale-[0.98] transition-transform"
                     onClick={() => {
                       addToCart(selectedDish, dishQuantity, dishNote, activeWaitCourse);
                     }}
                   >
-                    Aggiungi {dishQuantity}x - €{(selectedDish.price * dishQuantity).toFixed(2)}
+                    AGGIUNGI - €{(selectedDish.price * dishQuantity).toFixed(2)}
                   </Button>
                 </div>
-              </>
+              </div>
             )}
           </DialogContent>
         </Dialog>
