@@ -491,155 +491,158 @@ export default function TimelineReservations({ user, restaurantId, tables, booki
                       })}
 
                   </div >
-                </CardContent >
+                  )
+      })}
+                </div>
+  </CardContent>
       </Card >
 
-          {/* DIALOGS */}
+      {/* DIALOGS */}
 
-          {/* Search Table Dialog */}
-          <Dialog open={showSmartSearch} onOpenChange={setShowSmartSearch}>
-            <DialogContent>
-              <DialogHeader>
-                <DialogTitle>Ricerca Tavolo Disponibile</DialogTitle>
-                <DialogDescription>
-                  Inserisci orario e numero di persone per trovare un tavolo libero.
-                </DialogDescription>
-              </DialogHeader>
-              <div className="space-y-4 py-4">
-                <div className="grid gap-4 md:grid-cols-2">
-                  <div className="space-y-2">
-                    <Label htmlFor="search-time">Orario</Label>
-                    <Input
-                      id="search-time"
-                      type="time"
-                      value={searchTime}
-                      onChange={(e) => setSearchTime(e.target.value)}
-                    />
-                  </div>
-                  <div className="space-y-2">
-                    <Label htmlFor="search-guests">Persone</Label>
-                    <Input
-                      id="search-guests"
-                      type="number"
-                      min="1"
-                      value={searchGuests}
-                      onChange={(e) => setSearchGuests(e.target.value)}
-                    />
-                  </div>
-                </div>
-                <Button onClick={handleSmartSearch} className="w-full">
-                  <Search className="mr-2" size={16} /> Cerca
-                </Button>
+      {/* Search Table Dialog */}
+      <Dialog open={showSmartSearch} onOpenChange={setShowSmartSearch}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Ricerca Tavolo Disponibile</DialogTitle>
+            <DialogDescription>
+              Inserisci orario e numero di persone per trovare un tavolo libero.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4 py-4">
+            <div className="grid gap-4 md:grid-cols-2">
+              <div className="space-y-2">
+                <Label htmlFor="search-time">Orario</Label>
+                <Input
+                  id="search-time"
+                  type="time"
+                  value={searchTime}
+                  onChange={(e) => setSearchTime(e.target.value)}
+                />
               </div>
-            </DialogContent>
-          </Dialog>
-
-
-          <Dialog open={showReservationDialog} onOpenChange={setShowReservationDialog}>
-            <DialogContent>
-              <DialogHeader>
-                <DialogTitle>Nuova Prenotazione</DialogTitle>
-                <DialogDescription>
-                  Aggiungi una prenotazione per il {selectedDate} alle {newReservation.time}
-                </DialogDescription>
-              </DialogHeader>
-              <div className="space-y-4 py-4">
-                <div className="grid gap-4 md:grid-cols-2">
-                  <div className="space-y-2">
-                    <Label htmlFor="res-name">Nome Cliente</Label>
-                    <Input
-                      id="res-name"
-                      value={newReservation.name}
-                      onChange={(e) => setNewReservation(prev => ({ ...prev, name: e.target.value }))}
-                      placeholder="Nome"
-                    />
-                  </div>
-                  <div className="space-y-2">
-                    <Label htmlFor="res-phone">Telefono</Label>
-                    <Input
-                      id="res-phone"
-                      value={newReservation.phone}
-                      onChange={(e) => setNewReservation(prev => ({ ...prev, phone: e.target.value }))}
-                      placeholder="Telefono"
-                    />
-                  </div>
-                </div>
-                <div className="grid gap-4 md:grid-cols-2">
-                  <div className="space-y-2">
-                    <Label htmlFor="res-guests">Ospiti</Label>
-                    <Input
-                      id="res-guests"
-                      type="number"
-                      min="1"
-                      value={newReservation.guests}
-                      onChange={(e) => {
-                        const val = e.target.value
-                        setNewReservation(prev => ({ ...prev, guests: val === '' ? '' : parseInt(val) }))
-                      }}
-                    />
-                  </div>
-                  <div className="space-y-2">
-                    <Label htmlFor="res-time">Orario</Label>
-                    <Input
-                      id="res-time"
-                      type="time"
-                      value={newReservation.time}
-                      onChange={(e) => setNewReservation(prev => ({ ...prev, time: e.target.value }))}
-                    />
-                  </div>
-                </div>
-                <Button onClick={handleCreateReservation} className="w-full">Conferma Prenotazione</Button>
+              <div className="space-y-2">
+                <Label htmlFor="search-guests">Persone</Label>
+                <Input
+                  id="search-guests"
+                  type="number"
+                  min="1"
+                  value={searchGuests}
+                  onChange={(e) => setSearchGuests(e.target.value)}
+                />
               </div>
-            </DialogContent>
-          </Dialog>
+            </div>
+            <Button onClick={handleSmartSearch} className="w-full">
+              <Search className="mr-2" size={16} /> Cerca
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
 
-          <Dialog open={showDragConfirmDialog} onOpenChange={(open) => { if (!open) { setDraggedBookingId(null); setDropTarget(null); setShowDragConfirmDialog(false) } }}>
-            <DialogContent>
-              <DialogHeader>
-                <DialogTitle>Sposta Prenotazione</DialogTitle>
-                <DialogDescription>
-                  Sei sicuro di voler spostare la prenotazione alle {dropTarget?.time}?
-                </DialogDescription>
-              </DialogHeader>
-              <div className="flex justify-end gap-2 mt-4">
-                <Button variant="outline" onClick={() => setShowDragConfirmDialog(false)}>Annulla</Button>
-                <Button onClick={confirmMove}>Conferma Spostamento</Button>
-              </div>
-            </DialogContent>
-          </Dialog>
 
-          {/* Delete Confirmation Dialog */}
-          <Dialog open={showDeleteConfirmDialog} onOpenChange={setShowDeleteConfirmDialog}>
-            <DialogContent>
-              <DialogHeader>
-                <DialogTitle className="text-destructive">Elimina Prenotazione</DialogTitle>
-                <DialogDescription>
-                  Sei sicuro di voler eliminare la prenotazione di {bookingToDelete?.name}?
-                  <br />L'azione è irreversibile.
-                </DialogDescription>
-              </DialogHeader>
-              <div className="flex justify-end gap-2 mt-4">
-                <Button variant="outline" onClick={() => setShowDeleteConfirmDialog(false)}>Annulla</Button>
-                <Button variant="destructive" onClick={confirmDeleteReservation}>Elimina</Button>
+      <Dialog open={showReservationDialog} onOpenChange={setShowReservationDialog}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Nuova Prenotazione</DialogTitle>
+            <DialogDescription>
+              Aggiungi una prenotazione per il {selectedDate} alle {newReservation.time}
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4 py-4">
+            <div className="grid gap-4 md:grid-cols-2">
+              <div className="space-y-2">
+                <Label htmlFor="res-name">Nome Cliente</Label>
+                <Input
+                  id="res-name"
+                  value={newReservation.name}
+                  onChange={(e) => setNewReservation(prev => ({ ...prev, name: e.target.value }))}
+                  placeholder="Nome"
+                />
               </div>
-            </DialogContent>
-          </Dialog>
+              <div className="space-y-2">
+                <Label htmlFor="res-phone">Telefono</Label>
+                <Input
+                  id="res-phone"
+                  value={newReservation.phone}
+                  onChange={(e) => setNewReservation(prev => ({ ...prev, phone: e.target.value }))}
+                  placeholder="Telefono"
+                />
+              </div>
+            </div>
+            <div className="grid gap-4 md:grid-cols-2">
+              <div className="space-y-2">
+                <Label htmlFor="res-guests">Ospiti</Label>
+                <Input
+                  id="res-guests"
+                  type="number"
+                  min="1"
+                  value={newReservation.guests}
+                  onChange={(e) => {
+                    const val = e.target.value
+                    setNewReservation(prev => ({ ...prev, guests: val === '' ? '' : parseInt(val) }))
+                  }}
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="res-time">Orario</Label>
+                <Input
+                  id="res-time"
+                  type="time"
+                  value={newReservation.time}
+                  onChange={(e) => setNewReservation(prev => ({ ...prev, time: e.target.value }))}
+                />
+              </div>
+            </div>
+            <Button onClick={handleCreateReservation} className="w-full">Conferma Prenotazione</Button>
+          </div>
+        </DialogContent>
+      </Dialog>
 
-          {/* Arrived Confirmation Dialog */}
-          <Dialog open={showArriveConfirmDialog} onOpenChange={setShowArriveConfirmDialog}>
-            <DialogContent>
-              <DialogHeader>
-                <DialogTitle>Conferma Arrivo</DialogTitle>
-                <DialogDescription>
-                  Vuoi segnare la prenotazione di {bookingToArrive?.name} come "Arrivata"?
-                </DialogDescription>
-              </DialogHeader>
-              <div className="flex justify-end gap-2 mt-4">
-                <Button variant="outline" onClick={() => setShowArriveConfirmDialog(false)}>Annulla</Button>
-                <Button className="bg-green-600 hover:bg-green-700 text-white" onClick={confirmCompleteBooking}>Conferma</Button>
-              </div>
-            </DialogContent>
-          </Dialog>
-        </div >
-        )
+      <Dialog open={showDragConfirmDialog} onOpenChange={(open) => { if (!open) { setDraggedBookingId(null); setDropTarget(null); setShowDragConfirmDialog(false) } }}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Sposta Prenotazione</DialogTitle>
+            <DialogDescription>
+              Sei sicuro di voler spostare la prenotazione alle {dropTarget?.time}?
+            </DialogDescription>
+          </DialogHeader>
+          <div className="flex justify-end gap-2 mt-4">
+            <Button variant="outline" onClick={() => setShowDragConfirmDialog(false)}>Annulla</Button>
+            <Button onClick={confirmMove}>Conferma Spostamento</Button>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* Delete Confirmation Dialog */}
+      <Dialog open={showDeleteConfirmDialog} onOpenChange={setShowDeleteConfirmDialog}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle className="text-destructive">Elimina Prenotazione</DialogTitle>
+            <DialogDescription>
+              Sei sicuro di voler eliminare la prenotazione di {bookingToDelete?.name}?
+              <br />L'azione è irreversibile.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="flex justify-end gap-2 mt-4">
+            <Button variant="outline" onClick={() => setShowDeleteConfirmDialog(false)}>Annulla</Button>
+            <Button variant="destructive" onClick={confirmDeleteReservation}>Elimina</Button>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* Arrived Confirmation Dialog */}
+      <Dialog open={showArriveConfirmDialog} onOpenChange={setShowArriveConfirmDialog}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Conferma Arrivo</DialogTitle>
+            <DialogDescription>
+              Vuoi segnare la prenotazione di {bookingToArrive?.name} come "Arrivata"?
+            </DialogDescription>
+          </DialogHeader>
+          <div className="flex justify-end gap-2 mt-4">
+            <Button variant="outline" onClick={() => setShowArriveConfirmDialog(false)}>Annulla</Button>
+            <Button className="bg-green-600 hover:bg-green-700 text-white" onClick={confirmCompleteBooking}>Conferma</Button>
+          </div>
+        </DialogContent>
+      </Dialog>
+    </div >
+  )
 }
