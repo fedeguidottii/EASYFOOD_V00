@@ -599,12 +599,13 @@ export default function CustomerMenu({ tableId: propTableId, onExit, interfaceMo
     )
   }
 
-  // WAITER MODE
+  const [activeWaitCourse, setActiveWaitCourse] = useState(1)
+
   if (isWaiterMode) {
     return (
       <div className="min-h-screen bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 text-white">
         <header className="sticky top-0 z-30 bg-slate-900/95 backdrop-blur-xl border-b border-slate-700/50 px-4 py-3">
-          <div className="flex items-center justify-between">
+          <div className="flex items-center justify-between mb-3">
             <div className="flex items-center gap-3">
               <Button variant="ghost" size="icon" className="text-slate-400 hover:text-white hover:bg-slate-800" onClick={onExit}>
                 <ArrowLeft className="w-5 h-5" />
@@ -620,7 +621,20 @@ export default function CustomerMenu({ tableId: propTableId, onExit, interfaceMo
             </div>
           </div>
 
-          <div className="flex gap-2 mt-3 overflow-x-auto pb-1 scrollbar-hide">
+          <div className="flex items-center gap-2 mb-3 overflow-x-auto pb-1 scrollbar-hide">
+            {[1, 2, 3, 4, 5].map((num) => (
+              <button
+                key={num}
+                onClick={() => setActiveWaitCourse(num)}
+                className={`px-4 py-2 text-sm font-bold rounded-xl whitespace-nowrap transition-all flex items-center gap-2 border ${activeWaitCourse === num ? 'bg-emerald-600 text-white border-emerald-500 shadow-lg shadow-emerald-900/50' : 'bg-slate-800 text-slate-400 border-slate-700 hover:bg-slate-700'}`}
+              >
+                <Layers className={`w-4 h-4 ${activeWaitCourse === num ? 'text-white' : 'text-slate-500'}`} />
+                Portata {num}
+              </button>
+            ))}
+          </div>
+
+          <div className="flex gap-2 overflow-x-auto pb-1 scrollbar-hide">
             <button onClick={() => setActiveCategory('all')} className={`px-4 py-1.5 text-xs font-bold rounded-full whitespace-nowrap transition-all ${activeCategory === 'all' ? 'bg-emerald-500 text-white' : 'bg-slate-800 text-slate-400 hover:bg-slate-700'}`}>Tutto</button>
             {sortedCategories.map((cat) => (
               <button key={cat.id} onClick={() => setActiveCategory(cat.id)} className={`px-4 py-1.5 text-xs font-bold rounded-full whitespace-nowrap transition-all ${activeCategory === cat.id ? 'bg-emerald-500 text-white' : 'bg-slate-800 text-slate-400 hover:bg-slate-700'}`}>{cat.name}</button>
@@ -628,10 +642,10 @@ export default function CustomerMenu({ tableId: propTableId, onExit, interfaceMo
           </div>
         </header>
 
-        <main className="p-3 pb-28">
+        <main className="p-3 pb-32">
           <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-2">
             {filteredDishes.map((dish) => (
-              <Card key={dish.id} className="overflow-hidden border-slate-700/50 bg-slate-800/50 hover:bg-slate-800 transition-all cursor-pointer group" onClick={() => quickAddToCart(dish)}>
+              <Card key={dish.id} className="overflow-hidden border-slate-700/50 bg-slate-800/50 hover:bg-slate-800 transition-all cursor-pointer group" onClick={() => setSelectedDish(dish)}>
                 <CardContent className="p-2">
                   <div className="flex items-start justify-between gap-2">
                     <h3 className="font-semibold text-xs text-white leading-tight line-clamp-2 flex-1">{dish.name}</h3>
@@ -643,6 +657,188 @@ export default function CustomerMenu({ tableId: propTableId, onExit, interfaceMo
           </div>
         </main>
 
+        {/* Add Dish Dialog (Waiter Mode) */}
+        <Dialog open={!!selectedDish} onOpenChange={(open) => !open && setSelectedDish(null)}>
+          <DialogContent className="sm:max-w-sm bg-white dark:bg-slate-900 rounded-3xl border-0 shadow-2xl p-0 overflow-hidden">
+            {selectedDish && (
+              <>
+                <div className="h-48 relative">
+                  {selectedDish.image_url ? (
+                    <img src={selectedDish.image_url} alt={selectedDish.name} className="w-full h-full object-cover" />
+                  ) : (
+                    <div className="w-full h-full bg-slate-100 dark:bg-slate-800 flex items-center justify-center">
+                      <Utensils className="w-12 h-12 text-slate-300" />
+                    </div>
+                  )}
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    className="absolute top-2 right-2 bg-black/20 hover:bg-black/40 text-white rounded-full backdrop-blur-sm"
+                    onClick={() => setSelectedDish(null)}
+                  >
+                    <X className="w-5 h-5" />
+                  </Button>
+                </div>
+
+                <div className="p-6 pt-4 space-y-4">
+                  <div>
+                    <h2 className="text-xl font-bold text-slate-900 dark:text-white leading-tight">{selectedDish.name}</h2>
+                    <p className="text-sm text-slate-500 mt-1 line-clamp-2">{selectedDish.description}</p>
+                    <p className="text-lg font-bold text-emerald-600 mt-2">€{selectedDish.price.toFixed(2)}</p>
+                  </div>
+
+                  {/* Quantity Selector */}
+                  <div className="flex items-center justify-between bg-slate-50 dark:bg-slate-800 p-2 rounded-xl border border-slate-100 dark:border-slate-700">
+                    <span className="text-sm font-medium pl-2">Quantità</span>
+                    <div className="flex items-center gap-3">
+                      <Button variant="outline" size="icon" className="h-8 w-8 rounded-lg shrink-0" onClick={() => setDishQuantity(q => Math.max(1, q - 1))} disabled={dishQuantity <= 1}>
+                        <Minus className="w-4 h-4" />
+                      </Button>
+                      <span className="w-8 text-center font-bold text-lg">{dishQuantity}</span>
+                      <Button variant="outline" size="icon" className="h-8 w-8 rounded-lg shrink-0" onClick={() => setDishQuantity(q => q + 1)}>
+                        <Plus className="w-4 h-4" />
+                      </Button>
+                    </div>
+                  </div>
+
+                  {/* Course Selector (Dialog) */}
+                  <div className="space-y-2">
+                    <span className="text-sm font-medium text-slate-700 dark:text-slate-300">Portata</span>
+                    <div className="flex gap-2 overflow-x-auto pb-2 scrollbar-hide">
+                      {[1, 2, 3, 4, 5].map(num => (
+                        <button
+                          key={num}
+                          onClick={() => setActiveWaitCourse(num)} // Syncs with main header
+                          className={`px-3 py-2 text-xs font-bold rounded-lg border transition-all whitespace-nowrap ${activeWaitCourse === num
+                            ? 'bg-emerald-600 text-white border-emerald-500'
+                            : 'bg-slate-50 dark:bg-slate-800 text-slate-500 border-slate-200 dark:border-slate-700'
+                            }`}
+                        >
+                          Portata {num}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+
+                  {/* Notes */}
+                  <div className="space-y-2">
+                    <span className="text-sm font-medium text-slate-700 dark:text-slate-300">Note cucina</span>
+                    <Textarea
+                      placeholder="Es. Senza cipolla..."
+                      className="bg-slate-50 dark:bg-slate-800 border-slate-200 dark:border-slate-700 resize-none h-20 text-sm"
+                      value={dishNote}
+                      onChange={(e) => setDishNote(e.target.value)}
+                    />
+                  </div>
+
+                  <Button
+                    className="w-full h-12 bg-emerald-600 hover:bg-emerald-700 text-white font-bold rounded-xl shadow-lg shadow-emerald-500/20"
+                    onClick={() => {
+                      addToCart(selectedDish, dishQuantity, dishNote, activeWaitCourse);
+                    }}
+                  >
+                    Aggiungi {dishQuantity}x - €{(selectedDish.price * dishQuantity).toFixed(2)}
+                  </Button>
+                </div>
+              </>
+            )}
+          </DialogContent>
+        </Dialog>
+
+        {/* Cart/Bill Drawer */}
+        <Drawer open={isCartOpen} onOpenChange={setIsCartOpen}>
+          <DrawerContent className="bg-slate-900 border-slate-700 text-white max-h-[90vh]">
+            <DrawerHeader>
+              <DrawerTitle>Conto e Comanda</DrawerTitle>
+              <DrawerDescription className="text-slate-400">{tableName}</DrawerDescription>
+            </DrawerHeader>
+            <ScrollArea className="flex-1 p-4 max-h-[60vh]">
+              <div className="space-y-6">
+
+                {/* CURRENT CART */}
+                {cart.length > 0 && (
+                  <div className="space-y-4">
+                    <h3 className="font-bold text-emerald-400 text-sm uppercase tracking-wider">Nuovo Ordine (Da inviare)</h3>
+                    {courseNumbers.map(num => (
+                      <div key={num} className="bg-slate-800 rounded-xl p-3">
+                        <p className="text-xs font-bold text-slate-300 uppercase mb-2">Portata {num}</p>
+                        <div className="space-y-2">
+                          {cartByCourse[num]?.map((item) => (
+                            <div key={item.cartId} className="flex items-center justify-between">
+                              <div className="flex-1 min-w-0">
+                                <div className="flex items-baseline gap-2">
+                                  <span className="font-bold text-white">{item.quantity}x</span>
+                                  <span className="font-medium text-sm text-slate-200 truncate">{item.name}</span>
+                                </div>
+                                {item.notes && <p className="text-xs text-amber-500 italic">Note: {item.notes}</p>}
+                              </div>
+                              <div className="flex items-center gap-2">
+                                <span className="text-slate-400 text-sm">€{(item.price * item.quantity).toFixed(2)}</span>
+                                <div className="flex gap-1">
+                                  <Button variant="ghost" size="sm" className="h-6 w-6 p-0 text-slate-400 hover:text-white" onClick={() => updateCartItemQuantity(item.cartId, -1)}><Minus className="w-3 h-3" /></Button>
+                                  <Button variant="ghost" size="sm" className="h-6 w-6 p-0 text-slate-400 hover:text-white" onClick={() => updateCartItemQuantity(item.cartId, 1)}><Plus className="w-3 h-3" /></Button>
+                                </div>
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    ))}
+                    <div className="flex justify-between items-center text-sm font-medium pt-2 border-t border-slate-700">
+                      <span className="text-slate-400">Parziale Ordine Corrente</span>
+                      <span className="text-emerald-400">€{cartTotal.toFixed(2)}</span>
+                    </div>
+                  </div>
+                )}
+
+                {/* HISTORY / PREVIOUS ORDERS */}
+                {previousOrders.length > 0 && (
+                  <div className="space-y-3 opacity-80">
+                    <div className="flex items-center justify-between">
+                      <h3 className="font-bold text-slate-400 text-sm uppercase tracking-wider">Ordini Precedenti</h3>
+                      <span className="text-xs bg-slate-800 px-2 py-1 rounded text-slate-400">€{historyTotal.toFixed(2)}</span>
+                    </div>
+                    {previousOrders.map(order => (
+                      <div key={order.id} className="text-xs text-slate-500">
+                        Ord. #{order.id.slice(0, 4)} - {new Date(order.created_at).toLocaleTimeString().slice(0, 5)} - €{order.total_amount?.toFixed(2)}
+                      </div>
+                    ))}
+                  </div>
+                )}
+
+                <div className="h-4"></div>
+              </div>
+            </ScrollArea>
+
+            {/* TOTALS FOOTER */}
+            <div className="p-4 border-t border-slate-700 bg-slate-900">
+              <div className="flex justify-between items-end mb-4">
+                <div className="space-y-1">
+                  <p className="text-xs text-slate-400">Totale Tavolo</p>
+                  <p className="text-3xl font-bold text-white">€{grandTotal.toFixed(2)}</p>
+                </div>
+                <div className="text-right">
+                  <p className="text-xs text-slate-400">Coperti: {session?.guests || '-'}</p>
+                  {cartTotal > 0 && <p className="text-xs text-emerald-500 font-bold">+ €{cartTotal.toFixed(2)} (in attesa)</p>}
+                </div>
+              </div>
+
+              <div className="grid grid-cols-2 gap-3">
+                <Button variant="outline" className="h-12 border-slate-600 text-slate-300 hover:bg-slate-800 hover:text-white" onClick={() => { }}>
+                  <span className="flex flex-col items-center leading-none">
+                    <span className="font-bold">Stampa</span>
+                    <span className="text-[10px] font-normal opacity-70">Preconto</span>
+                  </span>
+                </Button>
+                <Button className="h-12 bg-emerald-600 hover:bg-emerald-700 text-white font-bold" onClick={handleSubmitClick} disabled={isOrderSubmitting || cart.length === 0}>
+                  {isOrderSubmitting ? 'Invio...' : <><Send className="w-4 h-4 mr-2" /> Invia Ordine</>}
+                </Button>
+              </div>
+            </div>
+          </DrawerContent>
+        </Drawer>
+
+        {/* Floating Bottom Bar (Summary) */}
         <AnimatePresence>
           {cart.length > 0 && (
             <motion.div
@@ -652,78 +848,35 @@ export default function CustomerMenu({ tableId: propTableId, onExit, interfaceMo
               className="fixed bottom-4 left-4 right-4 z-40"
             >
               <div className="bg-slate-900/95 backdrop-blur-xl rounded-2xl border border-slate-700/50 p-4 shadow-2xl flex items-center justify-between gap-4">
-                <div className="flex items-center gap-3">
+                <div onClick={() => setIsCartOpen(true)} className="flex items-center gap-3 cursor-pointer">
                   <div className="bg-emerald-500 text-white w-10 h-10 rounded-xl flex items-center justify-center font-bold">{cartCount}</div>
                   <div>
-                    <p className="text-xs text-slate-400">Totale</p>
+                    <p className="text-xs text-slate-400">In invio</p>
                     <p className="text-lg font-bold text-white">€{cartTotal.toFixed(2)}</p>
                   </div>
                 </div>
-                <Drawer open={isCartOpen} onOpenChange={setIsCartOpen}>
-                  <DrawerTrigger asChild>
-                    <Button variant="ghost" className="h-12 px-4 border border-slate-700 text-white hover:bg-slate-800">
-                      <ChevronUp className="w-5 h-5 mr-2" />
-                      Vedi
-                    </Button>
-                  </DrawerTrigger>
-                  <DrawerContent className="bg-slate-900 border-slate-700 text-white max-h-[80vh]">
-                    <DrawerHeader>
-                      <DrawerTitle>Riepilogo Ordine</DrawerTitle>
-                      <DrawerDescription className="text-slate-400">{tableName}</DrawerDescription>
-                    </DrawerHeader>
-                    <ScrollArea className="flex-1 p-4 max-h-[50vh]">
-                      <div className="space-y-4">
-                        {courseNumbers.map(num => (
-                          <div key={num} className="bg-slate-800 rounded-xl p-3">
-                            <p className="text-xs font-bold text-emerald-400 uppercase mb-2">Portata {num}</p>
-                            <div className="space-y-2">
-                              {cartByCourse[num]?.map((item) => (
-                                <div key={item.cartId} className="flex items-center justify-between">
-                                  <div className="flex-1 min-w-0">
-                                    <p className="font-medium text-sm text-white truncate">{item.name}</p>
-                                    <p className="text-xs text-slate-500">{item.quantity}x €{item.price.toFixed(2)}</p>
-                                  </div>
-                                  <div className="flex items-center gap-2">
-                                    <span className="text-slate-400 text-sm">€{(item.price * item.quantity).toFixed(2)}</span>
-                                    <div className="flex gap-1">
-                                      <Button variant="ghost" size="sm" className="h-6 w-6 p-0 text-slate-400 hover:text-white" onClick={() => updateCartItemQuantity(item.cartId, -1)}><Minus className="w-3 h-3" /></Button>
-                                      <Button variant="ghost" size="sm" className="h-6 w-6 p-0 text-slate-400 hover:text-white" onClick={() => updateCartItemQuantity(item.cartId, 1)}><Plus className="w-3 h-3" /></Button>
-                                    </div>
-                                  </div>
-                                </div>
-                              ))}
-                            </div>
-                          </div>
-                        ))}
-                        <Button variant="outline" className="w-full h-9 text-xs gap-2 border-dashed border-slate-600 text-slate-400 hover:text-white hover:border-slate-500" onClick={addNewCourse}><Plus className="w-3 h-3" />Nuova Portata</Button>
-                      </div>
-                    </ScrollArea>
-                    <div className="p-4 border-t border-slate-700">
-                      <div className="flex justify-between items-center mb-3">
-                        <span className="text-slate-400">Totale</span>
-                        <span className="text-2xl font-bold text-white">€{cartTotal.toFixed(2)}</span>
-                      </div>
-                      <Button className="w-full h-12 bg-emerald-600 hover:bg-emerald-700 text-white font-bold" onClick={handleSubmitClick} disabled={isOrderSubmitting}>
-                        {isOrderSubmitting ? 'Invio...' : <><Send className="w-4 h-4 mr-2" />Invia Ordine</>}
-                      </Button>
-                    </div>
-                  </DrawerContent>
-                </Drawer>
-                <Button className="h-12 px-6 bg-emerald-600 hover:bg-emerald-700 text-white font-bold" onClick={handleSubmitClick} disabled={isOrderSubmitting}>
-                  <Send className="w-5 h-5" />
-                </Button>
+
+                <div className="flex gap-2">
+                  <Button variant="ghost" className="h-12 w-12 p-0 border border-slate-700 text-white hover:bg-slate-800 rounded-xl" onClick={() => setIsCartOpen(true)}>
+                    <ChevronUp className="w-6 h-6" />
+                  </Button>
+                  <Button className="h-12 px-6 bg-emerald-600 hover:bg-emerald-700 text-white font-bold rounded-xl shadow-lg shadow-emerald-500/20" onClick={handleSubmitClick} disabled={isOrderSubmitting}>
+                    <Send className="w-5 h-5" />
+                  </Button>
+                </div>
               </div>
             </motion.div>
           )}
         </AnimatePresence>
 
+        {/* Confirm Send Dialog */}
         <Dialog open={showConfirmDialog} onOpenChange={setShowConfirmDialog}>
           <DialogContent className="sm:max-w-sm bg-slate-900 border-slate-700 text-white">
             <DialogHeader><DialogTitle>Conferma invio</DialogTitle><DialogDescription className="text-slate-400">Inviare l'ordine in cucina?</DialogDescription></DialogHeader>
             <div className="py-3">
               <div className="bg-slate-800 rounded-lg p-3 space-y-1">
                 {courseNumbers.map(num => (<p key={num} className="text-xs text-slate-300">• Portata {num}: {cartByCourse[num]?.length || 0} piatti</p>))}
-                <p className="text-sm font-bold pt-2 border-t border-slate-700 mt-2 text-white">Totale: €{cartTotal.toFixed(2)}</p>
+                <p className="text-sm font-bold pt-2 border-t border-slate-700 mt-2 text-white">Totale Ordine: €{cartTotal.toFixed(2)}</p>
               </div>
             </div>
             <div className="flex gap-2">
@@ -732,6 +885,116 @@ export default function CustomerMenu({ tableId: propTableId, onExit, interfaceMo
             </div>
           </DialogContent>
         </Dialog>
+
+        {/* Course Management (Drag & Drop) */}
+        <Dialog open={showCourseManagement} onOpenChange={setShowCourseManagement}>
+          <DialogContent className="max-w-lg bg-slate-50 dark:bg-slate-900 max-h-[85vh] overflow-hidden flex flex-col p-0 rounded-3xl">
+            <DialogHeader className="p-4 bg-white dark:bg-slate-900 border-b border-slate-200 dark:border-slate-800 z-10">
+              <DialogTitle>Organizza Portate</DialogTitle>
+              <DialogDescription>Trascina i piatti per cambiare l'ordine di uscita</DialogDescription>
+            </DialogHeader>
+
+            <div className="flex-1 min-h-0 relative flex flex-col overflow-hidden">
+              <DndContext
+                sensors={sensors}
+                collisionDetection={closestCenter}
+                onDragStart={handleDragStart}
+                onDragOver={handleDragOver}
+                onDragEnd={handleDragEnd}
+              >
+                <div className="flex-1 overflow-y-auto scrollbar-hide p-4 bg-slate-100 dark:bg-slate-950">
+                  <div className="space-y-4 pb-20">
+                    {Array.from({ length: maxCourse }, (_, i) => i + 1).map((courseNum) => (
+                      <DroppableCourse
+                        key={courseNum}
+                        id={`course-${courseNum}`}
+                        className="bg-white dark:bg-slate-900 rounded-2xl p-3 shadow-sm border border-slate-200 dark:border-slate-800"
+                      >
+                        <div className="flex items-center justify-center mb-3">
+                          <h3 className="font-bold text-emerald-600 dark:text-emerald-400 uppercase tracking-wider text-sm flex items-center gap-2 bg-emerald-50 dark:bg-emerald-900/20 px-4 py-2 rounded-full border border-emerald-200 dark:border-emerald-800">
+                            <Layers className="w-4 h-4" />
+                            {getCourseTitle(courseNum)}
+                          </h3>
+                        </div>
+
+                        <div className="space-y-2 min-h-[40px]">
+                          <SortableContext
+                            id={`course-${courseNum}`}
+                            items={cartByCourse[courseNum]?.map(i => i.cartId) || []}
+                            strategy={verticalListSortingStrategy}
+                          >
+                            {cartByCourse[courseNum]?.length === 0 ? (
+                              <DroppableCoursePlaceholder id={`course-${courseNum}`} />
+                            ) : (
+                              cartByCourse[courseNum]?.map((item) => (
+                                <SortableDishItem key={item.cartId} item={item} courseNum={courseNum} />
+                              ))
+                            )}
+                          </SortableContext>
+                        </div>
+                      </DroppableCourse>
+                    ))}
+
+                    <NewCourseDropZone onClick={addNewCourse} />
+                  </div>
+                </div>
+
+                <DragOverlay dropAnimation={dropAnimation}>
+                  {activeDragItem ? (
+                    <div className="flex items-center justify-between bg-white dark:bg-slate-800 p-2 rounded-xl border border-emerald-500 shadow-xl opacity-90 scale-105 cursor-grabbing">
+                      <div className="flex items-center gap-3">
+                        <div className="p-1 text-emerald-500">
+                          <GripVertical className="w-4 h-4" />
+                        </div>
+                        <div>
+                          <p className="font-bold text-slate-900 dark:text-white text-xs">{activeDragItem.name}</p>
+                          <p className="text-[10px] text-slate-500">{activeDragItem.quantity}x</p>
+                        </div>
+                      </div>
+                    </div>
+                  ) : null}
+                </DragOverlay>
+              </DndContext>
+            </div>
+
+            <div className="p-4 bg-white dark:bg-slate-900 border-t border-slate-200 dark:border-slate-800 z-20 relative">
+              <Button className="w-full h-12 bg-emerald-600 hover:bg-emerald-700 text-white font-bold rounded-xl shadow-lg shadow-emerald-500/20" onClick={() => setShowCourseManagement(false)}>
+                Fatto
+              </Button>
+            </div>
+          </DialogContent>
+        </Dialog>
+
+        {/* Course Alert Dialog */}
+        <AlertDialog open={showCourseAlert} onOpenChange={setShowCourseAlert}>
+          <AlertDialogContent className="bg-white dark:bg-slate-900 rounded-3xl border-0 shadow-2xl max-w-sm">
+            <AlertDialogHeader>
+              <AlertDialogTitle className="text-center text-xl">Come vuoi procedere?</AlertDialogTitle>
+              <AlertDialogDescription className="text-center">
+                Hai inserito tutti i piatti in un'unica portata. Vuoi inviare tutto subito o dividere in più uscite?
+              </AlertDialogDescription>
+            </AlertDialogHeader>
+            <div className="flex flex-col gap-3 py-4">
+              <Button className="h-14 bg-gradient-to-r from-emerald-600 to-emerald-500 hover:from-emerald-700 hover:to-emerald-600 text-white font-bold rounded-xl shadow-lg shadow-emerald-500/20" onClick={() => {
+                setShowCourseAlert(false);
+                setShowConfirmDialog(true);
+              }}>
+                <ChefHat className="w-5 h-5 mr-2" />
+                Invia tutto insieme
+              </Button>
+              <Button variant="outline" className="h-14 border-slate-200 dark:border-slate-700 hover:bg-slate-50 dark:hover:bg-slate-800 rounded-xl font-medium" onClick={() => {
+                setShowCourseAlert(false);
+                setShowCourseManagement(true);
+              }}>
+                <Layers className="w-5 h-5 mr-2 text-emerald-600" />
+                Dividi in portate
+              </Button>
+            </div>
+            <AlertDialogFooter>
+              <AlertDialogCancel className="rounded-xl h-12">Annulla</AlertDialogCancel>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
       </div>
     )
   }
@@ -1184,7 +1447,9 @@ export default function CustomerMenu({ tableId: propTableId, onExit, interfaceMo
                   className="w-full h-13 text-base font-bold rounded-xl bg-gradient-to-r from-emerald-600 to-emerald-500 hover:from-emerald-700 hover:to-emerald-600 text-white shadow-lg shadow-emerald-500/30 transition-all active:scale-[0.98]"
                   onClick={() => {
                     addToCart(selectedDish, dishQuantity, dishNote, 1);
-                    setActiveTab('menu');
+                    setSelectedDish(null);
+                    setDishQuantity(1);
+                    setDishNote('');
                   }}
                 >
                   Aggiungi {dishQuantity > 1 ? `${dishQuantity}x ` : ''}al carrello - €{(selectedDish.price * dishQuantity).toFixed(2)}
@@ -1197,160 +1462,7 @@ export default function CustomerMenu({ tableId: propTableId, onExit, interfaceMo
           )}
         </DialogContent>
       </Dialog>
-
-      {/* Confirm Dialog */}
-      <Dialog open={showConfirmDialog} onOpenChange={setShowConfirmDialog}>
-        <DialogContent className="sm:max-w-sm bg-white dark:bg-slate-900 rounded-3xl border-0 shadow-2xl">
-          <DialogHeader>
-            <DialogTitle className="text-center">Conferma Ordine</DialogTitle>
-            <DialogDescription className="text-center">Inviare l'ordine in cucina?</DialogDescription>
-          </DialogHeader>
-          <div className="py-4">
-            <div className="bg-slate-50 dark:bg-slate-800 rounded-xl p-4 space-y-4 max-h-[60vh] overflow-y-auto scrollbar-hide">
-              {courseNumbers.map(n => (
-                cartByCourse[n]?.length > 0 && (
-                  <div key={n} className="space-y-2">
-                    <h4 className="font-bold text-emerald-600 dark:text-emerald-400 text-xs uppercase tracking-wider sticky top-0 bg-slate-50 dark:bg-slate-800 py-1 z-10 text-center">
-                      {getCourseTitle(n)}
-                    </h4>
-                    <div className="space-y-1 pl-2 border-l-2 border-slate-200 dark:border-slate-700">
-                      {cartByCourse[n].map((item) => (
-                        <div key={item.cartId} className="flex justify-between items-start text-xs gap-2">
-                          <div className="flex gap-2 min-w-0">
-                            <span className="font-bold text-slate-500 whitespace-nowrap">{item.quantity}x</span>
-                            <span className="text-slate-700 dark:text-slate-300 truncate leading-tight">{item.name}</span>
-                          </div>
-                          <span className="text-slate-400 whitespace-nowrap">€{(item.price * item.quantity).toFixed(2)}</span>
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-                )
-              ))}
-              <div className="border-t border-slate-200 dark:border-slate-700 pt-3 mt-2 flex justify-between items-center sticky bottom-0 bg-slate-50 dark:bg-slate-800 pb-1">
-                <span className="font-bold text-sm">Totale</span>
-                <span className="font-bold text-emerald-600 text-lg">€{cartTotal.toFixed(2)}</span>
-              </div>
-            </div>
-          </div>
-          <div className="flex gap-3">
-            <Button variant="outline" className="flex-1 h-12 rounded-xl" onClick={() => setShowConfirmDialog(false)}>Annulla</Button>
-            <Button className="flex-1 h-12 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-bold" onClick={submitOrder} disabled={isOrderSubmitting}>
-              {isOrderSubmitting ? 'Invio...' : 'Conferma'}
-            </Button>
-          </div>
-        </DialogContent>
-      </Dialog>
-
-      {/* Course Management Dialog */}
-      <Dialog open={showCourseManagement} onOpenChange={setShowCourseManagement}>
-        <DialogContent className="max-w-lg bg-slate-50 dark:bg-slate-900 max-h-[85vh] overflow-hidden flex flex-col p-0 rounded-3xl">
-          <DialogHeader className="p-4 bg-white dark:bg-slate-900 border-b border-slate-200 dark:border-slate-800 z-10">
-            <DialogTitle>Organizza Portate</DialogTitle>
-            <DialogDescription>Trascina i piatti per cambiare l'ordine di uscita</DialogDescription>
-          </DialogHeader>
-
-          <div className="flex-1 min-h-0 relative flex flex-col overflow-hidden">
-            <DndContext
-              sensors={sensors}
-              collisionDetection={closestCenter}
-              onDragStart={handleDragStart}
-              onDragOver={handleDragOver}
-              onDragEnd={handleDragEnd}
-            >
-              <div className="flex-1 overflow-y-auto scrollbar-hide p-4 bg-slate-100 dark:bg-slate-950">
-                <div className="space-y-4 pb-20">
-                  {Array.from({ length: maxCourse }, (_, i) => i + 1).map((courseNum) => (
-                    <DroppableCourse
-                      key={courseNum}
-                      id={`course-${courseNum}`}
-                      className="bg-white dark:bg-slate-900 rounded-2xl p-3 shadow-sm border border-slate-200 dark:border-slate-800"
-                    >
-                      <div className="flex items-center justify-center mb-3">
-                        <h3 className="font-bold text-emerald-600 dark:text-emerald-400 uppercase tracking-wider text-sm flex items-center gap-2 bg-emerald-50 dark:bg-emerald-900/20 px-4 py-2 rounded-full border border-emerald-200 dark:border-emerald-800">
-                          <Layers className="w-4 h-4" />
-                          {getCourseTitle(courseNum)}
-                        </h3>
-                      </div>
-
-                      <div className="space-y-2 min-h-[40px]">
-                        <SortableContext
-                          id={`course-${courseNum}`}
-                          items={cartByCourse[courseNum]?.map(i => i.cartId) || []}
-                          strategy={verticalListSortingStrategy}
-                        >
-                          {cartByCourse[courseNum]?.length === 0 ? (
-                            <DroppableCoursePlaceholder id={`course-${courseNum}`} />
-                          ) : (
-                            cartByCourse[courseNum]?.map((item) => (
-                              <SortableDishItem key={item.cartId} item={item} courseNum={courseNum} />
-                            ))
-                          )}
-                        </SortableContext>
-                      </div>
-                    </DroppableCourse>
-                  ))}
-
-                  <NewCourseDropZone onClick={addNewCourse} />
-                </div>
-              </div>
-
-              <DragOverlay dropAnimation={dropAnimation}>
-                {activeDragItem ? (
-                  <div className="flex items-center justify-between bg-white dark:bg-slate-800 p-2 rounded-xl border border-emerald-500 shadow-xl opacity-90 scale-105 cursor-grabbing">
-                    <div className="flex items-center gap-3">
-                      <div className="p-1 text-emerald-500">
-                        <GripVertical className="w-4 h-4" />
-                      </div>
-                      <div>
-                        <p className="font-bold text-slate-900 dark:text-white text-xs">{activeDragItem.name}</p>
-                        <p className="text-[10px] text-slate-500">{activeDragItem.quantity}x</p>
-                      </div>
-                    </div>
-                  </div>
-                ) : null}
-              </DragOverlay>
-            </DndContext>
-          </div>
-
-          <div className="p-4 bg-white dark:bg-slate-900 border-t border-slate-200 dark:border-slate-800 z-20 relative">
-            <Button className="w-full h-12 bg-emerald-600 hover:bg-emerald-700 text-white font-bold rounded-xl shadow-lg shadow-emerald-500/20" onClick={() => setShowCourseManagement(false)}>
-              Fatto
-            </Button>
-          </div>
-        </DialogContent>
-      </Dialog>
-
-      {/* Course Alert Dialog */}
-      <AlertDialog open={showCourseAlert} onOpenChange={setShowCourseAlert}>
-        <AlertDialogContent className="bg-white dark:bg-slate-900 rounded-3xl border-0 shadow-2xl max-w-sm">
-          <AlertDialogHeader>
-            <AlertDialogTitle className="text-center text-xl">Come vuoi procedere?</AlertDialogTitle>
-            <AlertDialogDescription className="text-center">
-              Hai inserito tutti i piatti in un'unica portata. Vuoi inviare tutto subito o dividere in più uscite?
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <div className="flex flex-col gap-3 py-4">
-            <Button className="h-14 bg-gradient-to-r from-emerald-600 to-emerald-500 hover:from-emerald-700 hover:to-emerald-600 text-white font-bold rounded-xl shadow-lg shadow-emerald-500/20" onClick={() => {
-              setShowCourseAlert(false);
-              setShowConfirmDialog(true);
-            }}>
-              <ChefHat className="w-5 h-5 mr-2" />
-              Invia tutto insieme
-            </Button>
-            <Button variant="outline" className="h-14 border-slate-200 dark:border-slate-700 hover:bg-slate-50 dark:hover:bg-slate-800 rounded-xl font-medium" onClick={() => {
-              setShowCourseAlert(false);
-              setShowCourseManagement(true);
-            }}>
-              <Layers className="w-5 h-5 mr-2 text-emerald-600" />
-              Dividi in portate
-            </Button>
-          </div>
-          <AlertDialogFooter>
-            <AlertDialogCancel className="rounded-xl h-12">Annulla</AlertDialogCancel>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
     </div>
+    </div >
   )
 }
