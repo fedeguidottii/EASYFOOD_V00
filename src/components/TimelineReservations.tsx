@@ -391,17 +391,14 @@ export default function TimelineReservations({ user, restaurantId, tables, booki
               </div>
             )
           })}
-      </div>
-    </div>
-  )
-})}
-          </div >
-        </CardContent >
+
+      </div >
+    </CardContent >
       </Card >
 
-  {/* DIALOGS */ }
+    {/* DIALOGS */ }
 
-{/* Search Table Dialog */ }
+  {/* Search Table Dialog */ }
       <Dialog open={showSmartSearch} onOpenChange={setShowSmartSearch}>
         <DialogContent>
           <DialogHeader>
@@ -513,38 +510,38 @@ export default function TimelineReservations({ user, restaurantId, tables, booki
         </DialogContent>
       </Dialog>
 
-{/* Delete Confirmation Dialog */ }
-<Dialog open={showDeleteConfirmDialog} onOpenChange={setShowDeleteConfirmDialog}>
-  <DialogContent>
-    <DialogHeader>
-      <DialogTitle className="text-destructive">Elimina Prenotazione</DialogTitle>
-      <DialogDescription>
-        Sei sicuro di voler eliminare la prenotazione di {bookingToDelete?.name}?
-        <br />L'azione è irreversibile.
-      </DialogDescription>
-    </DialogHeader>
-    <div className="flex justify-end gap-2 mt-4">
-      <Button variant="outline" onClick={() => setShowDeleteConfirmDialog(false)}>Annulla</Button>
-      <Button variant="destructive" onClick={confirmDeleteReservation}>Elimina</Button>
-    </div>
-  </DialogContent>
-</Dialog>
+  {/* Delete Confirmation Dialog */ }
+  <Dialog open={showDeleteConfirmDialog} onOpenChange={setShowDeleteConfirmDialog}>
+    <DialogContent>
+      <DialogHeader>
+        <DialogTitle className="text-destructive">Elimina Prenotazione</DialogTitle>
+        <DialogDescription>
+          Sei sicuro di voler eliminare la prenotazione di {bookingToDelete?.name}?
+          <br />L'azione è irreversibile.
+        </DialogDescription>
+      </DialogHeader>
+      <div className="flex justify-end gap-2 mt-4">
+        <Button variant="outline" onClick={() => setShowDeleteConfirmDialog(false)}>Annulla</Button>
+        <Button variant="destructive" onClick={confirmDeleteReservation}>Elimina</Button>
+      </div>
+    </DialogContent>
+  </Dialog>
 
-{/* Arrived Confirmation Dialog */ }
-<Dialog open={showArriveConfirmDialog} onOpenChange={setShowArriveConfirmDialog}>
-  <DialogContent>
-    <DialogHeader>
-      <DialogTitle>Conferma Arrivo</DialogTitle>
-      <DialogDescription>
-        Vuoi segnare la prenotazione di {bookingToArrive?.name} come "Arrivata"?
-      </DialogDescription>
-    </DialogHeader>
-    <div className="flex justify-end gap-2 mt-4">
-      <Button variant="outline" onClick={() => setShowArriveConfirmDialog(false)}>Annulla</Button>
-      <Button className="bg-green-600 hover:bg-green-700 text-white" onClick={confirmCompleteBooking}>Conferma</Button>
-    </div>
-  </DialogContent>
-</Dialog>
+  {/* Arrived Confirmation Dialog */ }
+  <Dialog open={showArriveConfirmDialog} onOpenChange={setShowArriveConfirmDialog}>
+    <DialogContent>
+      <DialogHeader>
+        <DialogTitle>Conferma Arrivo</DialogTitle>
+        <DialogDescription>
+          Vuoi segnare la prenotazione di {bookingToArrive?.name} come "Arrivata"?
+        </DialogDescription>
+      </DialogHeader>
+      <div className="flex justify-end gap-2 mt-4">
+        <Button variant="outline" onClick={() => setShowArriveConfirmDialog(false)}>Annulla</Button>
+        <Button className="bg-green-600 hover:bg-green-700 text-white" onClick={confirmCompleteBooking}>Conferma</Button>
+      </div>
+    </DialogContent>
+  </Dialog>
     </div >
   )
 }
