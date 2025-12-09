@@ -412,19 +412,26 @@ const RestaurantDashboard = ({ user, onLogout }: RestaurantDashboardProps) => {
   const handleShowTableQr = async (table: Table) => {
     setSelectedTableForActions(table)
     setShowTableQrDialog(true)
-    setCurrentSessionPin('Caricamento...')
 
-    try {
-      const session = await DatabaseService.getActiveSession(table.id)
-      if (session && session.session_pin) {
-        setCurrentSessionPin(session.session_pin)
-      } else {
-        setCurrentSessionPin('N/A')
-        refreshSessions()
+    // Use local state as source of truth (same as the card)
+    const session = getOpenSessionForTable(table.id)
+    if (session && session.session_pin) {
+      setCurrentSessionPin(session.session_pin)
+    } else {
+      // Fallback only if not in local state (unlikely if card is red)
+      setCurrentSessionPin('Caricamento...')
+      try {
+        const fetchedSession = await DatabaseService.getActiveSession(table.id)
+        if (fetchedSession && fetchedSession.session_pin) {
+          setCurrentSessionPin(fetchedSession.session_pin)
+        } else {
+          setCurrentSessionPin('N/A')
+          refreshSessions()
+        }
+      } catch (error) {
+        console.error('Error fetching session for PIN:', error)
+        setCurrentSessionPin('Errore')
       }
-    } catch (error) {
-      console.error('Error fetching session for PIN:', error)
-      setCurrentSessionPin('Errore')
     }
   }
 
