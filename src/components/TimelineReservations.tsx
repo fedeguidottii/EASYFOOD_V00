@@ -45,7 +45,11 @@ export default function TimelineReservations({ user, restaurantId, tables, booki
   const [selectedTimeSlot, setSelectedTimeSlot] = useState<{ tableId: string, time: string } | null>(null)
   const [draggedBookingId, setDraggedBookingId] = useState<string | null>(null)
   const [dropTarget, setDropTarget] = useState<{ tableId: string, time: string } | null>(null)
-  const [showDragConfirmDialog, setShowDragConfirmDialog] = useState(false)
+  const [showDeleteConfirmDialog, setShowDeleteConfirmDialog] = useState(false)
+  const [bookingToDelete, setBookingToDelete] = useState<Booking | null>(null)
+  const [showArriveConfirmDialog, setShowArriveConfirmDialog] = useState(false)
+  const [bookingToArrive, setBookingToArrive] = useState<Booking | null>(null)
+  const [dragOffsetMinutes, setDragOffsetMinutes] = useState(0)
 
   // Smart table search states
   const [showSmartSearch, setShowSmartSearch] = useState(false)
@@ -263,9 +267,16 @@ export default function TimelineReservations({ user, restaurantId, tables, booki
   }
 
   // Drag and Drop Handlers
-  const handleDragStart = (e: React.DragEvent, bookingId: string) => {
+  const handleDragStart = (e: React.DragEvent, bookingId: string, duration: number) => {
     e.dataTransfer.setData('bookingId', bookingId)
     setDraggedBookingId(bookingId)
+
+    // Calculate click offset relative to the block
+    const rect = e.currentTarget.getBoundingClientRect()
+    const clickX = e.clientX - rect.left
+    const offsetPercentage = clickX / rect.width
+    const offsetMinutes = Math.round(offsetPercentage * duration)
+    setDragOffsetMinutes(offsetMinutes)
   }
 
   const handleDragOver = (e: React.DragEvent) => {
@@ -281,8 +292,15 @@ export default function TimelineReservations({ user, restaurantId, tables, booki
     const clickX = e.clientX - rect.left
     const percentage = (clickX / rect.width) * 100
     const totalMinutes = TIMELINE_DURATION
-    const clickedMinutes = TIMELINE_START_MINUTES + (percentage / 100) * totalMinutes
-    const roundedMinutes = Math.round(clickedMinutes / 15) * 15 // Snap to 15 mins
+
+    // Position on timeline in minutes
+    const mouseMinutes = TIMELINE_START_MINUTES + (percentage / 100) * totalMinutes
+
+    // Adjust for the drag offset
+    const adjustedStartMinutes = mouseMinutes - dragOffsetMinutes
+
+    // Snap to 15 mins
+    const roundedMinutes = Math.round(adjustedStartMinutes / 15) * 15
     const newTime = minutesToTime(roundedMinutes)
 
     if (hasConflict(tableId, newTime, reservationDuration, bookingId)) {
@@ -313,6 +331,57 @@ export default function TimelineReservations({ user, restaurantId, tables, booki
       setShowDragConfirmDialog(false)
       setDraggedBookingId(null)
       setDropTarget(null)
+    }
+  }
+
+  const handleCompleteBooking = (booking: Booking) => {
+    setBookingToArrive(booking)
+    setShowArriveConfirmDialog(true)
+  }
+
+  const confirmCompleteBooking = async () => {
+    if (!bookingToArrive) return
+
+    try {
+      await DatabaseService.updateBooking({
+        id: bookingToArrive.id,
+        status: 'COMPLETED'
+      })
+      toast.success('Prenotazione completata! 👍')
+      onRefresh?.()
+    } catch (error) {
+      console.error('Complete error:', error)
+      toast.error('Errore completamento prenotazione')
+    } finally {
+      setShowArriveConfirmDialog(false)
+      setBookingToArrive(null)
+    }
+  }
+
+  const handleDeleteReservation = (booking: Booking) => {
+    setBookingToDelete(booking)
+    setShowDeleteConfirmDialog(true)
+  }
+
+  const confirmDeleteReservation = async () => {
+    if (!bookingToDelete) return
+
+    try {
+      if (onDeleteBooking) {
+        onDeleteBooking(bookingToDelete.id) // Use props handler if available
+      } else {
+        // Fallback internal implementation
+        // Note: DatabaseService might need a specific delete method if not using props
+        await DatabaseService.deleteBooking(bookingToDelete.id) // Assuming this exists or will be added
+      }
+      toast.success('Prenotazione eliminata')
+      onRefresh?.()
+    } catch (error) {
+      console.error('Delete error:', error)
+      toast.error('Errore durante l\'eliminazione')
+    } finally {
+      setShowDeleteConfirmDialog(false)
+      setBookingToDelete(null)
     }
   }
 
@@ -551,7 +620,7 @@ export default function TimelineReservations({ user, restaurantId, tables, booki
                           <div
                             key={block.booking.id}
                             draggable={!isCompleted}
-                            onDragStart={(e) => handleDragStart(e, block.booking.id)}
+                            onDragStart={(e) => handleDragStart(e, block.booking.id, block.duration)}
                             className={`absolute top-2 bottom-2 rounded-md border border-white/20 shadow-sm px-2 flex flex-col justify-center overflow-hidden transition-all hover:z-20 hover:scale-[1.02] ${isCompleted ? 'opacity-70 grayscale' : 'shadow-md'}`}
                             style={{
                               left: `${getBlockStyle(block.startMinutes, block.duration).left}`,
@@ -576,10 +645,22 @@ export default function TimelineReservations({ user, restaurantId, tables, booki
                                 <Button
                                   variant="ghost"
                                   size="icon"
+                                  className="w-5 h-5 rounded-full bg-white/20 hover:bg-white/40 text-current p-0 mb-1"
+                                  onClick={(e) => {
+                                    e.stopPropagation()
+                                    handleDeleteReservation(block.booking)
+                                  }}
+                                  title="Elimina Prenotazione"
+                                >
+                                  <Trash size={12} weight="bold" />
+                                </Button>
+                                <Button
+                                  variant="ghost"
+                                  size="icon"
                                   className="w-5 h-5 rounded-full bg-white/20 hover:bg-white/40 text-current p-0"
                                   onClick={(e) => {
                                     e.stopPropagation()
-                                    handleCompleteBooking(block.booking.id)
+                                    handleCompleteBooking(block.booking)
                                   }}
                                   title="Segna Arrivato"
                                 >
@@ -598,7 +679,47 @@ export default function TimelineReservations({ user, restaurantId, tables, booki
         </CardContent>
       </Card>
 
-      {/* DIALOGS ... (Existing) */}
+      {/* DIALOGS */}
+
+      {/* Search Table Dialog */}
+      <Dialog open={showSmartSearch} onOpenChange={setShowSmartSearch}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Ricerca Tavolo Disponibile</DialogTitle>
+            <DialogDescription>
+              Inserisci orario e numero di persone per trovare un tavolo libero.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4 py-4">
+            <div className="grid gap-4 md:grid-cols-2">
+              <div className="space-y-2">
+                <Label htmlFor="search-time">Orario</Label>
+                <Input
+                  id="search-time"
+                  type="time"
+                  value={searchTime}
+                  onChange={(e) => setSearchTime(e.target.value)}
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="search-guests">Persone</Label>
+                <Input
+                  id="search-guests"
+                  type="number"
+                  min="1"
+                  value={searchGuests}
+                  onChange={(e) => setSearchGuests(e.target.value)}
+                />
+              </div>
+            </div>
+            <Button onClick={handleSmartSearch} className="w-full">
+              <Search className="mr-2" size={16} /> Cerca
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+
       <Dialog open={showReservationDialog} onOpenChange={setShowReservationDialog}>
         <DialogContent>
           <DialogHeader>
@@ -668,6 +789,39 @@ export default function TimelineReservations({ user, restaurantId, tables, booki
           <div className="flex justify-end gap-2 mt-4">
             <Button variant="outline" onClick={() => setShowDragConfirmDialog(false)}>Annulla</Button>
             <Button onClick={confirmMove}>Conferma Spostamento</Button>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* Delete Confirmation Dialog */}
+      <Dialog open={showDeleteConfirmDialog} onOpenChange={setShowDeleteConfirmDialog}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle className="text-destructive">Elimina Prenotazione</DialogTitle>
+            <DialogDescription>
+              Sei sicuro di voler eliminare la prenotazione di {bookingToDelete?.name}?
+              <br />L'azione è irreversibile.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="flex justify-end gap-2 mt-4">
+            <Button variant="outline" onClick={() => setShowDeleteConfirmDialog(false)}>Annulla</Button>
+            <Button variant="destructive" onClick={confirmDeleteReservation}>Elimina</Button>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* Arrived Confirmation Dialog */}
+      <Dialog open={showArriveConfirmDialog} onOpenChange={setShowArriveConfirmDialog}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Conferma Arrivo</DialogTitle>
+            <DialogDescription>
+              Vuoi segnare la prenotazione di {bookingToArrive?.name} come "Arrivata"?
+            </DialogDescription>
+          </DialogHeader>
+          <div className="flex justify-end gap-2 mt-4">
+            <Button variant="outline" onClick={() => setShowArriveConfirmDialog(false)}>Annulla</Button>
+            <Button className="bg-green-600 hover:bg-green-700 text-white" onClick={confirmCompleteBooking}>Conferma</Button>
           </div>
         </DialogContent>
       </Dialog>

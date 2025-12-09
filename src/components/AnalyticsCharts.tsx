@@ -271,15 +271,16 @@ export default function AnalyticsCharts({ orders, completedOrders, dishes, categ
       return orderTime >= invStart && orderTime <= invEnd
     })
 
-    // Calculate historical average (limit to last 2 years for relevance)
+    // Calculate historical average (limit to last 2 years for relevance) - EXCLUDE CURRENT PERIOD
     const twoYearsAgo = Date.now() - (2 * 365 * 24 * 60 * 60 * 1000)
     const historicalOrders = allOrders.filter(order => {
       const orderTime = new Date(order.created_at).getTime()
-      return orderTime >= twoYearsAgo
+      // STRICTLY BEFORE the start of the current inventory period
+      return orderTime >= twoYearsAgo && orderTime < invStart
     })
 
     const historicalDays = historicalOrders.length > 0
-      ? Math.max(1, Math.ceil((Date.now() - Math.max(twoYearsAgo, new Date(Math.min(...historicalOrders.map(o => new Date(o.created_at).getTime()))).getTime())) / (24 * 60 * 60 * 1000)))
+      ? Math.max(1, Math.ceil((invStart - Math.max(twoYearsAgo, new Date(Math.min(...historicalOrders.map(o => new Date(o.created_at).getTime()))).getTime())) / (24 * 60 * 60 * 1000)))
       : 1
 
     // Calculate per-dish inventory stats - include ALL active dishes
@@ -305,7 +306,7 @@ export default function AnalyticsCharts({ orders, completedOrders, dishes, categ
         if (historicalAvgPerDay > 0) {
           percentageChange = ((periodAvgPerDay - historicalAvgPerDay) / historicalAvgPerDay) * 100
         } else if (periodAvgPerDay > 0) {
-          percentageChange = 100 // New dish with sales
+          percentageChange = 100 // New dish with sales (or significant increase from zero)
         }
 
         const category = categories.find(c => c.id === dish.category_id)
@@ -337,9 +338,9 @@ export default function AnalyticsCharts({ orders, completedOrders, dishes, categ
         }
       })
 
-    // Generate trend alerts for significant variations (>30% or <-30%)
+    // Generate trend alerts for significant variations (>15% or <-15%)
     const trendAlerts = dishInventory
-      .filter(dish => Math.abs(dish.percentageChange) >= 30 && dish.periodQuantity > 0)
+      .filter(dish => Math.abs(dish.percentageChange) >= 15 && dish.periodQuantity > 0)
       .sort((a, b) => Math.abs(b.percentageChange) - Math.abs(a.percentageChange))
       .slice(0, 2) // Top 2 significant changes
       .map(dish => ({
@@ -788,22 +789,20 @@ export default function AnalyticsCharts({ orders, completedOrders, dishes, categ
                   return (
                     <div
                       key={dish.id}
-                      className={`flex items-center justify-between p-4 rounded-xl border transition-all hover:shadow-md ${
-                        dish.periodQuantity === 0
+                      className={`flex items-center justify-between p-4 rounded-xl border transition-all hover:shadow-md ${dish.periodQuantity === 0
                           ? 'bg-muted/20 opacity-60'
                           : dish.percentageChange > 30
                             ? 'bg-gradient-to-r from-green-50 to-green-100/50 dark:from-green-950/30 dark:to-green-900/20 border-green-200 dark:border-green-800'
                             : dish.percentageChange < -30
                               ? 'bg-gradient-to-r from-red-50 to-red-100/50 dark:from-red-950/30 dark:to-red-900/20 border-red-200 dark:border-red-800'
                               : 'bg-card hover:bg-muted/30'
-                      }`}
+                        }`}
                     >
                       <div className="flex items-center gap-4 min-w-0">
-                        <div className={`w-10 h-10 rounded-xl flex items-center justify-center text-sm font-bold shrink-0 ${
-                          index < 3 && dish.periodQuantity > 0
+                        <div className={`w-10 h-10 rounded-xl flex items-center justify-center text-sm font-bold shrink-0 ${index < 3 && dish.periodQuantity > 0
                             ? 'bg-primary text-primary-foreground'
                             : 'bg-muted text-muted-foreground'
-                        }`}>
+                          }`}>
                           {dish.periodQuantity > 0 ? index + 1 : '-'}
                         </div>
                         <div className="min-w-0">
@@ -829,13 +828,12 @@ export default function AnalyticsCharts({ orders, completedOrders, dishes, categ
                           <p className="text-[10px] text-muted-foreground uppercase font-semibold">Incasso</p>
                           <p className="text-sm font-bold text-emerald-600">€{revenue.toFixed(0)}</p>
                         </div>
-                        <div className={`flex items-center gap-1.5 px-3 py-2 rounded-lg text-sm font-bold ${
-                          dish.percentageChange > 10
+                        <div className={`flex items-center gap-1.5 px-3 py-2 rounded-lg text-sm font-bold ${dish.percentageChange > 10
                             ? 'bg-green-100 text-green-700 dark:bg-green-900/40 dark:text-green-400'
                             : dish.percentageChange < -10
                               ? 'bg-red-100 text-red-700 dark:bg-red-900/40 dark:text-red-400'
                               : 'bg-muted text-muted-foreground'
-                        }`}>
+                          }`}>
                           {dish.percentageChange > 0 ? (
                             <TrendUp size={16} />
                           ) : dish.percentageChange < 0 ? (
