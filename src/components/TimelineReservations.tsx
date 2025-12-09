@@ -515,7 +515,8 @@ export default function TimelineReservations({ user, restaurantId, tables, booki
           <div className="relative">
 
             {/* HEADER: TIMES */}
-            <div className="flex ml-40 h-12 relative border-b border-border/20 mb-1">
+            {/* REMOVED mb-1 to ensure lines connect seamlessly */}
+            <div className="flex ml-40 h-12 relative border-b border-border/20">
               {timeSlots.map((slot, i) => {
                 const minutes = slot.hour * 60 + slot.minute
                 const relativeStart = minutes - TIMELINE_START_MINUTES
@@ -528,7 +529,7 @@ export default function TimelineReservations({ user, restaurantId, tables, booki
                     style={{ left: `${left}%` }}
                   >
                     <span className="text-xs font-bold text-muted-foreground mb-1 bg-background px-1">{slot.time}</span>
-                    <div className="h-2 w-px bg-border"></div>
+                    <div className="h-2 w-px bg-border/20"></div> {/* Match border style with grid */}
                   </div>
                 )
               })}
@@ -633,10 +634,10 @@ export default function TimelineReservations({ user, restaurantId, tables, booki
                               onEditBooking?.(block.booking)
                             }}
                           >
-                            <div className="font-bold text-sm truncate leading-tight">
+                            <div className="font-bold text-base truncate leading-tight"> {/* INCREASED FONT SIZE */}
                               {block.booking.name}
                             </div>
-                            <div className="text-xs truncate opacity-90 mt-0.5 font-medium">
+                            <div className="text-sm truncate opacity-90 mt-1 font-medium"> {/* INCREASED FONT SIZE */}
                               {minutesToTime(block.startMinutes)} • {block.booking.guests}p
                             </div>
 
