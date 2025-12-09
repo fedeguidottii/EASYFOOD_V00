@@ -266,6 +266,20 @@ export default function TimelineReservations({ user, restaurantId, tables, booki
 
   // ... (keep render loop)
 
+  const getCurrentTimePosition = () => {
+    const now = new Date()
+    const todayStr = now.toISOString().split('T')[0]
+    if (todayStr !== selectedDate) return -1
+
+    const currentMinutes = now.getHours() * 60 + now.getMinutes()
+    if (currentMinutes < TIMELINE_START_MINUTES || currentMinutes > TIMELINE_END_MINUTES) {
+      return -1
+    }
+
+    const relativeCurrent = currentMinutes - TIMELINE_START_MINUTES
+    return (relativeCurrent / TIMELINE_DURATION) * 100
+  }
+
   const currentTimePos = getCurrentTimePosition()
 
   return (
