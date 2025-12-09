@@ -210,17 +210,40 @@ export default function TimelineReservations({ user, restaurantId, tables, booki
     })
   }
 
+  // Hover state for ghost block
+  const [hoveredSlot, setHoveredSlot] = useState<{ tableId: string, time: string, startMinutes: number } | null>(null)
+
+  const handleTimelineMouseMove = (e: React.MouseEvent, tableId: string) => {
+    const rect = e.currentTarget.getBoundingClientRect()
+    const clickX = e.clientX - rect.left
+    const percentage = (clickX / rect.width) * 100
+    const totalMinutes = TIMELINE_DURATION
+    const mouseMinutes = TIMELINE_START_MINUTES + (percentage / 100) * totalMinutes
+
+    // Snap to 15 mins
+    const roundedMinutes = Math.round(mouseMinutes / 15) * 15
+    const snappedTime = minutesToTime(roundedMinutes)
+
+    setHoveredSlot({
+      tableId,
+      time: snappedTime,
+      startMinutes: roundedMinutes
+    })
+  }
+
+  const handleTimelineMouseLeave = () => {
+    setHoveredSlot(null)
+  }
+
   const handleTimelineClick = (e: React.MouseEvent, tableId: string) => {
     const rect = e.currentTarget.getBoundingClientRect()
     const clickX = e.clientX - rect.left
     const percentage = (clickX / rect.width) * 100
-
     const totalMinutes = TIMELINE_DURATION
-
     const clickedMinutes = TIMELINE_START_MINUTES + (percentage / 100) * totalMinutes
 
-    // Round to nearest 60 minutes
-    const roundedMinutes = Math.round(clickedMinutes / 60) * 60
+    // Round to nearest 15 minutes (was 60)
+    const roundedMinutes = Math.round(clickedMinutes / 15) * 15
     const clickedTime = minutesToTime(roundedMinutes)
 
     if (hasConflict(tableId, clickedTime, 120)) {
@@ -237,442 +260,148 @@ export default function TimelineReservations({ user, restaurantId, tables, booki
     setShowReservationDialog(true)
   }
 
-  const handleCreateReservation = async () => {
-    if (!newReservation.name || !newReservation.guests || !newReservation.time || !newReservation.tableId) {
-      toast.error('Compila tutti i campi')
-      return
-    }
+  // ... (keep creating handleCreateReservation)
 
-    try {
-      const dateTime = `${selectedDate}T${newReservation.time}:00`
+  // ... (keep drag handlers)
 
-      await DatabaseService.createBooking({
-        restaurant_id: restaurantId,
-        table_id: newReservation.tableId,
-        date_time: dateTime,
-        guests: Number(newReservation.guests),
-        status: 'CONFIRMED',
-        name: newReservation.name,
-        phone: newReservation.phone,
-        notes: ''
-      })
-
-      toast.success('Prenotazione creata')
-      setShowReservationDialog(false)
-      setNewReservation({ name: '', phone: '', guests: 2, time: '', tableId: '' })
-      onRefresh?.()
-    } catch (error) {
-      console.error('Error creating reservation:', error)
-      toast.error('Errore creazione prenotazione')
-    }
-  }
-
-  // Drag and Drop Handlers
-  const handleDragStart = (e: React.DragEvent, bookingId: string, duration: number) => {
-    e.dataTransfer.setData('bookingId', bookingId)
-    setDraggedBookingId(bookingId)
-
-    // Calculate click offset relative to the block
-    const rect = e.currentTarget.getBoundingClientRect()
-    const clickX = e.clientX - rect.left
-    const offsetPercentage = clickX / rect.width
-    const offsetMinutes = Math.round(offsetPercentage * duration)
-    setDragOffsetMinutes(offsetMinutes)
-  }
-
-  const handleDragOver = (e: React.DragEvent) => {
-    e.preventDefault()
-  }
-
-  const handleDrop = (e: React.DragEvent, tableId: string) => {
-    e.preventDefault()
-    const bookingId = e.dataTransfer.getData('bookingId')
-    if (!bookingId) return
-
-    const rect = e.currentTarget.getBoundingClientRect()
-    const clickX = e.clientX - rect.left
-    const percentage = (clickX / rect.width) * 100
-    const totalMinutes = TIMELINE_DURATION
-
-    // Position on timeline in minutes
-    const mouseMinutes = TIMELINE_START_MINUTES + (percentage / 100) * totalMinutes
-
-    // Adjust for the drag offset
-    const adjustedStartMinutes = mouseMinutes - dragOffsetMinutes
-
-    // Snap to 15 mins
-    const roundedMinutes = Math.round(adjustedStartMinutes / 15) * 15
-    const newTime = minutesToTime(roundedMinutes)
-
-    if (hasConflict(tableId, newTime, reservationDuration, bookingId)) {
-      toast.error('Orario occupato o sovrapposto')
-      return
-    }
-
-    setDropTarget({ tableId, time: newTime })
-    setShowDragConfirmDialog(true)
-  }
-
-  const confirmMove = async () => {
-    if (!draggedBookingId || !dropTarget) return
-
-    try {
-      const dateTime = `${selectedDate}T${dropTarget.time}:00`
-      await DatabaseService.updateBooking({
-        id: draggedBookingId,
-        table_id: dropTarget.tableId,
-        date_time: dateTime
-      })
-      toast.success('Prenotazione spostata')
-      onRefresh?.()
-    } catch (error) {
-      console.error('Move error:', error)
-      toast.error('Errore spostamento')
-    } finally {
-      setShowDragConfirmDialog(false)
-      setDraggedBookingId(null)
-      setDropTarget(null)
-    }
-  }
-
-  const handleCompleteBooking = (booking: Booking) => {
-    setBookingToArrive(booking)
-    setShowArriveConfirmDialog(true)
-  }
-
-  const confirmCompleteBooking = async () => {
-    if (!bookingToArrive) return
-
-    try {
-      await DatabaseService.updateBooking({
-        id: bookingToArrive.id,
-        status: 'COMPLETED'
-      })
-      toast.success('Prenotazione completata! 👍')
-      onRefresh?.()
-    } catch (error) {
-      console.error('Complete error:', error)
-      toast.error('Errore completamento prenotazione')
-    } finally {
-      setShowArriveConfirmDialog(false)
-      setBookingToArrive(null)
-    }
-  }
-
-  const handleDeleteReservation = (booking: Booking) => {
-    setBookingToDelete(booking)
-    setShowDeleteConfirmDialog(true)
-  }
-
-  const confirmDeleteReservation = async () => {
-    if (!bookingToDelete) return
-
-    try {
-      if (onDeleteBooking) {
-        onDeleteBooking(bookingToDelete.id) // Use props handler if available
-      } else {
-        // Fallback internal implementation
-        // Note: DatabaseService might need a specific delete method if not using props
-        await DatabaseService.deleteBooking(bookingToDelete.id) // Assuming this exists or will be added
-      }
-      toast.success('Prenotazione eliminata')
-      onRefresh?.()
-    } catch (error) {
-      console.error('Delete error:', error)
-      toast.error('Errore durante l\'eliminazione')
-    } finally {
-      setShowDeleteConfirmDialog(false)
-      setBookingToDelete(null)
-    }
-  }
-
-
-
-
-  const handlePostponeBooking = async (booking: Booking, minutes: number) => {
-    try {
-      const currentDateTime = new Date(booking.date_time)
-      currentDateTime.setMinutes(currentDateTime.getMinutes() + minutes)
-      const newDateTime = currentDateTime.toISOString()
-
-      const newTime = `${currentDateTime.getHours().toString().padStart(2, '0')}:${currentDateTime.getMinutes().toString().padStart(2, '0')}`
-
-      if (hasConflict(booking.table_id || '', newTime, reservationDuration, booking.id)) {
-        toast.error('Nuovo orario sovrapposto con altra prenotazione')
-        return
-      }
-
-      await DatabaseService.updateBooking({
-        id: booking.id,
-        date_time: newDateTime
-      })
-      toast.success(`Prenotazione posticipata di ${minutes} minuti`)
-      onRefresh?.()
-    } catch (error) {
-      console.error('Postpone error:', error)
-      toast.error('Errore nel posticipare la prenotazione')
-    }
-  }
-
-  const handleSmartSearch = () => {
-    if (!searchTime) {
-      toast.error('Seleziona un orario')
-      return
-    }
-
-    const available = restaurantTables.filter(table => {
-      const guests = typeof searchGuests === 'string' ? parseInt(searchGuests) || 1 : searchGuests
-      if ((table.seats || 0) < guests) return false
-      return !hasConflict(table.id, searchTime, 120)
-    })
-
-    setAvailableTables(available)
-
-    if (available.length === 0) {
-      toast.error('Nessun tavolo disponibile per questo orario')
-    } else {
-      toast.success(`${available.length} tavolo/i disponibile/i`)
-      if (available.length > 0) {
-        setHighlightedTableId(available[0].id)
-        setTimeout(() => setHighlightedTableId(null), 5000)
-      }
-    }
-  }
-
-  const getCurrentTimePosition = () => {
-    const now = new Date()
-    const todayStr = now.toISOString().split('T')[0]
-    if (todayStr !== selectedDate) return -1
-
-    const currentMinutes = now.getHours() * 60 + now.getMinutes()
-    if (currentMinutes < TIMELINE_START_MINUTES || currentMinutes > TIMELINE_END_MINUTES) {
-      return -1
-    }
-
-    const relativeCurrent = currentMinutes - TIMELINE_START_MINUTES
-    return (relativeCurrent / TIMELINE_DURATION) * 100
-  }
-
-  const currentTimePos = getCurrentTimePosition()
+  // ... (keep render loop)
 
   return (
-    <div className="space-y-6">
-      <div className="flex items-center justify-between flex-wrap gap-4">
-        <div className="flex items-center gap-4">
-          <h3 className="text-lg font-semibold text-muted-foreground">Timeline</h3>
-          <div className="text-sm text-muted-foreground">
-            {dayBookings.length} prenotazioni
-          </div>
+    <div key={table.id} className={`flex h-24 border-b border-border/10 ${bgClass} ${borderClass}`}>
+
+      {/* LEFT COLUMN: TABLE INFO */}
+      <div className="w-40 shrink-0 flex flex-col justify-center px-4 border-r border-border/10 relative">
+        <span className="font-bold text-lg text-foreground">{table.number}</span>
+        <div className="flex items-center gap-1 text-xs text-muted-foreground mt-1">
+          Users: {table.seats || 4}
         </div>
-        <div className="flex items-center gap-2">
-          <div className="flex gap-1 bg-muted/50 p-1 rounded-lg">
-            <Button
-              variant={tableSortBy === 'name' ? 'default' : 'ghost'}
-              size="sm"
-              onClick={() => setTableSortBy('name')}
-              className="h-8 text-xs"
-            >
-              A-Z
-            </Button>
-            <Button
-              variant={tableSortBy === 'capacity' ? 'default' : 'ghost'}
-              size="sm"
-              onClick={() => setTableSortBy('capacity')}
-              className="h-8 text-xs"
-            >
-              Capacità
-            </Button>
-            <Button
-              variant={tableSortBy === 'status' ? 'default' : 'ghost'}
-              size="sm"
-              onClick={() => setTableSortBy('status')}
-              className="h-8 text-xs"
-            >
-              Stato
-            </Button>
-          </div>
-          <Button variant="outline" onClick={() => setShowSmartSearch(true)} className="gap-2">
-            <Search size={16} />
-            Ricerca Tavolo
-          </Button>
-        </div>
+        {isCurrentlyOccupied && <Badge variant="destructive" className="mt-2 w-fit text-[10px] px-1 py-0 h-4">Occupato</Badge>}
       </div>
 
-      {/* TIMELINE VISUALIZATION */}
-      {/* Alignment fix: We create a single container that holds both the header (times) AND the grid, sharing the exact same layout logic */}
-      <Card className="shadow-none border-0 bg-transparent">
-        <CardContent className="p-0">
-          <div className="relative">
-
-            {/* HEADER: TIMES */}
-            {/* REMOVED mb-1 to ensure lines connect seamlessly */}
-            <div className="flex ml-40 h-12 relative border-b border-border/20">
-              {timeSlots.map((slot, i) => {
-                const minutes = slot.hour * 60 + slot.minute
-                const relativeStart = minutes - TIMELINE_START_MINUTES
-                const left = (relativeStart / TIMELINE_DURATION) * 100
-
-                return (
-                  <div
-                    key={i}
-                    className="absolute bottom-0 transform -translate-x-1/2 flex flex-col items-center"
-                    style={{ left: `${left}%` }}
-                  >
-                    <span className="text-xs font-bold text-muted-foreground mb-1 bg-background px-1">{slot.time}</span>
-                    <div className="h-2 w-px bg-border/20"></div> {/* Match border style with grid */}
-                  </div>
-                )
-              })}
+      {/* RIGHT COLUMN: TIMELINE STRIP */}
+      <div
+        className="flex-1 relative cursor-crosshair group"
+        onClick={(e) => handleTimelineClick(e, table.id)}
+        onMouseMove={(e) => handleTimelineMouseMove(e, table.id)}
+        onMouseLeave={handleTimelineMouseLeave}
+        onDragOver={handleDragOver}
+        onDrop={(e) => handleDrop(e, table.id)}
+      >
+        {/* GHOST BLOCK ON HOVER */}
+        {hoveredSlot && hoveredSlot.tableId === table.id && !draggedBookingId && (
+          <div
+            className="absolute top-2 bottom-2 rounded-md bg-primary/20 border-2 border-primary/50 border-dashed z-0 pointer-events-none transition-all duration-75 ease-out"
+            style={{
+              left: `${getBlockStyle(hoveredSlot.startMinutes, 120).left}`, // Default duration 120 for visualization
+              width: `${getBlockStyle(hoveredSlot.startMinutes, 120).width}`
+            }}
+          >
+            <div className="absolute -top-6 left-0 bg-primary text-primary-foreground text-xs px-1.5 py-0.5 rounded shadow-sm font-bold whitespace-nowrap">
+              {hoveredSlot.time}
             </div>
-
-            {/* BODY: TABLES & GRID */}
-            {sortedTables.map((table, tableIndex) => {
-              // Status Logic
-              const now = new Date()
-              const currentMinutes = now.getHours() * 60 + now.getMinutes()
-              const isToday = selectedDate === now.toISOString().split('T')[0]
-
-              const isCurrentlyOccupied = isToday && reservationBlocks.some(block => {
-                if (block.table.id !== table.id) return false
-                const bookingEnd = block.startMinutes + block.duration
-                return currentMinutes >= block.startMinutes && currentMinutes < bookingEnd
-              })
-              const isAvailable = availableTables.some(t => t.id === table.id)
-
-              // UPDATED COLORS: RED for Occupied, GREEN for Free (approx)
-              let borderClass = 'border-l-4 border-l-slate-300 dark:border-l-slate-700'
-              let bgClass = 'bg-card'
-
-              if (isCurrentlyOccupied) {
-                borderClass = 'border-l-4 border-l-red-500'
-                bgClass = 'bg-red-50/50 dark:bg-red-950/20'
-              } else if (isAvailable && searchTime) {
-                borderClass = 'border-l-4 border-l-green-500' // Explicitly available via search
-                bgClass = 'bg-green-50/50 dark:bg-green-950/20'
-              } else {
-                // Default Free
-                borderClass = 'border-l-4 border-l-emerald-500/50'
-              }
-
-              return (
-                <div key={table.id} className={`flex h-24 border-b border-border/10 ${bgClass} ${borderClass}`}>
-
-                  {/* LEFT COLUMN: TABLE INFO */}
-                  <div className="w-40 shrink-0 flex flex-col justify-center px-4 border-r border-border/10 relative">
-                    <span className="font-bold text-lg text-foreground">{table.number}</span>
-                    <div className="flex items-center gap-1 text-xs text-muted-foreground mt-1">
-                      Users: {table.seats || 4}
-                    </div>
-                    {isCurrentlyOccupied && <Badge variant="destructive" className="mt-2 w-fit text-[10px] px-1 py-0 h-4">Occupato</Badge>}
-                  </div>
-
-                  {/* RIGHT COLUMN: TIMELINE STRIP */}
-                  <div
-                    className="flex-1 relative cursor-crosshair"
-                    onClick={(e) => handleTimelineClick(e, table.id)}
-                    onDragOver={handleDragOver}
-                    onDrop={(e) => handleDrop(e, table.id)}
-                  >
-                    {/* GRID LINES (Absolute) */}
-                    <div className="absolute inset-0 pointer-events-none">
-                      {timeSlots.map((slot, i) => {
-                        const minutes = slot.hour * 60 + slot.minute
-                        const relativeStart = minutes - TIMELINE_START_MINUTES
-                        const left = (relativeStart / TIMELINE_DURATION) * 100
-
-                        return (
-                          <div
-                            key={i}
-                            className="absolute top-0 bottom-0 w-px bg-border/20 dashed"
-                            style={{ left: `${left}%` }}
-                          ></div>
-                        )
-                      })}
-                    </div>
-
-                    {/* CURRENT TIME INDICATOR */}
-                    {currentTimePos >= 0 && (
-                      <div
-                        className="absolute top-0 bottom-0 w-0.5 bg-red-500 z-10 pointer-events-none"
-                        style={{ left: `${currentTimePos}%` }}
-                      ></div>
-                    )}
-
-                    {/* RESERVATION BLOCKS */}
-                    {reservationBlocks
-                      .filter(block => block.table.id === table.id)
-                      .map((block, i) => {
-                        const isCompleted = block.booking.status === 'COMPLETED'
-                        const colorIndex = i % COLORS.length
-                        const bgColor = COLORS[colorIndex]
-
-                        // FIXED: Opacity for completed items - "becomes too transparent" -> use opacity-80 or 90 instead of 40
-                        return (
-                          <div
-                            key={block.booking.id}
-                            draggable={!isCompleted}
-                            onDragStart={(e) => handleDragStart(e, block.booking.id, block.duration)}
-                            className={`absolute top-2 bottom-2 rounded-md border border-white/20 shadow-sm px-2 flex flex-col justify-center overflow-hidden transition-all hover:z-20 hover:scale-[1.02] ${isCompleted ? 'opacity-70 grayscale' : 'shadow-md'}`}
-                            style={{
-                              left: `${getBlockStyle(block.startMinutes, block.duration).left}`,
-                              width: `${getBlockStyle(block.startMinutes, block.duration).width}`,
-                              backgroundColor: bgColor,
-                              color: ['#F4E6D1', '#F0D86F'].includes(bgColor) ? '#000' : '#fff'
-                            }}
-                            onClick={(e) => {
-                              e.stopPropagation()
-                              onEditBooking?.(block.booking)
-                            }}
-                          >
-                            <div className="font-bold text-base truncate leading-tight"> {/* INCREASED FONT SIZE */}
-                              {block.booking.name}
-                            </div>
-                            <div className="text-sm truncate opacity-90 mt-1 font-medium"> {/* INCREASED FONT SIZE */}
-                              {minutesToTime(block.startMinutes)} • {block.booking.guests}p
-                            </div>
-
-                            {!isCompleted && (
-                              <div className="absolute top-1 right-1 flex gap-1">
-                                <Button
-                                  variant="ghost"
-                                  size="icon"
-                                  className="w-5 h-5 rounded-full bg-white/20 hover:bg-white/40 text-current p-0 mb-1"
-                                  onClick={(e) => {
-                                    e.stopPropagation()
-                                    handleDeleteReservation(block.booking)
-                                  }}
-                                  title="Elimina Prenotazione"
-                                >
-                                  <Trash size={12} weight="bold" />
-                                </Button>
-                                <Button
-                                  variant="ghost"
-                                  size="icon"
-                                  className="w-5 h-5 rounded-full bg-white/20 hover:bg-white/40 text-current p-0"
-                                  onClick={(e) => {
-                                    e.stopPropagation()
-                                    handleCompleteBooking(block.booking)
-                                  }}
-                                  title="Segna Arrivato"
-                                >
-                                  <Check size={12} weight="bold" />
-                                </Button>
-                              </div>
-                            )}
-                          </div>
-                        )
-                      })}
-                  </div>
-                </div>
-              )
-            })}
           </div>
-        </CardContent>
-      </Card>
+        )}
 
-      {/* DIALOGS */}
+        {/* GRID LINES (Absolute) */}
+        <div className="absolute inset-0 pointer-events-none">
+          {timeSlots.map((slot, i) => {
+            const minutes = slot.hour * 60 + slot.minute
+            const relativeStart = minutes - TIMELINE_START_MINUTES
+            const left = (relativeStart / TIMELINE_DURATION) * 100
 
-      {/* Search Table Dialog */}
+            return (
+              <div
+                key={i}
+                className="absolute top-0 bottom-0 w-px bg-border/20 dashed"
+                style={{ left: `${left}%` }}
+              ></div>
+            )
+          })}
+        </div>
+
+        {/* CURRENT TIME INDICATOR */}
+        {currentTimePos >= 0 && (
+          <div
+            className="absolute top-0 bottom-0 w-0.5 bg-red-500 z-10 pointer-events-none"
+            style={{ left: `${currentTimePos}%` }}
+          ></div>
+        )}
+
+        {/* RESERVATION BLOCKS */}
+        {reservationBlocks
+          .filter(block => block.table.id === table.id)
+          .map((block, i) => {
+            const isCompleted = block.booking.status === 'COMPLETED'
+            const colorIndex = i % COLORS.length
+            const bgColor = COLORS[colorIndex]
+
+            // FIXED: Opacity for completed items - "becomes too transparent" -> use opacity-80 or 90 instead of 40
+            return (
+              <div
+                key={block.booking.id}
+                draggable={!isCompleted}
+                onDragStart={(e) => handleDragStart(e, block.booking.id, block.duration)}
+                className={`absolute top-2 bottom-2 rounded-md border border-white/20 shadow-sm px-2 flex flex-col justify-center overflow-hidden transition-all hover:z-20 hover:scale-[1.02] ${isCompleted ? 'opacity-70 grayscale' : 'shadow-md'}`}
+                style={{
+                  left: `${getBlockStyle(block.startMinutes, block.duration).left}`,
+                  width: `${getBlockStyle(block.startMinutes, block.duration).width}`,
+                  backgroundColor: bgColor,
+                  color: ['#F4E6D1', '#F0D86F'].includes(bgColor) ? '#000' : '#fff'
+                }}
+                onClick={(e) => {
+                  e.stopPropagation()
+                  onEditBooking?.(block.booking)
+                }}
+              >
+                <div className="font-bold text-base truncate leading-tight"> {/* INCREASED FONT SIZE */}
+                  {block.booking.name}
+                </div>
+                <div className="text-sm truncate opacity-90 mt-1 font-medium"> {/* INCREASED FONT SIZE */}
+                  {minutesToTime(block.startMinutes)} • {block.booking.guests}p
+                </div>
+
+                {!isCompleted && (
+                  <div className="absolute top-1 right-1 flex gap-1">
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      className="w-5 h-5 rounded-full bg-white/20 hover:bg-white/40 text-current p-0 mb-1"
+                      onClick={(e) => {
+                        e.stopPropagation()
+                        handleDeleteReservation(block.booking)
+                      }}
+                      title="Elimina Prenotazione"
+                    >
+                      <Trash size={12} weight="bold" />
+                    </Button>
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      className="w-5 h-5 rounded-full bg-white/20 hover:bg-white/40 text-current p-0"
+                      onClick={(e) => {
+                        e.stopPropagation()
+                        handleCompleteBooking(block.booking)
+                      }}
+                      title="Segna Arrivato"
+                    >
+                      <Check size={12} weight="bold" />
+                    </Button>
+                  </div>
+                )}
+              </div>
+            )
+          })}
+      </div>
+    </div>
+  )
+})}
+          </div >
+        </CardContent >
+      </Card >
+
+  {/* DIALOGS */ }
+
+{/* Search Table Dialog */ }
       <Dialog open={showSmartSearch} onOpenChange={setShowSmartSearch}>
         <DialogContent>
           <DialogHeader>
@@ -784,38 +513,38 @@ export default function TimelineReservations({ user, restaurantId, tables, booki
         </DialogContent>
       </Dialog>
 
-      {/* Delete Confirmation Dialog */}
-      <Dialog open={showDeleteConfirmDialog} onOpenChange={setShowDeleteConfirmDialog}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle className="text-destructive">Elimina Prenotazione</DialogTitle>
-            <DialogDescription>
-              Sei sicuro di voler eliminare la prenotazione di {bookingToDelete?.name}?
-              <br />L'azione è irreversibile.
-            </DialogDescription>
-          </DialogHeader>
-          <div className="flex justify-end gap-2 mt-4">
-            <Button variant="outline" onClick={() => setShowDeleteConfirmDialog(false)}>Annulla</Button>
-            <Button variant="destructive" onClick={confirmDeleteReservation}>Elimina</Button>
-          </div>
-        </DialogContent>
-      </Dialog>
-
-      {/* Arrived Confirmation Dialog */}
-      <Dialog open={showArriveConfirmDialog} onOpenChange={setShowArriveConfirmDialog}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>Conferma Arrivo</DialogTitle>
-            <DialogDescription>
-              Vuoi segnare la prenotazione di {bookingToArrive?.name} come "Arrivata"?
-            </DialogDescription>
-          </DialogHeader>
-          <div className="flex justify-end gap-2 mt-4">
-            <Button variant="outline" onClick={() => setShowArriveConfirmDialog(false)}>Annulla</Button>
-            <Button className="bg-green-600 hover:bg-green-700 text-white" onClick={confirmCompleteBooking}>Conferma</Button>
-          </div>
-        </DialogContent>
-      </Dialog>
+{/* Delete Confirmation Dialog */ }
+<Dialog open={showDeleteConfirmDialog} onOpenChange={setShowDeleteConfirmDialog}>
+  <DialogContent>
+    <DialogHeader>
+      <DialogTitle className="text-destructive">Elimina Prenotazione</DialogTitle>
+      <DialogDescription>
+        Sei sicuro di voler eliminare la prenotazione di {bookingToDelete?.name}?
+        <br />L'azione è irreversibile.
+      </DialogDescription>
+    </DialogHeader>
+    <div className="flex justify-end gap-2 mt-4">
+      <Button variant="outline" onClick={() => setShowDeleteConfirmDialog(false)}>Annulla</Button>
+      <Button variant="destructive" onClick={confirmDeleteReservation}>Elimina</Button>
     </div>
+  </DialogContent>
+</Dialog>
+
+{/* Arrived Confirmation Dialog */ }
+<Dialog open={showArriveConfirmDialog} onOpenChange={setShowArriveConfirmDialog}>
+  <DialogContent>
+    <DialogHeader>
+      <DialogTitle>Conferma Arrivo</DialogTitle>
+      <DialogDescription>
+        Vuoi segnare la prenotazione di {bookingToArrive?.name} come "Arrivata"?
+      </DialogDescription>
+    </DialogHeader>
+    <div className="flex justify-end gap-2 mt-4">
+      <Button variant="outline" onClick={() => setShowArriveConfirmDialog(false)}>Annulla</Button>
+      <Button className="bg-green-600 hover:bg-green-700 text-white" onClick={confirmCompleteBooking}>Conferma</Button>
+    </div>
+  </DialogContent>
+</Dialog>
+    </div >
   )
 }
