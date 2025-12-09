@@ -182,6 +182,62 @@ interface CustomerMenuProps {
   interfaceMode?: 'customer' | 'waiter'
 }
 
+// Extract DishCard outside to prevent re-renders
+const DishCard = ({
+  dish,
+  index,
+  onSelect,
+  onAdd
+}: {
+  dish: Dish,
+  index: number,
+  onSelect: (dish: Dish) => void,
+  onAdd: (dish: Dish) => void
+}) => (
+  <motion.div
+    layout
+    initial={{ opacity: 0, y: 20 }}
+    animate={{ opacity: 1, y: 0 }}
+    exit={{ opacity: 0, y: -20 }}
+    transition={{ duration: 0.3, delay: index * 0.03 }}
+    className="flex items-center gap-3 p-3 bg-white/60 dark:bg-slate-900/60 backdrop-blur-sm rounded-2xl border border-white/20 dark:border-slate-800/50 shadow-sm hover:shadow-lg hover:bg-white/80 dark:hover:bg-slate-900/80 transition-all duration-300 cursor-pointer group active:scale-[0.98]"
+    onClick={() => onSelect(dish)}
+  >
+    <div className="w-16 h-16 shrink-0 relative rounded-xl overflow-hidden bg-gradient-to-br from-slate-100 to-slate-200 dark:from-slate-800 dark:to-slate-700 shadow-inner">
+      {dish.image_url ? (
+        <img src={dish.image_url} alt={dish.name} className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-110" loading="lazy" />
+      ) : (
+        <div className="w-full h-full flex items-center justify-center">
+          <Utensils className="w-5 h-5 text-slate-400" />
+        </div>
+      )}
+      {dish.allergens && dish.allergens.length > 0 && (
+        <div className="absolute bottom-1 right-1 bg-white/90 dark:bg-slate-900/90 p-0.5 rounded-full shadow-sm">
+          <Info className="w-2.5 h-2.5 text-amber-500" />
+        </div>
+      )}
+    </div>
+
+    <div className="flex-1 min-w-0 py-0.5">
+      <h3 className="font-semibold text-sm leading-tight text-slate-900 dark:text-white line-clamp-1 mb-0.5">{dish.name}</h3>
+      {dish.description && (
+        <p className="text-xs text-slate-500 dark:text-slate-400 line-clamp-1 leading-snug">{dish.description}</p>
+      )}
+      <div className="flex items-center justify-between mt-1.5">
+        <span className="font-bold text-sm text-emerald-600 dark:text-emerald-400">€{dish.price.toFixed(2)}</span>
+      </div>
+    </div>
+
+    <Button
+      size="sm"
+      className="h-8 w-8 rounded-full p-0 shadow-lg shadow-emerald-500/20 bg-gradient-to-br from-emerald-500 to-emerald-600 hover:from-emerald-600 hover:to-emerald-700 text-white transition-all hover:scale-110 shrink-0"
+      onClick={(e) => { e.stopPropagation(); onAdd(dish); }}
+    >
+      <Plus className="w-4 h-4" />
+    </Button>
+  </motion.div>
+)
+
 export default function CustomerMenu({ tableId: propTableId, onExit, interfaceMode = 'customer' }: CustomerMenuProps = {}) {
   const params = useParams()
   const tableId = propTableId || params.tableId || params.id || params.table_id
@@ -699,51 +755,7 @@ export default function CustomerMenu({ tableId: propTableId, onExit, interfaceMo
     )
   }
 
-  // CUSTOMER MODE - Professional UI with Category Dividers
-  const DishCard = ({ dish, index }: { dish: Dish, index: number }) => (
-    <motion.div
-      layout
-      initial={{ opacity: 0, y: 20 }}
-      animate={{ opacity: 1, y: 0 }}
-      exit={{ opacity: 0, y: -20 }}
-      transition={{ duration: 0.3, delay: index * 0.03 }}
-      className="flex items-center gap-3 p-3 bg-white/60 dark:bg-slate-900/60 backdrop-blur-sm rounded-2xl border border-white/20 dark:border-slate-800/50 shadow-sm hover:shadow-lg hover:bg-white/80 dark:hover:bg-slate-900/80 transition-all duration-300 cursor-pointer group active:scale-[0.98]"
-      onClick={() => { setSelectedDish(dish); setDishQuantity(1); }}
-    >
-      <div className="w-16 h-16 shrink-0 relative rounded-xl overflow-hidden bg-gradient-to-br from-slate-100 to-slate-200 dark:from-slate-800 dark:to-slate-700 shadow-inner">
-        {dish.image_url ? (
-          <img src={dish.image_url} alt={dish.name} className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-110" loading="lazy" />
-        ) : (
-          <div className="w-full h-full flex items-center justify-center">
-            <Utensils className="w-5 h-5 text-slate-400" />
-          </div>
-        )}
-        {dish.allergens && dish.allergens.length > 0 && (
-          <div className="absolute bottom-1 right-1 bg-white/90 dark:bg-slate-900/90 p-0.5 rounded-full shadow-sm">
-            <Info className="w-2.5 h-2.5 text-amber-500" />
-          </div>
-        )}
-      </div>
 
-      <div className="flex-1 min-w-0 py-0.5">
-        <h3 className="font-semibold text-sm leading-tight text-slate-900 dark:text-white line-clamp-1 mb-0.5">{dish.name}</h3>
-        {dish.description && (
-          <p className="text-xs text-slate-500 dark:text-slate-400 line-clamp-1 leading-snug">{dish.description}</p>
-        )}
-        <div className="flex items-center justify-between mt-1.5">
-          <span className="font-bold text-sm text-emerald-600 dark:text-emerald-400">€{dish.price.toFixed(2)}</span>
-        </div>
-      </div>
-
-      <Button
-        size="sm"
-        className="h-8 w-8 rounded-full p-0 shadow-lg shadow-emerald-500/20 bg-gradient-to-br from-emerald-500 to-emerald-600 hover:from-emerald-600 hover:to-emerald-700 text-white transition-all hover:scale-110 shrink-0"
-        onClick={(e) => { e.stopPropagation(); setSelectedDish(dish); setDishQuantity(1); }}
-      >
-        <Plus className="w-4 h-4" />
-      </Button>
-    </motion.div>
-  )
 
   return (
     <div className="h-[100dvh] bg-gradient-to-b from-slate-50 via-white to-slate-100 dark:from-slate-950 dark:via-slate-900 dark:to-slate-950 font-sans select-none flex flex-col overflow-hidden">
@@ -825,49 +837,61 @@ export default function CustomerMenu({ tableId: propTableId, onExit, interfaceMo
 
             <main className="flex-1 overflow-y-auto scrollbar-hide px-4 py-4 space-y-2 max-w-2xl mx-auto w-full pb-32">
               <AnimatePresence mode="popLayout">
-              {activeCategory === 'all' && dishesByCategory ? (
-                dishesByCategory.map(({ category, dishes: catDishes }, catIndex) => (
-                  <motion.div
-                    key={category.id}
-                    className="space-y-2"
-                    initial={{ opacity: 0 }}
-                    animate={{ opacity: 1 }}
-                    transition={{ duration: 0.3, delay: catIndex * 0.1 }}
-                  >
+                {activeCategory === 'all' && dishesByCategory ? (
+                  dishesByCategory.map(({ category, dishes: catDishes }, catIndex) => (
                     <motion.div
-                      className="flex items-center gap-3 pt-4 pb-2 first:pt-0"
-                      initial={{ opacity: 0, scale: 0.9 }}
-                      animate={{ opacity: 1, scale: 1 }}
-                      transition={{ duration: 0.4 }}
+                      key={category.id}
+                      className="space-y-2"
+                      initial={{ opacity: 0 }}
+                      animate={{ opacity: 1 }}
+                      transition={{ duration: 0.3, delay: catIndex * 0.1 }}
                     >
-                      <div className="h-px flex-1 bg-gradient-to-r from-transparent via-slate-300 dark:via-slate-700 to-transparent" />
-                      <span className="text-xs font-bold uppercase tracking-widest text-slate-500 dark:text-slate-400 px-3 py-1.5 bg-white/50 dark:bg-slate-800/50 backdrop-blur-sm rounded-full border border-white/30 dark:border-slate-700/30 shadow-sm">
-                        {category.name}
-                      </span>
-                      <div className="h-px flex-1 bg-gradient-to-r from-transparent via-slate-300 dark:via-slate-700 to-transparent" />
+                      <motion.div
+                        className="flex items-center gap-3 pt-4 pb-2 first:pt-0"
+                        initial={{ opacity: 0, scale: 0.9 }}
+                        animate={{ opacity: 1, scale: 1 }}
+                        transition={{ duration: 0.4 }}
+                      >
+                        <div className="h-px flex-1 bg-gradient-to-r from-transparent via-slate-300 dark:via-slate-700 to-transparent" />
+                        <span className="text-xs font-bold uppercase tracking-widest text-slate-500 dark:text-slate-400 px-3 py-1.5 bg-white/50 dark:bg-slate-800/50 backdrop-blur-sm rounded-full border border-white/30 dark:border-slate-700/30 shadow-sm">
+                          {category.name}
+                        </span>
+                        <div className="h-px flex-1 bg-gradient-to-r from-transparent via-slate-300 dark:via-slate-700 to-transparent" />
+                      </motion.div>
+                      {catDishes.map((dish, index) => (
+                        <DishCard
+                          key={dish.id}
+                          dish={dish}
+                          index={index}
+                          onSelect={(d) => { setSelectedDish(d); setDishQuantity(1); }}
+                          onAdd={(d) => { setSelectedDish(d); setDishQuantity(1); }}
+                        />
+                      ))}
                     </motion.div>
-                    {catDishes.map((dish, index) => (
-                      <DishCard key={dish.id} dish={dish} index={index} />
-                    ))}
+                  ))
+                ) : (
+                  filteredDishes.map((dish, index) => (
+                    <DishCard
+                      key={dish.id}
+                      dish={dish}
+                      index={index}
+                      onSelect={(d) => { setSelectedDish(d); setDishQuantity(1); }}
+                      onAdd={(d) => { setSelectedDish(d); setDishQuantity(1); }}
+                    />
+                  ))
+                )}
+                {filteredDishes.length === 0 && (
+                  <motion.div
+                    initial={{ opacity: 0, scale: 0.9 }}
+                    animate={{ opacity: 1, scale: 1 }}
+                    className="flex flex-col items-center justify-center py-20 opacity-60"
+                  >
+                    <div className="w-16 h-16 bg-slate-100 dark:bg-slate-800 rounded-full flex items-center justify-center mb-4 shadow-inner">
+                      <Search className="w-8 h-8 text-slate-400" />
+                    </div>
+                    <p className="text-sm font-medium text-slate-500">Nessun piatto trovato</p>
                   </motion.div>
-                ))
-              ) : (
-                filteredDishes.map((dish, index) => (
-                  <DishCard key={dish.id} dish={dish} index={index} />
-                ))
-              )}
-              {filteredDishes.length === 0 && (
-                <motion.div
-                  initial={{ opacity: 0, scale: 0.9 }}
-                  animate={{ opacity: 1, scale: 1 }}
-                  className="flex flex-col items-center justify-center py-20 opacity-60"
-                >
-                  <div className="w-16 h-16 bg-slate-100 dark:bg-slate-800 rounded-full flex items-center justify-center mb-4 shadow-inner">
-                    <Search className="w-8 h-8 text-slate-400" />
-                  </div>
-                  <p className="text-sm font-medium text-slate-500">Nessun piatto trovato</p>
-                </motion.div>
-              )}
+                )}
               </AnimatePresence>
             </main>
           </>
