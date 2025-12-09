@@ -248,6 +248,7 @@ export default function CustomerMenu({ tableId: propTableId, onExit, interfaceMo
   const [showCourseManagement, setShowCourseManagement] = useState(false)
   const [isCartAnimating, setIsCartAnimating] = useState(false)
   const [activeTab, setActiveTab] = useState<'menu' | 'cart' | 'orders'>('menu')
+  const [activeWaitCourse, setActiveWaitCourse] = useState(1)
 
   const initMenu = async () => {
     if (!tableId) {
@@ -599,7 +600,7 @@ export default function CustomerMenu({ tableId: propTableId, onExit, interfaceMo
     )
   }
 
-  const [activeWaitCourse, setActiveWaitCourse] = useState(1)
+
 
   if (isWaiterMode) {
     return (
