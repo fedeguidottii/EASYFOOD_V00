@@ -24,6 +24,20 @@ const AppContent = () => {
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
+    // Check localStorage for saved user first
+    const savedUser = localStorage.getItem('easyfood_user')
+    if (savedUser) {
+      try {
+        const parsedUser = JSON.parse(savedUser)
+        setUser(parsedUser)
+        setLoading(false)
+        return
+      } catch (e) {
+        localStorage.removeItem('easyfood_user')
+      }
+    }
+
+    // Fallback to Supabase auth
     supabase.auth.getSession().then(({ data: { session } }) => {
       setUser(session?.user ?? null)
       setLoading(false)
@@ -35,6 +49,12 @@ const AppContent = () => {
     })
     return () => subscription.unsubscribe()
   }, [])
+
+  const handleLogout = () => {
+    localStorage.removeItem('easyfood_user')
+    supabase.auth.signOut()
+    setUser(null)
+  }
 
   const getRedirectPath = (user: any) => {
     if (!user) return '/'
@@ -60,7 +80,7 @@ const AppContent = () => {
           path="/dashboard/*"
           element={
             <ProtectedRoute user={user} loading={loading}>
-              <RestaurantDashboard user={user} onLogout={() => { supabase.auth.signOut(); setUser(null); }} />
+              <RestaurantDashboard user={user} onLogout={handleLogout} />
             </ProtectedRoute>
           }
         />
@@ -70,7 +90,7 @@ const AppContent = () => {
           path="/waiter/*"
           element={
             <ProtectedRoute user={user} loading={loading}>
-              <WaiterDashboard user={user} onLogout={() => { supabase.auth.signOut(); setUser(null); }} />
+              <WaiterDashboard user={user} onLogout={handleLogout} />
             </ProtectedRoute>
           }
         />

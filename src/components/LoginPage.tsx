@@ -8,6 +8,7 @@ import { DatabaseService } from '../services/DatabaseService'
 import { toast } from 'sonner'
 import { User, Table } from '../services/types'
 import { Users, Eye, EyeSlash } from '@phosphor-icons/react'
+import { Checkbox } from '@/components/ui/checkbox'
 
 interface Props {
   onLogin: (user: User) => void
@@ -18,6 +19,7 @@ export default function LoginPage({ onLogin }: Props) {
   const [username, setUsername] = useState('')
   const [password, setPassword] = useState('')
   const [showPassword, setShowPassword] = useState(false)
+  const [rememberMe, setRememberMe] = useState(false)
 
   const handleAdminLogin = async () => {
     setIsLoading(true)
@@ -57,6 +59,12 @@ export default function LoginPage({ onLogin }: Props) {
               role: 'STAFF',
               restaurant_id: targetRestaurant.id
             }
+
+            // Remember Me: Store in localStorage
+            if (rememberMe) {
+              localStorage.setItem('easyfood_user', JSON.stringify(waiterUser))
+            }
+
             onLogin(waiterUser)
             toast.success(`Benvenuto Staff - ${targetRestaurant.name}`)
             setIsLoading(false)
@@ -77,9 +85,20 @@ export default function LoginPage({ onLogin }: Props) {
           }
           // Attach restaurant_id to the user object
           const userWithRestaurant = { ...user, restaurant_id: userRestaurant.id }
+
+          // Remember Me: Store in localStorage
+          if (rememberMe) {
+            localStorage.setItem('easyfood_user', JSON.stringify(userWithRestaurant))
+          }
+
           onLogin(userWithRestaurant)
           toast.success(`Benvenuto, ${userRestaurant.name}`)
           return
+        }
+
+        // Remember Me for non-OWNER users
+        if (rememberMe) {
+          localStorage.setItem('easyfood_user', JSON.stringify(user))
         }
 
         onLogin(user)
@@ -146,6 +165,19 @@ export default function LoginPage({ onLogin }: Props) {
                 </button>
               </div>
             </div>
+
+            {/* Remember Me Checkbox */}
+            <div className="flex items-center space-x-2">
+              <Checkbox
+                id="remember-me"
+                checked={rememberMe}
+                onCheckedChange={(checked) => setRememberMe(checked === true)}
+              />
+              <Label htmlFor="remember-me" className="text-sm text-muted-foreground cursor-pointer">
+                Ricordami su questo dispositivo
+              </Label>
+            </div>
+
             <Button
               onClick={handleAdminLogin}
               disabled={isLoading || !username || !password}
