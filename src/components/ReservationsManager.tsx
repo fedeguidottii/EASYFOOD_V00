@@ -13,6 +13,8 @@ import { toast } from 'sonner'
 import { Calendar, Clock, Users, PencilSimple, Trash, Phone, User as UserIcon, CalendarBlank, ArrowsLeftRight } from '@phosphor-icons/react'
 import type { User, Booking, Table, Room } from '../services/types'
 import TimelineReservations from './TimelineReservations'
+import QRCodeGenerator from './QRCodeGenerator'
+import { QrCode } from '@phosphor-icons/react'
 
 interface ReservationsManagerProps {
   user: User
@@ -34,6 +36,7 @@ export default function ReservationsManager({ user, restaurantId, tables, rooms,
   const [showDeleteDialog, setShowDeleteDialog] = useState(false)
   const [showHistoryDialog, setShowHistoryDialog] = useState(false)
   const [showMoveDialog, setShowMoveDialog] = useState(false)
+  const [showQrDialog, setShowQrDialog] = useState(false)
 
   // Helper for date comparison (ignoring time)
   const isSameDay = (d1: Date, d2: Date) => {
@@ -315,6 +318,13 @@ export default function ReservationsManager({ user, restaurantId, tables, rooms,
               onClick={() => setShowHistoryDialog(true)}
             >
               Storico Prenotazioni
+            </Button>
+            <Button
+              className="bg-emerald-600 hover:bg-emerald-700 text-white gap-2"
+              onClick={() => setShowQrDialog(true)}
+            >
+              <QrCode size={18} />
+              QR Prenotazioni
             </Button>
           </div>
         </div>
@@ -631,6 +641,37 @@ export default function ReservationsManager({ user, restaurantId, tables, rooms,
                 </div>
               )}
             </div>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* Public Booking QR Code Dialog */}
+      <Dialog open={showQrDialog} onOpenChange={setShowQrDialog}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle className="text-center">Prenotazioni Pubbliche</DialogTitle>
+            <DialogDescription className="text-center">
+              Fai scansionare questo codice ai clienti per prenotare un tavolo autonomamente.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="flex flex-col items-center justify-center p-6 space-y-4">
+            <div className="bg-white p-4 rounded-xl shadow-lg border">
+              <QRCodeGenerator
+                value={`${window.location.origin}/book/${restaurantId}`}
+                size={200}
+              />
+            </div>
+            <div className="text-center">
+              <p className="text-sm text-muted-foreground mb-1">Link diretto:</p>
+              <code className="text-xs bg-muted p-2 rounded block break-all">
+                {`${window.location.origin}/book/${restaurantId}`}
+              </code>
+            </div>
+          </div>
+          <div className="flex justify-center">
+            <Button variant="outline" onClick={() => window.open(`${window.location.origin}/book/${restaurantId}`, '_blank')}>
+              Apri pagina di prenotazione
+            </Button>
           </div>
         </DialogContent>
       </Dialog>
