@@ -11,13 +11,14 @@ import { Separator } from '@/components/ui/separator'
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover'
 import { toast } from 'sonner'
 import { Calendar, Clock, Users, PencilSimple, Trash, Phone, User as UserIcon, CalendarBlank, ArrowsLeftRight } from '@phosphor-icons/react'
-import type { User, Booking, Table } from '../services/types'
+import type { User, Booking, Table, Room } from '../services/types'
 import TimelineReservations from './TimelineReservations'
 
 interface ReservationsManagerProps {
   user: User
   restaurantId: string
   tables: Table[]
+  rooms: Room[]
   bookings: Booking[]
   selectedDate: Date
   openingTime?: string
@@ -26,8 +27,9 @@ interface ReservationsManagerProps {
   onRefresh?: () => void
 }
 
-export default function ReservationsManager({ user, restaurantId, tables, bookings, selectedDate, openingTime = '10:00', closingTime = '23:00', reservationDuration = 120, onRefresh }: ReservationsManagerProps) {
+export default function ReservationsManager({ user, restaurantId, tables, rooms, bookings, selectedDate, openingTime = '10:00', closingTime = '23:00', reservationDuration = 120, onRefresh }: ReservationsManagerProps) {
   const [selectedBooking, setSelectedBooking] = useState<Booking | null>(null)
+  const [selectedRoomId, setSelectedRoomId] = useState<string>('all')
   const [showEditDialog, setShowEditDialog] = useState(false)
   const [showDeleteDialog, setShowDeleteDialog] = useState(false)
   const [showHistoryDialog, setShowHistoryDialog] = useState(false)
@@ -63,7 +65,9 @@ export default function ReservationsManager({ user, restaurantId, tables, bookin
 
   // Filter bookings for this restaurant
   const restaurantBookings = bookings.filter(b => b.restaurant_id === restaurantId)
-  const restaurantTables = tables.filter(t => t.restaurant_id === restaurantId)
+  const restaurantTables = tables
+    .filter(t => t.restaurant_id === restaurantId)
+    .filter(t => selectedRoomId === 'all' || t.room_id === selectedRoomId)
 
   // Separate active and history (completed) bookings
   const now = new Date()
@@ -295,6 +299,17 @@ export default function ReservationsManager({ user, restaurantId, tables, bookin
         <div className="flex items-center justify-between flex-wrap gap-4">
           <h2 className="text-2xl font-bold text-foreground">Prenotazioni del {selectedDate.toLocaleDateString('it-IT')}</h2>
           <div className="flex gap-2 flex-wrap">
+            <Select value={selectedRoomId} onValueChange={setSelectedRoomId}>
+              <SelectTrigger className="w-[180px]">
+                <SelectValue placeholder="Filtra per Sala" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">Tutte le Sale</SelectItem>
+                {rooms.map(room => (
+                  <SelectItem key={room.id} value={room.id}>{room.name}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
             <Button
               variant="outline"
               onClick={() => setShowHistoryDialog(true)}

@@ -104,6 +104,39 @@ export const DatabaseService = {
         if (error) throw error
     },
 
+    // Rooms
+    async getRooms(restaurantId: string) {
+        const { data, error } = await supabase
+            .from('rooms')
+            .select('*')
+            .eq('restaurant_id', restaurantId)
+            .eq('is_active', true)
+            .order('order', { ascending: true })
+        if (error) throw error
+        return data as any[]
+    },
+
+    async createRoom(room: Partial<any>) {
+        const { error } = await supabase.from('rooms').insert(room)
+        if (error) throw error
+    },
+
+    async updateRoom(roomId: string, updates: Partial<any>) {
+        const { error } = await supabase
+            .from('rooms')
+            .update(updates)
+            .eq('id', roomId)
+        if (error) throw error
+    },
+
+    async deleteRoom(roomId: string) {
+        const { error } = await supabase
+            .from('rooms')
+            .update({ is_active: false })
+            .eq('id', roomId)
+        if (error) throw error
+    },
+
     async deleteRestaurant(restaurantId: string) {
         // 0. Recupera info ristorante per eliminare il logo e l'owner
         const { data: restaurant } = await supabase
@@ -641,5 +674,14 @@ export const DatabaseService = {
             .order('created_at', { ascending: false })
         if (error) throw error
         return data as Order[]
+    },
+    async getSessionById(sessionId: string) {
+        const { data, error } = await supabase
+            .from('table_sessions')
+            .select('*')
+            .eq('id', sessionId)
+            .single()
+        if (error) return null
+        return data as TableSession
     }
 }

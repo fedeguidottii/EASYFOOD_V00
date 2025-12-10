@@ -31,7 +31,7 @@ import { SettingsView } from './SettingsView'
 import ReservationsManager from './ReservationsManager'
 import AnalyticsCharts from './AnalyticsCharts'
 import { generateQrCode } from '../utils/qrUtils'
-import type { Table, Order, Dish, Category, TableSession, Booking, Restaurant } from '../services/types'
+import type { Table, Order, Dish, Category, TableSession, Booking, Restaurant, Room } from '../services/types'
 import { soundManager, type SoundType } from '../utils/SoundManager'
 import { ModeToggle } from './ModeToggle'
 
@@ -56,6 +56,7 @@ const RestaurantDashboard = ({ user, onLogout }: RestaurantDashboardProps) => {
   const [categories, , , setCategories] = useSupabaseData<Category>('categories', [], { column: 'restaurant_id', value: restaurantId })
   const [bookings, , refreshBookings] = useSupabaseData<Booking>('bookings', [], { column: 'restaurant_id', value: restaurantId })
   const [sessions, , refreshSessions] = useSupabaseData<TableSession>('table_sessions', [], { column: 'restaurant_id', value: restaurantId })
+  const [rooms, , refreshRooms, setRooms] = useSupabaseData<Room>('rooms', [], { column: 'restaurant_id', value: restaurantId })
 
   const [restaurants, , refreshRestaurants] = useSupabaseData<Restaurant>('restaurants', [], { column: 'id', value: restaurantId })
   const currentRestaurant = restaurants?.[0]
@@ -162,6 +163,15 @@ const RestaurantDashboard = ({ user, onLogout }: RestaurantDashboardProps) => {
   const [showCreateTableDialog, setShowCreateTableDialog] = useState(false)
   const [editingTable, setEditingTable] = useState<Table | null>(null)
   const [editTableName, setEditTableName] = useState('')
+  // Duplicate editTableSeats removed in previous step (kept here as comment or cleaned up later)
+  const [newTableRoomId, setNewTableRoomId] = useState<string>('all')
+  const [editTableRoomId, setEditTableRoomId] = useState<string>('all')
+
+  // Room State
+  const [selectedRoomFilter, setSelectedRoomFilter] = useState<string>('all')
+  const [showRoomDialog, setShowRoomDialog] = useState(false)
+  const [newRoomName, setNewRoomName] = useState('')
+  const [editingRoom, setEditingRoom] = useState<Room | null>(null)
   const [editingDish, setEditingDish] = useState<Dish | null>(null)
   const [editDishData, setEditDishData] = useState<{
     name: string
@@ -335,6 +345,7 @@ const RestaurantDashboard = ({ user, onLogout }: RestaurantDashboardProps) => {
       restaurant_id: restaurantId,
       number: newTableName,
       seats: typeof newTableSeats === 'string' ? parseInt(newTableSeats) || 4 : newTableSeats,
+      room_id: newTableRoomId !== 'all' ? newTableRoomId : undefined
     }
 
     DatabaseService.createTable(newTable)
@@ -342,6 +353,7 @@ const RestaurantDashboard = ({ user, onLogout }: RestaurantDashboardProps) => {
         setTables?.((prev = []) => [...prev, created as Table])
         setNewTableName('')
         setNewTableSeats(4)
+        setNewTableRoomId('all')
         setShowCreateTableDialog(false)
         toast.success('Tavolo creato con successo')
       })
@@ -605,6 +617,7 @@ const RestaurantDashboard = ({ user, onLogout }: RestaurantDashboardProps) => {
     setEditingTable(table)
     setEditTableName(table.number)
     setEditTableSeats(table.seats || 4)
+    setEditTableRoomId(table.room_id || 'all')
   }
 
   const handleCreateDish = async () => {
@@ -1386,114 +1399,204 @@ const RestaurantDashboard = ({ user, onLogout }: RestaurantDashboardProps) => {
               </div>
             </div>
 
-            <div className="grid gap-6 grid-cols-[repeat(auto-fill,minmax(240px,1fr))]">
-              {restaurantTables.map(table => {
-                const session = getOpenSessionForTable(table.id)
-                const isActive = session?.status === 'OPEN'
-                const activeOrder = restaurantOrders.find(o => getTableIdFromOrder(o) === table.id)
+            {/* Room Filters & Management */}
+            <div className="flex items-center gap-2 mb-4 overflow-x-auto pb-2">
+              <Button
+                variant={selectedRoomFilter === 'all' ? "default" : "outline"}
+                size="sm"
+                onClick={() => setSelectedRoomFilter('all')}
+                className="rounded-full"
+              >
+                Tutte
+              </Button>
+              {rooms?.map(room => (
+                <Button
+                  key={room.id}
+                  variant={selectedRoomFilter === room.id ? "default" : "outline"}
+                  size="sm"
+                  onClick={() => setSelectedRoomFilter(room.id)}
+                  className="rounded-full whitespace-nowrap"
+                >
+                  {room.name}
+                </Button>
+              ))}
 
-                return (
-                  <Card
-                    key={table.id}
-                    className={`relative overflow-hidden transition-all duration-300 group cursor-pointer ${isActive
-                      ? 'bg-gradient-to-br from-emerald-100 to-emerald-50 dark:from-emerald-950/30 dark:to-background shadow-lg shadow-emerald-500/20 ring-2 ring-emerald-400/50 dark:ring-emerald-800/50 border-emerald-200 dark:border-emerald-800'
-                      : 'bg-gradient-to-br from-slate-100 to-white dark:from-slate-900/50 dark:to-background shadow-md hover:shadow-lg border-slate-200 dark:border-slate-800'
-                      }`}
-                    onClick={() => {
-                      if (isActive) {
-                        navigate(`/waiter/table/${table.id}`)
-                      } else {
-                        setPendingAutoOrderTableId(table.id)
-                        handleToggleTable(table.id)
-                      }
-                    }}
-                  >
-                    <CardContent className="p-0 flex flex-col h-full">
-                      <div className="p-4 flex flex-wrap items-center justify-between gap-2 border-b border-border/5">
-                        <div className="flex items-center gap-3">
-                          <span className="text-2xl font-bold text-foreground tracking-tight whitespace-nowrap">
-                            {table.number}
-                          </span>
-                          <div className="flex items-center gap-1.5 text-foreground bg-muted px-3 py-1 rounded-full">
-                            <Users size={16} weight="bold" />
-                            <span className="text-sm font-bold">{table.seats || 4}</span>
+              <Separator orientation="vertical" className="h-6 mx-2" />
+
+              <Dialog open={showRoomDialog} onOpenChange={setShowRoomDialog}>
+                <DialogTrigger asChild>
+                  <Button variant="ghost" size="sm" className="gap-2 text-muted-foreground hover:text-primary">
+                    <MapPin size={16} />
+                    Gestisci Sale
+                  </Button>
+                </DialogTrigger>
+                <DialogContent>
+                  <DialogHeader>
+                    <DialogTitle>Gestione Sale</DialogTitle>
+                    <DialogDescription>Crea e organizza le aree del tuo ristorante</DialogDescription>
+                  </DialogHeader>
+                  <div className="space-y-4 mt-4">
+                    <div className="flex gap-2">
+                      <Input
+                        placeholder="Nuova Sala (es. Dehor, Interna...)"
+                        value={newRoomName}
+                        onChange={(e) => setNewRoomName(e.target.value)}
+                      />
+                      <Button onClick={async () => {
+                        if (!newRoomName.trim() || !restaurantId) return;
+                        try {
+                          await DatabaseService.createRoom({
+                            restaurant_id: restaurantId,
+                            name: newRoomName.trim(),
+                            is_active: true,
+                            order: rooms?.length || 0
+                          })
+                          setNewRoomName('')
+                          toast.success('Sala creata')
+                          refreshRooms()
+                        } catch (e) {
+                          toast.error('Errore creazione sala')
+                        }
+                      }}>Aggiungi</Button>
+                    </div>
+
+                    <div className="space-y-2 mt-4">
+                      {rooms?.map(room => (
+                        <div key={room.id} className="flex items-center justify-between p-3 bg-muted/30 rounded-lg border">
+                          <span className="font-medium">{room.name}</span>
+                          <div className="flex items-center gap-2">
+                            <Button size="icon" variant="ghost" className="h-8 w-8 text-destructive" onClick={async () => {
+                              if (!confirm('Eliminare questa sala?')) return;
+                              try {
+                                await DatabaseService.deleteRoom(room.id)
+                                toast.success('Sala eliminata')
+                                refreshRooms()
+                              } catch (e) {
+                                toast.error('Impossibile eliminare')
+                              }
+                            }}>
+                              <Trash size={14} />
+                            </Button>
                           </div>
                         </div>
-                        <Badge
-                          variant={isActive ? 'default' : 'outline'}
-                          className={isActive ? 'bg-red-600 hover:bg-red-700 border-none text-white shadow-sm font-semibold' : 'bg-green-600 text-white border-none font-semibold'}
-                        >
-                          {isActive ? 'Occupato' : 'Libero'}
-                        </Badge>
-                      </div>
+                      ))}
+                      {rooms?.length === 0 && <p className="text-center text-sm text-muted-foreground py-4">Nessuna sala configurata</p>}
+                    </div>
+                  </div>
+                </DialogContent>
+              </Dialog>
+            </div>
 
-                      <div className="flex-1 p-5 flex flex-col items-center justify-center gap-3">
-                        {isActive ? (
-                          <>
-                            <div className="text-center">
-                              <p className="text-[9px] text-muted-foreground mb-1 uppercase tracking-[0.2em] font-semibold">PIN</p>
-                              <div className="bg-gradient-to-br from-slate-100 to-slate-50 dark:from-slate-800 dark:to-slate-900 px-6 py-3 rounded-xl border border-slate-200/50 dark:border-slate-700/50 shadow-inner min-w-[120px]">
-                                <span className="text-4xl font-mono font-bold tracking-widest text-foreground whitespace-nowrap">
-                                  {session?.session_pin || '...'}
-                                </span>
-                              </div>
+            <div className="grid gap-6 grid-cols-[repeat(auto-fill,minmax(240px,1fr))]">
+              {restaurantTables
+                .filter(t => selectedRoomFilter === 'all' || t.room_id === selectedRoomFilter)
+                .map(table => {
+                  const session = getOpenSessionForTable(table.id)
+                  const isActive = session?.status === 'OPEN'
+                  const activeOrder = restaurantOrders.find(o => getTableIdFromOrder(o) === table.id)
+
+                  return (
+                    <Card
+                      key={table.id}
+                      className={`relative overflow-hidden transition-all duration-300 group cursor-pointer ${isActive
+                        ? 'bg-gradient-to-br from-emerald-100 to-emerald-50 dark:from-emerald-950/30 dark:to-background shadow-lg shadow-emerald-500/20 ring-2 ring-emerald-400/50 dark:ring-emerald-800/50 border-emerald-200 dark:border-emerald-800'
+                        : 'bg-gradient-to-br from-slate-100 to-white dark:from-slate-900/50 dark:to-background shadow-md hover:shadow-lg border-slate-200 dark:border-slate-800'
+                        }`}
+                      onClick={() => {
+                        if (isActive) {
+                          navigate(`/waiter/table/${table.id}`)
+                        } else {
+                          setPendingAutoOrderTableId(table.id)
+                          handleToggleTable(table.id)
+                        }
+                      }}
+                    >
+                      <CardContent className="p-0 flex flex-col h-full">
+                        <div className="p-4 flex flex-wrap items-center justify-between gap-2 border-b border-border/5">
+                          <div className="flex items-center gap-3">
+                            <span className="text-2xl font-bold text-foreground tracking-tight whitespace-nowrap">
+                              {table.number}
+                            </span>
+                            <div className="flex items-center gap-1.5 text-foreground bg-muted px-3 py-1 rounded-full">
+                              <Users size={16} weight="bold" />
+                              <span className="text-sm font-bold">{table.seats || 4}</span>
                             </div>
-                            {activeOrder && (
-                              <Badge variant="outline" className="text-[10px] bg-background/50 backdrop-blur-sm border-emerald-200 dark:border-emerald-800">
-                                <CheckCircle size={10} className="mr-1" weight="fill" />
-                                {activeOrder.items?.filter(i => i.status === 'SERVED').length || 0} completati
-                              </Badge>
-                            )}
-                          </>
-                        ) : (
-                          <div className="text-center text-muted-foreground/30 group-hover:text-muted-foreground/50 transition-all duration-300">
-                            <ForkKnife size={32} className="mx-auto mb-1" weight="duotone" />
-                            <p className="text-xs font-medium">Clicca per Ordinare</p>
                           </div>
-                        )}
-                      </div>
-
-                      <div className="p-3 bg-gradient-to-t from-muted/10 to-transparent border-t border-border/5 grid gap-2">
-                        {isActive ? (
-                          <div className="grid grid-cols-2 gap-2">
-                            <Button variant="outline" size="sm" onClick={(e) => { e.stopPropagation(); handleShowTableQr(table); }} className="shadow-sm hover:shadow transition-shadow h-8 text-xs">
-                              <QrCode size={14} className="mr-1.5" />
-                              QR
-                            </Button>
-                            <Button
-                              className="bg-gradient-to-r from-primary to-primary/80 text-primary-foreground hover:from-primary/90 hover:to-primary/70 shadow-sm hover:shadow transition-all h-8 text-xs"
-                              size="sm"
-                              onClick={(e) => { e.stopPropagation(); setSelectedTableForActions(table); setShowTableBillDialog(true); }}
-                            >
-                              <Receipt size={14} className="mr-1.5" />
-                              Conto
-                            </Button>
-                          </div>
-                        ) : (
-                          <Button
-                            className="w-full shadow-sm hover:shadow transition-shadow h-8 text-xs"
-                            size="sm"
-                            onClick={(e) => { e.stopPropagation(); handleToggleTable(table.id); }}
+                          <Badge
+                            variant={isActive ? 'default' : 'outline'}
+                            className={isActive ? 'bg-red-600 hover:bg-red-700 border-none text-white shadow-sm font-semibold' : 'bg-green-600 text-white border-none font-semibold'}
                           >
-                            <Plus size={14} className="mr-1.5" />
-                            Attiva
+                            {isActive ? 'Occupato' : 'Libero'}
+                          </Badge>
+                        </div>
+
+                        <div className="flex-1 p-5 flex flex-col items-center justify-center gap-3">
+                          {isActive ? (
+                            <>
+                              <div className="text-center">
+                                <p className="text-[9px] text-muted-foreground mb-1 uppercase tracking-[0.2em] font-semibold">PIN</p>
+                                <div className="bg-gradient-to-br from-slate-100 to-slate-50 dark:from-slate-800 dark:to-slate-900 px-6 py-3 rounded-xl border border-slate-200/50 dark:border-slate-700/50 shadow-inner min-w-[120px]">
+                                  <span className="text-4xl font-mono font-bold tracking-widest text-foreground whitespace-nowrap">
+                                    {session?.session_pin || '...'}
+                                  </span>
+                                </div>
+                              </div>
+                              {activeOrder && (
+                                <Badge variant="outline" className="text-[10px] bg-background/50 backdrop-blur-sm border-emerald-200 dark:border-emerald-800">
+                                  <CheckCircle size={10} className="mr-1" weight="fill" />
+                                  {activeOrder.items?.filter(i => i.status === 'SERVED').length || 0} completati
+                                </Badge>
+                              )}
+                            </>
+                          ) : (
+                            <div className="text-center text-muted-foreground/30 group-hover:text-muted-foreground/50 transition-all duration-300">
+                              <ForkKnife size={32} className="mx-auto mb-1" weight="duotone" />
+                              <p className="text-xs font-medium">Clicca per Ordinare</p>
+                            </div>
+                          )}
+                        </div>
+
+                        <div className="p-3 bg-gradient-to-t from-muted/10 to-transparent border-t border-border/5 grid gap-2">
+                          {isActive ? (
+                            <div className="grid grid-cols-2 gap-2">
+                              <Button variant="outline" size="sm" onClick={(e) => { e.stopPropagation(); handleShowTableQr(table); }} className="shadow-sm hover:shadow transition-shadow h-8 text-xs">
+                                <QrCode size={14} className="mr-1.5" />
+                                QR
+                              </Button>
+                              <Button
+                                className="bg-gradient-to-r from-primary to-primary/80 text-primary-foreground hover:from-primary/90 hover:to-primary/70 shadow-sm hover:shadow transition-all h-8 text-xs"
+                                size="sm"
+                                onClick={(e) => { e.stopPropagation(); setSelectedTableForActions(table); setShowTableBillDialog(true); }}
+                              >
+                                <Receipt size={14} className="mr-1.5" />
+                                Conto
+                              </Button>
+                            </div>
+                          ) : (
+                            <Button
+                              className="w-full shadow-sm hover:shadow transition-shadow h-8 text-xs"
+                              size="sm"
+                              onClick={(e) => { e.stopPropagation(); handleToggleTable(table.id); }}
+                            >
+                              <Plus size={14} className="mr-1.5" />
+                              Attiva
+                            </Button>
+                          )}
+                        </div>
+
+                        <div className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity flex gap-1 bg-background/90 backdrop-blur-md p-1 rounded-lg border border-border/30 shadow-lg">
+                          <Button variant="ghost" size="icon" className="h-6 w-6 hover:bg-muted" onClick={(e) => { e.stopPropagation(); handleEditTable(table); }}>
+                            <PencilSimple size={12} />
                           </Button>
-                        )}
-                      </div>
+                          <Button variant="ghost" size="icon" className="h-6 w-6 text-destructive hover:bg-destructive/10" onClick={(e) => { e.stopPropagation(); handleDeleteTable(table.id); }}>
+                            <Trash size={12} />
+                          </Button>
+                        </div>
+                      </CardContent>
+                    </Card>
 
-                      <div className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity flex gap-1 bg-background/90 backdrop-blur-md p-1 rounded-lg border border-border/30 shadow-lg">
-                        <Button variant="ghost" size="icon" className="h-6 w-6 hover:bg-muted" onClick={(e) => { e.stopPropagation(); handleEditTable(table); }}>
-                          <PencilSimple size={12} />
-                        </Button>
-                        <Button variant="ghost" size="icon" className="h-6 w-6 text-destructive hover:bg-destructive/10" onClick={(e) => { e.stopPropagation(); handleDeleteTable(table.id); }}>
-                          <Trash size={12} />
-                        </Button>
-                      </div>
-                    </CardContent>
-                  </Card>
-
-                )
-              })}
+                  )
+                })}
             </div>
           </TabsContent >
 
@@ -1805,12 +1908,13 @@ const RestaurantDashboard = ({ user, onLogout }: RestaurantDashboardProps) => {
               user={user}
               restaurantId={restaurantId}
               tables={restaurantTables}
+              rooms={rooms || []}
               bookings={bookings || []}
               selectedDate={selectedReservationDate}
-              openingTime={openingTime}
-              closingTime={closingTime}
-              reservationDuration={reservationDuration}
-              onRefresh={refreshBookings}
+              onRefresh={() => {
+                refreshBookings()
+                refreshSessions()
+              }}
             />
           </TabsContent >
 
@@ -1936,6 +2040,20 @@ const RestaurantDashboard = ({ user, onLogout }: RestaurantDashboardProps) => {
                   placeholder="4"
                 />
               </div>
+              <div className="space-y-2">
+                <Label>Sala</Label>
+                <Select value={newTableRoomId} onValueChange={setNewTableRoomId}>
+                  <SelectTrigger>
+                    <SelectValue placeholder="Seleziona Sala" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">Nessuna Sala</SelectItem>
+                    {rooms?.map(r => (
+                      <SelectItem key={r.id} value={r.id}>{r.name}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
               <Button onClick={handleCreateTable} className="w-full">Crea Tavolo</Button>
             </div>
           </DialogContent>
@@ -1973,12 +2091,29 @@ const RestaurantDashboard = ({ user, onLogout }: RestaurantDashboardProps) => {
                   placeholder="4"
                 />
               </div>
+              <div className="space-y-2">
+                <Label>Sala</Label>
+                <Select value={editTableRoomId} onValueChange={setEditTableRoomId}>
+                  <SelectTrigger>
+                    <SelectValue placeholder="Seleziona Sala" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">Nessuna Sala</SelectItem>
+                    {rooms?.map(r => (
+                      <SelectItem key={r.id} value={r.id}>{r.name}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
               <Button onClick={() => {
                 if (editingTable && editTableName.trim()) {
                   const seats = typeof editTableSeats === 'string' ? parseInt(editTableSeats) || 4 : editTableSeats
-                  DatabaseService.updateTable(editingTable.id, { number: editTableName, seats })
+                  const room_id = editTableRoomId !== 'all' ? editTableRoomId : null
+                  // We use 'any' cast or explicit property if type is not fully updated in TS yet, but Room is added.
+                  // However updateTable takes Partial<Table>, and Table has room_id.
+                  DatabaseService.updateTable(editingTable.id, { number: editTableName, seats, room_id } as any)
                     .then(() => {
-                      setTables(prev => prev.map(t => t.id === editingTable.id ? { ...t, number: editTableName, seats } : t))
+                      setTables(prev => prev.map(t => t.id === editingTable.id ? { ...t, number: editTableName, seats, room_id: room_id || undefined } : t))
                       setEditingTable(null)
                       toast.success('Tavolo aggiornato')
                     })

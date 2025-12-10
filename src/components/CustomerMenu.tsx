@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useMemo, useCallback } from 'react'
-import { useParams } from 'react-router-dom'
+import { useParams, useNavigate } from 'react-router-dom' // Added useNavigate
+import { useSession } from '../context/SessionContext' // Import context
 import { useSupabaseData } from '../hooks/useSupabaseData'
 import { DatabaseService } from '../services/DatabaseService'
 import { supabase } from '../lib/supabase'
@@ -14,95 +15,34 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { Input } from '@/components/ui/input'
 import { Textarea } from '@/components/ui/textarea'
 import { toast } from 'sonner'
+// Icons
 import {
-  ShoppingBasket,
-  Plus,
-  Minus,
-  Utensils,
-  Clock,
-  CheckCircle,
-  ChefHat,
-  Search,
-  Info,
-  X,
-  RefreshCw,
-  AlertCircle,
-  ChevronUp,
-  ChevronDown,
-  Layers,
-  ArrowLeft,
-  Send,
-  ChevronRight,
-  Trash,
-  GripVertical,
-  ArrowUp,
-  ArrowDown
+  ShoppingBasket, Plus, Minus, Utensils, Clock, CheckCircle, ChefHat, Search, Info,
+  X, RefreshCw, AlertCircle, ChevronUp, ChevronDown, Layers, ArrowLeft, Send,
+  ChevronRight, Trash, GripVertical, ArrowUp, ArrowDown
 } from 'lucide-react'
 import {
-  DndContext,
-  DragOverlay,
-  useSensor,
-  useSensors,
-  PointerSensor,
-  TouchSensor,
-  closestCenter,
-  useDroppable,
-  DragStartEvent,
-  DragEndEvent,
-  DragOverEvent,
-  defaultDropAnimationSideEffects,
-  DropAnimation
+  DndContext, DragOverlay, useSensor, useSensors, PointerSensor, TouchSensor,
+  closestCenter, useDroppable, DragStartEvent, DragEndEvent, DragOverEvent,
+  defaultDropAnimationSideEffects, DropAnimation
 } from '@dnd-kit/core'
-import {
-  SortableContext,
-  verticalListSortingStrategy,
-  useSortable
-} from '@dnd-kit/sortable'
+import { SortableContext, verticalListSortingStrategy, useSortable } from '@dnd-kit/sortable'
 import { CSS } from '@dnd-kit/utilities'
 import { motion, AnimatePresence } from 'framer-motion'
 import type { Category, Dish, Order, TableSession } from '../services/types'
 
-// Helper for empty course drop zone
-function DroppableCoursePlaceholder({ id }: { id: string }) {
-  const { setNodeRef, isOver } = useDroppable({ id })
-  return (
-    <div
-      ref={setNodeRef}
-      className={`text - center py - 4 text - xs border - 2 border - dashed rounded - xl transition - colors ${isOver ? 'border-emerald-500 bg-emerald-50 dark:bg-emerald-900/20 text-emerald-600' : 'border-slate-200 dark:border-slate-800 text-slate-400'} `}
-    >
-      Trascina qui i piatti
-    </div>
-  )
+// --- HELPER COMPONENTS ---
+
+interface CartItem extends Dish {
+  cartId: string
+  quantity: number
+  notes?: string
+  courseNumber: number
 }
 
-// Helper for new course drop zone
-function NewCourseDropZone({ onClick }: { onClick: () => void }) {
-  const { setNodeRef, isOver } = useDroppable({ id: 'new-course-zone' })
-  return (
-    <div ref={setNodeRef} className="relative">
-      <Button
-        variant="outline"
-        className={`w - full py - 6 border - dashed rounded - 2xl gap - 2 transition - all ${isOver ? 'border-emerald-500 bg-emerald-50 dark:bg-emerald-900/20 text-emerald-600 scale-105' : 'border-slate-300 dark:border-slate-700 text-slate-500 hover:text-emerald-600 hover:border-emerald-500 hover:bg-emerald-50 dark:hover:bg-emerald-900/10'} `}
-        onClick={onClick}
-      >
-        <Plus className="w-5 h-5" />
-        {isOver ? 'Rilascia per creare Nuova Portata' : 'Aggiungi Nuova Portata'}
-      </Button>
-    </div>
-  )
-}
-
-// Helper for course container drop zone with smooth animations
-function DroppableCourse({ id, children, className }: { id: string, children: React.ReactNode, className?: string }) {
-  const { setNodeRef, isOver } = useDroppable({ id })
-  return (
-    <div
-      ref={setNodeRef}
-      className={`${className} transition - all duration - 300 ${isOver ? 'ring-2 ring-emerald-500 bg-emerald-50/50 dark:bg-emerald-900/20 shadow-lg shadow-emerald-500/10' : ''} `}
-    >
-      {children}
-    </div>
-  )
+// Helper function for consistent course titles
+const getCourseTitle = (courseNum: number): string => {
+  return `Uscita ${courseNum}`
 }
 
 // Sortable Item Component with smooth animations
@@ -130,10 +70,10 @@ function SortableDishItem({ item, courseNum }: { item: CartItem, courseNum: numb
       style={style}
       {...attributes}
       {...listeners}
-      className={`flex items - center justify - between bg - slate - 50 dark: bg - slate - 800 p - 3 rounded - xl border border - slate - 100 dark: border - slate - 700 group relative cursor - grab active: cursor - grabbing touch - none select - none ${isDragging ? 'ring-2 ring-emerald-500 bg-white dark:bg-slate-700' : ''} `}
+      className={`flex items-center justify-between bg-slate-50 dark:bg-slate-800 p-3 rounded-xl border border-slate-100 dark:border-slate-700 group relative cursor-grab active:cursor-grabbing touch-none select-none ${isDragging ? 'ring-2 ring-emerald-500 bg-white dark:bg-slate-700' : ''}`}
     >
       <div className="flex items-center gap-3 pointer-events-none">
-        <div className={`p - 1.5 rounded - lg ${isDragging ? 'text-emerald-500 bg-emerald-50 dark:bg-emerald-900/30' : 'text-slate-400'} `}>
+        <div className={`p-1.5 rounded-lg ${isDragging ? 'text-emerald-500 bg-emerald-50 dark:bg-emerald-900/30' : 'text-slate-400'}`}>
           <GripVertical className="w-4 h-4" />
         </div>
         <div>
@@ -143,24 +83,6 @@ function SortableDishItem({ item, courseNum }: { item: CartItem, courseNum: numb
       </div>
     </div>
   )
-}
-
-interface CartItem extends Dish {
-  cartId: string
-  quantity: number
-  notes?: string
-  courseNumber: number
-}
-
-// Helper function for consistent course titles
-const getCourseTitle = (courseNum: number): string => {
-  return `Uscita ${courseNum} `
-}
-
-interface CustomerMenuProps {
-  tableId?: string
-  onExit?: () => void
-  interfaceMode?: 'customer' | 'waiter'
 }
 
 // Extract DishCard outside to prevent re-renders
@@ -219,12 +141,208 @@ const DishCard = ({
   </motion.div>
 )
 
-export default function CustomerMenu({ tableId: propTableId, onExit, interfaceMode = 'customer' }: CustomerMenuProps = {}) {
-  const params = useParams()
-  const tableId = propTableId || params.tableId || params.id || params.table_id
-  const isWaiterMode = interfaceMode === 'waiter'
+// Helper for empty course drop zone
+function DroppableCoursePlaceholder({ id }: { id: string }) {
+  const { setNodeRef, isOver } = useDroppable({ id })
+  return (
+    <div
+      ref={setNodeRef}
+      className={`text-center py-4 text-xs border-2 border-dashed rounded-xl transition-colors ${isOver ? 'border-emerald-500 bg-emerald-50 dark:bg-emerald-900/20 text-emerald-600' : 'border-slate-200 dark:border-slate-800 text-slate-400'}`}
+    >
+      Trascina qui i piatti
+    </div>
+  )
+}
 
-  const [restaurantId, setRestaurantId] = useState<string | null>(null)
+// Helper for new course drop zone
+function NewCourseDropZone({ onClick }: { onClick: () => void }) {
+  const { setNodeRef, isOver } = useDroppable({ id: 'new-course-zone' })
+  return (
+    <div ref={setNodeRef} className="relative">
+      <Button
+        variant="outline"
+        className={`w-full py-6 border-dashed rounded-2xl gap-2 transition-all ${isOver ? 'border-emerald-500 bg-emerald-50 dark:bg-emerald-900/20 text-emerald-600 scale-105' : 'border-slate-300 dark:border-slate-700 text-slate-500 hover:text-emerald-600 hover:border-emerald-500 hover:bg-emerald-50 dark:hover:bg-emerald-900/10'}`}
+        onClick={onClick}
+      >
+        <Plus className="w-5 h-5" />
+        {isOver ? 'Rilascia per creare Nuova Portata' : 'Aggiungi Nuova Portata'}
+      </Button>
+    </div>
+  )
+}
+
+// Helper for course container drop zone
+function DroppableCourse({ id, children, className }: { id: string, children: React.ReactNode, className?: string }) {
+  const { setNodeRef, isOver } = useDroppable({ id })
+  return (
+    <div
+      ref={setNodeRef}
+      className={`${className} transition-colors ${isOver ? 'border-emerald-500/50 bg-emerald-500/5' : ''}`}
+    >
+      {children}
+    </div>
+  )
+}
+
+// Helper for sortable items
+function SortableItem({ id, children }: { id: string, children: React.ReactNode }) {
+  const {
+    attributes,
+    listeners,
+    setNodeRef,
+    transform,
+    transition,
+    isDragging
+  } = useSortable({ id })
+
+  const style = {
+    transform: CSS.Transform.toString(transform),
+    transition,
+    zIndex: isDragging ? 50 : 'auto',
+    opacity: isDragging ? 0.3 : 1
+  }
+
+  return (
+    <div ref={setNodeRef} style={style} {...attributes} {...listeners}>
+      {children}
+    </div>
+  )
+}
+
+const CustomerMenu = () => {
+  // 1. Get Table ID from URL params (via generic Route)
+  const { tableId } = useParams<{ tableId: string }>()
+  const navigate = useNavigate()
+
+  // 2. Use Session Context
+  const {
+    sessionId,
+    sessionStatus,
+    joinSession,
+    loading: sessionLoading
+  } = useSession()
+
+  // Local state for PIN entry/validation
+  const [pin, setPin] = useState(['', '', '', '']) // 4 digit pin state
+  const [inputPin, setInputPin] = useState('')
+  const [pinError, setPinError] = useState(false)
+  const [isAuthenticated, setIsAuthenticated] = useState(false)
+
+  // Data hooks
+  // Removed setRestaurantId call since it is passed as prop
+  const [activeSession, setActiveSession] = useState<TableSession | null>(null)
+  const [restaurantId, setRestaurantId] = useState<string | null>(null) // State to hold restaurantId fetched from table
+
+  // Attempt joining session on mount if tableId exists
+  useEffect(() => {
+    if (tableId && !sessionId) {
+      // Need restaurantId to join session via RPC properly or fetch tables first
+      // To simplify, let's fetch the table details first to get restaurant_id
+      const init = async () => {
+        const { data: tableData, error } = await supabase
+          .from('tables')
+          .select('restaurant_id')
+          .eq('id', tableId)
+          .single()
+
+        if (tableData) {
+          // Attempt auto-join
+          joinSession(tableId, tableData.restaurant_id)
+        } else {
+          toast.error("Tavolo non trovato.")
+        }
+      }
+      init()
+    }
+  }, [tableId, sessionId, joinSession])
+
+  // Verify PIN against active session
+  useEffect(() => {
+    if (sessionId && restaurantId) {
+      const checkSession = async () => {
+        // Fetch session details to get the correct PIN
+        const session = await DatabaseService.getSessionById(sessionId)
+        if (session) {
+          setActiveSession(session)
+          // Check if PIN matches what user entered (or if we auto-authenticated via localStorage logic in Context)
+          // Actually Context handles session persistence. Authentication (PIN check) is a UI guard.
+          // If we have a sessionId, it means we "joined". Now we need to prove identity with PIN.
+
+          // Optimization: If local storage has 'sessionPin' matching data, auto-auth
+          const savedPin = localStorage.getItem('sessionPin')
+          if (savedPin === session.session_pin) {
+            setIsAuthenticated(true)
+          }
+        }
+      }
+      checkSession()
+    }
+  }, [sessionId, restaurantId])
+
+  const handlePinSubmit = async (enteredPin: string) => {
+    if (!activeSession) return
+
+    if (enteredPin === activeSession.session_pin) {
+      setIsAuthenticated(true)
+      localStorage.setItem('sessionPin', enteredPin)
+      toast.success("Accesso effettuato!")
+    } else {
+      setPinError(true)
+      toast.error("PIN non valido")
+      setTimeout(() => setPinError(false), 2000)
+      setPin(['', '', '', ''])
+    }
+  }
+
+  // --- RENDER GATES ---
+
+  if (!tableId) return <div className="p-10 text-center">QR Code non valido.</div>
+  if (sessionLoading) return <div className="h-screen flex items-center justify-center bg-slate-50"><div className="animate-spin rounded-full h-12 w-12 border-b-2 border-emerald-500"></div></div>
+
+  // LOGIN SCREEN (PIN)
+  if (!isAuthenticated) {
+    return (
+      <div className="min-h-screen bg-slate-950 flex flex-col items-center justify-center p-6 text-white text-center">
+        <div className="mb-8 p-4 bg-emerald-500/10 rounded-full ring-4 ring-emerald-500/20 animate-pulse">
+          <Utensils size={48} className="text-emerald-500" />
+        </div>
+        <h2 className="text-3xl font-bold mb-2">Benvenuto!</h2>
+        <p className="text-slate-400 mb-8 max-w-xs">Inserisci il PIN del tavolo per ordinare. Lo trovi sul display del tavolo.</p>
+
+        <div className="flex gap-4 mb-8">
+          {/* Simplified PIN Input for demo */}
+          <Input
+            type="tel"
+            maxLength={4}
+            placeholder="PIN"
+            className="text-center text-3xl tracking-[1em] h-16 w-48 bg-slate-900 border-slate-700 text-white font-mono"
+            onChange={(e) => {
+              const val = e.target.value
+              if (val.length === 4) handlePinSubmit(val)
+            }}
+          />
+        </div>
+        {pinError && <p className="text-red-500 font-bold animate-bounce">PIN Errato</p>}
+      </div>
+    )
+  }
+
+  // MAIN MENU CONTENT
+  // Pass restaurantId to hooks
+  // MAIN MENU CONTENT
+  // Pass restaurantId to hooks
+  return <AuthorizedMenuContent restaurantId={activeSession?.restaurant_id!} tableId={tableId} sessionId={sessionId!} activeSession={activeSession!} />
+}
+
+export default CustomerMenu
+
+// Refactored Content Component to keep logic clean
+const AuthorizedMenuContent = ({ restaurantId, tableId, sessionId, activeSession }: { restaurantId: string, tableId: string, sessionId: string, activeSession: TableSession }) => {
+  // Using passed props instead of resolving them
+  const isWaiterMode = false // Or pass as prop if needed
+
+  // NOTE: removed redundant restaurantId/tableId state since they are passed as props
+
   const [restaurantName, setRestaurantName] = useState<string>('')
   const [error, setError] = useState<string | null>(null)
   const [isLoading, setIsLoading] = useState(true)
@@ -233,7 +351,7 @@ export default function CustomerMenu({ tableId: propTableId, onExit, interfaceMo
   const [activeCategory, setActiveCategory] = useState<string>('all')
   const [cart, setCart] = useState<CartItem[]>([])
   const [isCartOpen, setIsCartOpen] = useState(false)
-  const [session, setSession] = useState<TableSession | null>(null)
+  // const [activeSession, setSession] = useState<TableSession | null>(null) // Removed
   const [previousOrders, setPreviousOrders] = useState<Order[]>([])
   const [isOrderSubmitting, setIsOrderSubmitting] = useState(false)
   const [searchTerm, setSearchTerm] = useState('')
@@ -271,7 +389,7 @@ export default function CustomerMenu({ tableId: propTableId, onExit, interfaceMo
         .single()
 
       if (tableData?.restaurant_id) {
-        setRestaurantId(tableData.restaurant_id)
+        /* setRestaurantId removed */
         setTableName(tableData.number || '')
 
         const { data: restaurantData } = await supabase
@@ -286,21 +404,21 @@ export default function CustomerMenu({ tableId: propTableId, onExit, interfaceMo
         return
       }
 
-      const { data: sessionData } = await supabase
-        .from('table_sessions')
+      const { data: activeSessionData } = await supabase
+        .from('table_activeSessions')
         .select('restaurant_id')
         .eq('table_id', tableId)
         .eq('status', 'OPEN')
         .limit(1)
         .maybeSingle()
 
-      if (sessionData?.restaurant_id) {
-        setRestaurantId(sessionData.restaurant_id)
+      if (activeSessionData?.restaurant_id) {
+        /* setRestaurantId removed */
 
         const { data: restaurantData } = await supabase
           .from('restaurants')
           .select('name')
-          .eq('id', sessionData.restaurant_id)
+          .eq('id', activeSessionData.restaurant_id)
           .single()
 
         if (restaurantData?.name) {
@@ -376,46 +494,31 @@ export default function CustomerMenu({ tableId: propTableId, onExit, interfaceMo
 
   const courseNumbers = useMemo(() => Object.keys(cartByCourse).map(Number).sort((a, b) => a - b), [cartByCourse])
 
-  const fetchSessionAndOrders = React.useCallback(async () => {
-    if (!tableId) return
+  const fetchOrders = React.useCallback(async () => {
+    if (!sessionId) return
 
-    const { data: sessions } = await supabase
-      .from('table_sessions')
-      .select('*')
-      .eq('table_id', tableId)
-      .eq('status', 'OPEN')
-      .limit(1)
+    const { data: orders } = await supabase
+      .from('orders')
+      .select('*, items:order_items(*)')
+      .eq('table_session_id', sessionId)
+      .order('created_at', { ascending: false })
 
-    if (sessions && sessions.length > 0) {
-      setSession(sessions[0])
-      const { data: orders } = await supabase
-        .from('orders')
-        .select('*, items:order_items(*)')
-        .eq('table_session_id', sessions[0].id)
-        .order('created_at', { ascending: false })
-
-      if (orders) setPreviousOrders(orders as any[])
-    } else {
-      setSession(null)
-      setPreviousOrders([])
-    }
-  }, [tableId])
+    if (orders) setPreviousOrders(orders as any[])
+  }, [sessionId])
 
   useEffect(() => {
-    fetchSessionAndOrders()
+    fetchOrders()
 
-    // Real-time subscription for session changes
-    const sessionChannel = supabase
-      .channel(`table_sessions:${tableId} `)
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'table_sessions', filter: `table_id = eq.${tableId} ` }, () => {
-        fetchSessionAndOrders()
-      })
+    // Real-time subscription for orders
+    const channel = supabase
+      .channel(`orders:${sessionId}`)
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'orders', filter: `table_session_id=eq.${sessionId}` }, fetchOrders)
       .subscribe()
 
     return () => {
-      supabase.removeChannel(sessionChannel)
+      supabase.removeChannel(channel)
     }
-  }, [tableId, fetchSessionAndOrders])
+  }, [sessionId, fetchOrders])
 
   const quickAddToCart = (dish: Dish) => {
     setCart(prev => {
@@ -527,10 +630,10 @@ export default function CustomerMenu({ tableId: propTableId, onExit, interfaceMo
   }
 
   const handleSubmitClick = () => {
-    // In Waiter Mode, we allow "Auto-Start" of the session if it doesn't exist.
-    // In Customer Mode (QR), session MUST exist (via PIN login or scan).
-    if (!session && !isWaiterMode) {
-      toast.error("Nessuna sessione attiva. Apri prima il tavolo.")
+    // In Waiter Mode, we allow "Auto-Start" of the activeSession if it doesn't exist.
+    // In Customer Mode (QR), activeSession MUST exist (via PIN login or scan).
+    if (!activeSession && !isWaiterMode) {
+      toast.error("Nessuna activeSessione attiva. Apri prima il tavolo.")
       return
     }
     if (cart.length === 0) return
@@ -547,14 +650,14 @@ export default function CustomerMenu({ tableId: propTableId, onExit, interfaceMo
   }
 
   const submitOrder = async () => {
-    if ((!session && !isWaiterMode) || cart.length === 0 || !restaurantId) return
+    if ((!activeSession && !isWaiterMode) || cart.length === 0 || !restaurantId) return
 
     setIsOrderSubmitting(true)
     try {
-      let activeSessionId = session?.id
+      let activeSessionId = activeSession?.id
 
       // AUTO-ACTIVATE SESSION IF MISSING (Waiter Mode Only)
-      if (!session && isWaiterMode) {
+      if (!activeSession && isWaiterMode) {
         try {
           const newSession = await DatabaseService.createSession({
             restaurant_id: restaurantId,
@@ -565,11 +668,10 @@ export default function CustomerMenu({ tableId: propTableId, onExit, interfaceMo
             customer_count: 1 // Default to 1 for quick auto-start
           })
           activeSessionId = newSession.id
-          setSession(newSession) // Update local state immediately
-          // Also fetch fresh data to be sure
-          fetchSessionAndOrders()
+          // setSession removed - reliance on Context subscription
+          fetchOrders()
         } catch (err) {
-          console.error("Error auto-creating session:", err)
+          console.error("Error auto-creating activeSession:", err)
           toast.error("Impossibile attivare il tavolo automaticamente.")
           setIsOrderSubmitting(false)
           return
@@ -577,7 +679,7 @@ export default function CustomerMenu({ tableId: propTableId, onExit, interfaceMo
       }
 
       if (!activeSessionId) {
-        toast.error("Errore sessione mancante.")
+        toast.error("Errore activeSessione mancante.")
         setIsOrderSubmitting(false)
         return
       }
@@ -650,12 +752,12 @@ export default function CustomerMenu({ tableId: propTableId, onExit, interfaceMo
         <header className="sticky top-0 z-30 bg-slate-900/95 backdrop-blur-xl border-b border-slate-700/50 px-4 py-3">
           <div className="flex items-center justify-between mb-3">
             <div className="flex items-center gap-3">
-              <Button variant="ghost" size="icon" className="text-slate-400 hover:text-white hover:bg-slate-800" onClick={onExit}>
+              <Button variant="ghost" size="icon" className="text-slate-400 hover:text-white hover:bg-slate-800" onClick={() => { }}>
                 <ArrowLeft className="w-5 h-5" />
               </Button>
               <div>
                 <h1 className="font-bold text-lg text-white">{tableName}</h1>
-                <p className="text-xs text-slate-400">{session ? 'Sessione attiva' : 'Nessuna sessione'}</p>
+                <p className="text-xs text-slate-400">{activeSession ? 'Sessione attiva' : 'Nessuna activeSessione'}</p>
               </div>
             </div>
             <div className="relative w-48">
@@ -850,7 +952,7 @@ export default function CustomerMenu({ tableId: propTableId, onExit, interfaceMo
                   <p className="text-3xl font-bold text-white">€{grandTotal.toFixed(2)}</p>
                 </div>
                 <div className="text-right">
-                  <p className="text-xs text-slate-400">Coperti: {session?.guests || '-'}</p>
+                  <p className="text-xs text-slate-400">Coper{activeSession?.customer_count || '-'}</p>
                   {cartTotal > 0 && <p className="text-xs text-emerald-500 font-bold">+ €{cartTotal.toFixed(2)} (in attesa)</p>}
                 </div>
               </div>
@@ -1066,12 +1168,12 @@ export default function CustomerMenu({ tableId: propTableId, onExit, interfaceMo
                       <div className="bg-gradient-to-br from-emerald-500 to-teal-600 p-2.5 rounded-2xl shadow-lg shadow-emerald-500/30">
                         <Utensils className="w-5 h-5 text-white" />
                       </div>
-                      {session && <div className="absolute -top-1 -right-1 w-3 h-3 rounded-full bg-green-500 border-2 border-white dark:border-slate-900 animate-pulse" />}
+                      {activeSession && <div className="absolute -top-1 -right-1 w-3 h-3 rounded-full bg-green-500 border-2 border-white dark:border-slate-900 animate-pulse" />}
                     </div>
                     <div>
                       <h2 className="font-bold text-base leading-none tracking-tight text-slate-900 dark:text-white">Menu</h2>
                       <div className="flex items-center gap-1.5 mt-1">
-                        {session ? (
+                        {activeSession ? (
                           <span className="text-[11px] text-emerald-600 dark:text-emerald-400 font-semibold flex items-center gap-1.5 bg-emerald-500/10 px-2.5 py-0.5 rounded-full">
                             <div className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
                             {tableName}

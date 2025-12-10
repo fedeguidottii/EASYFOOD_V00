@@ -78,6 +78,7 @@ export interface Table {
     token: string
     pin?: string
     seats?: number
+    room_id?: string
     created_at?: string
     // Frontend helper properties
     status?: 'available' | 'occupied'
@@ -98,6 +99,15 @@ export interface TableSession {
     session_pin?: string
     customer_count?: number
     created_at: string
+}
+
+export interface Room {
+    id: string
+    restaurant_id: string
+    name: string
+    is_active: boolean
+    order?: number
+    created_at?: string
 }
 
 export interface Order {
