@@ -107,6 +107,7 @@ export interface Order {
     status: OrderStatus
     total_amount: number
     created_at: string
+    updated_at?: string
     closed_at?: string
     // Frontend helper
     items?: OrderItem[]
