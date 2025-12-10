@@ -12,58 +12,55 @@ import CustomerMenu from './components/CustomerMenu'
 import PublicReservationPage from './components/reservations/PublicReservationPage'
 
 // Route Guard for Admin/Staff
-const ProtectedRoute = ({ children }: { children: React.ReactNode }) => {
-  const [user, setUser] = useState<any>(null)
-  const [loading, setLoading] = useState(true)
-  const [authorized, setAuthorized] = useState(false)
-
-  useEffect(() => {
-    const checkAuth = async () => {
-      const { data: { user } } = await supabase.auth.getUser()
-      if (!user) {
-        setAuthorized(false)
-        setLoading(false)
-        return
-      }
-      setUser(user)
-      setAuthorized(true)
-      setLoading(false)
-    }
-    checkAuth()
-  }, [])
-
+const ProtectedRoute = ({ children, user, loading }: { children: React.ReactNode, user: any, loading: boolean }) => {
   if (loading) return <div className="h-screen flex items-center justify-center bg-slate-950 text-emerald-500">Caricamento...</div>
-  if (!authorized) return <Navigate to="/" replace />
+  if (!user) return <Navigate to="/" replace />
 
   return React.cloneElement(children as React.ReactElement<any>, { user })
 }
 
 const AppContent = () => {
   const [user, setUser] = useState<any>(null)
+  const [loading, setLoading] = useState(true)
 
   useEffect(() => {
     supabase.auth.getSession().then(({ data: { session } }) => {
       setUser(session?.user ?? null)
+      setLoading(false)
     })
 
     const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
       setUser(session?.user ?? null)
+      setLoading(false)
     })
     return () => subscription.unsubscribe()
   }, [])
+
+  const getRedirectPath = (user: any) => {
+    if (!user) return '/'
+    if (user.role === 'STAFF') return '/waiter'
+    return '/dashboard'
+  }
 
   return (
     <>
       <Routes>
         {/* PUBLIC / ADMIN LOGIN */}
-        <Route path="/" element={!user ? <LoginPage onLogin={() => { }} /> : <Navigate to="/dashboard" replace />} />
+        <Route
+          path="/"
+          element={
+            !user
+              ? <LoginPage onLogin={(u) => setUser(u)} />
+              : <Navigate to={getRedirectPath(user)} replace />
+          }
+        />
 
         {/* ADMIN DASHBOARD */}
         <Route
           path="/dashboard/*"
           element={
-            <ProtectedRoute>
-              <RestaurantDashboard user={user} onLogout={() => supabase.auth.signOut()} />
+            <ProtectedRoute user={user} loading={loading}>
+              <RestaurantDashboard user={user} onLogout={() => { supabase.auth.signOut(); setUser(null); }} />
             </ProtectedRoute>
           }
         />
@@ -72,8 +69,8 @@ const AppContent = () => {
         <Route
           path="/waiter/*"
           element={
-            <ProtectedRoute>
-              <WaiterDashboard user={user} onLogout={() => supabase.auth.signOut()} />
+            <ProtectedRoute user={user} loading={loading}>
+              <WaiterDashboard user={user} onLogout={() => { supabase.auth.signOut(); setUser(null); }} />
             </ProtectedRoute>
           }
         />
