@@ -388,9 +388,9 @@ const WaiterDashboard = ({ user, onLogout }: WaiterDashboardProps) => {
                                     </div>
 
                                     <div className={`px-2.5 py-1.5 rounded-lg text-[10px] font-bold uppercase tracking-wider shadow-sm border ${statusInfo.step === 'free' ? 'text-slate-500 bg-slate-800 border-slate-700' :
-                                            statusInfo.step === 'waiting' ? 'text-amber-400 bg-amber-500/10 border-amber-500/20' :
-                                                statusInfo.step === 'seated' ? 'text-blue-400 bg-blue-500/10 border-blue-500/20' :
-                                                    'text-emerald-400 bg-emerald-500/10 border-emerald-500/20'
+                                        statusInfo.step === 'waiting' ? 'text-amber-400 bg-amber-500/10 border-amber-500/20' :
+                                            statusInfo.step === 'seated' ? 'text-blue-400 bg-blue-500/10 border-blue-500/20' :
+                                                'text-emerald-400 bg-emerald-500/10 border-emerald-500/20'
                                         }`}>
                                         {statusInfo.step === 'free' ? 'Libero' : statusInfo.time}
                                     </div>
@@ -546,4 +546,3 @@ const WaiterDashboard = ({ user, onLogout }: WaiterDashboardProps) => {
 }
 
 export default WaiterDashboard
-    ```
