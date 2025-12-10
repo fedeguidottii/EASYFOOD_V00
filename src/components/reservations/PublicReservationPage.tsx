@@ -7,9 +7,10 @@ import { Input } from '../ui/input'
 import { Label } from '../ui/label'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../ui/select'
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '../ui/card'
-import { Calendar, Users, Clock, CaretRight, CheckCircle, Storefront, MapPin, Warning } from '@phosphor-icons/react'
+import { Calendar, Users, Clock, CaretRight, CheckCircle, Storefront, MapPin, Warning, Utensils, Info } from '@phosphor-icons/react'
 import { toast } from 'sonner'
-import type { Restaurant, Room, Table } from '../../services/types'
+import type { Restaurant, Room, Table, Category, Dish } from '../../services/types'
+import { motion, AnimatePresence } from 'framer-motion'
 
 const PublicReservationPage = () => {
     const { restaurantId } = useParams()
@@ -18,6 +19,9 @@ const PublicReservationPage = () => {
     const [step, setStep] = useState<'details' | 'confirm' | 'success'>('details')
     const [restaurant, setRestaurant] = useState<Restaurant | null>(null)
     const [rooms, setRooms] = useState<Room[]>([])
+    const [categories, setCategories] = useState<Category[]>([])
+    const [dishes, setDishes] = useState<Dish[]>([])
+    
     const [loading, setLoading] = useState(true)
     const [submitting, setSubmitting] = useState(false)
 
@@ -33,15 +37,18 @@ const PublicReservationPage = () => {
     // Assigned Table (calculated - internal only)
     const [assignedTable, setAssignedTable] = useState<Table | null>(null)
     const [noAvailability, setNoAvailability] = useState(false)
+    const [alternativeTimes, setAlternativeTimes] = useState<string[]>([])
 
     useEffect(() => {
         if (!restaurantId) return
 
         const fetchData = async () => {
             try {
+                // Fetch Restaurant Info
                 const { data: rData } = await supabase.from('restaurants').select('*').eq('id', restaurantId).single()
                 if (rData) setRestaurant(rData)
 
+                // Fetch Rooms
                 const { data: roomsData } = await supabase
                     .from('rooms')
                     .select('*')
@@ -49,6 +56,21 @@ const PublicReservationPage = () => {
                     .eq('is_active', true)
                     .order('order')
                 if (roomsData) setRooms(roomsData)
+
+                // Fetch Menu for Preview
+                const { data: catData } = await supabase
+                  .from('categories')
+                  .select('*')
+                  .eq('restaurant_id', restaurantId)
+                  .order('order')
+                if (catData) setCategories(catData)
+
+                const { data: dishData } = await supabase
+                  .from('dishes')
+                  .select('*')
+                  .eq('restaurant_id', restaurantId)
+                  .eq('is_available', true)
+                if (dishData) setDishes(dishData)
 
                 setLoading(false)
             } catch (err) {
@@ -60,52 +82,45 @@ const PublicReservationPage = () => {
         fetchData()
     }, [restaurantId])
 
-    const findOptimalTable = async () => {
-        if (!restaurantId) return null
+    const checkTimeSlot = async (checkTime: string, checkDate: string, checkRooms: string, checkPax: number) => {
+         try {
+            const tables = await DatabaseService.getTables(restaurantId!)
 
-        try {
-            const tables = await DatabaseService.getTables(restaurantId)
-
-            // Fetch existing bookings for that day - FIX: use date_time field
+            // Fetch existing bookings for that day
             const { data: existingBookings } = await supabase
                 .from('bookings')
                 .select('*')
                 .eq('restaurant_id', restaurantId)
-                .gte('date_time', `${date}T00:00:00`)
-                .lte('date_time', `${date}T23:59:59`)
+                .gte('date_time', `${checkDate}T00:00:00`)
+                .lte('date_time', `${checkDate}T23:59:59`)
                 .neq('status', 'CANCELLED')
 
-            const requestedDateTime = new Date(`${date}T${time}`)
+            const requestedDateTime = new Date(`${checkDate}T${checkTime}`)
             const durationMs = 120 * 60 * 1000 // 2 hours
             const reqStart = requestedDateTime.getTime()
             const reqEnd = reqStart + durationMs
 
             const suitableTables = tables.filter(t => {
                 // Capacity check
-                if ((t.seats || 4) < parseInt(pax)) return false
+                if ((t.seats || 4) < checkPax) return false
 
                 // Room check
-                if (selectedRoomId !== 'any' && t.room_id !== selectedRoomId) return false
+                if (checkRooms !== 'any' && t.room_id !== checkRooms) return false
 
-                // Availability check - FIX: use date_time field
+                // Availability check
                 const isOccupied = existingBookings?.some(b => {
                     if (b.table_id !== t.id) return false
-
                     const bStart = new Date(b.date_time).getTime()
                     const bEnd = bStart + durationMs
-
-                    // Check Overlap
                     return (reqStart < bEnd && reqEnd > bStart)
                 })
 
                 return !isOccupied
             })
 
-            // Sort by best fit (capacity closest to pax)
+            // Sort by best fit
             suitableTables.sort((a, b) => (a.seats || 0) - (b.seats || 0))
-
             return suitableTables.length > 0 ? suitableTables[0] : null
-
         } catch (err) {
             console.error("Algorithm error", err)
             return null
@@ -120,16 +135,39 @@ const PublicReservationPage = () => {
 
         setLoading(true)
         setNoAvailability(false)
-        const table = await findOptimalTable()
-        setLoading(false)
+        setAlternativeTimes([])
+        
+        const table = await checkTimeSlot(time, date, selectedRoomId, parseInt(pax))
 
         if (table) {
             setAssignedTable(table)
             setStep('confirm')
         } else {
+            // Check for alternatives
             setNoAvailability(true)
-            toast.error("Nessun tavolo disponibile per i criteri selezionati.")
+            const alternatives: string[] = []
+            
+            // Generate some times around the selected time
+            const baseTime = new Date(`${date}T${time}`)
+            const offsets = [-60, -30, 30, 60] // Minutes
+            
+            for (const offset of offsets) {
+                const altDate = new Date(baseTime.getTime() + offset * 60000)
+                const altTimeStr = altDate.toTimeString().substring(0, 5) // "HH:MM"
+                
+                // Very basic check to ensure it's still same day (or handle appropriately)
+                if (altDate.getDate() !== baseTime.getDate()) continue;
+
+                const altTable = await checkTimeSlot(altTimeStr, date, selectedRoomId, parseInt(pax))
+                if (altTable) {
+                    alternatives.push(altTimeStr)
+                }
+            }
+            
+            setAlternativeTimes(alternatives)
+            toast.error("Tavolo non disponibile per l'orario selezionato.")
         }
+        setLoading(false)
     }
 
     const handleConfirmBooking = async () => {
@@ -161,231 +199,376 @@ const PublicReservationPage = () => {
 
     if (loading && !restaurant) {
         return (
-            <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900">
-                <div className="animate-pulse text-white/60">Caricamento...</div>
+            <div className="min-h-screen flex items-center justify-center bg-slate-950 text-emerald-500">
+                 <div className="flex flex-col items-center gap-4">
+                    <div className="w-12 h-12 border-4 border-emerald-500/30 border-t-emerald-500 rounded-full animate-spin" />
+                    <p className="animate-pulse">Caricamento...</p>
+                 </div>
             </div>
         )
     }
 
     return (
-        <div className="min-h-screen bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 p-4 sm:p-6 lg:p-8 flex flex-col items-center justify-center">
-            <Card className="w-full max-w-md border border-white/10 shadow-2xl bg-slate-900/80 backdrop-blur-xl overflow-hidden">
-
-                {/* Header with gradient */}
-                <div className="relative h-40 bg-gradient-to-br from-primary via-primary/80 to-emerald-600 flex items-center justify-center">
-                    <div className="absolute inset-0 bg-[url('data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iNjAiIGhlaWdodD0iNjAiIHZpZXdCb3g9IjAgMCA2MCA2MCIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj48ZyBmaWxsPSJub25lIiBmaWxsLXJ1bGU9ImV2ZW5vZGQiPjxwYXRoIGQ9Ik0wIDBoNjB2NjBIMHoiLz48cGF0aCBkPSJNMzAgMzBtLTI4IDBhMjggMjggMCAxIDAgNTYgMCAyOCAyOCAwIDEgMC01NiAwIiBzdHJva2U9InJnYmEoMjU1LDI1NSwyNTUsMC4xKSIgc3Ryb2tlLXdpZHRoPSIxIi8+PC9nPjwvc3ZnPg==')] opacity-30"></div>
-                    <Storefront size={64} className="text-white/30" weight="duotone" />
-                </div>
-
-                <CardHeader className="text-center -mt-16 relative z-10 pb-2">
-                    <div className="w-28 h-28 mx-auto bg-slate-800 rounded-full p-1.5 shadow-2xl border-4 border-slate-900 flex items-center justify-center mb-3">
+        <div className="min-h-screen bg-slate-950 text-slate-100 flex flex-col">
+            
+            {/* Hero Section */}
+            <div className="relative h-64 md:h-80 w-full bg-slate-900 overflow-hidden">
+                 <div className="absolute inset-0 bg-gradient-to-b from-transparent to-slate-950/90 z-10" />
+                 {restaurant?.cover_image_url ? (
+                     <img src={restaurant.cover_image_url} alt="Cover" className="w-full h-full object-cover opacity-60" />
+                 ) : (
+                    <div className="w-full h-full bg-slate-800 flex items-center justify-center">
+                        <Storefront size={64} className="text-slate-700" />
+                    </div>
+                 )}
+                 
+                 <div className="absolute bottom-0 left-0 w-full p-6 z-20 flex flex-col items-center md:items-start md:pl-10 lg:pl-20">
+                    <div className="w-24 h-24 bg-slate-900 rounded-full p-1 shadow-2xl border-4 border-slate-800 mb-4 overflow-hidden">
                         {restaurant?.logo_url ? (
                             <img src={restaurant.logo_url} alt="Logo" className="w-full h-full object-cover rounded-full" />
                         ) : (
-                            <Storefront size={48} className="text-primary" weight="duotone" />
+                            <div className="w-full h-full flex items-center justify-center bg-slate-800">
+                                <Storefront size={32} className="text-emerald-500" />
+                            </div>
                         )}
                     </div>
-                    <CardTitle className="text-2xl font-bold text-white">{restaurant?.name || 'Prenota Tavolo'}</CardTitle>
-                    <CardDescription className="text-white/60">Prenota il tuo tavolo in pochi secondi</CardDescription>
-                </CardHeader>
+                    <h1 className="text-3xl md:text-5xl font-bold text-white mb-2">{restaurant?.name || 'Prenotazioni'}</h1>
+                    <p className="text-slate-300 max-w-md text-center md:text-left">
+                        Reserve your table online instantly.
+                    </p>
+                 </div>
+            </div>
 
-                <CardContent className="space-y-6 pt-4 pb-8">
+            <main className="flex-1 container mx-auto px-4 py-8 max-w-6xl grid grid-cols-1 lg:grid-cols-3 gap-8">
+                
+                {/* Left Column: Form */}
+                <div className="lg:col-span-2 space-y-6">
+                    <AnimatePresence mode="wait">
                     {step === 'details' && (
-                        <div className="space-y-5 animate-in slide-in-from-right-4 fade-in duration-300">
-                            {/* Step Indicator */}
-                            <div className="flex items-center justify-center gap-2 text-xs text-white/50 mb-2">
-                                <span className="bg-primary text-white px-2 py-1 rounded-full font-medium">Passo 1 di 2</span>
-                                <span>Inserisci i tuoi dati</span>
-                            </div>
-
-                            <div className="grid grid-cols-2 gap-4">
-                                <div className="space-y-2">
-                                    <Label className="text-white/70">Data</Label>
-                                    <div className="relative">
-                                        <Calendar size={16} className="absolute left-3 top-3 text-white/40" />
-                                        <Input
-                                            type="date"
-                                            value={date}
-                                            onChange={(e) => setDate(e.target.value)}
-                                            className="pl-9 bg-white/5 border-white/10 text-white focus:border-primary/50"
-                                            min={new Date().toISOString().split('T')[0]}
-                                        />
+                        <motion.div 
+                            key="details"
+                            initial={{ opacity: 0, y: 20 }}
+                            animate={{ opacity: 1, y: 0 }}
+                            exit={{ opacity: 0, y: -20 }}
+                        >
+                            <Card className="bg-slate-900/50 border-slate-800 shadow-xl overflow-hidden backdrop-blur-sm">
+                                <CardHeader>
+                                    <div className="flex items-center gap-3 mb-2">
+                                        <div className="w-8 h-8 rounded-full bg-emerald-500/20 flex items-center justify-center text-emerald-500 font-bold">1</div>
+                                        <CardTitle className="text-xl">Dettagli Prenotazione</CardTitle>
                                     </div>
-                                </div>
-                                <div className="space-y-2">
-                                    <Label className="text-white/70">Ora</Label>
-                                    <div className="relative">
-                                        <Clock size={16} className="absolute left-3 top-3 text-white/40" />
-                                        <Input
-                                            type="time"
-                                            value={time}
-                                            onChange={(e) => setTime(e.target.value)}
-                                            className="pl-9 bg-white/5 border-white/10 text-white focus:border-primary/50"
-                                        />
+                                    <CardDescription>Inserisci i tuoi dati per verificare la disponibilità</CardDescription>
+                                </CardHeader>
+                                <CardContent className="space-y-6">
+                                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                                        <div className="space-y-2">
+                                            <Label className="text-slate-300">Data e Ora</Label>
+                                            <div className="flex gap-2">
+                                                <div className="relative flex-1">
+                                                    <Calendar size={18} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
+                                                    <Input
+                                                        type="date"
+                                                        value={date}
+                                                        onChange={(e) => setDate(e.target.value)}
+                                                        className="pl-10 bg-slate-950 border-slate-700 focus:border-emerald-500"
+                                                        min={new Date().toISOString().split('T')[0]}
+                                                    />
+                                                </div>
+                                                <div className="relative w-32">
+                                                    <Clock size={18} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
+                                                    <Input
+                                                        type="time"
+                                                        value={time}
+                                                        onChange={(e) => setTime(e.target.value)}
+                                                        className="pl-10 bg-slate-950 border-slate-700 focus:border-emerald-500"
+                                                    />
+                                                </div>
+                                            </div>
+                                        </div>
+
+                                        <div className="space-y-2">
+                                            <Label className="text-slate-300">Ospiti & Sala</Label>
+                                            <div className="flex gap-2">
+                                                 <div className="relative w-24">
+                                                    <Users size={18} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
+                                                    <Input
+                                                        type="number"
+                                                        min="1"
+                                                        max="20"
+                                                        value={pax}
+                                                        onChange={(e) => setPax(e.target.value)}
+                                                        className="pl-10 bg-slate-950 border-slate-700 focus:border-emerald-500"
+                                                    />
+                                                </div>
+                                                <div className="flex-1">
+                                                    <Select value={selectedRoomId} onValueChange={setSelectedRoomId}>
+                                                        <SelectTrigger className="bg-slate-950 border-slate-700 text-slate-200">
+                                                            <SelectValue placeholder="Sala" />
+                                                        </SelectTrigger>
+                                                        <SelectContent>
+                                                            <SelectItem value="any">Qualsiasi Sala</SelectItem>
+                                                            {rooms.map(r => (
+                                                                <SelectItem key={r.id} value={r.id}>{r.name}</SelectItem>
+                                                            ))}
+                                                        </SelectContent>
+                                                    </Select>
+                                                </div>
+                                            </div>
+                                        </div>
                                     </div>
-                                </div>
-                            </div>
 
-                            <div className="space-y-2">
-                                <Label className="text-white/70">Numero Persone</Label>
-                                <div className="relative">
-                                    <Users size={16} className="absolute left-3 top-3 text-white/40" />
-                                    <Input
-                                        type="number"
-                                        min="1"
-                                        max="20"
-                                        value={pax}
-                                        onChange={(e) => setPax(e.target.value)}
-                                        className="pl-9 bg-white/5 border-white/10 text-white focus:border-primary/50"
-                                    />
-                                </div>
-                            </div>
+                                    <div className="space-y-4 pt-4 border-t border-slate-800">
+                                        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                                            <div className="space-y-2">
+                                                <Label className="text-slate-300">Nome Completo *</Label>
+                                                <Input
+                                                    placeholder="Mario Rossi"
+                                                    value={name}
+                                                    onChange={(e) => setName(e.target.value)}
+                                                    className="bg-slate-950 border-slate-700 focus:border-emerald-500"
+                                                />
+                                            </div>
+                                            <div className="space-y-2">
+                                                <Label className="text-slate-300">Telefono *</Label>
+                                                <Input
+                                                    type="tel"
+                                                    placeholder="+39 333 ..."
+                                                    value={phone}
+                                                    onChange={(e) => setPhone(e.target.value)}
+                                                    className="bg-slate-950 border-slate-700 focus:border-emerald-500"
+                                                />
+                                            </div>
+                                        </div>
+                                         <div className="space-y-2">
+                                            <Label className="text-slate-300">Note aggiuntive</Label>
+                                            <Input
+                                                placeholder="Intolleranze, seggiolone, ecc..."
+                                                value={notes}
+                                                onChange={(e) => setNotes(e.target.value)}
+                                                className="bg-slate-950 border-slate-700 focus:border-emerald-500"
+                                            />
+                                        </div>
+                                    </div>
 
-                            {rooms.length > 0 && (
-                                <div className="space-y-2">
-                                    <Label className="text-white/70">Preferenza Sala (Opzionale)</Label>
-                                    <Select value={selectedRoomId} onValueChange={setSelectedRoomId}>
-                                        <SelectTrigger className="bg-white/5 border-white/10 text-white">
-                                            <MapPin size={16} className="mr-2 text-white/40" />
-                                            <SelectValue placeholder="Qualsiasi Sala" />
-                                        </SelectTrigger>
-                                        <SelectContent>
-                                            <SelectItem value="any">Qualsiasi Sala</SelectItem>
-                                            {rooms.map(r => (
-                                                <SelectItem key={r.id} value={r.id}>{r.name}</SelectItem>
-                                            ))}
-                                        </SelectContent>
-                                    </Select>
-                                </div>
-                            )}
+                                    {noAvailability && (
+                                        <motion.div 
+                                            initial={{ opacity: 0, height: 0 }}
+                                            animate={{ opacity: 1, height: 'auto' }}
+                                            className="bg-red-500/10 border border-red-500/20 rounded-lg p-4"
+                                        >
+                                            <div className="flex items-center gap-3 mb-3">
+                                                <Warning size={24} className="text-red-400" />
+                                                <div>
+                                                    <p className="font-medium text-red-200">Nessun tavolo disponibile alle {time}</p>
+                                                    <p className="text-sm text-red-300/60">Prova un altro orario o un'altra data.</p>
+                                                </div>
+                                            </div>
+                                            
+                                            {alternativeTimes.length > 0 && (
+                                                <div className="mt-2">
+                                                    <p className="text-sm text-slate-300 mb-2">Orari alternativi disponibili per oggi:</p>
+                                                    <div className="flex flex-wrap gap-2">
+                                                        {alternativeTimes.map(t => (
+                                                            <Button 
+                                                                key={t} 
+                                                                variant="outline" 
+                                                                size="sm"
+                                                                className="border-emerald-500/50 text-emerald-400 hover:bg-emerald-500/10"
+                                                                onClick={() => {
+                                                                    setTime(t)
+                                                                    setNoAvailability(false)
+                                                                    setAlternativeTimes([])
+                                                                }}
+                                                            >
+                                                                {t}
+                                                            </Button>
+                                                        ))}
+                                                    </div>
+                                                </div>
+                                            )}
+                                        </motion.div>
+                                    )}
 
-                            <div className="border-t border-white/10 pt-4 space-y-4">
-                                <div className="space-y-2">
-                                    <Label className="text-white/70">Nome e Cognome *</Label>
-                                    <Input
-                                        placeholder="Mario Rossi"
-                                        value={name}
-                                        onChange={(e) => setName(e.target.value)}
-                                        className="bg-white/5 border-white/10 text-white focus:border-primary/50"
-                                    />
-                                </div>
-
-                                <div className="space-y-2">
-                                    <Label className="text-white/70">Telefono *</Label>
-                                    <Input
-                                        type="tel"
-                                        placeholder="+39 333 1234567"
-                                        value={phone}
-                                        onChange={(e) => setPhone(e.target.value)}
-                                        className="bg-white/5 border-white/10 text-white focus:border-primary/50"
-                                    />
-                                </div>
-                            </div>
-
-                            {noAvailability && (
-                                <div className="bg-red-500/10 border border-red-500/30 rounded-lg p-3 flex items-center gap-3">
-                                    <Warning size={20} className="text-red-400" />
-                                    <p className="text-sm text-red-300">Nessun tavolo disponibile. Prova a cambiare orario o sala.</p>
-                                </div>
-                            )}
-
-                            <Button
-                                onClick={handleCheckAvailability}
-                                className="w-full h-12 text-base bg-primary hover:bg-primary/90 text-white font-semibold shadow-lg shadow-primary/20"
-                                disabled={loading}
-                            >
-                                {loading ? 'Verifica disponibilità...' : 'Verifica Disponibilità'}
-                                <CaretRight className="ml-2" weight="bold" />
-                            </Button>
-                        </div>
+                                    <Button
+                                        onClick={handleCheckAvailability}
+                                        disabled={loading}
+                                        className="w-full h-12 bg-emerald-600 hover:bg-emerald-700 text-white font-semibold text-lg shadow-lg shadow-emerald-900/50 transition-all hover:scale-[1.01] active:scale-[0.99]"
+                                    >
+                                        {loading ? 'Verifica...' : 'Continua'}
+                                        <CaretRight weight="bold" className="ml-2" />
+                                    </Button>
+                                </CardContent>
+                            </Card>
+                        </motion.div>
                     )}
 
                     {step === 'confirm' && (
-                        <div className="space-y-6 animate-in slide-in-from-right-4 fade-in duration-300">
-                            {/* Step Indicator */}
-                            <div className="flex items-center justify-center gap-2 text-xs text-white/50 mb-2">
-                                <span className="bg-emerald-600 text-white px-2 py-1 rounded-full font-medium">Passo 2 di 2</span>
-                                <span>Conferma la prenotazione</span>
-                            </div>
+                        <motion.div 
+                            key="confirm"
+                            initial={{ opacity: 0, x: 20 }}
+                            animate={{ opacity: 1, x: 0 }}
+                            exit={{ opacity: 0, x: -20 }}
+                        >
+                            <Card className="bg-slate-900/50 border-slate-800 shadow-xl overflow-hidden backdrop-blur-sm">
+                                <CardHeader>
+                                    <div className="flex items-center gap-3 mb-2">
+                                        <div className="w-8 h-8 rounded-full bg-emerald-500/20 flex items-center justify-center text-emerald-500 font-bold">2</div>
+                                        <CardTitle className="text-xl">Conferma Prenotazione</CardTitle>
+                                    </div>
+                                    <CardDescription>Rivedi i dettagli prima di confermare. Nessun pagamento richiesto.</CardDescription>
+                                </CardHeader>
+                                <CardContent className="space-y-6">
+                                    <div className="bg-slate-950/50 rounded-xl p-6 border border-slate-800 space-y-4">
+                                        <div className="flex items-start gap-4">
+                                            <div className="w-12 h-12 rounded-full bg-emerald-500/10 flex items-center justify-center text-emerald-500 shrink-0">
+                                                <Calendar size={24} weight="duotone" />
+                                            </div>
+                                            <div>
+                                                <p className="text-sm text-slate-400">Data e Ora</p>
+                                                <p className="text-lg font-semibold text-white">
+                                                    {new Date(date).toLocaleDateString('it-IT', { weekday: 'long', day: 'numeric', month: 'long' })}
+                                                </p>
+                                                <p className="text-emerald-400 font-bold text-xl">{time}</p>
+                                            </div>
+                                        </div>
+                                        
+                                        <div className="h-px bg-slate-800" />
+                                        
+                                        <div className="grid grid-cols-2 gap-4">
+                                            <div className="flex items-center gap-3">
+                                                <Users className="text-slate-400" />
+                                                <div>
+                                                    <p className="text-xs text-slate-400">Ospiti</p>
+                                                    <p className="font-medium text-slate-200">{pax} Persone</p>
+                                                </div>
+                                            </div>
+                                            <div className="flex items-center gap-3">
+                                                <MapPin className="text-slate-400" />
+                                                <div>
+                                                    <p className="text-xs text-slate-400">Sala</p>
+                                                    <p className="font-medium text-slate-200">
+                                                        {selectedRoomId === 'any' 
+                                                            ? 'Miglior tavolo disponibile' 
+                                                            : rooms.find(r => r.id === selectedRoomId)?.name}
+                                                    </p>
+                                                </div>
+                                            </div>
+                                        </div>
 
-                            {/* Confirmation Banner */}
-                            <div className="bg-amber-500/10 border border-amber-500/30 rounded-xl p-4 text-center">
-                                <p className="text-amber-300 font-medium text-sm">⚠️ La prenotazione NON è ancora confermata</p>
-                                <p className="text-amber-200/60 text-xs mt-1">Premi il pulsante qui sotto per completare</p>
-                            </div>
+                                        <div className="bg-slate-900 p-4 rounded-lg">
+                                            <p className="text-xs text-slate-500 uppercase tracking-wider font-bold mb-2">I Vostri Dati</p>
+                                            <p className="text-slate-300 font-medium">{name}</p>
+                                            <p className="text-slate-400 text-sm">{phone}</p>
+                                            {notes && <p className="text-emerald-400/80 text-sm mt-1">Note: {notes}</p>}
+                                        </div>
+                                    </div>
 
-                            {/* Summary Card */}
-                            <div className="bg-white/5 border border-white/10 rounded-xl p-4 space-y-3">
-                                <h3 className="text-white font-semibold text-center mb-4">Riepilogo Prenotazione</h3>
-                                <div className="flex justify-between text-sm">
-                                    <span className="text-white/50">👤 Nome:</span>
-                                    <span className="text-white font-medium">{name}</span>
-                                </div>
-                                <div className="flex justify-between text-sm">
-                                    <span className="text-white/50">📞 Telefono:</span>
-                                    <span className="text-white font-medium">{phone}</span>
-                                </div>
-                                <div className="flex justify-between text-sm">
-                                    <span className="text-white/50">👥 Persone:</span>
-                                    <span className="text-white font-medium">{pax}</span>
-                                </div>
-                                <div className="flex justify-between text-sm">
-                                    <span className="text-white/50">📅 Data:</span>
-                                    <span className="text-white font-medium">{new Date(date).toLocaleDateString('it-IT', { weekday: 'long', day: 'numeric', month: 'long' })}</span>
-                                </div>
-                                <div className="flex justify-between text-sm">
-                                    <span className="text-white/50">🕐 Ora:</span>
-                                    <span className="text-white font-medium">{time}</span>
-                                </div>
-                            </div>
-
-                            <div className="space-y-3 pt-2">
-                                <Button
-                                    onClick={handleConfirmBooking}
-                                    className="w-full h-14 text-lg bg-emerald-600 hover:bg-emerald-700 text-white font-bold shadow-lg shadow-emerald-600/30"
-                                    disabled={submitting}
-                                >
-                                    {submitting ? 'Conferma in corso...' : '✓ CONFERMA PRENOTAZIONE'}
-                                </Button>
-                                <Button
-                                    variant="ghost"
-                                    onClick={() => setStep('details')}
-                                    className="w-full text-white/60 hover:text-white hover:bg-white/5"
-                                    disabled={submitting}
-                                >
-                                    ← Torna indietro
-                                </Button>
-                            </div>
-                        </div>
+                                    <div className="flex gap-4 pt-2">
+                                        <Button
+                                            variant="ghost"
+                                            onClick={() => setStep('details')}
+                                            className="flex-1 h-14 text-slate-400 hover:text-white hover:bg-white/5"
+                                        >
+                                            Indietro
+                                        </Button>
+                                        <Button
+                                            onClick={handleConfirmBooking}
+                                            disabled={submitting}
+                                            className="flex-[2] h-14 bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-lg shadow-lg shadow-emerald-900/50"
+                                        >
+                                            {submitting ? 'Conferma in corso...' : 'Conferma Prenotazione'}
+                                        </Button>
+                                    </div>
+                                </CardContent>
+                            </Card>
+                        </motion.div>
                     )}
 
                     {step === 'success' && (
-                        <div className="text-center space-y-6 animate-in zoom-in-95 fade-in duration-500 py-6">
-                            <div className="w-24 h-24 bg-emerald-500/20 rounded-full flex items-center justify-center mx-auto text-emerald-400">
-                                <CheckCircle size={56} weight="fill" />
+                         <motion.div 
+                            key="success"
+                            initial={{ opacity: 0, scale: 0.95 }}
+                            animate={{ opacity: 1, scale: 1 }}
+                            className="bg-emerald-500/10 border border-emerald-500/30 rounded-2xl p-8 text-center space-y-6"
+                        >
+                            <div className="w-24 h-24 bg-emerald-500 rounded-full flex items-center justify-center mx-auto shadow-2xl shadow-emerald-500/30">
+                                <CheckCircle size={48} className="text-white" weight="fill" />
                             </div>
-                            <div className="space-y-2">
-                                <h3 className="text-2xl font-bold text-white">Prenotazione Confermata!</h3>
-                                <p className="text-white/60 max-w-[280px] mx-auto">
+                            <div>
+                                <h2 className="text-3xl font-bold text-white mb-2">Prenotazione Confermata!</h2>
+                                <p className="text-slate-300">
                                     Ti aspettiamo il <span className="text-white font-medium">{new Date(date).toLocaleDateString('it-IT')}</span> alle <span className="text-white font-medium">{time}</span>.
                                 </p>
                             </div>
-                            <div className="bg-white/5 border border-white/10 rounded-lg p-3 text-xs text-white/40">
-                                <p>Riceverai una conferma al numero {phone}</p>
-                            </div>
-                            <Button
+                            
+                            <Button 
                                 onClick={() => window.location.reload()}
                                 variant="outline"
-                                className="w-full border-white/20 text-white hover:bg-white/10"
+                                className="border-emerald-500/30 text-emerald-400 hover:bg-emerald-500/10"
                             >
-                                Nuova Prenotazione
+                                Effettua un'altra prenotazione
                             </Button>
-                        </div>
+                        </motion.div>
                     )}
-                </CardContent>
-            </Card>
+                    </AnimatePresence>
+                </div>
 
-            <p className="mt-6 text-xs text-white/20">Powered by EasyFood</p>
+                {/* Right Column: Menu Preview (Sticky) */}
+                <div className="lg:col-span-1">
+                    <div className="sticky top-8 space-y-6">
+                         <div className="flex items-center justify-between text-slate-400 mb-2">
+                            <h3 className="font-semibold text-white uppercase tracking-wider text-sm flex items-center gap-2">
+                                <Utensils size={16} />
+                                Menu Anteprima
+                            </h3>
+                         </div>
+
+                         <div className="bg-slate-900/50 border border-slate-800 rounded-xl overflow-hidden backdrop-blur-sm max-h-[80vh] overflow-y-auto custom-scrollbar">
+                            {categories.length === 0 ? (
+                                <div className="p-8 text-center text-slate-500">
+                                    <Utensils size={32} className="mx-auto mb-2 opacity-50" />
+                                    <p>Menu non disponibile online al momento.</p>
+                                </div>
+                            ) : (
+                                categories.map(cat => {
+                                    const catDishes = dishes.filter(d => d.category_id === cat.id)
+                                    if (catDishes.length === 0) return null
+                                    
+                                    return (
+                                        <div key={cat.id} className="p-4 border-b border-slate-800/50 last:border-0">
+                                            <h4 className="text-emerald-500 font-bold mb-3 text-sm">{cat.name}</h4>
+                                            <div className="space-y-3">
+                                                {catDishes.slice(0, 3).map(dish => (
+                                                    <div key={dish.id} className="flex justify-between items-start gap-4">
+                                                        <div>
+                                                            <p className="text-slate-200 text-sm font-medium leading-tight">{dish.name}</p>
+                                                            {dish.description && <p className="text-xs text-slate-500 line-clamp-1 mt-0.5">{dish.description}</p>}
+                                                        </div>
+                                                        <span className="text-slate-300 text-sm font-semibold whitespace-nowrap">€ {dish.price.toFixed(2)}</span>
+                                                    </div>
+                                                ))}
+                                                {catDishes.length > 3 && (
+                                                     <p className="text-xs text-emerald-500/60 italic text-center pt-1">
+                                                        + altri {catDishes.length - 3} piatti
+                                                     </p>
+                                                )}
+                                            </div>
+                                        </div>
+                                    )
+                                })
+                            )}
+                         </div>
+
+                         <div className="bg-slate-800/50 rounded-lg p-4 flex gap-3 items-start border border-slate-700/50">
+                            <Info size={20} className="text-slate-400 mt-0.5 shrink-0" />
+                            <p className="text-xs text-slate-400 leading-relaxed">
+                                Il menu potrebbe subire variazioni in base alla disponibilità dei prodotti freschi.
+                            </p>
+                         </div>
+                    </div>
+                </div>
+
+            </main>
         </div>
     )
 }
