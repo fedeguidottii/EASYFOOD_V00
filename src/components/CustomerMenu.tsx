@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo } from 'react'
+import React, { useState, useEffect, useMemo, useCallback } from 'react'
 import { useParams } from 'react-router-dom'
 import { useSupabaseData } from '../hooks/useSupabaseData'
 import { DatabaseService } from '../services/DatabaseService'
@@ -68,7 +68,7 @@ function DroppableCoursePlaceholder({ id }: { id: string }) {
   return (
     <div
       ref={setNodeRef}
-      className={`text-center py-4 text-xs border-2 border-dashed rounded-xl transition-colors ${isOver ? 'border-emerald-500 bg-emerald-50 dark:bg-emerald-900/20 text-emerald-600' : 'border-slate-200 dark:border-slate-800 text-slate-400'}`}
+      className={`text - center py - 4 text - xs border - 2 border - dashed rounded - xl transition - colors ${isOver ? 'border-emerald-500 bg-emerald-50 dark:bg-emerald-900/20 text-emerald-600' : 'border-slate-200 dark:border-slate-800 text-slate-400'} `}
     >
       Trascina qui i piatti
     </div>
@@ -82,7 +82,7 @@ function NewCourseDropZone({ onClick }: { onClick: () => void }) {
     <div ref={setNodeRef} className="relative">
       <Button
         variant="outline"
-        className={`w-full py-6 border-dashed rounded-2xl gap-2 transition-all ${isOver ? 'border-emerald-500 bg-emerald-50 dark:bg-emerald-900/20 text-emerald-600 scale-105' : 'border-slate-300 dark:border-slate-700 text-slate-500 hover:text-emerald-600 hover:border-emerald-500 hover:bg-emerald-50 dark:hover:bg-emerald-900/10'}`}
+        className={`w - full py - 6 border - dashed rounded - 2xl gap - 2 transition - all ${isOver ? 'border-emerald-500 bg-emerald-50 dark:bg-emerald-900/20 text-emerald-600 scale-105' : 'border-slate-300 dark:border-slate-700 text-slate-500 hover:text-emerald-600 hover:border-emerald-500 hover:bg-emerald-50 dark:hover:bg-emerald-900/10'} `}
         onClick={onClick}
       >
         <Plus className="w-5 h-5" />
@@ -98,7 +98,7 @@ function DroppableCourse({ id, children, className }: { id: string, children: Re
   return (
     <div
       ref={setNodeRef}
-      className={`${className} transition-all duration-300 ${isOver ? 'ring-2 ring-emerald-500 bg-emerald-50/50 dark:bg-emerald-900/20 shadow-lg shadow-emerald-500/10' : ''}`}
+      className={`${className} transition - all duration - 300 ${isOver ? 'ring-2 ring-emerald-500 bg-emerald-50/50 dark:bg-emerald-900/20 shadow-lg shadow-emerald-500/10' : ''} `}
     >
       {children}
     </div>
@@ -130,10 +130,10 @@ function SortableDishItem({ item, courseNum }: { item: CartItem, courseNum: numb
       style={style}
       {...attributes}
       {...listeners}
-      className={`flex items-center justify-between bg-slate-50 dark:bg-slate-800 p-3 rounded-xl border border-slate-100 dark:border-slate-700 group relative cursor-grab active:cursor-grabbing touch-none select-none ${isDragging ? 'ring-2 ring-emerald-500 bg-white dark:bg-slate-700' : ''}`}
+      className={`flex items - center justify - between bg - slate - 50 dark: bg - slate - 800 p - 3 rounded - xl border border - slate - 100 dark: border - slate - 700 group relative cursor - grab active: cursor - grabbing touch - none select - none ${isDragging ? 'ring-2 ring-emerald-500 bg-white dark:bg-slate-700' : ''} `}
     >
       <div className="flex items-center gap-3 pointer-events-none">
-        <div className={`p-1.5 rounded-lg ${isDragging ? 'text-emerald-500 bg-emerald-50 dark:bg-emerald-900/30' : 'text-slate-400'}`}>
+        <div className={`p - 1.5 rounded - lg ${isDragging ? 'text-emerald-500 bg-emerald-50 dark:bg-emerald-900/30' : 'text-slate-400'} `}>
           <GripVertical className="w-4 h-4" />
         </div>
         <div>
@@ -154,7 +154,7 @@ interface CartItem extends Dish {
 
 // Helper function for consistent course titles
 const getCourseTitle = (courseNum: number): string => {
-  return `Uscita ${courseNum}`
+  return `Uscita ${courseNum} `
 }
 
 interface CustomerMenuProps {
@@ -245,10 +245,13 @@ export default function CustomerMenu({ tableId: propTableId, onExit, interfaceMo
   const [currentCourse, setCurrentCourse] = useState(1)
   const [showCourseAlert, setShowCourseAlert] = useState(false)
   const [showConfirmDialog, setShowConfirmDialog] = useState(false)
-  const [showCourseManagement, setShowCourseManagement] = useState(false)
+  const [showCourseManagement, setShowCourseManagement] = useState(false) // Waiter Mode: Course management
   const [isCartAnimating, setIsCartAnimating] = useState(false)
   const [activeTab, setActiveTab] = useState<'menu' | 'cart' | 'orders'>('menu')
-  const [activeWaitCourse, setActiveWaitCourse] = useState(1)
+  const [activeWaitCourse, setActiveWaitCourse] = useState(1) // Waiter Mode: Selected course for new items
+
+  // Helper to generate PIN
+  const generatePin = () => Math.floor(1000 + Math.random() * 9000).toString()
 
   const initMenu = async () => {
     if (!tableId) {
@@ -373,40 +376,46 @@ export default function CustomerMenu({ tableId: propTableId, onExit, interfaceMo
 
   const courseNumbers = useMemo(() => Object.keys(cartByCourse).map(Number).sort((a, b) => a - b), [cartByCourse])
 
-  useEffect(() => {
+  const fetchSessionAndOrders = React.useCallback(async () => {
     if (!tableId) return
 
-    const fetchSessionAndOrders = async () => {
-      const { data: sessions } = await supabase
-        .from('table_sessions')
-        .select('*')
-        .eq('table_id', tableId)
-        .eq('status', 'OPEN')
-        .limit(1)
+    const { data: sessions } = await supabase
+      .from('table_sessions')
+      .select('*')
+      .eq('table_id', tableId)
+      .eq('status', 'OPEN')
+      .limit(1)
 
-      if (sessions && sessions.length > 0) {
-        setSession(sessions[0])
-        const { data: orders } = await supabase
-          .from('orders')
-          .select('*, items:order_items(*)')
-          .eq('table_session_id', sessions[0].id)
-          .order('created_at', { ascending: false })
+    if (sessions && sessions.length > 0) {
+      setSession(sessions[0])
+      const { data: orders } = await supabase
+        .from('orders')
+        .select('*, items:order_items(*)')
+        .eq('table_session_id', sessions[0].id)
+        .order('created_at', { ascending: false })
 
-        if (orders) setPreviousOrders(orders as any[])
-      } else {
-        setSession(null)
-      }
+      if (orders) setPreviousOrders(orders as any[])
+    } else {
+      setSession(null)
+      setPreviousOrders([])
     }
+  }, [tableId])
 
+  useEffect(() => {
     fetchSessionAndOrders()
-    const channel = supabase
-      .channel(`public:orders:table-${tableId}`)
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'orders' }, () => fetchSessionAndOrders())
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'order_items' }, () => fetchSessionAndOrders())
+
+    // Real-time subscription for session changes
+    const sessionChannel = supabase
+      .channel(`table_sessions:${tableId} `)
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'table_sessions', filter: `table_id = eq.${tableId} ` }, () => {
+        fetchSessionAndOrders()
+      })
       .subscribe()
 
-    return () => { supabase.removeChannel(channel) }
-  }, [tableId])
+    return () => {
+      supabase.removeChannel(sessionChannel)
+    }
+  }, [tableId, fetchSessionAndOrders])
 
   const quickAddToCart = (dish: Dish) => {
     setCart(prev => {
@@ -418,7 +427,7 @@ export default function CustomerMenu({ tableId: propTableId, onExit, interfaceMo
       }
       return [...prev, { ...dish, cartId: crypto.randomUUID(), quantity: 1, notes: '', courseNumber: 1 }]
     })
-    toast.success(`+1 ${dish.name}`, { position: 'top-center', duration: 800, style: { background: '#10B981', color: '#fff', border: 'none', fontSize: '14px', padding: '8px 16px' } })
+    toast.success(`+ 1 ${dish.name} `, { position: 'top-center', duration: 800, style: { background: '#10B981', color: '#fff', border: 'none', fontSize: '14px', padding: '8px 16px' } })
   }
 
   const addToCart = (dish: Dish, quantity: number = 1, notes: string = '', courseNum?: number) => {
@@ -518,7 +527,9 @@ export default function CustomerMenu({ tableId: propTableId, onExit, interfaceMo
   }
 
   const handleSubmitClick = () => {
-    if (!session) {
+    // In Waiter Mode, we allow "Auto-Start" of the session if it doesn't exist.
+    // In Customer Mode (QR), session MUST exist (via PIN login or scan).
+    if (!session && !isWaiterMode) {
       toast.error("Nessuna sessione attiva. Apri prima il tavolo.")
       return
     }
@@ -536,10 +547,41 @@ export default function CustomerMenu({ tableId: propTableId, onExit, interfaceMo
   }
 
   const submitOrder = async () => {
-    if (!session || cart.length === 0 || !restaurantId) return
+    if ((!session && !isWaiterMode) || cart.length === 0 || !restaurantId) return
 
     setIsOrderSubmitting(true)
     try {
+      let activeSessionId = session?.id
+
+      // AUTO-ACTIVATE SESSION IF MISSING (Waiter Mode Only)
+      if (!session && isWaiterMode) {
+        try {
+          const newSession = await DatabaseService.createSession({
+            restaurant_id: restaurantId,
+            table_id: tableId,
+            status: 'OPEN',
+            opened_at: new Date().toISOString(),
+            session_pin: generatePin(),
+            customer_count: 1 // Default to 1 for quick auto-start
+          })
+          activeSessionId = newSession.id
+          setSession(newSession) // Update local state immediately
+          // Also fetch fresh data to be sure
+          fetchSessionAndOrders()
+        } catch (err) {
+          console.error("Error auto-creating session:", err)
+          toast.error("Impossibile attivare il tavolo automaticamente.")
+          setIsOrderSubmitting(false)
+          return
+        }
+      }
+
+      if (!activeSessionId) {
+        toast.error("Errore sessione mancante.")
+        setIsOrderSubmitting(false)
+        return
+      }
+
       const orderItems = cart.map(item => ({
         dish_id: item.id,
         quantity: item.quantity,
@@ -550,7 +592,7 @@ export default function CustomerMenu({ tableId: propTableId, onExit, interfaceMo
 
       await DatabaseService.createOrder({
         restaurant_id: restaurantId,
-        table_session_id: session.id,
+        table_session_id: activeSessionId,
         status: 'OPEN',
         total_amount: cartTotal
       }, orderItems)
@@ -627,18 +669,18 @@ export default function CustomerMenu({ tableId: propTableId, onExit, interfaceMo
               <button
                 key={num}
                 onClick={() => setActiveWaitCourse(num)}
-                className={`px-4 py-2 text-sm font-bold rounded-xl whitespace-nowrap transition-all flex items-center gap-2 border ${activeWaitCourse === num ? 'bg-emerald-600 text-white border-emerald-500 shadow-lg shadow-emerald-900/50' : 'bg-slate-800 text-slate-400 border-slate-700 hover:bg-slate-700'}`}
+                className={`px - 4 py - 2 text - sm font - bold rounded - xl whitespace - nowrap transition - all flex items - center gap - 2 border ${activeWaitCourse === num ? 'bg-emerald-600 text-white border-emerald-500 shadow-lg shadow-emerald-900/50' : 'bg-slate-800 text-slate-400 border-slate-700 hover:bg-slate-700'} `}
               >
-                <Layers className={`w-4 h-4 ${activeWaitCourse === num ? 'text-white' : 'text-slate-500'}`} />
+                <Layers className={`w - 4 h - 4 ${activeWaitCourse === num ? 'text-white' : 'text-slate-500'} `} />
                 Portata {num}
               </button>
             ))}
           </div>
 
           <div className="flex gap-2 overflow-x-auto pb-1 scrollbar-hide">
-            <button onClick={() => setActiveCategory('all')} className={`px-4 py-1.5 text-xs font-bold rounded-full whitespace-nowrap transition-all ${activeCategory === 'all' ? 'bg-emerald-500 text-white' : 'bg-slate-800 text-slate-400 hover:bg-slate-700'}`}>Tutto</button>
+            <button onClick={() => setActiveCategory('all')} className={`px - 4 py - 1.5 text - xs font - bold rounded - full whitespace - nowrap transition - all ${activeCategory === 'all' ? 'bg-emerald-500 text-white' : 'bg-slate-800 text-slate-400 hover:bg-slate-700'} `}>Tutto</button>
             {sortedCategories.map((cat) => (
-              <button key={cat.id} onClick={() => setActiveCategory(cat.id)} className={`px-4 py-1.5 text-xs font-bold rounded-full whitespace-nowrap transition-all ${activeCategory === cat.id ? 'bg-emerald-500 text-white' : 'bg-slate-800 text-slate-400 hover:bg-slate-700'}`}>{cat.name}</button>
+              <button key={cat.id} onClick={() => setActiveCategory(cat.id)} className={`px - 4 py - 1.5 text - xs font - bold rounded - full whitespace - nowrap transition - all ${activeCategory === cat.id ? 'bg-emerald-500 text-white' : 'bg-slate-800 text-slate-400 hover:bg-slate-700'} `}>{cat.name}</button>
             ))}
           </div>
         </header>
@@ -699,10 +741,10 @@ export default function CustomerMenu({ tableId: propTableId, onExit, interfaceMo
                         <button
                           key={num}
                           onClick={() => setActiveWaitCourse(num)}
-                          className={`h-10 text-sm font-bold rounded-lg border transition-all ${activeWaitCourse === num
-                            ? 'bg-emerald-600 text-white border-emerald-500 shadow-lg shadow-emerald-900/20'
-                            : 'bg-slate-800 text-slate-400 border-slate-700 hover:bg-slate-700'
-                            }`}
+                          className={`h - 10 text - sm font - bold rounded - lg border transition - all ${activeWaitCourse === num
+                              ? 'bg-emerald-600 text-white border-emerald-500 shadow-lg shadow-emerald-900/20'
+                              : 'bg-slate-800 text-slate-400 border-slate-700 hover:bg-slate-700'
+                            } `}
                         >
                           {num}
                         </button>
@@ -897,7 +939,7 @@ export default function CustomerMenu({ tableId: propTableId, onExit, interfaceMo
                     {Array.from({ length: maxCourse }, (_, i) => i + 1).map((courseNum) => (
                       <DroppableCourse
                         key={courseNum}
-                        id={`course-${courseNum}`}
+                        id={`course - ${courseNum} `}
                         className="bg-white dark:bg-slate-900 rounded-2xl p-3 shadow-sm border border-slate-200 dark:border-slate-800"
                       >
                         <div className="flex items-center justify-center mb-3">
@@ -909,12 +951,12 @@ export default function CustomerMenu({ tableId: propTableId, onExit, interfaceMo
 
                         <div className="space-y-2 min-h-[40px]">
                           <SortableContext
-                            id={`course-${courseNum}`}
+                            id={`course - ${courseNum} `}
                             items={cartByCourse[courseNum]?.map(i => i.cartId) || []}
                             strategy={verticalListSortingStrategy}
                           >
                             {cartByCourse[courseNum]?.length === 0 ? (
-                              <DroppableCoursePlaceholder id={`course-${courseNum}`} />
+                              <DroppableCoursePlaceholder id={`course - ${courseNum} `} />
                             ) : (
                               cartByCourse[courseNum]?.map((item) => (
                                 <SortableDishItem key={item.cartId} item={item} courseNum={courseNum} />
@@ -1045,10 +1087,10 @@ export default function CustomerMenu({ tableId: propTableId, onExit, interfaceMo
                   <div className="flex gap-2 min-w-max">
                     <button
                       onClick={() => setActiveCategory('all')}
-                      className={`px-4 py-2 text-xs font-semibold rounded-full transition-all duration-300 ${activeCategory === 'all'
-                        ? 'bg-gradient-to-r from-slate-900 to-slate-800 dark:from-white dark:to-slate-100 text-white dark:text-slate-900 shadow-lg shadow-slate-900/20 dark:shadow-white/20 scale-105'
-                        : 'bg-white/50 dark:bg-slate-800/50 text-slate-600 dark:text-slate-400 border border-white/30 dark:border-slate-700/30 hover:bg-white/80 backdrop-blur-sm'
-                        }`}
+                      className={`px - 4 py - 2 text - xs font - semibold rounded - full transition - all duration - 300 ${activeCategory === 'all'
+                          ? 'bg-gradient-to-r from-slate-900 to-slate-800 dark:from-white dark:to-slate-100 text-white dark:text-slate-900 shadow-lg shadow-slate-900/20 dark:shadow-white/20 scale-105'
+                          : 'bg-white/50 dark:bg-slate-800/50 text-slate-600 dark:text-slate-400 border border-white/30 dark:border-slate-700/30 hover:bg-white/80 backdrop-blur-sm'
+                        } `}
                     >
                       Tutto
                     </button>
@@ -1056,10 +1098,10 @@ export default function CustomerMenu({ tableId: propTableId, onExit, interfaceMo
                       <button
                         key={cat.id}
                         onClick={() => setActiveCategory(cat.id)}
-                        className={`px-4 py-2 text-xs font-semibold rounded-full transition-all duration-300 ${activeCategory === cat.id
-                          ? 'bg-gradient-to-r from-slate-900 to-slate-800 dark:from-white dark:to-slate-100 text-white dark:text-slate-900 shadow-lg shadow-slate-900/20 dark:shadow-white/20 scale-105'
-                          : 'bg-white/50 dark:bg-slate-800/50 text-slate-600 dark:text-slate-400 border border-white/30 dark:border-slate-700/30 hover:bg-white/80 backdrop-blur-sm'
-                          }`}
+                        className={`px - 4 py - 2 text - xs font - semibold rounded - full transition - all duration - 300 ${activeCategory === cat.id
+                            ? 'bg-gradient-to-r from-slate-900 to-slate-800 dark:from-white dark:to-slate-100 text-white dark:text-slate-900 shadow-lg shadow-slate-900/20 dark:shadow-white/20 scale-105'
+                            : 'bg-white/50 dark:bg-slate-800/50 text-slate-600 dark:text-slate-400 border border-white/30 dark:border-slate-700/30 hover:bg-white/80 backdrop-blur-sm'
+                          } `}
                       >
                         {cat.name}
                       </button>
@@ -1266,14 +1308,14 @@ export default function CustomerMenu({ tableId: propTableId, onExit, interfaceMo
                         </span>
                       </div>
                       <Badge
-                        className={`text-[10px] font-semibold ${order.status === 'OPEN' || order.status === 'pending'
-                          ? 'bg-amber-500/10 text-amber-600 border-amber-500/20'
-                          : order.status === 'preparing'
-                            ? 'bg-blue-500/10 text-blue-600 border-blue-500/20'
-                            : order.status === 'ready'
-                              ? 'bg-emerald-500/10 text-emerald-600 border-emerald-500/20'
-                              : 'bg-slate-500/10 text-slate-600 border-slate-500/20'
-                          }`}
+                        className={`text - [10px] font - semibold ${order.status === 'OPEN' || order.status === 'pending'
+                            ? 'bg-amber-500/10 text-amber-600 border-amber-500/20'
+                            : order.status === 'preparing'
+                              ? 'bg-blue-500/10 text-blue-600 border-blue-500/20'
+                              : order.status === 'ready'
+                                ? 'bg-emerald-500/10 text-emerald-600 border-emerald-500/20'
+                                : 'bg-slate-500/10 text-slate-600 border-slate-500/20'
+                          } `}
                       >
                         {order.status === 'OPEN' || order.status === 'pending' ? 'In attesa' :
                           order.status === 'preparing' ? 'In preparazione' :
@@ -1320,20 +1362,20 @@ export default function CustomerMenu({ tableId: propTableId, onExit, interfaceMo
         <div className="flex justify-around items-center h-16 px-2 max-w-md mx-auto">
           <button
             onClick={() => setActiveTab('menu')}
-            className={`flex-1 flex flex-col items-center justify-center gap-1 h-full transition-all ${activeTab === 'menu' ? 'text-emerald-600 dark:text-emerald-400' : 'text-slate-400 hover:text-slate-600 dark:hover:text-slate-300'}`}
+            className={`flex - 1 flex flex - col items - center justify - center gap - 1 h - full transition - all ${activeTab === 'menu' ? 'text-emerald-600 dark:text-emerald-400' : 'text-slate-400 hover:text-slate-600 dark:hover:text-slate-300'} `}
           >
-            <div className={`p-1.5 rounded-xl transition-all ${activeTab === 'menu' ? 'bg-emerald-500/10' : ''}`}>
-              <Utensils className={`w-5 h-5 ${activeTab === 'menu' ? 'fill-current' : ''}`} />
+            <div className={`p - 1.5 rounded - xl transition - all ${activeTab === 'menu' ? 'bg-emerald-500/10' : ''} `}>
+              <Utensils className={`w - 5 h - 5 ${activeTab === 'menu' ? 'fill-current' : ''} `} />
             </div>
             <span className="text-[10px] font-semibold">Menu</span>
           </button>
 
           <button
             onClick={() => setActiveTab('cart')}
-            className={`flex-1 flex flex-col items-center justify-center gap-1 h-full transition-all relative ${activeTab === 'cart' ? 'text-emerald-600 dark:text-emerald-400' : 'text-slate-400 hover:text-slate-600 dark:hover:text-slate-300'}`}
+            className={`flex - 1 flex flex - col items - center justify - center gap - 1 h - full transition - all relative ${activeTab === 'cart' ? 'text-emerald-600 dark:text-emerald-400' : 'text-slate-400 hover:text-slate-600 dark:hover:text-slate-300'} `}
           >
-            <div className={`relative p-1.5 rounded-xl transition-all ${activeTab === 'cart' ? 'bg-emerald-500/10' : ''} ${isCartAnimating ? 'scale-125' : ''}`}>
-              <ShoppingBasket className={`w-5 h-5 ${activeTab === 'cart' ? 'fill-current' : ''} ${isCartAnimating ? 'text-emerald-500' : ''}`} />
+            <div className={`relative p - 1.5 rounded - xl transition - all ${activeTab === 'cart' ? 'bg-emerald-500/10' : ''} ${isCartAnimating ? 'scale-125' : ''} `}>
+              <ShoppingBasket className={`w - 5 h - 5 ${activeTab === 'cart' ? 'fill-current' : ''} ${isCartAnimating ? 'text-emerald-500' : ''} `} />
               {cartCount > 0 && (
                 <span className="absolute -top-1 -right-1 bg-gradient-to-r from-red-500 to-rose-500 text-white text-[10px] font-bold min-w-[16px] h-4 rounded-full flex items-center justify-center px-1 shadow-lg shadow-red-500/30 animate-bounce">
                   {cartCount}
@@ -1345,10 +1387,10 @@ export default function CustomerMenu({ tableId: propTableId, onExit, interfaceMo
 
           <button
             onClick={() => setActiveTab('orders')}
-            className={`flex-1 flex flex-col items-center justify-center gap-1 h-full transition-all ${activeTab === 'orders' ? 'text-emerald-600 dark:text-emerald-400' : 'text-slate-400 hover:text-slate-600 dark:hover:text-slate-300'}`}
+            className={`flex - 1 flex flex - col items - center justify - center gap - 1 h - full transition - all ${activeTab === 'orders' ? 'text-emerald-600 dark:text-emerald-400' : 'text-slate-400 hover:text-slate-600 dark:hover:text-slate-300'} `}
           >
-            <div className={`p-1.5 rounded-xl transition-all ${activeTab === 'orders' ? 'bg-emerald-500/10' : ''}`}>
-              <Clock className={`w-5 h-5 ${activeTab === 'orders' ? 'fill-current' : ''}`} />
+            <div className={`p - 1.5 rounded - xl transition - all ${activeTab === 'orders' ? 'bg-emerald-500/10' : ''} `}>
+              <Clock className={`w - 5 h - 5 ${activeTab === 'orders' ? 'fill-current' : ''} `} />
             </div>
             <span className="text-[10px] font-semibold">Ordini</span>
           </button>
@@ -1442,7 +1484,7 @@ export default function CustomerMenu({ tableId: propTableId, onExit, interfaceMo
                     setDishNote('');
                   }}
                 >
-                  Aggiungi {dishQuantity > 1 ? `${dishQuantity}x ` : ''}al carrello - €{(selectedDish.price * dishQuantity).toFixed(2)}
+                  Aggiungi {dishQuantity > 1 ? `${dishQuantity} x` : ''}al carrello - €{(selectedDish.price * dishQuantity).toFixed(2)}
                 </Button>
                 <p className="text-center text-[10px] text-slate-400 mt-2">
                   Potrai gestire le portate direttamente nel carrello
