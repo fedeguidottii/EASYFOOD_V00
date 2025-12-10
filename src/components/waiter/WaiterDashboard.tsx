@@ -170,8 +170,8 @@ const WaiterDashboard = ({ user, onLogout }: WaiterDashboardProps) => {
         }
 
         // 3. Mangiando (Eating) - All orders served
-        const lastServed = sessionOrders.sort((a, b) => new Date(b.updated_at).getTime() - new Date(a.updated_at).getTime())[0]
-        const duration = lastServed ? Math.floor((now.getTime() - new Date(lastServed.updated_at).getTime()) / 60000) : 0
+        const lastServed = sessionOrders.sort((a, b) => new Date(b.updated_at || b.created_at).getTime() - new Date(a.updated_at || a.created_at).getTime())[0]
+        const duration = lastServed ? Math.floor((now.getTime() - new Date(lastServed.updated_at || lastServed.created_at).getTime()) / 60000) : 0
 
         return {
             step: 'eating',
