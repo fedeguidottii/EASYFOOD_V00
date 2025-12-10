@@ -187,6 +187,7 @@ const RestaurantDashboard = ({ user, onLogout }: RestaurantDashboardProps) => {
   const [showOrderHistory, setShowOrderHistory] = useState(false)
   const [orderSortMode, setOrderSortMode] = useState<'oldest' | 'newest'>('oldest')
   const [tableHistorySearch, setTableHistorySearch] = useState('')
+  const [tableSortMode, setTableSortMode] = useState<'number' | 'seats' | 'status'>('number')
   const [tableHistoryDateFilter, setTableHistoryDateFilter] = useState<'today' | 'week' | 'month' | 'all'>('week')
   const [tableHistoryMinTotal, setTableHistoryMinTotal] = useState('')
   const [tableHistoryMinCovers, setTableHistoryMinCovers] = useState('')
@@ -241,9 +242,21 @@ const RestaurantDashboard = ({ user, onLogout }: RestaurantDashboardProps) => {
     if (orderA !== orderB) return orderA - orderB
     return a.name.localeCompare(b.name)
   })
-  const restaurantTables = (tables || []).filter(t =>
-    t.number.toLowerCase().includes(tableSearchTerm.toLowerCase())
-  )
+  const restaurantTables = (tables || [])
+    .filter(t => t.number.toLowerCase().includes(tableSearchTerm.toLowerCase()))
+    .sort((a, b) => {
+      if (tableSortMode === 'seats') {
+        return (b.seats || 4) - (a.seats || 4)
+      } else if (tableSortMode === 'status') {
+        const sessionA = sessions?.find(s => s.table_id === a.id && s.status === 'OPEN')
+        const sessionB = sessions?.find(s => s.table_id === b.id && s.status === 'OPEN')
+        if (sessionA && !sessionB) return -1
+        if (!sessionA && sessionB) return 1
+        return a.number.localeCompare(b.number, undefined, { numeric: true })
+      }
+      // Default: number (alphabetical/numeric)
+      return a.number.localeCompare(b.number, undefined, { numeric: true })
+    })
   const restaurantOrders = orders?.filter(order =>
     order.status !== 'completed' &&
     order.status !== 'CANCELLED' &&
@@ -1163,6 +1176,33 @@ const RestaurantDashboard = ({ user, onLogout }: RestaurantDashboardProps) => {
                   <Plus size={16} className="mr-2" />
                   Nuovo Tavolo
                 </Button>
+
+                <div className="flex bg-muted p-1 rounded-lg">
+                  <Button
+                    variant={tableSortMode === 'number' ? 'default' : 'ghost'}
+                    size="sm"
+                    onClick={() => setTableSortMode('number')}
+                    className="h-8 text-xs font-bold px-3"
+                  >
+                    A-Z
+                  </Button>
+                  <Button
+                    variant={tableSortMode === 'seats' ? 'default' : 'ghost'}
+                    size="sm"
+                    onClick={() => setTableSortMode('seats')}
+                    className="h-8 text-xs font-bold px-3"
+                  >
+                    Posti
+                  </Button>
+                  <Button
+                    variant={tableSortMode === 'status' ? 'default' : 'ghost'}
+                    size="sm"
+                    onClick={() => setTableSortMode('status')}
+                    className="h-8 text-xs font-bold px-3"
+                  >
+                    Stato
+                  </Button>
+                </div>
                 <Dialog>
                   <DialogTrigger asChild>
                     <Button variant="outline" size="sm" className="h-10 shadow-sm hover:shadow-md transition-shadow">
