@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useMemo } from 'react'
+import { useNavigate } from 'react-router-dom'
 import { supabase } from '../lib/supabase'
 import { toast } from 'sonner'
 import { Button } from './ui/button'
@@ -40,9 +41,11 @@ interface RestaurantDashboardProps {
 }
 
 const RestaurantDashboard = ({ user, onLogout }: RestaurantDashboardProps) => {
+  const navigate = useNavigate()
   // Check both root level (from our custom login) and metadata (from Supabase Auth if used directly)
   const restaurantId = user?.restaurant_id || user?.user_metadata?.restaurant_id
   const [activeSection, setActiveSection] = useState('orders')
+  const [pendingAutoOrderTableId, setPendingAutoOrderTableId] = useState<string | null>(null)
   const [activeTab, setActiveTab] = useState('orders')
   const [sidebarExpanded, setSidebarExpanded] = useState(false)
   const [tableSearchTerm, setTableSearchTerm] = useState('')
@@ -403,6 +406,11 @@ const RestaurantDashboard = ({ user, onLogout }: RestaurantDashboardProps) => {
       refreshSessions()
       setShowTableDialog(false)
       setShowQrDialog(false)
+
+      if (pendingAutoOrderTableId === tableId) {
+        navigate(`/waiter/table/${tableId}`)
+        setPendingAutoOrderTableId(null)
+      }
     } catch (err) {
       console.error('Error activating table:', err)
       toast.error('Errore durante l\'attivazione del tavolo')
@@ -1330,10 +1338,18 @@ const RestaurantDashboard = ({ user, onLogout }: RestaurantDashboardProps) => {
                 return (
                   <Card
                     key={table.id}
-                    className={`relative overflow-hidden transition-all duration-300 group ${isActive
+                    className={`relative overflow-hidden transition-all duration-300 group cursor-pointer ${isActive
                       ? 'bg-gradient-to-br from-emerald-100 to-emerald-50 dark:from-emerald-950/30 dark:to-background shadow-lg shadow-emerald-500/20 ring-2 ring-emerald-400/50 dark:ring-emerald-800/50 border-emerald-200 dark:border-emerald-800'
                       : 'bg-gradient-to-br from-slate-100 to-white dark:from-slate-900/50 dark:to-background shadow-md hover:shadow-lg border-slate-200 dark:border-slate-800'
                       }`}
+                    onClick={() => {
+                      if (isActive) {
+                        navigate(`/waiter/table/${table.id}`)
+                      } else {
+                        setPendingAutoOrderTableId(table.id)
+                        handleToggleTable(table.id)
+                      }
+                    }}
                   >
                     <CardContent className="p-0 flex flex-col h-full">
                       <div className="p-4 flex flex-wrap items-center justify-between gap-2 border-b border-border/5">
@@ -1374,8 +1390,8 @@ const RestaurantDashboard = ({ user, onLogout }: RestaurantDashboardProps) => {
                           </>
                         ) : (
                           <div className="text-center text-muted-foreground/30 group-hover:text-muted-foreground/50 transition-all duration-300">
-                            <MapPin size={32} className="mx-auto mb-1" weight="duotone" />
-                            <p className="text-xs font-medium">Disponibile</p>
+                            <ForkKnife size={32} className="mx-auto mb-1" weight="duotone" />
+                            <p className="text-xs font-medium">Clicca per Ordinare</p>
                           </div>
                         )}
                       </div>
@@ -1383,14 +1399,14 @@ const RestaurantDashboard = ({ user, onLogout }: RestaurantDashboardProps) => {
                       <div className="p-3 bg-gradient-to-t from-muted/10 to-transparent border-t border-border/5 grid gap-2">
                         {isActive ? (
                           <div className="grid grid-cols-2 gap-2">
-                            <Button variant="outline" size="sm" onClick={() => handleShowTableQr(table)} className="shadow-sm hover:shadow transition-shadow h-8 text-xs">
+                            <Button variant="outline" size="sm" onClick={(e) => { e.stopPropagation(); handleShowTableQr(table); }} className="shadow-sm hover:shadow transition-shadow h-8 text-xs">
                               <QrCode size={14} className="mr-1.5" />
                               QR
                             </Button>
                             <Button
                               className="bg-gradient-to-r from-primary to-primary/80 text-primary-foreground hover:from-primary/90 hover:to-primary/70 shadow-sm hover:shadow transition-all h-8 text-xs"
                               size="sm"
-                              onClick={() => { setSelectedTableForActions(table); setShowTableBillDialog(true); }}
+                              onClick={(e) => { e.stopPropagation(); setSelectedTableForActions(table); setShowTableBillDialog(true); }}
                             >
                               <Receipt size={14} className="mr-1.5" />
                               Conto
@@ -1400,7 +1416,7 @@ const RestaurantDashboard = ({ user, onLogout }: RestaurantDashboardProps) => {
                           <Button
                             className="w-full shadow-sm hover:shadow transition-shadow h-8 text-xs"
                             size="sm"
-                            onClick={() => handleToggleTable(table.id)}
+                            onClick={(e) => { e.stopPropagation(); handleToggleTable(table.id); }}
                           >
                             <Plus size={14} className="mr-1.5" />
                             Attiva
@@ -1409,15 +1425,16 @@ const RestaurantDashboard = ({ user, onLogout }: RestaurantDashboardProps) => {
                       </div>
 
                       <div className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity flex gap-1 bg-background/90 backdrop-blur-md p-1 rounded-lg border border-border/30 shadow-lg">
-                        <Button variant="ghost" size="icon" className="h-6 w-6 hover:bg-muted" onClick={() => handleEditTable(table)}>
+                        <Button variant="ghost" size="icon" className="h-6 w-6 hover:bg-muted" onClick={(e) => { e.stopPropagation(); handleEditTable(table); }}>
                           <PencilSimple size={12} />
                         </Button>
-                        <Button variant="ghost" size="icon" className="h-6 w-6 text-destructive hover:bg-destructive/10" onClick={() => handleDeleteTable(table.id)}>
+                        <Button variant="ghost" size="icon" className="h-6 w-6 text-destructive hover:bg-destructive/10" onClick={(e) => { e.stopPropagation(); handleDeleteTable(table.id); }}>
                           <Trash size={12} />
                         </Button>
                       </div>
                     </CardContent>
                   </Card>
+
                 )
               })}
             </div>
