@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react'
+import React, { useState, useEffect, useRef } from 'react'
 import { supabase } from '../../lib/supabase'
 import { DatabaseService } from '../../services/DatabaseService'
 import { Table, Order, TableSession, Restaurant } from '../../services/types'
@@ -30,6 +30,7 @@ const WaiterDashboard = ({ user, onLogout }: WaiterDashboardProps) => {
     // Payment Dialog State
     const [selectedTableForPayment, setSelectedTableForPayment] = useState<Table | null>(null)
     const [isPaymentDialogOpen, setIsPaymentDialogOpen] = useState(false)
+    const [isReadyDrawerOpen, setIsReadyDrawerOpen] = useState(false)
 
     // Timer effect for timeline
     useEffect(() => {
