@@ -302,6 +302,13 @@ export default function ReservationsManager({ user, restaurantId, tables, rooms,
         <div className="flex items-center justify-between flex-wrap gap-4">
           <h2 className="text-2xl font-bold text-foreground">Prenotazioni del {selectedDate.toLocaleDateString('it-IT')}</h2>
           <div className="flex gap-2 flex-wrap">
+            <Button
+              className="bg-emerald-600 hover:bg-emerald-700 text-white gap-2 shadow-sm"
+              onClick={() => setShowQrDialog(true)}
+            >
+              <QrCode size={18} weight="bold" />
+              QR Prenotazioni (Pubblico)
+            </Button>
             <Select value={selectedRoomId} onValueChange={setSelectedRoomId}>
               <SelectTrigger className="w-[180px]">
                 <SelectValue placeholder="Filtra per Sala" />
@@ -318,13 +325,6 @@ export default function ReservationsManager({ user, restaurantId, tables, rooms,
               onClick={() => setShowHistoryDialog(true)}
             >
               Storico Prenotazioni
-            </Button>
-            <Button
-              className="bg-emerald-600 hover:bg-emerald-700 text-white gap-2"
-              onClick={() => setShowQrDialog(true)}
-            >
-              <QrCode size={18} />
-              QR Prenotazioni
             </Button>
           </div>
         </div>
