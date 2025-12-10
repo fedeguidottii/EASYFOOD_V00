@@ -647,15 +647,15 @@ export default function ReservationsManager({ user, restaurantId, tables, rooms,
 
       {/* Public Booking QR Code Dialog */}
       <Dialog open={showQrDialog} onOpenChange={setShowQrDialog}>
-        <DialogContent className="sm:max-w-md">
+        <DialogContent className="sm:max-w-lg">
           <DialogHeader>
-            <DialogTitle className="text-center">Prenotazioni Pubbliche</DialogTitle>
+            <DialogTitle className="text-center text-xl">Prenotazioni Pubbliche</DialogTitle>
             <DialogDescription className="text-center">
-              Fai scansionare questo codice ai clienti per prenotare un tavolo autonomamente.
+              Stampa o scarica questo codice per permettere ai clienti di prenotare e vedere il menu.
             </DialogDescription>
           </DialogHeader>
-          <div className="flex flex-col items-center justify-center p-6 space-y-4">
-            <div className="bg-white p-4 rounded-xl shadow-lg border">
+          <div className="flex flex-col items-center justify-center p-4 space-y-4">
+            <div id="qr-download-container" className="bg-white p-6 rounded-xl shadow-lg border">
               <QRCodeGenerator
                 value={`${window.location.origin}/book/${restaurantId}`}
                 size={200}
@@ -668,9 +668,113 @@ export default function ReservationsManager({ user, restaurantId, tables, rooms,
               </code>
             </div>
           </div>
-          <div className="flex justify-center">
-            <Button variant="outline" onClick={() => window.open(`${window.location.origin}/book/${restaurantId}`, '_blank')}>
-              Apri pagina di prenotazione
+
+          {/* Download Options */}
+          <div className="grid grid-cols-2 gap-3 pt-2">
+            <Button
+              variant="outline"
+              className="gap-2"
+              onClick={() => {
+                // Download QR image only
+                const link = document.createElement('a')
+                link.href = `https://api.qrserver.com/v1/create-qr-code/?size=400x400&data=${encodeURIComponent(`${window.location.origin}/book/${restaurantId}`)}`
+                link.download = 'qr-prenotazioni.png'
+                link.click()
+                toast.success('QR Code scaricato!')
+              }}
+            >
+              📷 Scarica QR
+            </Button>
+            <Button
+              className="gap-2 bg-emerald-600 hover:bg-emerald-700"
+              onClick={() => {
+                // Generate PDF with restaurant branding
+                const restaurantName = 'Il Tuo Ristorante' // This should come from props/context
+                const qrUrl = `https://api.qrserver.com/v1/create-qr-code/?size=400x400&data=${encodeURIComponent(`${window.location.origin}/book/${restaurantId}`)}`
+
+                // Create a printable HTML window
+                const printWindow = window.open('', '_blank')
+                if (printWindow) {
+                  printWindow.document.write(`
+                    <!DOCTYPE html>
+                    <html>
+                    <head>
+                      <title>QR Prenotazioni</title>
+                      <style>
+                        @page { size: A4; margin: 0; }
+                        * { box-sizing: border-box; margin: 0; padding: 0; }
+                        body { 
+                          font-family: 'Segoe UI', system-ui, sans-serif; 
+                          background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%);
+                          min-height: 100vh;
+                          display: flex;
+                          flex-direction: column;
+                          align-items: center;
+                          justify-content: center;
+                          color: white;
+                          padding: 40px;
+                        }
+                        .card {
+                          background: rgba(255,255,255,0.05);
+                          border: 1px solid rgba(255,255,255,0.1);
+                          border-radius: 24px;
+                          padding: 48px;
+                          text-align: center;
+                          max-width: 500px;
+                          backdrop-filter: blur(10px);
+                        }
+                        h1 { font-size: 32px; margin-bottom: 8px; }
+                        .subtitle { opacity: 0.7; margin-bottom: 32px; font-size: 18px; }
+                        .qr-container {
+                          background: white;
+                          padding: 24px;
+                          border-radius: 16px;
+                          display: inline-block;
+                          margin-bottom: 24px;
+                        }
+                        .qr-container img { display: block; }
+                        .instructions {
+                          background: rgba(16, 185, 129, 0.1);
+                          border: 1px solid rgba(16, 185, 129, 0.3);
+                          border-radius: 12px;
+                          padding: 16px;
+                          margin-top: 24px;
+                        }
+                        .instructions h3 { color: #10b981; margin-bottom: 8px; }
+                        .instructions p { opacity: 0.8; font-size: 14px; line-height: 1.6; }
+                        .footer { margin-top: 32px; opacity: 0.3; font-size: 12px; }
+                      </style>
+                    </head>
+                    <body>
+                      <div class="card">
+                        <h1>🍽️ Prenota il Tuo Tavolo</h1>
+                        <p class="subtitle">Scansiona e prenota in pochi secondi</p>
+                        <div class="qr-container">
+                          <img src="${qrUrl}" alt="QR Code" width="300" height="300" />
+                        </div>
+                        <div class="instructions">
+                          <h3>📱 Come funziona?</h3>
+                          <p>1. Scansiona il codice QR con la fotocamera del telefono<br/>
+                          2. Scegli data, ora e numero di persone<br/>
+                          3. Conferma la prenotazione in un click!</p>
+                        </div>
+                        <p class="footer">Powered by EasyFood</p>
+                      </div>
+                      <script>window.onload = () => window.print()</script>
+                    </body>
+                    </html>
+                  `)
+                  printWindow.document.close()
+                }
+              }}
+            >
+              📄 Stampa PDF
+            </Button>
+          </div>
+
+          <div className="flex justify-center pt-2">
+            <Button variant="ghost" size="sm" onClick={() => window.open(`${window.location.origin}/book/${restaurantId}`, '_blank')}>
+              Apri pagina di prenotazione →
             </Button>
           </div>
         </DialogContent>
