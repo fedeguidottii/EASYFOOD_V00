@@ -740,7 +740,8 @@ const RestaurantDashboard = ({ user, onLogout }: RestaurantDashboardProps) => {
   }
 
   const handleCompleteDish = async (orderId: string, itemId: string, showToast = true) => {
-    await updateOrderItemStatus(orderId, itemId, 'SERVED')
+    // FIX: Set status to 'ready' so it appears in Waiter Dashboard for pickup
+    await updateOrderItemStatus(orderId, itemId, 'ready')
 
     // Update local orders state immediately for UI refresh
     setOrders(prevOrders => prevOrders.map(order => {
@@ -748,12 +749,14 @@ const RestaurantDashboard = ({ user, onLogout }: RestaurantDashboardProps) => {
         return {
           ...order,
           items: order.items?.map(item =>
-            item.id === itemId ? { ...item, status: 'SERVED' as const } : item
+            item.id === itemId ? { ...item, status: 'ready' as const } : item
           )
         }
       }
       return order
     }))
+
+    if (showToast) toast.success('Piatto pronto! Notifica inviata ai camerieri.')
   }
 
 
