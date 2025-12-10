@@ -3,7 +3,7 @@ import { supabase } from '../../lib/supabase'
 import { DatabaseService } from '../../services/DatabaseService'
 import { Table, Order, TableSession, Restaurant } from '../../services/types'
 import { toast } from 'sonner'
-import { SignOut, User, CheckCircle, ArrowsClockwise, Receipt, Trash } from '@phosphor-icons/react'
+import { SignOut, User, CheckCircle, ArrowsClockwise, Receipt, Trash, Plus } from '@phosphor-icons/react'
 import { Button } from '../ui/button'
 import { Card, CardContent } from '../ui/card'
 import { Badge } from '../ui/badge'
@@ -23,9 +23,19 @@ const WaiterDashboard = ({ user, onLogout }: WaiterDashboardProps) => {
     const [restaurantId, setRestaurantId] = useState<string | null>(null)
     const [restaurant, setRestaurant] = useState<Restaurant | null>(null)
 
+    // Sorting State
+    const [sortBy, setSortBy] = useState<'alpha' | 'seats' | 'status'>('status')
+    const [now, setNow] = useState(new Date())
+
     // Payment Dialog State
     const [selectedTableForPayment, setSelectedTableForPayment] = useState<Table | null>(null)
     const [isPaymentDialogOpen, setIsPaymentDialogOpen] = useState(false)
+
+    // Timer effect for timeline
+    useEffect(() => {
+        const interval = setInterval(() => setNow(new Date()), 60000) // Update every minute
+        return () => clearInterval(interval)
+    }, [])
 
     // Fetch initial data
     useEffect(() => {
@@ -125,28 +135,67 @@ const WaiterDashboard = ({ user, onLogout }: WaiterDashboardProps) => {
         return sessionOrders.reduce((sum, order) => sum + (order.total_amount || 0), 0)
     }
 
-    const getSessionDuration = (openedAt: string) => {
-        const start = new Date(openedAt)
-        const now = new Date()
-        const diff = Math.floor((now.getTime() - start.getTime()) / 60000)
-        if (diff < 60) return `${diff} min`
-        const hours = Math.floor(diff / 60)
-        const mins = diff % 60
-        return `${hours}h ${mins}m`
-    }
-
-    const getTableStatus = (tableId: string) => {
+    const getDetailedTableStatus = (tableId: string): { step: 'seated' | 'waiting' | 'eating' | 'free', label: string, time: string, color: string } => {
         const session = sessions.find(s => s.table_id === tableId)
-        if (!session) return 'free'
-        return 'occupied'
+        if (!session) return { step: 'free', label: 'Libero', time: '', color: 'bg-slate-100 dark:bg-slate-800' }
+
+        const sessionOrders = activeOrders.filter(o => o.table_session_id === session.id && o.status !== 'CANCELLED')
+
+        // 1. Seduti (Seated) - No orders yet
+        if (sessionOrders.length === 0) {
+            const duration = Math.floor((now.getTime() - new Date(session.opened_at).getTime()) / 60000)
+            return {
+                step: 'seated',
+                label: 'Seduti',
+                time: `${duration}m`,
+                color: 'bg-blue-50 dark:bg-blue-900/20 border-blue-200 dark:border-blue-800' // Blue for just started
+            }
+        }
+
+        // 2. Attesa Cibo (Waiting) - Has orders that are NOT fully served
+        // Check if ANY order item is NOT 'SERVED' (and not 'cancelled')
+        // Actually, simplify: check if there are any orders with status sent/pending/preparing/ready.
+        const pendingOrders = sessionOrders.filter(o => ['pending', 'preparing', 'ready'].includes(o.status))
+
+        if (pendingOrders.length > 0) {
+            // Find oldest pending order
+            const oldestPending = pendingOrders.sort((a, b) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime())[0]
+            const duration = Math.floor((now.getTime() - new Date(oldestPending.created_at).getTime()) / 60000)
+            return {
+                step: 'waiting',
+                label: 'In Attesa',
+                time: `${duration}m`,
+                color: 'bg-amber-50 dark:bg-amber-900/20 border-amber-200 dark:border-amber-800' // Amber for waiting
+            }
+        }
+
+        // 3. Mangiando (Eating) - All orders are 'served' (or 'completed' or 'PAID' but session is open)
+        // If we get here, sessionOrders.length > 0 AND pendingOrders.length === 0
+        // We can use the last served order time as a reference, or just session duration for simplicity?
+        // Let's use time since last order was served (updated_at)
+        const lastServed = sessionOrders.sort((a, b) => new Date(b.updated_at).getTime() - new Date(a.updated_at).getTime())[0]
+        const duration = lastServed ? Math.floor((now.getTime() - new Date(lastServed.updated_at).getTime()) / 60000) : 0
+
+        return {
+            step: 'eating',
+            label: 'Mangiando',
+            time: `${duration}m`,
+            color: 'bg-emerald-50 dark:bg-emerald-900/20 border-emerald-200 dark:border-emerald-800' // Emerald for eating
+        }
     }
 
-    const getStatusColor = (status: string) => {
-        switch (status) {
-            case 'free': return 'bg-gradient-to-br from-slate-100 to-white dark:from-slate-900 dark:to-slate-800 border-slate-200 dark:border-slate-700 hover:shadow-lg'
-            case 'occupied': return 'bg-gradient-to-br from-emerald-100 to-emerald-50 dark:from-emerald-950/40 dark:to-slate-900 border-emerald-300 dark:border-emerald-700 ring-2 ring-emerald-400/30 dark:ring-emerald-500/30 shadow-lg shadow-emerald-500/10'
-            default: return 'bg-slate-100 dark:bg-slate-800'
-        }
+    const sortTables = (tables: Table[]) => {
+        return [...tables].sort((a, b) => {
+            if (sortBy === 'alpha') return a.number.localeCompare(b.number)
+            if (sortBy === 'seats') return (b.seats || 0) - (a.seats || 0)
+            if (sortBy === 'status') {
+                const statusA = getDetailedTableStatus(a.id).step
+                const statusB = getDetailedTableStatus(b.id).step
+                const priority = { 'waiting': 3, 'seated': 2, 'eating': 1, 'free': 0 }
+                return priority[statusB] - priority[statusA]
+            }
+            return 0
+        })
     }
 
     const handleTableClick = (table: Table) => {
@@ -176,11 +225,6 @@ const WaiterDashboard = ({ user, onLogout }: WaiterDashboardProps) => {
             // Update orders if marking as paid
             const sessionOrders = activeOrders.filter(o => o.table_session_id === session.id)
             if (sessionOrders.length > 0) {
-                const status = markAsPaid ? 'PAID' : 'completed' // Or just 'completed' if not paid? User said "Segna come Pagato" -> PAID. "Libera Tavolo" -> maybe just closed?
-                // Actually "Libera Tavolo" usually implies payment is handled or skipped. 
-                // Let's assume "Segna come Pagato" sets status='PAID'.
-                // "Libera Tavolo" just closes session. But what about orders? They should probably be closed too.
-
                 await supabase
                     .from('orders')
                     .update({ status: markAsPaid ? 'PAID' : 'completed' })
@@ -203,118 +247,127 @@ const WaiterDashboard = ({ user, onLogout }: WaiterDashboardProps) => {
 
     if (loading) return <div className="flex items-center justify-center h-screen text-2xl font-bold text-muted-foreground">Caricamento...</div>
 
+    const sortedTables = sortTables(tables)
+
     return (
-        <div className="min-h-screen bg-gradient-to-br from-slate-50 via-white to-slate-100 dark:from-slate-950 dark:via-slate-900 dark:to-slate-950 p-4 md:p-6">
+        <div className="min-h-screen bg-slate-50 dark:bg-slate-950 p-4 md:p-6 pb-24">
             {/* Header */}
-            <header className="flex items-center justify-between mb-6 bg-white/80 dark:bg-slate-900/80 backdrop-blur-xl p-4 md:p-5 rounded-2xl shadow-lg border border-white/20 dark:border-slate-800/50">
-                <div className="flex items-center gap-4">
-                    <div className="w-14 h-14 rounded-2xl bg-gradient-to-br from-emerald-500 to-emerald-600 flex items-center justify-center text-white shadow-lg shadow-emerald-500/30">
-                        <User size={28} weight="bold" />
+            <header className="flex flex-col md:flex-row items-center justify-between mb-6 gap-4 bg-white dark:bg-slate-900 p-4 rounded-2xl shadow-sm border border-slate-200 dark:border-slate-800">
+                <div className="flex items-center gap-4 w-full md:w-auto">
+                    <div className="w-12 h-12 rounded-xl bg-emerald-500 flex items-center justify-center text-white shadow-md">
+                        <User size={24} weight="bold" />
                     </div>
                     <div>
-                        <h1 className="text-2xl md:text-3xl font-black tracking-tight text-slate-900 dark:text-white">Gestione Sala</h1>
-                        <div className="flex items-center gap-2 mt-1">
-                            <span className="w-2.5 h-2.5 rounded-full bg-emerald-500 animate-pulse shadow-lg shadow-emerald-500/50"></span>
-                            <p className="text-sm font-semibold text-emerald-600 dark:text-emerald-400">Cameriere Online</p>
+                        <h1 className="text-xl font-bold text-slate-900 dark:text-white">Gestione Sala</h1>
+                        <div className="flex items-center gap-2">
+                            <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
+                            <p className="text-xs font-medium text-emerald-600 dark:text-emerald-400">Online</p>
                         </div>
                     </div>
                 </div>
-                <Button variant="outline" size="lg" className="font-bold border-2 hover:bg-red-50 hover:text-red-600 hover:border-red-300 dark:hover:bg-red-950/30" onClick={onLogout}>
-                    <SignOut size={20} className="mr-2" />
-                    Esci
-                </Button>
+
+                <div className="flex items-center gap-2 w-full md:w-auto overflow-x-auto pb-1 md:pb-0">
+                    <Button
+                        variant={sortBy === 'status' ? 'default' : 'outline'}
+                        size="sm"
+                        onClick={() => setSortBy('status')}
+                        className="text-xs font-bold"
+                    >
+                        Per Stato
+                    </Button>
+                    <Button
+                        variant={sortBy === 'alpha' ? 'default' : 'outline'}
+                        size="sm"
+                        onClick={() => setSortBy('alpha')}
+                        className="text-xs font-bold"
+                    >
+                        A-Z
+                    </Button>
+                    <Button
+                        variant={sortBy === 'seats' ? 'default' : 'outline'}
+                        size="sm"
+                        onClick={() => setSortBy('seats')}
+                        className="text-xs font-bold"
+                    >
+                        Posti
+                    </Button>
+
+                    <div className="h-6 w-px bg-slate-200 dark:bg-slate-700 mx-1"></div>
+
+                    <Button variant="ghost" size="sm" className="text-red-500 hover:text-red-600 hover:bg-red-50" onClick={onLogout}>
+                        <SignOut size={18} />
+                    </Button>
+                </div>
             </header>
 
             {/* Grid */}
-            <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-4 md:gap-6">
-                {tables.map(table => {
-                    const status = getTableStatus(table.id)
+            <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-3 md:gap-4">
+                {sortedTables.map(table => {
+                    const statusInfo = getDetailedTableStatus(table.id)
                     const session = sessions.find(s => s.table_id === table.id)
-                    const total = session ? getTableTotal(session.id) : 0
-                    const duration = session ? getSessionDuration(session.opened_at) : ''
 
                     return (
                         <Card
                             key={table.id}
-                            className={`cursor-pointer transition-all duration-300 border-2 relative overflow-hidden hover:scale-[1.02] active:scale-[0.98] ${getStatusColor(status)}`}
+                            className={`cursor-pointer transition-all duration-200 border relative overflow-hidden active:scale-[0.98] ${statusInfo.color} ${statusInfo.step === 'free' ? 'opacity-70 hover:opacity-100 border-dashed' : 'border-solid shadow-sm'}`}
                             onClick={() => handleTableClick(table)}
                         >
-                            <CardContent className="p-0 flex flex-col h-full">
+                            <CardContent className="p-0 flex flex-col h-full min-h-[140px]">
                                 {/* Header */}
-                                <div className="p-4 flex items-center justify-between border-b border-black/5 dark:border-white/5">
-                                    <div className="flex items-center gap-3">
-                                        <span className="text-2xl font-black text-slate-900 dark:text-white whitespace-nowrap">
+                                <div className="p-3 flex items-start justify-between">
+                                    <div className="flex flex-col">
+                                        <span className="text-xl font-black text-slate-800 dark:text-white leading-none">
                                             {table.number}
                                         </span>
-                                        <div className="flex items-center gap-1.5 text-slate-600 dark:text-slate-300 bg-slate-100 dark:bg-slate-800 px-2.5 py-1 rounded-full">
-                                            <User size={14} weight="bold" />
-                                            <span className="text-sm font-bold">{table.seats || 4}</span>
-                                        </div>
+                                        <span className="text-xs text-slate-500 font-medium mt-1">
+                                            {table.seats || 4} Posti
+                                        </span>
                                     </div>
-                                    {status === 'occupied' ? (
-                                        <Badge className="bg-emerald-500 hover:bg-emerald-600 text-white font-bold shadow-lg shadow-emerald-500/30">
-                                            Attivo
-                                        </Badge>
-                                    ) : (
-                                        <Badge variant="outline" className="text-slate-500 dark:text-slate-400 font-medium border-slate-300 dark:border-slate-600">
-                                            Libero
-                                        </Badge>
-                                    )}
+
+                                    <div className={`px-2 py-1 rounded-lg text-xs font-bold uppercase tracking-wider ${statusInfo.step === 'free' ? 'text-slate-400 bg-slate-100 dark:bg-slate-800' :
+                                        statusInfo.step === 'waiting' ? 'text-amber-600 bg-amber-100 dark:bg-amber-900/40 animate-pulse' :
+                                            statusInfo.step === 'seated' ? 'text-blue-600 bg-blue-100 dark:bg-blue-900/40' :
+                                                'text-emerald-600 bg-emerald-100 dark:bg-emerald-900/40'
+                                        }`}>
+                                        {statusInfo.step === 'free' ? 'Libero' : statusInfo.time}
+                                    </div>
                                 </div>
 
-                                {/* Content */}
-                                <div className="flex-1 p-4 flex flex-col justify-between">
+                                {/* Content Logic for Timeline */}
+                                <div className="flex-1 px-3 pb-3 flex flex-col justify-end gap-2">
                                     {session ? (
                                         <>
-                                            <div className="space-y-2">
-                                                <div className="flex items-center gap-2 text-sm">
-                                                    <User size={16} className="text-slate-400" weight="fill" />
-                                                    <span className="font-bold text-slate-700 dark:text-slate-200">{session.customer_count || 0} coperti</span>
-                                                </div>
-                                                <div className="flex items-center gap-2 text-sm">
-                                                    <ArrowsClockwise size={16} className="text-slate-400" />
-                                                    <span className="text-slate-500 dark:text-slate-400">{duration}</span>
-                                                </div>
+                                            {/* Status Steps */}
+                                            <div className="flex items-center gap-1 mt-auto">
+                                                <div className={`h-1.5 flex-1 rounded-full ${['seated', 'waiting', 'eating'].includes(statusInfo.step) ? 'bg-blue-500' : 'bg-slate-200 dark:bg-slate-700'}`}></div>
+                                                <div className={`h-1.5 flex-1 rounded-full ${['waiting', 'eating'].includes(statusInfo.step) ? 'bg-amber-500' : 'bg-slate-200 dark:bg-slate-700'}`}></div>
+                                                <div className={`h-1.5 flex-1 rounded-full ${statusInfo.step === 'eating' ? 'bg-emerald-500' : 'bg-slate-200 dark:bg-slate-700'}`}></div>
                                             </div>
-                                            <div className="mt-3 pt-3 border-t border-slate-200/50 dark:border-slate-700/50">
-                                                <div className="text-3xl font-black text-emerald-600 dark:text-emerald-400">
-                                                    €{total.toFixed(2)}
-                                                </div>
+                                            <div className="flex justify-between text-[10px] font-bold uppercase text-slate-400">
+                                                <span className={statusInfo.step === 'seated' ? 'text-blue-600' : ''}>Seduti</span>
+                                                <span className={statusInfo.step === 'waiting' ? 'text-amber-600' : ''}>Attesa</span>
+                                                <span className={statusInfo.step === 'eating' ? 'text-emerald-600' : ''}>Mangia</span>
                                             </div>
+
+                                            {/* Action Button - Only visible if occupied */}
+                                            {restaurant?.allow_waiter_payments && (
+                                                <Button
+                                                    size="sm"
+                                                    variant="ghost"
+                                                    className="w-full mt-2 h-8 text-xs font-bold border border-slate-200 dark:border-slate-700 bg-white/50 hover:bg-white"
+                                                    onClick={(e) => openPaymentDialog(e, table)}
+                                                >
+                                                    <Receipt size={14} className="mr-1.5" />
+                                                    Conto
+                                                </Button>
+                                            )}
                                         </>
                                     ) : (
-                                        <div className="flex-1 flex items-center justify-center">
-                                            <p className="text-sm text-slate-400 dark:text-slate-500 font-medium">Clicca per ordinare</p>
+                                        <div className="flex items-center justify-center h-full text-slate-400">
+                                            <Plus size={24} weight="bold" />
                                         </div>
                                     )}
                                 </div>
-
-                                {/* Payment Button - Always visible for occupied tables, but only functional if allowed */}
-                                {status === 'occupied' && (
-                                    <div className="p-3 pt-0 flex gap-2">
-                                        <Button
-                                            variant="outline"
-                                            size="sm"
-                                            className="flex-1 h-10 font-bold border-2 text-sm"
-                                            onClick={(e) => {
-                                                e.stopPropagation()
-                                                handleTableClick(table)
-                                            }}
-                                        >
-                                            Ordina
-                                        </Button>
-                                        {restaurant?.allow_waiter_payments && (
-                                            <Button
-                                                size="sm"
-                                                className="flex-1 h-10 font-bold bg-emerald-600 hover:bg-emerald-700 text-white text-sm"
-                                                onClick={(e) => openPaymentDialog(e, table)}
-                                            >
-                                                <Receipt size={16} className="mr-1" weight="fill" />
-                                                Conto
-                                            </Button>
-                                        )}
-                                    </div>
-                                )}
                             </CardContent>
                         </Card>
                     )
@@ -333,35 +386,31 @@ const WaiterDashboard = ({ user, onLogout }: WaiterDashboardProps) => {
                         </DialogDescription>
                     </DialogHeader>
 
-                    <div className="py-4">
-                        <div className="flex justify-between items-center mb-4 p-4 bg-muted/30 rounded-lg border">
-                            <span className="text-lg font-medium">Totale da Pagare</span>
-                            <span className="text-3xl font-black text-primary">
-                                € {selectedTableForPayment && sessions.find(s => s.table_id === selectedTableForPayment.id)
-                                    ? getTableTotal(sessions.find(s => s.table_id === selectedTableForPayment.id)!.id).toFixed(2)
-                                    : '0.00'}
-                            </span>
-                        </div>
-
-                        {/* Order Summary could go here if needed */}
+                    <div className="py-6 flex flex-col items-center justify-center bg-slate-50 dark:bg-slate-900 rounded-xl border border-slate-100 dark:border-slate-800 mb-4">
+                        <span className="text-sm font-medium text-slate-500 uppercase tracking-wide">Totale da Saldare</span>
+                        <span className="text-4xl font-black text-slate-900 dark:text-white mt-1">
+                            € {selectedTableForPayment && sessions.find(s => s.table_id === selectedTableForPayment.id)
+                                ? getTableTotal(sessions.find(s => s.table_id === selectedTableForPayment.id)!.id).toFixed(2)
+                                : '0.00'}
+                        </span>
                     </div>
 
                     <DialogFooter className="flex-col gap-3 sm:flex-col">
                         <Button
-                            className="w-full h-12 text-lg font-bold bg-green-600 hover:bg-green-700 text-white"
+                            className="w-full h-12 text-lg font-bold bg-emerald-600 hover:bg-emerald-700 text-white shadow-lg shadow-emerald-500/20"
                             onClick={() => handleCloseTable(true)}
                         >
-                            <CheckCircle className="mr-2 h-5 w-5" weight="fill" />
+                            <CheckCircle className="mr-2 h-6 w-6" weight="fill" />
                             SEGNA COME PAGATO
                         </Button>
 
                         <Button
                             variant="outline"
-                            className="w-full h-12 text-lg font-bold border-2"
+                            className="w-full h-12 text-base font-bold text-slate-500 hover:text-red-500 hover:border-red-200 hover:bg-red-50"
                             onClick={() => handleCloseTable(false)}
                         >
                             <Trash className="mr-2 h-5 w-5" />
-                            LIBERA TAVOLO (Senza Pagamento)
+                            LIBERA (Senza Incasso)
                         </Button>
                     </DialogFooter>
                 </DialogContent>

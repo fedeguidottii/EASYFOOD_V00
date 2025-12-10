@@ -742,8 +742,8 @@ export default function CustomerMenu({ tableId: propTableId, onExit, interfaceMo
                           key={num}
                           onClick={() => setActiveWaitCourse(num)}
                           className={`h - 10 text - sm font - bold rounded - lg border transition - all ${activeWaitCourse === num
-                              ? 'bg-emerald-600 text-white border-emerald-500 shadow-lg shadow-emerald-900/20'
-                              : 'bg-slate-800 text-slate-400 border-slate-700 hover:bg-slate-700'
+                            ? 'bg-emerald-600 text-white border-emerald-500 shadow-lg shadow-emerald-900/20'
+                            : 'bg-slate-800 text-slate-400 border-slate-700 hover:bg-slate-700'
                             } `}
                         >
                           {num}
@@ -907,7 +907,19 @@ export default function CustomerMenu({ tableId: propTableId, onExit, interfaceMo
             <DialogHeader><DialogTitle>Conferma invio</DialogTitle><DialogDescription className="text-slate-400">Inviare l'ordine in cucina?</DialogDescription></DialogHeader>
             <div className="py-3">
               <div className="bg-slate-800 rounded-lg p-3 space-y-1">
-                {courseNumbers.map(num => (<p key={num} className="text-xs text-slate-300">• Portata {num}: {cartByCourse[num]?.length || 0} piatti</p>))}
+                {courseNumbers.map(num => (
+                  <div key={num} className="mb-2">
+                    <p className="text-xs font-bold text-emerald-400 uppercase tracking-wider mb-1">• Portata {num}</p>
+                    <ul className="pl-2 space-y-1">
+                      {cartByCourse[num]?.map((item, idx) => (
+                        <li key={idx} className="text-xs text-slate-300 flex justify-between">
+                          <span>{item.quantity}x {item.name}</span>
+                          {item.notes && <span className="text-[10px] italic text-slate-500 max-w-[120px] truncate ml-2">({item.notes})</span>}
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+                ))}
                 <p className="text-sm font-bold pt-2 border-t border-slate-700 mt-2 text-white">Totale Ordine: €{cartTotal.toFixed(2)}</p>
               </div>
             </div>
@@ -1088,8 +1100,8 @@ export default function CustomerMenu({ tableId: propTableId, onExit, interfaceMo
                     <button
                       onClick={() => setActiveCategory('all')}
                       className={`px - 4 py - 2 text - xs font - semibold rounded - full transition - all duration - 300 ${activeCategory === 'all'
-                          ? 'bg-gradient-to-r from-slate-900 to-slate-800 dark:from-white dark:to-slate-100 text-white dark:text-slate-900 shadow-lg shadow-slate-900/20 dark:shadow-white/20 scale-105'
-                          : 'bg-white/50 dark:bg-slate-800/50 text-slate-600 dark:text-slate-400 border border-white/30 dark:border-slate-700/30 hover:bg-white/80 backdrop-blur-sm'
+                        ? 'bg-gradient-to-r from-slate-900 to-slate-800 dark:from-white dark:to-slate-100 text-white dark:text-slate-900 shadow-lg shadow-slate-900/20 dark:shadow-white/20 scale-105'
+                        : 'bg-white/50 dark:bg-slate-800/50 text-slate-600 dark:text-slate-400 border border-white/30 dark:border-slate-700/30 hover:bg-white/80 backdrop-blur-sm'
                         } `}
                     >
                       Tutto
@@ -1099,8 +1111,8 @@ export default function CustomerMenu({ tableId: propTableId, onExit, interfaceMo
                         key={cat.id}
                         onClick={() => setActiveCategory(cat.id)}
                         className={`px - 4 py - 2 text - xs font - semibold rounded - full transition - all duration - 300 ${activeCategory === cat.id
-                            ? 'bg-gradient-to-r from-slate-900 to-slate-800 dark:from-white dark:to-slate-100 text-white dark:text-slate-900 shadow-lg shadow-slate-900/20 dark:shadow-white/20 scale-105'
-                            : 'bg-white/50 dark:bg-slate-800/50 text-slate-600 dark:text-slate-400 border border-white/30 dark:border-slate-700/30 hover:bg-white/80 backdrop-blur-sm'
+                          ? 'bg-gradient-to-r from-slate-900 to-slate-800 dark:from-white dark:to-slate-100 text-white dark:text-slate-900 shadow-lg shadow-slate-900/20 dark:shadow-white/20 scale-105'
+                          : 'bg-white/50 dark:bg-slate-800/50 text-slate-600 dark:text-slate-400 border border-white/30 dark:border-slate-700/30 hover:bg-white/80 backdrop-blur-sm'
                           } `}
                       >
                         {cat.name}
@@ -1309,12 +1321,12 @@ export default function CustomerMenu({ tableId: propTableId, onExit, interfaceMo
                       </div>
                       <Badge
                         className={`text - [10px] font - semibold ${order.status === 'OPEN' || order.status === 'pending'
-                            ? 'bg-amber-500/10 text-amber-600 border-amber-500/20'
-                            : order.status === 'preparing'
-                              ? 'bg-blue-500/10 text-blue-600 border-blue-500/20'
-                              : order.status === 'ready'
-                                ? 'bg-emerald-500/10 text-emerald-600 border-emerald-500/20'
-                                : 'bg-slate-500/10 text-slate-600 border-slate-500/20'
+                          ? 'bg-amber-500/10 text-amber-600 border-amber-500/20'
+                          : order.status === 'preparing'
+                            ? 'bg-blue-500/10 text-blue-600 border-blue-500/20'
+                            : order.status === 'ready'
+                              ? 'bg-emerald-500/10 text-emerald-600 border-emerald-500/20'
+                              : 'bg-slate-500/10 text-slate-600 border-slate-500/20'
                           } `}
                       >
                         {order.status === 'OPEN' || order.status === 'pending' ? 'In attesa' :
