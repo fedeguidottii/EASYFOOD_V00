@@ -307,8 +307,8 @@ const WaiterDashboard = ({ user, onLogout }: WaiterDashboardProps) => {
                 </div>
 
                 <div className="flex items-center gap-3 w-full md:w-auto overflow-x-auto pb-1 md:pb-0">
-                     {/* Ready Items Button */}
-                     <Button 
+                    {/* Ready Items Button */}
+                    <Button
                         variant={readyCount > 0 ? "default" : "outline"}
                         size="sm"
                         className={`md:mr-4 h-10 px-4 rounded-xl border-slate-700 font-bold transition-all ${readyCount > 0 ? 'bg-amber-500 hover:bg-amber-600 text-slate-900 animate-pulse' : 'text-slate-400 bg-transparent hover:bg-slate-800'}`}
@@ -318,31 +318,31 @@ const WaiterDashboard = ({ user, onLogout }: WaiterDashboardProps) => {
                         Pronti: {readyCount}
                     </Button>
 
-                     <Button 
-                        variant={sortBy === 'status' ? 'default' : 'ghost'} 
-                        size="sm" 
+                    <Button
+                        variant={sortBy === 'status' ? 'default' : 'ghost'}
+                        size="sm"
                         onClick={() => setSortBy('status')}
                         className={`text-xs font-bold h-9 rounded-xl ${sortBy === 'status' ? 'bg-emerald-500 text-white hover:bg-emerald-600' : 'text-slate-400 hover:text-white hover:bg-slate-800'}`}
                     >
                         Stato
                     </Button>
-                     <Button 
-                        variant={sortBy === 'alpha' ? 'default' : 'ghost'} 
-                        size="sm" 
+                    <Button
+                        variant={sortBy === 'alpha' ? 'default' : 'ghost'}
+                        size="sm"
                         onClick={() => setSortBy('alpha')}
                         className={`text-xs font-bold h-9 rounded-xl ${sortBy === 'alpha' ? 'bg-emerald-500 text-white hover:bg-emerald-600' : 'text-slate-400 hover:text-white hover:bg-slate-800'}`}
                     >
                         A-Z
                     </Button>
-                    <Button 
-                        variant={sortBy === 'seats' ? 'default' : 'ghost'} 
-                        size="sm" 
+                    <Button
+                        variant={sortBy === 'seats' ? 'default' : 'ghost'}
+                        size="sm"
                         onClick={() => setSortBy('seats')}
                         className={`text-xs font-bold h-9 rounded-xl ${sortBy === 'seats' ? 'bg-emerald-500 text-white hover:bg-emerald-600' : 'text-slate-400 hover:text-white hover:bg-slate-800'}`}
                     >
                         Posti
                     </Button>
-                    
+
                     <div className="h-6 w-px bg-slate-800 mx-2"></div>
 
                     <Button variant="ghost" size="sm" className="text-red-400 hover:text-red-300 hover:bg-red-500/10 h-9 px-3 rounded-xl" onClick={onLogout}>
@@ -356,15 +356,15 @@ const WaiterDashboard = ({ user, onLogout }: WaiterDashboardProps) => {
                 {sortedTables.map(table => {
                     const statusInfo = getDetailedTableStatus(table.id)
                     const session = sessions.find(s => s.table_id === table.id)
-                    
+
                     return (
                         <Card
                             key={table.id}
                             className={`
                                 group cursor-pointer transition-all duration-300 relative overflow-hidden border
                                 ${statusInfo.color}
-                                ${statusInfo.step === 'free' 
-                                    ? 'hover:border-slate-700 hover:bg-slate-800/50 hover:shadow-lg hover:shadow-emerald-500/5' 
+                                ${statusInfo.step === 'free'
+                                    ? 'hover:border-slate-700 hover:bg-slate-800/50 hover:shadow-lg hover:shadow-emerald-500/5'
                                     : 'shadow-xl shadow-black/20 hover:scale-[1.02]'}
                             `}
                             onClick={() => handleTableClick(table)}
@@ -386,25 +386,24 @@ const WaiterDashboard = ({ user, onLogout }: WaiterDashboardProps) => {
                                             {table.seats || 4} Posti
                                         </span>
                                     </div>
-                                    
-                                    <div className={`px-2.5 py-1.5 rounded-lg text-[10px] font-bold uppercase tracking-wider shadow-sm border ${
-                                        statusInfo.step === 'free' ? 'text-slate-500 bg-slate-800 border-slate-700' :
-                                        statusInfo.step === 'waiting' ? 'text-amber-400 bg-amber-500/10 border-amber-500/20' :
-                                        statusInfo.step === 'seated' ? 'text-blue-400 bg-blue-500/10 border-blue-500/20' :
-                                        'text-emerald-400 bg-emerald-500/10 border-emerald-500/20'
-                                    }`}>
+
+                                    <div className={`px-2.5 py-1.5 rounded-lg text-[10px] font-bold uppercase tracking-wider shadow-sm border ${statusInfo.step === 'free' ? 'text-slate-500 bg-slate-800 border-slate-700' :
+                                            statusInfo.step === 'waiting' ? 'text-amber-400 bg-amber-500/10 border-amber-500/20' :
+                                                statusInfo.step === 'seated' ? 'text-blue-400 bg-blue-500/10 border-blue-500/20' :
+                                                    'text-emerald-400 bg-emerald-500/10 border-emerald-500/20'
+                                        }`}>
                                         {statusInfo.step === 'free' ? 'Libero' : statusInfo.time}
                                     </div>
                                 </div>
 
                                 {/* Content Logic for Timeline */}
                                 <div className="flex-1 px-4 pb-4 flex flex-col justify-end gap-3 z-10 relative">
-                                     {session ? (
+                                    {session ? (
                                         <>
                                             {/* Status Steps */}
                                             <div className="flex items-center gap-1.5 mt-auto">
-                                                <div className={`h-1 flex-1 rounded-full transition-colors duration-500 ${['seated','waiting','eating'].includes(statusInfo.step) ? 'bg-blue-500 shadow-[0_0_8px_rgba(59,130,246,0.6)]' : 'bg-slate-800'}`}></div>
-                                                <div className={`h-1 flex-1 rounded-full transition-colors duration-500 ${['waiting','eating'].includes(statusInfo.step) ? 'bg-amber-500 shadow-[0_0_8px_rgba(245,158,11,0.6)]' : 'bg-slate-800'}`}></div>
+                                                <div className={`h-1 flex-1 rounded-full transition-colors duration-500 ${['seated', 'waiting', 'eating'].includes(statusInfo.step) ? 'bg-blue-500 shadow-[0_0_8px_rgba(59,130,246,0.6)]' : 'bg-slate-800'}`}></div>
+                                                <div className={`h-1 flex-1 rounded-full transition-colors duration-500 ${['waiting', 'eating'].includes(statusInfo.step) ? 'bg-amber-500 shadow-[0_0_8px_rgba(245,158,11,0.6)]' : 'bg-slate-800'}`}></div>
                                                 <div className={`h-1 flex-1 rounded-full transition-colors duration-500 ${statusInfo.step === 'eating' ? 'bg-emerald-500 shadow-[0_0_8px_rgba(16,185,129,0.6)]' : 'bg-slate-800'}`}></div>
                                             </div>
                                             <div className="flex justify-between text-[10px] font-bold uppercase tracking-wider text-slate-600">
@@ -426,13 +425,13 @@ const WaiterDashboard = ({ user, onLogout }: WaiterDashboardProps) => {
                                                 </Button>
                                             )}
                                         </>
-                                     ) : (
+                                    ) : (
                                         <div className="flex items-end justify-end h-full opacity-0 group-hover:opacity-100 transition-opacity duration-300">
                                             <div className="bg-slate-800 p-2 rounded-full text-emerald-500 shadow-lg">
                                                 <Plus size={20} weight="bold" />
                                             </div>
                                         </div>
-                                     )}
+                                    )}
                                 </div>
                             </CardContent>
                         </Card>
@@ -440,12 +439,77 @@ const WaiterDashboard = ({ user, onLogout }: WaiterDashboardProps) => {
                 })}
             </div>
 
+            {/* Ready Items Drawer */}
+            <Dialog open={isReadyDrawerOpen} onOpenChange={setIsReadyDrawerOpen}>
+                <DialogContent className="sm:max-w-md bg-slate-950 border-slate-800 text-white h-[80vh] flex flex-col p-0 overflow-hidden">
+                    <DialogHeader className="p-6 pb-2 border-b border-slate-800 bg-slate-900/50">
+                        <DialogTitle className="text-2xl font-bold flex items-center gap-3">
+                            <div className="w-10 h-10 rounded-full bg-amber-500 flex items-center justify-center text-slate-900">
+                                <CheckCircle size={24} weight="fill" />
+                            </div>
+                            Pronti da Servire
+                        </DialogTitle>
+                        <DialogDescription className="text-slate-400">
+                            Piatti pronti dalla cucina. Segna come serviti quando consegnati.
+                        </DialogDescription>
+                    </DialogHeader>
+
+                    <ScrollArea className="flex-1 p-4">
+                        <div className="space-y-3">
+                            {readyItems.length === 0 ? (
+                                <div className="flex flex-col items-center justify-center h-40 text-slate-500">
+                                    <CheckCircle size={48} weight="duotone" className="mb-2 opacity-50" />
+                                    <p>Nessun piatto in attesa</p>
+                                </div>
+                            ) : (
+                                readyItems.map((item, idx) => {
+                                    const table = tables.find(t => t.id === item.tableId)
+                                    return (
+                                        <div key={item.id + idx} className="bg-slate-900 border border-slate-800 p-4 rounded-xl flex items-center justify-between shadow-sm animate-in fade-in slide-in-from-bottom-2 duration-300">
+                                            <div>
+                                                <div className="flex items-center gap-2 mb-1">
+                                                    <Badge variant="outline" className="bg-slate-800 text-emerald-400 border-emerald-500/30 text-xs px-2 py-0.5">
+                                                        Tavolo {table?.number || '?'}
+                                                    </Badge>
+                                                    <span className="text-xs text-slate-500">{new Date(item.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>
+                                                </div>
+                                                <p className="font-bold text-lg text-white">{item.quantity}x {item.dish?.name || 'Piatto'}</p>
+                                                {item.notes && <p className="text-sm text-amber-400 italic">Note: {item.notes}</p>}
+                                            </div>
+                                            <Button
+                                                size="sm"
+                                                className="h-10 w-10 rounded-full bg-emerald-600 hover:bg-emerald-500 text-white shadow-lg shadow-emerald-900/50 p-0"
+                                                onClick={() => handleMarkAsServed(item.order_id, item.id)}
+                                            >
+                                                <CheckCircle size={20} weight="bold" />
+                                            </Button>
+                                        </div>
+                                    )
+                                })
+                            )}
+                        </div>
+                    </ScrollArea>
+
+                    <div className="p-4 border-t border-slate-800 bg-slate-900/50">
+                        <Button className="w-full bg-slate-800 hover:bg-slate-700 text-slate-300" onClick={() => setIsReadyDrawerOpen(false)}>
+                            Chiudi
+                        </Button>
+                    </div>
+                </DialogContent>
+            </Dialog>
+
+            {/* Payment Dialog */}
+            <Dialog open={isPaymentDialogOpen} onOpenChange={setIsPaymentDialogOpen}>
+                <DialogContent className="sm:max-w-md bg-slate-950 border-slate-800 text-white">
+                    <DialogHeader>
+                        <DialogTitle className="text-2xl font-bold text-white flex items-center gap-3">
+                            <span className="bg-slate-800 px-3 py-1 rounded-lg text-lg text-slate-300">#{selectedTableForPayment?.number}</span>
                             Gestione Conto
                         </DialogTitle>
                         <DialogDescription className="text-slate-400">
                             Gestisci il pagamento e la chiusura del tavolo.
                         </DialogDescription>
-                    </DialogHeader >
+                    </DialogHeader>
 
                     <div className="py-8 flex flex-col items-center justify-center bg-slate-900/50 rounded-2xl border border-slate-800 mb-2 mt-2">
                         <span className="text-xs font-bold text-slate-500 uppercase tracking-widest mb-2">Totale da Saldare</span>
@@ -475,10 +539,11 @@ const WaiterDashboard = ({ user, onLogout }: WaiterDashboardProps) => {
                             LIBERA (Senza Incasso)
                         </Button>
                     </DialogFooter>
-                </DialogContent >
-            </Dialog >
-        </div >
+                </DialogContent>
+            </Dialog>
+        </div>
     )
 }
 
 export default WaiterDashboard
+    ```
