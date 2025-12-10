@@ -2,7 +2,7 @@ export type UserRole = 'ADMIN' | 'OWNER' | 'STAFF' | 'CUSTOMER'
 export type RestaurantStaffRole = 'OWNER' | 'STAFF'
 export type SessionStatus = 'OPEN' | 'CLOSED'
 export type OrderStatus = 'OPEN' | 'PAID' | 'CANCELLED' | 'pending' | 'preparing' | 'ready' | 'served' | 'completed'
-export type OrderItemStatus = 'PENDING' | 'IN_PREPARATION' | 'READY' | 'SERVED'
+export type OrderItemStatus = 'PENDING' | 'IN_PREPARATION' | 'READY' | 'SERVED' | 'pending' | 'preparing' | 'ready' | 'served'
 
 export interface User {
     id: string
