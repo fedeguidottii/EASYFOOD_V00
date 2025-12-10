@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo } from 'react'
+import React, { useState, useEffect, useMemo, useRef } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { supabase } from '../lib/supabase'
 import { toast } from 'sonner'
@@ -69,6 +69,18 @@ const RestaurantDashboard = ({ user, onLogout }: RestaurantDashboardProps) => {
     return (localStorage.getItem('selectedSound') as SoundType) || 'classic'
   })
 
+  // Sound refs for stable subscription usage
+  const soundEnabledRef = useRef(soundEnabled)
+  const selectedSoundRef = useRef(selectedSound)
+
+  useEffect(() => {
+    soundEnabledRef.current = soundEnabled
+  }, [soundEnabled])
+
+  useEffect(() => {
+    selectedSoundRef.current = selectedSound
+  }, [selectedSound])
+
   // Persist settings
   useEffect(() => {
     localStorage.setItem('soundEnabled', String(soundEnabled))
@@ -90,15 +102,17 @@ const RestaurantDashboard = ({ user, onLogout }: RestaurantDashboardProps) => {
   }
 
   useEffect(() => {
+    if (!restaurantId) return // Ensure restaurantId is present
+
     fetchOrders()
 
     const channel = supabase
       .channel(`dashboard_orders_${restaurantId}`)
       .on('postgres_changes', { event: '*', schema: 'public', table: 'orders', filter: `restaurant_id=eq.${restaurantId}` }, (payload) => {
         fetchOrders()
-        // Play sound on new order
-        if (payload.eventType === 'INSERT' && soundEnabled) {
-          soundManager.play(selectedSound)
+        // Play sound on new order using refs to avoid re-subscription
+        if (payload.eventType === 'INSERT' && soundEnabledRef.current) {
+          soundManager.play(selectedSoundRef.current)
           toast.info('Nuovo ordine ricevuto!', { icon: '🔔' })
         }
       })
@@ -107,7 +121,7 @@ const RestaurantDashboard = ({ user, onLogout }: RestaurantDashboardProps) => {
     return () => {
       supabase.removeChannel(channel)
     }
-  }, [restaurantId, soundEnabled, selectedSound])
+  }, [restaurantId]) // Only re-subscribe if restaurantId changes
 
 
 
