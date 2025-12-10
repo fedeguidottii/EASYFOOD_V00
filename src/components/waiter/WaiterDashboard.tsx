@@ -88,11 +88,12 @@ const WaiterDashboard = ({ user, onLogout }: WaiterDashboardProps) => {
                     .eq('status', 'OPEN')
                 if (sess) setSessions(sess)
 
+                // FIX: Added 'OPEN' to the status list so new orders are counted!
                 const { data: ords } = await supabase
                     .from('orders')
                     .select('*, items:order_items(*)')
                     .eq('restaurant_id', rId)
-                    .in('status', ['pending', 'preparing', 'ready', 'served', 'CANCELLED'])
+                    .in('status', ['OPEN', 'pending', 'preparing', 'ready', 'served', 'CANCELLED'])
                 if (ords) setActiveOrders(ords)
 
             } catch (error) {
@@ -126,7 +127,8 @@ const WaiterDashboard = ({ user, onLogout }: WaiterDashboardProps) => {
         const { data: sess } = await supabase.from('table_sessions').select('*').eq('restaurant_id', restaurantId).eq('status', 'OPEN')
         if (sess) setSessions(sess)
 
-        const { data: ords } = await supabase.from('orders').select('*, items:order_items(*)').eq('restaurant_id', restaurantId).in('status', ['pending', 'preparing', 'ready', 'served'])
+        // FIX: Added 'OPEN' here too
+        const { data: ords } = await supabase.from('orders').select('*, items:order_items(*)').eq('restaurant_id', restaurantId).in('status', ['OPEN', 'pending', 'preparing', 'ready', 'served'])
         if (ords) setActiveOrders(ords)
     }
 
@@ -137,7 +139,7 @@ const WaiterDashboard = ({ user, onLogout }: WaiterDashboardProps) => {
 
     const getDetailedTableStatus = (tableId: string): { step: 'seated' | 'waiting' | 'eating' | 'free', label: string, time: string, color: string } => {
         const session = sessions.find(s => s.table_id === tableId)
-        if (!session) return { step: 'free', label: 'Libero', time: '', color: 'bg-slate-100 dark:bg-slate-800' }
+        if (!session) return { step: 'free', label: 'Libero', time: '', color: 'bg-slate-900/40 border-slate-800' }
 
         const sessionOrders = activeOrders.filter(o => o.table_session_id === session.id && o.status !== 'CANCELLED')
 
@@ -148,31 +150,25 @@ const WaiterDashboard = ({ user, onLogout }: WaiterDashboardProps) => {
                 step: 'seated',
                 label: 'Seduti',
                 time: `${duration}m`,
-                color: 'bg-blue-50 dark:bg-blue-900/20 border-blue-200 dark:border-blue-800' // Blue for just started
+                color: 'bg-blue-900/20 border-blue-800 ring-1 ring-blue-500/20'
             }
         }
 
         // 2. Attesa Cibo (Waiting) - Has orders that are NOT fully served
-        // Check if ANY order item is NOT 'SERVED' (and not 'cancelled')
-        // Actually, simplify: check if there are any orders with status sent/pending/preparing/ready.
-        const pendingOrders = sessionOrders.filter(o => ['pending', 'preparing', 'ready'].includes(o.status))
+        const pendingOrders = sessionOrders.filter(o => ['OPEN', 'pending', 'preparing', 'ready'].includes(o.status))
 
         if (pendingOrders.length > 0) {
-            // Find oldest pending order
             const oldestPending = pendingOrders.sort((a, b) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime())[0]
             const duration = Math.floor((now.getTime() - new Date(oldestPending.created_at).getTime()) / 60000)
             return {
                 step: 'waiting',
                 label: 'In Attesa',
                 time: `${duration}m`,
-                color: 'bg-amber-50 dark:bg-amber-900/20 border-amber-200 dark:border-amber-800' // Amber for waiting
+                color: 'bg-amber-900/20 border-amber-800 ring-1 ring-amber-500/20 animate-pulse-slow'
             }
         }
 
-        // 3. Mangiando (Eating) - All orders are 'served' (or 'completed' or 'PAID' but session is open)
-        // If we get here, sessionOrders.length > 0 AND pendingOrders.length === 0
-        // We can use the last served order time as a reference, or just session duration for simplicity?
-        // Let's use time since last order was served (updated_at)
+        // 3. Mangiando (Eating) - All orders served
         const lastServed = sessionOrders.sort((a, b) => new Date(b.updated_at).getTime() - new Date(a.updated_at).getTime())[0]
         const duration = lastServed ? Math.floor((now.getTime() - new Date(lastServed.updated_at).getTime()) / 60000) : 0
 
@@ -180,7 +176,7 @@ const WaiterDashboard = ({ user, onLogout }: WaiterDashboardProps) => {
             step: 'eating',
             label: 'Mangiando',
             time: `${duration}m`,
-            color: 'bg-emerald-50 dark:bg-emerald-900/20 border-emerald-200 dark:border-emerald-800' // Emerald for eating
+            color: 'bg-emerald-900/20 border-emerald-800 ring-1 ring-emerald-500/20'
         }
     }
 
@@ -250,58 +246,61 @@ const WaiterDashboard = ({ user, onLogout }: WaiterDashboardProps) => {
     const sortedTables = sortTables(tables)
 
     return (
-        <div className="min-h-screen bg-slate-50 dark:bg-slate-950 p-4 md:p-6 pb-24">
+        <div className="min-h-screen bg-slate-950 p-4 md:p-6 pb-24 text-white">
             {/* Header */}
-            <header className="flex flex-col md:flex-row items-center justify-between mb-6 gap-4 bg-white dark:bg-slate-900 p-4 rounded-2xl shadow-sm border border-slate-200 dark:border-slate-800">
-                <div className="flex items-center gap-4 w-full md:w-auto">
-                    <div className="w-12 h-12 rounded-xl bg-emerald-500 flex items-center justify-center text-white shadow-md">
-                        <User size={24} weight="bold" />
+            <header className="flex flex-col md:flex-row items-center justify-between mb-8 gap-4 bg-slate-900/50 backdrop-blur-xl p-4 rounded-3xl border border-slate-800/50 shadow-2xl">
+                <div className="flex items-center gap-5 w-full md:w-auto">
+                    <div className="w-14 h-14 rounded-2xl bg-gradient-to-br from-emerald-500 to-emerald-600 flex items-center justify-center text-white shadow-lg shadow-emerald-500/20 ring-4 ring-emerald-500/10">
+                        <User size={28} weight="bold" />
                     </div>
                     <div>
-                        <h1 className="text-xl font-bold text-slate-900 dark:text-white">Gestione Sala</h1>
-                        <div className="flex items-center gap-2">
-                            <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
-                            <p className="text-xs font-medium text-emerald-600 dark:text-emerald-400">Online</p>
+                        <h1 className="text-2xl font-bold text-white tracking-tight">Gestione Sala</h1>
+                        <div className="flex items-center gap-2 mt-1">
+                            <span className="relative flex h-2.5 w-2.5">
+                                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
+                                <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-emerald-500"></span>
+                            </span>
+                            <p className="text-sm font-medium text-slate-400">Sistema Attivo</p>
                         </div>
                     </div>
                 </div>
 
                 <div className="flex items-center gap-2 w-full md:w-auto overflow-x-auto pb-1 md:pb-0">
                     <Button
-                        variant={sortBy === 'status' ? 'default' : 'outline'}
+                        variant={sortBy === 'status' ? 'default' : 'ghost'}
                         size="sm"
                         onClick={() => setSortBy('status')}
-                        className="text-xs font-bold"
+                        className={`text-xs font-bold h-9 rounded-xl ${sortBy === 'status' ? 'bg-emerald-500 text-white hover:bg-emerald-600' : 'text-slate-400 hover:text-white hover:bg-slate-800'}`}
                     >
-                        Per Stato
+                        Stato
                     </Button>
                     <Button
-                        variant={sortBy === 'alpha' ? 'default' : 'outline'}
+                        variant={sortBy === 'alpha' ? 'default' : 'ghost'}
                         size="sm"
                         onClick={() => setSortBy('alpha')}
-                        className="text-xs font-bold"
+                        className={`text-xs font-bold h-9 rounded-xl ${sortBy === 'alpha' ? 'bg-emerald-500 text-white hover:bg-emerald-600' : 'text-slate-400 hover:text-white hover:bg-slate-800'}`}
                     >
                         A-Z
                     </Button>
                     <Button
-                        variant={sortBy === 'seats' ? 'default' : 'outline'}
+                        variant={sortBy === 'seats' ? 'default' : 'ghost'}
                         size="sm"
                         onClick={() => setSortBy('seats')}
-                        className="text-xs font-bold"
+                        className={`text-xs font-bold h-9 rounded-xl ${sortBy === 'seats' ? 'bg-emerald-500 text-white hover:bg-emerald-600' : 'text-slate-400 hover:text-white hover:bg-slate-800'}`}
                     >
                         Posti
                     </Button>
 
-                    <div className="h-6 w-px bg-slate-200 dark:bg-slate-700 mx-1"></div>
+                    <div className="h-6 w-px bg-slate-800 mx-2"></div>
 
-                    <Button variant="ghost" size="sm" className="text-red-500 hover:text-red-600 hover:bg-red-50" onClick={onLogout}>
+                    <Button variant="ghost" size="sm" className="text-red-400 hover:text-red-300 hover:bg-red-500/10 h-9 px-3 rounded-xl" onClick={onLogout}>
                         <SignOut size={18} />
                     </Button>
                 </div>
             </header>
 
             {/* Grid */}
-            <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-3 md:gap-4">
+            <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-4">
                 {sortedTables.map(table => {
                     const statusInfo = getDetailedTableStatus(table.id)
                     const session = sessions.find(s => s.table_id === table.id)
@@ -309,44 +308,56 @@ const WaiterDashboard = ({ user, onLogout }: WaiterDashboardProps) => {
                     return (
                         <Card
                             key={table.id}
-                            className={`cursor-pointer transition-all duration-200 border relative overflow-hidden active:scale-[0.98] ${statusInfo.color} ${statusInfo.step === 'free' ? 'opacity-70 hover:opacity-100 border-dashed' : 'border-solid shadow-sm'}`}
+                            className={`
+                                group cursor-pointer transition-all duration-300 relative overflow-hidden border
+                                ${statusInfo.color}
+                                ${statusInfo.step === 'free'
+                                    ? 'hover:border-slate-700 hover:bg-slate-800/50 hover:shadow-lg hover:shadow-emerald-500/5'
+                                    : 'shadow-xl shadow-black/20 hover:scale-[1.02]'}
+                            `}
                             onClick={() => handleTableClick(table)}
                         >
-                            <CardContent className="p-0 flex flex-col h-full min-h-[140px]">
+                            <CardContent className="p-0 flex flex-col h-full min-h-[160px]">
                                 {/* Header */}
-                                <div className="p-3 flex items-start justify-between">
+                                <div className="p-4 flex items-start justify-between z-10 relative">
                                     <div className="flex flex-col">
-                                        <span className="text-xl font-black text-slate-800 dark:text-white leading-none">
-                                            {table.number}
-                                        </span>
-                                        <span className="text-xs text-slate-500 font-medium mt-1">
+                                        <div className="flex items-center gap-2">
+                                            <span className="text-2xl font-bold text-white leading-none tracking-tight">
+                                                {table.number}
+                                            </span>
+                                            {statusInfo.step !== 'free' && (
+                                                <div className="h-2 w-2 rounded-full bg-current opacity-50 animate-pulse"></div>
+                                            )}
+                                        </div>
+                                        <span className="text-xs text-slate-500 font-medium mt-1.5 flex items-center gap-1">
+                                            <User size={12} weight="bold" />
                                             {table.seats || 4} Posti
                                         </span>
                                     </div>
 
-                                    <div className={`px-2 py-1 rounded-lg text-xs font-bold uppercase tracking-wider ${statusInfo.step === 'free' ? 'text-slate-400 bg-slate-100 dark:bg-slate-800' :
-                                        statusInfo.step === 'waiting' ? 'text-amber-600 bg-amber-100 dark:bg-amber-900/40 animate-pulse' :
-                                            statusInfo.step === 'seated' ? 'text-blue-600 bg-blue-100 dark:bg-blue-900/40' :
-                                                'text-emerald-600 bg-emerald-100 dark:bg-emerald-900/40'
+                                    <div className={`px-2.5 py-1.5 rounded-lg text-[10px] font-bold uppercase tracking-wider shadow-sm border ${statusInfo.step === 'free' ? 'text-slate-500 bg-slate-800 border-slate-700' :
+                                            statusInfo.step === 'waiting' ? 'text-amber-400 bg-amber-500/10 border-amber-500/20' :
+                                                statusInfo.step === 'seated' ? 'text-blue-400 bg-blue-500/10 border-blue-500/20' :
+                                                    'text-emerald-400 bg-emerald-500/10 border-emerald-500/20'
                                         }`}>
                                         {statusInfo.step === 'free' ? 'Libero' : statusInfo.time}
                                     </div>
                                 </div>
 
                                 {/* Content Logic for Timeline */}
-                                <div className="flex-1 px-3 pb-3 flex flex-col justify-end gap-2">
+                                <div className="flex-1 px-4 pb-4 flex flex-col justify-end gap-3 z-10 relative">
                                     {session ? (
                                         <>
                                             {/* Status Steps */}
-                                            <div className="flex items-center gap-1 mt-auto">
-                                                <div className={`h-1.5 flex-1 rounded-full ${['seated', 'waiting', 'eating'].includes(statusInfo.step) ? 'bg-blue-500' : 'bg-slate-200 dark:bg-slate-700'}`}></div>
-                                                <div className={`h-1.5 flex-1 rounded-full ${['waiting', 'eating'].includes(statusInfo.step) ? 'bg-amber-500' : 'bg-slate-200 dark:bg-slate-700'}`}></div>
-                                                <div className={`h-1.5 flex-1 rounded-full ${statusInfo.step === 'eating' ? 'bg-emerald-500' : 'bg-slate-200 dark:bg-slate-700'}`}></div>
+                                            <div className="flex items-center gap-1.5 mt-auto">
+                                                <div className={`h-1 flex-1 rounded-full transition-colors duration-500 ${['seated', 'waiting', 'eating'].includes(statusInfo.step) ? 'bg-blue-500 shadow-[0_0_8px_rgba(59,130,246,0.6)]' : 'bg-slate-800'}`}></div>
+                                                <div className={`h-1 flex-1 rounded-full transition-colors duration-500 ${['waiting', 'eating'].includes(statusInfo.step) ? 'bg-amber-500 shadow-[0_0_8px_rgba(245,158,11,0.6)]' : 'bg-slate-800'}`}></div>
+                                                <div className={`h-1 flex-1 rounded-full transition-colors duration-500 ${statusInfo.step === 'eating' ? 'bg-emerald-500 shadow-[0_0_8px_rgba(16,185,129,0.6)]' : 'bg-slate-800'}`}></div>
                                             </div>
-                                            <div className="flex justify-between text-[10px] font-bold uppercase text-slate-400">
-                                                <span className={statusInfo.step === 'seated' ? 'text-blue-600' : ''}>Seduti</span>
-                                                <span className={statusInfo.step === 'waiting' ? 'text-amber-600' : ''}>Attesa</span>
-                                                <span className={statusInfo.step === 'eating' ? 'text-emerald-600' : ''}>Mangia</span>
+                                            <div className="flex justify-between text-[10px] font-bold uppercase tracking-wider text-slate-600">
+                                                <span className={`transition-colors duration-300 ${statusInfo.step === 'seated' ? 'text-blue-400' : ''}`}>Seduti</span>
+                                                <span className={`transition-colors duration-300 ${statusInfo.step === 'waiting' ? 'text-amber-400' : ''}`}>Attesa</span>
+                                                <span className={`transition-colors duration-300 ${statusInfo.step === 'eating' ? 'text-emerald-400' : ''}`}>Mangia</span>
                                             </div>
 
                                             {/* Action Button - Only visible if occupied */}
@@ -354,17 +365,19 @@ const WaiterDashboard = ({ user, onLogout }: WaiterDashboardProps) => {
                                                 <Button
                                                     size="sm"
                                                     variant="ghost"
-                                                    className="w-full mt-2 h-8 text-xs font-bold border border-slate-200 dark:border-slate-700 bg-white/50 hover:bg-white"
+                                                    className="w-full mt-2 h-9 text-xs font-bold border border-slate-700 bg-slate-800/50 hover:bg-slate-800 hover:text-white hover:border-slate-600 transition-all"
                                                     onClick={(e) => openPaymentDialog(e, table)}
                                                 >
-                                                    <Receipt size={14} className="mr-1.5" />
+                                                    <Receipt size={14} className="mr-2" />
                                                     Conto
                                                 </Button>
                                             )}
                                         </>
                                     ) : (
-                                        <div className="flex items-center justify-center h-full text-slate-400">
-                                            <Plus size={24} weight="bold" />
+                                        <div className="flex items-end justify-end h-full opacity-0 group-hover:opacity-100 transition-opacity duration-300">
+                                            <div className="bg-slate-800 p-2 rounded-full text-emerald-500 shadow-lg">
+                                                <Plus size={20} weight="bold" />
+                                            </div>
                                         </div>
                                     )}
                                 </div>
@@ -376,28 +389,30 @@ const WaiterDashboard = ({ user, onLogout }: WaiterDashboardProps) => {
 
             {/* Payment Dialog */}
             <Dialog open={isPaymentDialogOpen} onOpenChange={setIsPaymentDialogOpen}>
-                <DialogContent className="sm:max-w-md">
+                <DialogContent className="sm:max-w-md bg-slate-950 border-slate-800 text-white">
                     <DialogHeader>
-                        <DialogTitle className="text-2xl font-black">
-                            {selectedTableForPayment?.number} - Conto
+                        <DialogTitle className="text-2xl font-bold text-white flex items-center gap-3">
+                            <span className="bg-slate-800 px-3 py-1 rounded-lg text-lg text-slate-300">#{selectedTableForPayment?.number}</span>
+                            Gestione Conto
                         </DialogTitle>
-                        <DialogDescription>
+                        <DialogDescription className="text-slate-400">
                             Gestisci il pagamento e la chiusura del tavolo.
                         </DialogDescription>
                     </DialogHeader>
 
-                    <div className="py-6 flex flex-col items-center justify-center bg-slate-50 dark:bg-slate-900 rounded-xl border border-slate-100 dark:border-slate-800 mb-4">
-                        <span className="text-sm font-medium text-slate-500 uppercase tracking-wide">Totale da Saldare</span>
-                        <span className="text-4xl font-black text-slate-900 dark:text-white mt-1">
-                            € {selectedTableForPayment && sessions.find(s => s.table_id === selectedTableForPayment.id)
+                    <div className="py-8 flex flex-col items-center justify-center bg-slate-900/50 rounded-2xl border border-slate-800 mb-2 mt-2">
+                        <span className="text-xs font-bold text-slate-500 uppercase tracking-widest mb-2">Totale da Saldare</span>
+                        <span className="text-5xl font-black text-white tracking-tight flex items-start gap-1">
+                            <span className="text-2xl text-emerald-500 mt-1">€</span>
+                            {selectedTableForPayment && sessions.find(s => s.table_id === selectedTableForPayment.id)
                                 ? getTableTotal(sessions.find(s => s.table_id === selectedTableForPayment.id)!.id).toFixed(2)
                                 : '0.00'}
                         </span>
                     </div>
 
-                    <DialogFooter className="flex-col gap-3 sm:flex-col">
+                    <DialogFooter className="flex-col gap-3 sm:flex-col mt-4">
                         <Button
-                            className="w-full h-12 text-lg font-bold bg-emerald-600 hover:bg-emerald-700 text-white shadow-lg shadow-emerald-500/20"
+                            className="w-full h-14 text-lg font-bold bg-emerald-600 hover:bg-emerald-500 text-white shadow-lg shadow-emerald-900/40 rounded-xl"
                             onClick={() => handleCloseTable(true)}
                         >
                             <CheckCircle className="mr-2 h-6 w-6" weight="fill" />
@@ -406,7 +421,7 @@ const WaiterDashboard = ({ user, onLogout }: WaiterDashboardProps) => {
 
                         <Button
                             variant="outline"
-                            className="w-full h-12 text-base font-bold text-slate-500 hover:text-red-500 hover:border-red-200 hover:bg-red-50"
+                            className="w-full h-14 text-base font-bold bg-transparent border-slate-800 text-slate-400 hover:text-red-400 hover:border-red-500/30 hover:bg-red-500/10 rounded-xl transition-all"
                             onClick={() => handleCloseTable(false)}
                         >
                             <Trash className="mr-2 h-5 w-5" />
