@@ -78,28 +78,52 @@ export const SessionProvider: React.FC<{ children: React.ReactNode }> = ({ child
     const joinSession = useCallback(async (tableId: string, restaurantId: string): Promise<boolean> => {
         setLoading(true);
         try {
-            // Use RPC to get or create session atomically
-            const { data: rpcSessionId, error } = await supabase.rpc('get_or_create_table_session', {
-                p_table_id: tableId,
-                p_restaurant_id: restaurantId
-            });
+            // 1. First, look for an existing OPEN session for this table
+            const { data: existingSession, error: fetchError } = await supabase
+                .from('table_sessions')
+                .select('id, status')
+                .eq('table_id', tableId)
+                .eq('status', 'OPEN')
+                .maybeSingle();
 
-            if (error) throw error;
+            if (fetchError) throw fetchError;
 
-            if (rpcSessionId) {
-                // Fetch full session details to get PIN and Status if needed, but RPC returns ID is enough to start
-                setSessionId(rpcSessionId);
-                setCurrentTableId(tableId);
-                setSessionStatus('OPEN');
+            let finalSessionId: string;
 
-                // Persist
-                localStorage.setItem('tableId', tableId);
-                localStorage.setItem('sessionId', rpcSessionId);
-                localStorage.setItem('restaurantId', restaurantId);
+            if (existingSession) {
+                // Use existing session
+                finalSessionId = existingSession.id;
+            } else {
+                // 2. Create a new session with a random 4-digit PIN
+                const newPin = Math.floor(1000 + Math.random() * 9000).toString();
 
-                return true;
+                const { data: newSession, error: insertError } = await supabase
+                    .from('table_sessions')
+                    .insert({
+                        table_id: tableId,
+                        restaurant_id: restaurantId,
+                        status: 'OPEN',
+                        session_pin: newPin,
+                        opened_at: new Date().toISOString(),
+                        customer_count: 1
+                    })
+                    .select('id')
+                    .single();
+
+                if (insertError) throw insertError;
+                finalSessionId = newSession.id;
             }
-            return false;
+
+            // Set state and persist
+            setSessionId(finalSessionId);
+            setCurrentTableId(tableId);
+            setSessionStatus('OPEN');
+
+            localStorage.setItem('tableId', tableId);
+            localStorage.setItem('sessionId', finalSessionId);
+            localStorage.setItem('restaurantId', restaurantId);
+
+            return true;
         } catch (err: any) {
             console.error('Join Session Failed:', err);
             toast.error('Impossibile accedere al tavolo. Riprova.');
