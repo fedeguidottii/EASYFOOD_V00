@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useState, useEffect } from 'react';
+import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
 import { useNavigate, useLocation, useParams } from 'react-router-dom';
 import { supabase } from '../lib/supabase';
 import { toast } from 'sonner';
@@ -75,7 +75,7 @@ export const SessionProvider: React.FC<{ children: React.ReactNode }> = ({ child
     }, [sessionId, navigate]);
 
 
-    const joinSession = async (tableId: string, restaurantId: string): Promise<boolean> => {
+    const joinSession = useCallback(async (tableId: string, restaurantId: string): Promise<boolean> => {
         setLoading(true);
         try {
             // Use RPC to get or create session atomically
@@ -107,9 +107,9 @@ export const SessionProvider: React.FC<{ children: React.ReactNode }> = ({ child
         } finally {
             setLoading(false);
         }
-    };
+    }, []);
 
-    const exitSession = () => {
+    const exitSession = useCallback(() => {
         setSessionId(null);
         setCurrentTableId(null);
         setSessionStatus(null);
@@ -117,7 +117,7 @@ export const SessionProvider: React.FC<{ children: React.ReactNode }> = ({ child
         localStorage.removeItem('sessionId');
         localStorage.removeItem('restaurantId');
         localStorage.removeItem('sessionPin'); // Clear any legacy keys
-    };
+    }, []);
 
     return (
         <SessionContext.Provider value={{ currentTableId, sessionId, sessionStatus, loading, joinSession, exitSession }}>
