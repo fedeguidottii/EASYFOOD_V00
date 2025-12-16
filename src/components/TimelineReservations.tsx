@@ -246,7 +246,7 @@ export default function TimelineReservations({ user, restaurantId, tables, booki
     const roundedMinutes = Math.round(clickedMinutes / 15) * 15
     const clickedTime = minutesToTime(roundedMinutes)
 
-    if (hasConflict(tableId, clickedTime, 120)) {
+    if (hasConflict(tableId, clickedTime, reservationDuration)) {
       toast.error('Orario già occupato')
       return
     }
@@ -416,7 +416,7 @@ export default function TimelineReservations({ user, restaurantId, tables, booki
     const available = restaurantTables.filter(table => {
       const guests = typeof searchGuests === 'string' ? parseInt(searchGuests) || 1 : searchGuests
       if ((table.seats || 0) < guests) return false
-      return !hasConflict(table.id, searchTime, 120)
+      return !hasConflict(table.id, searchTime, reservationDuration)
     })
 
     setAvailableTables(available)
@@ -549,7 +549,7 @@ export default function TimelineReservations({ user, restaurantId, tables, booki
                 if (block.table.id !== table.id) return false
                 const blockEnd = block.startMinutes + block.duration
                 const ghostStart = hoveredSlot.startMinutes
-                const ghostEnd = ghostStart + 120 // Default duration 120
+                const ghostEnd = ghostStart + reservationDuration
                 return (ghostStart < blockEnd && ghostEnd > block.startMinutes)
               })
 
@@ -579,8 +579,8 @@ export default function TimelineReservations({ user, restaurantId, tables, booki
                       <div
                         className="absolute top-2 bottom-2 rounded-md bg-primary/20 border-2 border-primary/50 border-dashed z-0 pointer-events-none transition-all duration-75 ease-out"
                         style={{
-                          left: `${getBlockStyle(hoveredSlot.startMinutes, 120).left}`, // Default duration 120 for visualization
-                          width: `${getBlockStyle(hoveredSlot.startMinutes, 120).width}`
+                          left: `${getBlockStyle(hoveredSlot.startMinutes, reservationDuration).left}`,
+                          width: `${getBlockStyle(hoveredSlot.startMinutes, reservationDuration).width}`
                         }}
                       >
                         <div className="absolute -top-6 left-0 bg-primary text-primary-foreground text-xs px-1.5 py-0.5 rounded shadow-sm font-bold whitespace-nowrap">

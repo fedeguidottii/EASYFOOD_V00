@@ -228,7 +228,10 @@ const RestaurantDashboard = ({ user, onLogout }: RestaurantDashboardProps) => {
 
   // Waiter Mode Settings
   const [waiterModeEnabled, setWaiterModeEnabled] = useState(false)
-  const [reservationDuration, setReservationDuration] = useState(120) // Default 2 hours
+  const [reservationDuration, setReservationDuration] = useState(() => {
+    const saved = localStorage.getItem('reservationDuration')
+    return saved ? parseInt(saved) : 120
+  }) // Default 2 hours, persisted in localStorage
   const [allowWaiterPayments, setAllowWaiterPayments] = useState(false)
   const [waiterPassword, setWaiterPassword] = useState('')
   const [waiterCredentialsDirty, setWaiterCredentialsDirty] = useState(false)
