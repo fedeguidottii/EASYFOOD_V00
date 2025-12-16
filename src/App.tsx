@@ -7,6 +7,7 @@ import { supabase } from './lib/supabase'
 // Components
 import LoginPage from './components/LoginPage'
 import RestaurantDashboard from './components/RestaurantDashboard'
+import AdminDashboard from './components/AdminDashboard'
 import WaiterDashboard from './components/waiter/WaiterDashboard'
 import CustomerMenu from './components/CustomerMenu'
 import PublicReservationPage from './components/reservations/PublicReservationPage'
@@ -58,6 +59,7 @@ const AppContent = () => {
 
   const getRedirectPath = (user: any) => {
     if (!user) return '/'
+    if (user.role === 'ADMIN') return '/admin'
     if (user.role === 'STAFF') return '/waiter'
     return '/dashboard'
   }
@@ -75,7 +77,17 @@ const AppContent = () => {
           }
         />
 
-        {/* ADMIN DASHBOARD */}
+        {/* ADMIN DASHBOARD (for ADMIN role - manages all restaurants) */}
+        <Route
+          path="/admin/*"
+          element={
+            <ProtectedRoute user={user} loading={loading}>
+              <AdminDashboard user={user} onLogout={handleLogout} />
+            </ProtectedRoute>
+          }
+        />
+
+        {/* RESTAURANT DASHBOARD (for OWNER role - single restaurant) */}
         <Route
           path="/dashboard/*"
           element={
