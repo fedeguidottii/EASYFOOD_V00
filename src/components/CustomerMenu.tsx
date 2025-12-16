@@ -246,6 +246,7 @@ const CustomerMenu = () => {
           .single()
 
         if (tableData) {
+          setRestaurantId(tableData.restaurant_id) // Set local restaurantId state
           // Attempt auto-join
           joinSession(tableId, tableData.restaurant_id)
         } else {
@@ -256,17 +257,15 @@ const CustomerMenu = () => {
     }
   }, [tableId, sessionId, joinSession])
 
-  // Verify PIN against active session
+  // Verify PIN against active session - runs when sessionId is available
   useEffect(() => {
-    if (sessionId && restaurantId) {
+    if (sessionId) {
       const checkSession = async () => {
         // Fetch session details to get the correct PIN
         const session = await DatabaseService.getSessionById(sessionId)
         if (session) {
           setActiveSession(session)
-          // Check if PIN matches what user entered (or if we auto-authenticated via localStorage logic in Context)
-          // Actually Context handles session persistence. Authentication (PIN check) is a UI guard.
-          // If we have a sessionId, it means we "joined". Now we need to prove identity with PIN.
+          setRestaurantId(session.restaurant_id) // Ensure restaurantId is set
 
           // Optimization: If local storage has 'sessionPin' matching data, auto-auth
           const savedPin = localStorage.getItem('sessionPin')
@@ -277,7 +276,7 @@ const CustomerMenu = () => {
       }
       checkSession()
     }
-  }, [sessionId, restaurantId])
+  }, [sessionId])
 
   const handlePinSubmit = async (enteredPin: string) => {
     if (!activeSession) return
@@ -301,6 +300,9 @@ const CustomerMenu = () => {
 
   // LOGIN SCREEN (PIN)
   if (!isAuthenticated) {
+    // Show loading if session is being fetched
+    const isSessionLoading = sessionId && !activeSession
+
     return (
       <div className="min-h-screen bg-slate-950 flex flex-col items-center justify-center p-6 text-white text-center">
         <div className="mb-8 p-4 bg-emerald-500/10 rounded-full ring-4 ring-emerald-500/20 animate-pulse">
@@ -309,20 +311,52 @@ const CustomerMenu = () => {
         <h2 className="text-3xl font-bold mb-2">Benvenuto!</h2>
         <p className="text-slate-400 mb-8 max-w-xs">Inserisci il PIN del tavolo per ordinare. Lo trovi sul display del tavolo.</p>
 
-        <div className="flex gap-4 mb-8">
-          {/* Simplified PIN Input for demo */}
-          <Input
-            type="tel"
-            maxLength={4}
-            placeholder="PIN"
-            className="text-center text-3xl tracking-[1em] h-16 w-48 bg-slate-900 border-slate-700 text-white font-mono"
-            onChange={(e) => {
-              const val = e.target.value
-              if (val.length === 4) handlePinSubmit(val)
-            }}
-          />
-        </div>
-        {pinError && <p className="text-red-500 font-bold animate-bounce">PIN Errato</p>}
+        {isSessionLoading ? (
+          <div className="flex flex-col items-center gap-4">
+            <div className="w-12 h-12 border-4 border-emerald-500 border-t-transparent rounded-full animate-spin"></div>
+            <p className="text-slate-400">Caricamento sessione...</p>
+          </div>
+        ) : (
+          <>
+            <div className="flex flex-col gap-4 mb-4">
+              {/* PIN Input */}
+              <Input
+                type="tel"
+                maxLength={4}
+                placeholder="PIN"
+                value={inputPin}
+                className="text-center text-3xl tracking-[0.5em] h-16 w-48 bg-slate-900 border-slate-700 text-white font-mono"
+                onChange={(e) => {
+                  const val = e.target.value.replace(/\D/g, '') // Only digits
+                  setInputPin(val)
+                  // Auto-submit on 4 digits
+                  if (val.length === 4) {
+                    handlePinSubmit(val)
+                  }
+                }}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter' && inputPin.length === 4) {
+                    handlePinSubmit(inputPin)
+                  }
+                }}
+              />
+            </div>
+
+            {/* Submit Button */}
+            <Button
+              onClick={() => handlePinSubmit(inputPin)}
+              disabled={inputPin.length !== 4 || !activeSession}
+              className="w-48 h-12 bg-emerald-600 hover:bg-emerald-700 text-white font-bold rounded-xl disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              Accedi
+            </Button>
+
+            {!activeSession && !sessionLoading && (
+              <p className="text-amber-500 text-sm mt-4">Connessione al tavolo in corso...</p>
+            )}
+          </>
+        )}
+        {pinError && <p className="text-red-500 font-bold animate-bounce mt-4">PIN Errato</p>}
       </div>
     )
   }

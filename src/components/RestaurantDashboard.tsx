@@ -1914,6 +1914,9 @@ const RestaurantDashboard = ({ user, onLogout }: RestaurantDashboardProps) => {
               rooms={rooms || []}
               bookings={bookings || []}
               selectedDate={selectedReservationDate}
+              openingTime={openingTime}
+              closingTime={closingTime}
+              reservationDuration={reservationDuration}
               onRefresh={() => {
                 refreshBookings()
                 refreshSessions()
