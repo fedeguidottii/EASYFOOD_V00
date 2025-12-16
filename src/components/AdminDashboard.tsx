@@ -467,7 +467,12 @@ export default function AdminDashboard({ user, onLogout }: Props) {
 
             <div className="grid gap-4">
               {processedRestaurants.map((restaurant) => {
-                const restaurantUser = (users || []).find(u => u.id === restaurant.owner_id)
+                // Find user by multiple criteria for robustness
+                const restaurantUser = (users || []).find(u =>
+                  u.id === restaurant.owner_id ||
+                  (u.restaurant_id === restaurant.id && u.role === 'OWNER') ||
+                  (u.email === restaurant.email && u.role === 'OWNER')
+                )
                 const isPasswordVisible = visiblePasswords[restaurant.id]
 
                 return (
