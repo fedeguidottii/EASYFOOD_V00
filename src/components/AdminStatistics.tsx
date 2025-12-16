@@ -30,23 +30,24 @@ export default function AdminStatistics() {
                     .filter(o => o.status === 'PAID')
                     .reduce((sum, o) => sum + (o.total_amount || 0), 0)
 
-                const totalOrders = allOrders.length
+                const totalOrders = allOrders.filter(o => o.status === 'PAID').length // Only count paid orders
                 const activeOrders = allOrders.filter(o => o.status === 'OPEN').length
-                const totalCustomers = allSessions.length // Approximation based on sessions
+                // Sum actual customer_count from all sessions, not just session count
+                const totalCustomers = allSessions.reduce((sum, s) => sum + (s.customer_count || 1), 0)
 
-                // 2. Rankings
+                // 2. Rankings - Only count PAID orders for consistency
                 const restaurantMap = new Map<string, { name: string; revenue: number; orders: number }>()
 
-                allOrders.forEach(order => {
-                    const restaurantName = order.restaurant?.name || 'Sconosciuto'
-                    const current = restaurantMap.get(restaurantName) || { name: restaurantName, revenue: 0, orders: 0 }
+                allOrders
+                    .filter(o => o.status === 'PAID')
+                    .forEach(order => {
+                        const restaurantName = order.restaurant?.name || 'Sconosciuto'
+                        const current = restaurantMap.get(restaurantName) || { name: restaurantName, revenue: 0, orders: 0 }
 
-                    if (order.status === 'PAID') {
                         current.revenue += (order.total_amount || 0)
-                    }
-                    current.orders += 1
-                    restaurantMap.set(restaurantName, current)
-                })
+                        current.orders += 1
+                        restaurantMap.set(restaurantName, current)
+                    })
 
                 const revenueByRestaurant = Array.from(restaurantMap.values())
                     .sort((a, b) => b.revenue - a.revenue)
@@ -105,17 +106,17 @@ export default function AdminStatistics() {
                     </CardHeader>
                     <CardContent>
                         <div className="text-2xl font-bold">{stats.totalCustomers}</div>
-                        <p className="text-xs text-muted-foreground">Sessioni tavolo</p>
+                        <p className="text-xs text-muted-foreground">Coperti serviti</p>
                     </CardContent>
                 </Card>
                 <Card>
                     <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                        <CardTitle className="text-sm font-medium">Ordini Totali</CardTitle>
+                        <CardTitle className="text-sm font-medium">Ordini Completati</CardTitle>
                         <ShoppingCart className="h-4 w-4 text-muted-foreground" />
                     </CardHeader>
                     <CardContent>
                         <div className="text-2xl font-bold">{stats.totalOrders}</div>
-                        <p className="text-xs text-muted-foreground">Tutti gli ordini</p>
+                        <p className="text-xs text-muted-foreground">Ordini pagati</p>
                     </CardContent>
                 </Card>
                 <Card>
