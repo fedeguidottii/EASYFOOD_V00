@@ -329,10 +329,6 @@ const CustomerMenu = () => {
                 onChange={(e) => {
                   const val = e.target.value.replace(/\D/g, '') // Only digits
                   setInputPin(val)
-                  // Auto-submit on 4 digits
-                  if (val.length === 4) {
-                    handlePinSubmit(val)
-                  }
                 }}
                 onKeyDown={(e) => {
                   if (e.key === 'Enter' && inputPin.length === 4) {
@@ -361,11 +357,18 @@ const CustomerMenu = () => {
     )
   }
 
+  // Ensure activeSession exists before rendering menu
+  if (!activeSession || !sessionId) {
+    return (
+      <div className="h-screen flex flex-col items-center justify-center bg-slate-950 text-white">
+        <div className="w-12 h-12 border-4 border-emerald-500 border-t-transparent rounded-full animate-spin mb-4"></div>
+        <p className="text-slate-400">Caricamento menu...</p>
+      </div>
+    )
+  }
+
   // MAIN MENU CONTENT
-  // Pass restaurantId to hooks
-  // MAIN MENU CONTENT
-  // Pass restaurantId to hooks
-  return <AuthorizedMenuContent restaurantId={activeSession?.restaurant_id!} tableId={tableId} sessionId={sessionId!} activeSession={activeSession!} />
+  return <AuthorizedMenuContent restaurantId={activeSession.restaurant_id} tableId={tableId} sessionId={sessionId} activeSession={activeSession} />
 }
 
 export default CustomerMenu
@@ -1087,7 +1090,7 @@ const AuthorizedMenuContent = ({ restaurantId, tableId, sessionId, activeSession
                     {Array.from({ length: maxCourse }, (_, i) => i + 1).map((courseNum) => (
                       <DroppableCourse
                         key={courseNum}
-                        id={`course - ${courseNum} `}
+                        id={`course-${courseNum}`}
                         className="bg-white dark:bg-slate-900 rounded-2xl p-3 shadow-sm border border-slate-200 dark:border-slate-800"
                       >
                         <div className="flex items-center justify-center mb-3">
@@ -1099,12 +1102,12 @@ const AuthorizedMenuContent = ({ restaurantId, tableId, sessionId, activeSession
 
                         <div className="space-y-2 min-h-[40px]">
                           <SortableContext
-                            id={`course - ${courseNum} `}
+                            id={`course-${courseNum}`}
                             items={cartByCourse[courseNum]?.map(i => i.cartId) || []}
                             strategy={verticalListSortingStrategy}
                           >
                             {cartByCourse[courseNum]?.length === 0 ? (
-                              <DroppableCoursePlaceholder id={`course - ${courseNum} `} />
+                              <DroppableCoursePlaceholder id={`course-${courseNum}`} />
                             ) : (
                               cartByCourse[courseNum]?.map((item) => (
                                 <SortableDishItem key={item.cartId} item={item} courseNum={courseNum} />
