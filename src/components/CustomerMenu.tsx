@@ -1513,40 +1513,40 @@ const AuthorizedMenuContent = ({ restaurantId, tableId, sessionId, activeSession
         )}
 
         {activeTab === 'cart' && (
-          <div className="flex flex-col h-full bg-gradient-to-b from-slate-50 via-white to-slate-100 dark:from-slate-950 dark:via-slate-900 dark:to-slate-950">
-            <header className="flex-none z-20 bg-white/70 dark:bg-slate-900/70 backdrop-blur-xl border-b border-white/20 dark:border-slate-800/50 p-4 shadow-sm">
-              <h1 className="text-xl font-bold text-center text-slate-900 dark:text-white">Il tuo Ordine</h1>
-              <p className="text-xs text-center text-slate-500 mt-1">Gestisci le portate e invia l'ordine</p>
+          <div className="flex flex-col h-full bg-gradient-to-b from-zinc-950 via-neutral-950 to-zinc-900">
+            <header className="flex-none z-20 bg-zinc-950/90 backdrop-blur-xl border-b border-amber-500/10 p-4 shadow-xl">
+              <h1 className="text-xl font-light text-center text-white tracking-widest uppercase" style={{ fontFamily: 'Georgia, serif' }}>Il tuo Ordine</h1>
+              <p className="text-[10px] text-center text-amber-500/50 mt-1 uppercase tracking-wider">Gestisci le portate e invia l'ordine</p>
             </header>
 
             <div className="flex-1 overflow-y-auto scrollbar-hide p-4 pb-32 space-y-4 max-w-2xl mx-auto w-full">
               {cart.length === 0 ? (
-                <div className="flex flex-col items-center justify-center py-20 text-slate-400">
-                  <div className="w-20 h-20 bg-slate-100 dark:bg-slate-800 rounded-3xl flex items-center justify-center mb-4 shadow-inner">
-                    <ShoppingBasket className="w-10 h-10 opacity-30" />
+                <div className="flex flex-col items-center justify-center py-20 text-white/30">
+                  <div className="w-20 h-20 bg-zinc-900/50 rounded-full flex items-center justify-center mb-6 shadow-inner border border-white/5">
+                    <ShoppingBasket className="w-8 h-8 opacity-30" strokeWidth={1.5} />
                   </div>
-                  <p className="font-medium">Il carrello è vuoto</p>
-                  <Button variant="link" onClick={() => setActiveTab('menu')} className="mt-2 text-emerald-600">Torna al menu</Button>
+                  <p className="font-light tracking-wide text-sm">Il carrello è vuoto</p>
+                  <Button variant="link" onClick={() => setActiveTab('menu')} className="mt-4 text-amber-500 hover:text-amber-400 tracking-wide font-light">Torna al menu</Button>
                 </div>
               ) : (
                 <>
                   <div className="space-y-2">
                     {cart.map((item) => (
-                      <div key={item.cartId} className="bg-white/60 dark:bg-slate-900/60 backdrop-blur-sm rounded-2xl p-3 shadow-sm border border-white/20 dark:border-slate-800/50 flex items-center gap-3">
+                      <div key={item.cartId} className="bg-zinc-900/80 backdrop-blur-sm rounded-xl p-3 shadow-md border border-amber-500/10 flex items-center gap-4">
                         {item.image_url ? (
                           <img src={item.image_url} alt={item.name} className="w-14 h-14 rounded-xl object-cover shadow-sm" />
                         ) : (
-                          <div className="w-14 h-14 rounded-xl bg-slate-100 dark:bg-slate-800 flex items-center justify-center shadow-inner">
-                            <Utensils className="w-5 h-5 text-slate-300" />
+                          <div className="w-14 h-14 rounded-lg bg-zinc-800 flex items-center justify-center shadow-inner border border-white/5">
+                            <Utensils className="w-5 h-5 text-zinc-600" />
                           </div>
                         )}
                         <div className="flex-1 min-w-0">
                           <div className="flex justify-between items-start gap-2">
-                            <h3 className="font-semibold text-slate-900 dark:text-white text-sm line-clamp-1">{item.name}</h3>
-                            <span className="font-bold text-emerald-600 dark:text-emerald-400 text-sm whitespace-nowrap">€{(item.price * item.quantity).toFixed(2)}</span>
+                            <h3 className="font-normal text-white text-base line-clamp-1" style={{ fontFamily: 'Georgia, serif' }}>{item.name}</h3>
+                            <span className="font-medium text-amber-400 text-sm whitespace-nowrap">€ {(item.price * item.quantity).toFixed(2)}</span>
                           </div>
                           {item.notes && (
-                            <p className="text-[10px] text-slate-500 mt-0.5 italic line-clamp-1">Note: {item.notes}</p>
+                            <p className="text-[10px] text-white/50 mt-1 italic line-clamp-1 font-light">Note: {item.notes}</p>
                           )}
 
                           <div className="flex items-center justify-between mt-2">
