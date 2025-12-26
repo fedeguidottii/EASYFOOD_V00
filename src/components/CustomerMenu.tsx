@@ -269,6 +269,7 @@ const CustomerMenu = () => {
 
             if (restaurantData?.name) {
               setRestaurantName(restaurantData.name)
+              setRestaurantId(tableData.restaurant_id)
             }
 
             // Attempt auto-join
