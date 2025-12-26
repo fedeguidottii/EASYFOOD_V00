@@ -313,7 +313,10 @@ const CustomerMenu = () => {
   }, [sessionId, restaurantId])
 
   const handlePinSubmit = async (enteredPin: string) => {
-    if (!activeSession) return
+    if (!activeSession) {
+      toast.error("Sessione non trovata. Riprova a scansionare il QR.")
+      return
+    }
 
     if (enteredPin === activeSession.session_pin) {
       setIsAuthenticated(true)
