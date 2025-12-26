@@ -431,16 +431,16 @@ const CustomerMenu = () => {
           </div>
 
           {/* PIN Card */}
-          <div className="backdrop-blur-xl bg-white/[0.02] border border-white/5 rounded-2xl p-8 shadow-2xl shadow-black/50">
+          <div className="backdrop-blur-xl bg-white/[0.03] border border-amber-500/20 rounded-2xl p-8 shadow-2xl shadow-black/50">
             {/* Card Header */}
             <div className="text-center mb-8">
-              <p className="text-amber-100/40 text-sm font-light tracking-wide">
+              <p className="text-amber-200/80 text-sm font-light tracking-wide">
                 Inserisci il codice del tavolo
               </p>
             </div>
 
             {/* PIN Input Section */}
-            <div className="mb-8">
+            <div className="mb-6">
               <div className="flex justify-center gap-4 mb-6">
                 {[0, 1, 2, 3].map((index) => (
                   <input
@@ -452,12 +452,12 @@ const CustomerMenu = () => {
                     value={pin[index]}
                     onChange={(e) => handlePinDigitChange(index, e.target.value)}
                     onKeyDown={(e) => handlePinKeyDown(index, e)}
-                    className={`w-14 h-16 text-center text-2xl font-light tracking-wider rounded-xl border transition-all duration-500 outline-none bg-transparent
+                    className={`w-14 h-16 text-center text-2xl font-light tracking-wider rounded-xl border-2 transition-all duration-500 outline-none bg-zinc-900/50
                       ${pinError
-                        ? 'border-red-500/50 text-red-400 animate-shake'
+                        ? 'border-red-500/70 text-red-400 animate-shake'
                         : pin[index]
-                          ? 'border-amber-500/50 text-amber-400 shadow-lg shadow-amber-500/10'
-                          : 'border-white/10 text-white/80 hover:border-amber-500/20 focus:border-amber-500/40 focus:shadow-lg focus:shadow-amber-500/5'
+                          ? 'border-amber-500/70 text-amber-300 shadow-lg shadow-amber-500/20'
+                          : 'border-white/20 text-white hover:border-amber-500/30 focus:border-amber-500/50 focus:shadow-lg focus:shadow-amber-500/10'
                       }`}
                     style={{ fontFamily: 'Georgia, serif' }}
                     autoFocus={index === 0}
@@ -467,23 +467,37 @@ const CustomerMenu = () => {
 
               {/* Error Message */}
               {pinError && (
-                <div className="flex items-center justify-center gap-2 text-red-400/80 text-sm font-light">
+                <div className="flex items-center justify-center gap-2 text-red-400 text-sm font-light">
                   <AlertCircle className="w-4 h-4" />
                   <span>Codice non valido</span>
                 </div>
               )}
             </div>
 
+            {/* Submit Button */}
+            <Button
+              onClick={() => {
+                const fullPin = pin.join('')
+                if (fullPin.length === 4) {
+                  handlePinSubmit(fullPin)
+                }
+              }}
+              disabled={pin.some(d => d === '')}
+              className="w-full h-14 bg-gradient-to-r from-amber-600 to-amber-500 hover:from-amber-500 hover:to-amber-400 text-zinc-900 font-semibold rounded-xl shadow-lg shadow-amber-500/30 transition-all duration-300 disabled:opacity-40 disabled:cursor-not-allowed text-base tracking-wide"
+            >
+              Accedi al Menu
+            </Button>
+
             {/* Decorative divider */}
-            <div className="flex items-center justify-center gap-3 mb-6">
-              <div className="h-px flex-1 bg-gradient-to-r from-transparent to-white/5"></div>
-              <div className="w-1 h-1 rotate-45 bg-amber-500/30"></div>
-              <div className="h-px flex-1 bg-gradient-to-l from-transparent to-white/5"></div>
+            <div className="flex items-center justify-center gap-3 mt-6 mb-4">
+              <div className="h-px flex-1 bg-gradient-to-r from-transparent to-white/10"></div>
+              <div className="w-1 h-1 rotate-45 bg-amber-500/50"></div>
+              <div className="h-px flex-1 bg-gradient-to-l from-transparent to-white/10"></div>
             </div>
 
             {/* Help Text */}
             <div className="text-center">
-              <p className="text-white/20 text-xs tracking-wide">
+              <p className="text-white/40 text-xs tracking-wide">
                 Il codice è visualizzato sul segnaposto del tavolo
               </p>
             </div>
@@ -491,7 +505,7 @@ const CustomerMenu = () => {
 
           {/* Footer */}
           <div className="mt-12 text-center">
-            <p className="text-white/10 text-[10px] tracking-[0.2em] uppercase">
+            <p className="text-white/20 text-[10px] tracking-[0.2em] uppercase">
               Powered by EasyFood
             </p>
           </div>
