@@ -19,10 +19,10 @@ import { toast } from 'sonner'
 import {
   ShoppingBasket, Plus, Minus, Utensils, Clock, CheckCircle, ChefHat, Search, Info,
   X, RefreshCw, AlertCircle, ChevronUp, ChevronDown, Layers, ArrowLeft, Send,
-  ChevronRight, Trash, GripVertical, ArrowUp, ArrowDown, Menu
+  ChevronRight, Trash, GripVertical, ArrowUp, ArrowDown, Menu, History
 } from 'lucide-react'
 import {
-  DndContext, DragOverlay, useSensor, useSensors, PointerSensor, TouchSensor,
+  DndContext, DragOverlay, useSensor, useSensors, PointerSensor,
   closestCenter, useDroppable, DragStartEvent, DragEndEvent, DragOverEvent,
   defaultDropAnimationSideEffects, DropAnimation
 } from '@dnd-kit/core'
