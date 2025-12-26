@@ -85,7 +85,7 @@ function SortableDishItem({ item, courseNum }: { item: CartItem, courseNum: numb
   )
 }
 
-// Extract DishCard outside to prevent re-renders
+// Extract DishCard outside to prevent re-renders - Luxury Design
 const DishCard = ({
   dish,
   index,
@@ -103,40 +103,40 @@ const DishCard = ({
     animate={{ opacity: 1, y: 0 }}
     exit={{ opacity: 0, y: -20 }}
     transition={{ duration: 0.3, delay: index * 0.03 }}
-    className="flex items-center gap-3 p-3 bg-white/60 dark:bg-slate-900/60 backdrop-blur-sm rounded-2xl border border-white/20 dark:border-slate-800/50 shadow-sm hover:shadow-lg hover:bg-white/80 dark:hover:bg-slate-900/80 transition-all duration-300 cursor-pointer group active:scale-[0.98]"
+    className="flex items-center gap-4 p-4 bg-zinc-900/80 backdrop-blur-sm rounded-xl border border-amber-500/10 hover:border-amber-500/30 shadow-lg shadow-black/20 hover:shadow-amber-500/5 transition-all duration-500 cursor-pointer group active:scale-[0.98]"
     onClick={() => onSelect(dish)}
   >
-    <div className="w-16 h-16 shrink-0 relative rounded-xl overflow-hidden bg-gradient-to-br from-slate-100 to-slate-200 dark:from-slate-800 dark:to-slate-700 shadow-inner">
+    <div className="w-18 h-18 shrink-0 relative rounded-lg overflow-hidden bg-gradient-to-br from-zinc-800 to-zinc-900 shadow-inner border border-white/5">
       {dish.image_url ? (
-        <img src={dish.image_url} alt={dish.name} className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-110" loading="lazy" />
+        <img src={dish.image_url} alt={dish.name} className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-110" loading="lazy" />
       ) : (
         <div className="w-full h-full flex items-center justify-center">
-          <Utensils className="w-5 h-5 text-slate-400" />
+          <Utensils className="w-5 h-5 text-amber-500/40" strokeWidth={1.5} />
         </div>
       )}
       {dish.allergens && dish.allergens.length > 0 && (
-        <div className="absolute bottom-1 right-1 bg-white/90 dark:bg-slate-900/90 p-0.5 rounded-full shadow-sm">
-          <Info className="w-2.5 h-2.5 text-amber-500" />
+        <div className="absolute bottom-1 right-1 bg-zinc-900/90 p-0.5 rounded-full shadow-sm border border-amber-500/20">
+          <Info className="w-2.5 h-2.5 text-amber-400" />
         </div>
       )}
     </div>
 
     <div className="flex-1 min-w-0 py-0.5">
-      <h3 className="font-semibold text-sm leading-tight text-slate-900 dark:text-white line-clamp-1 mb-0.5">{dish.name}</h3>
+      <h3 className="font-light text-base leading-tight text-white line-clamp-1 mb-1 tracking-wide" style={{ fontFamily: 'Georgia, serif' }}>{dish.name}</h3>
       {dish.description && (
-        <p className="text-xs text-slate-500 dark:text-slate-400 line-clamp-1 leading-snug">{dish.description}</p>
+        <p className="text-xs text-white/40 line-clamp-1 leading-snug font-light">{dish.description}</p>
       )}
-      <div className="flex items-center justify-between mt-1.5">
-        <span className="font-bold text-sm text-emerald-600 dark:text-emerald-400">€{dish.price.toFixed(2)}</span>
+      <div className="flex items-center justify-between mt-2">
+        <span className="font-light text-sm text-amber-400 tracking-wide">€ {dish.price.toFixed(2)}</span>
       </div>
     </div>
 
     <Button
       size="sm"
-      className="h-8 w-8 rounded-full p-0 shadow-lg shadow-emerald-500/20 bg-gradient-to-br from-emerald-500 to-emerald-600 hover:from-emerald-600 hover:to-emerald-700 text-white transition-all hover:scale-110 shrink-0"
+      className="h-10 w-10 rounded-full p-0 bg-transparent border border-amber-500/30 hover:bg-amber-500/10 hover:border-amber-500/50 text-amber-400 transition-all duration-300 hover:scale-110 shrink-0"
       onClick={(e) => { e.stopPropagation(); onAdd(dish); }}
     >
-      <Plus className="w-4 h-4" />
+      <Plus className="w-4 h-4" strokeWidth={1.5} />
     </Button>
   </motion.div>
 )
@@ -232,6 +232,7 @@ const CustomerMenu = () => {
   // Removed setRestaurantId call since it is passed as prop
   const [activeSession, setActiveSession] = useState<TableSession | null>(null)
   const [restaurantId, setRestaurantId] = useState<string | null>(null) // State to hold restaurantId fetched from table
+  const [restaurantName, setRestaurantName] = useState<string>('') // Restaurant name for PIN screen
 
   // Attempt joining session on mount if tableId exists
   useEffect(() => {
@@ -259,6 +260,17 @@ const CustomerMenu = () => {
           }
 
           if (tableData) {
+            // Fetch restaurant name for PIN screen
+            const { data: restaurantData } = await supabase
+              .from('restaurants')
+              .select('name')
+              .eq('id', tableData.restaurant_id)
+              .single()
+
+            if (restaurantData?.name) {
+              setRestaurantName(restaurantData.name)
+            }
+
             // Attempt auto-join
             joinSession(tableId, tableData.restaurant_id)
           } else {
@@ -345,57 +357,91 @@ const CustomerMenu = () => {
 
   // --- RENDER GATES ---
 
-  if (!tableId) return <div className="p-10 text-center">QR Code non valido.</div>
-  if (sessionLoading) return (
-    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-slate-950 via-slate-900 to-emerald-950">
-      <div className="flex flex-col items-center gap-4">
-        <div className="relative">
-          <div className="w-16 h-16 border-4 border-emerald-500/30 rounded-full"></div>
-          <div className="absolute inset-0 w-16 h-16 border-4 border-transparent border-t-emerald-500 rounded-full animate-spin"></div>
-        </div>
-        <p className="text-emerald-400/80 font-medium animate-pulse">Caricamento...</p>
+  if (!tableId) return (
+    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-zinc-950 via-neutral-950 to-zinc-900 p-6">
+      <div className="text-center text-amber-100/60">
+        <p className="text-lg font-light tracking-wide">QR Code non valido</p>
       </div>
     </div>
   )
 
-  // LOGIN SCREEN (PIN) - Premium Design
+  if (sessionLoading) return (
+    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-zinc-950 via-neutral-950 to-zinc-900">
+      <div className="flex flex-col items-center gap-6">
+        <div className="relative">
+          <div className="w-20 h-20 border border-amber-500/20 rounded-full"></div>
+          <div className="absolute inset-0 w-20 h-20 border border-transparent border-t-amber-500 rounded-full animate-spin"></div>
+          <div className="absolute inset-2 w-16 h-16 border border-amber-500/10 rounded-full"></div>
+        </div>
+        <p className="text-amber-200/60 font-light tracking-[0.2em] text-sm uppercase">Caricamento</p>
+      </div>
+    </div>
+  )
+
+  // LOGIN SCREEN (PIN) - Luxury Gala Restaurant Design
   if (!isAuthenticated) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-slate-950 via-slate-900 to-emerald-950 flex flex-col items-center justify-center p-6 text-white relative overflow-hidden">
-        {/* Animated background elements */}
+      <div className="min-h-screen bg-gradient-to-br from-zinc-950 via-neutral-950 to-zinc-900 flex flex-col items-center justify-center p-6 text-white relative overflow-hidden">
+        {/* Elegant background pattern */}
         <div className="absolute inset-0 overflow-hidden pointer-events-none">
-          <div className="absolute top-1/4 -left-20 w-72 h-72 bg-emerald-500/10 rounded-full blur-3xl animate-pulse"></div>
-          <div className="absolute bottom-1/4 -right-20 w-96 h-96 bg-emerald-600/5 rounded-full blur-3xl animate-pulse" style={{ animationDelay: '1s' }}></div>
-          <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[600px] h-[600px] bg-gradient-radial from-emerald-500/5 to-transparent rounded-full"></div>
+          {/* Subtle golden radial gradients */}
+          <div className="absolute top-0 left-1/2 -translate-x-1/2 w-[800px] h-[400px] bg-gradient-to-b from-amber-500/5 via-transparent to-transparent"></div>
+          <div className="absolute bottom-0 left-1/2 -translate-x-1/2 w-[600px] h-[300px] bg-gradient-to-t from-amber-600/3 via-transparent to-transparent"></div>
+
+          {/* Decorative lines */}
+          <div className="absolute top-1/4 left-0 right-0 h-px bg-gradient-to-r from-transparent via-amber-500/10 to-transparent"></div>
+          <div className="absolute bottom-1/4 left-0 right-0 h-px bg-gradient-to-r from-transparent via-amber-500/10 to-transparent"></div>
+
+          {/* Corner ornaments */}
+          <div className="absolute top-8 left-8 w-16 h-16 border-l border-t border-amber-500/20"></div>
+          <div className="absolute top-8 right-8 w-16 h-16 border-r border-t border-amber-500/20"></div>
+          <div className="absolute bottom-8 left-8 w-16 h-16 border-l border-b border-amber-500/20"></div>
+          <div className="absolute bottom-8 right-8 w-16 h-16 border-r border-b border-amber-500/20"></div>
         </div>
 
-        {/* Main Content Card */}
+        {/* Main Content */}
         <div className="relative z-10 w-full max-w-sm">
-          {/* Logo/Icon */}
-          <div className="flex justify-center mb-8">
+          {/* Elegant Icon */}
+          <div className="flex justify-center mb-10">
             <div className="relative">
-              <div className="absolute inset-0 bg-emerald-500/20 rounded-3xl blur-xl scale-150"></div>
-              <div className="relative p-5 bg-gradient-to-br from-emerald-500 to-emerald-600 rounded-3xl shadow-2xl shadow-emerald-500/30">
-                <Utensils size={40} className="text-white" />
+              {/* Outer glow */}
+              <div className="absolute inset-0 bg-amber-500/10 rounded-full blur-2xl scale-150"></div>
+              {/* Icon container */}
+              <div className="relative">
+                <div className="w-20 h-20 rounded-full border border-amber-500/30 flex items-center justify-center bg-gradient-to-br from-zinc-900 to-zinc-950">
+                  <Utensils size={32} className="text-amber-400" strokeWidth={1.5} />
+                </div>
+                {/* Decorative ring */}
+                <div className="absolute inset-[-4px] rounded-full border border-amber-500/10"></div>
               </div>
             </div>
           </div>
 
-          {/* Glass Card */}
-          <div className="backdrop-blur-xl bg-white/5 border border-white/10 rounded-3xl p-8 shadow-2xl">
-            {/* Header */}
+          {/* Title */}
+          <div className="text-center mb-10">
+            <p className="text-amber-500/60 text-xs tracking-[0.3em] uppercase mb-3">Benvenuti</p>
+            <h1 className="text-3xl font-light text-white tracking-wide mb-3" style={{ fontFamily: 'Georgia, serif' }}>
+              {restaurantName || 'Ristorante'}
+            </h1>
+            <div className="flex items-center justify-center gap-4">
+              <div className="h-px w-12 bg-gradient-to-r from-transparent to-amber-500/40"></div>
+              <div className="w-1.5 h-1.5 rotate-45 bg-amber-500/40"></div>
+              <div className="h-px w-12 bg-gradient-to-l from-transparent to-amber-500/40"></div>
+            </div>
+          </div>
+
+          {/* PIN Card */}
+          <div className="backdrop-blur-xl bg-white/[0.02] border border-white/5 rounded-2xl p-8 shadow-2xl shadow-black/50">
+            {/* Card Header */}
             <div className="text-center mb-8">
-              <h1 className="text-3xl font-bold bg-gradient-to-r from-white to-emerald-200 bg-clip-text text-transparent mb-2">
-                Benvenuto
-              </h1>
-              <p className="text-slate-400 text-sm leading-relaxed">
-                Inserisci il PIN del tavolo per iniziare a ordinare
+              <p className="text-amber-100/40 text-sm font-light tracking-wide">
+                Inserisci il codice del tavolo
               </p>
             </div>
 
             {/* PIN Input Section */}
             <div className="mb-8">
-              <div className="flex justify-center gap-3 mb-4">
+              <div className="flex justify-center gap-4 mb-6">
                 {[0, 1, 2, 3].map((index) => (
                   <input
                     key={index}
@@ -406,13 +452,14 @@ const CustomerMenu = () => {
                     value={pin[index]}
                     onChange={(e) => handlePinDigitChange(index, e.target.value)}
                     onKeyDown={(e) => handlePinKeyDown(index, e)}
-                    className={`w-14 h-16 text-center text-2xl font-bold rounded-2xl border-2 transition-all duration-300 outline-none
+                    className={`w-14 h-16 text-center text-2xl font-light tracking-wider rounded-xl border transition-all duration-500 outline-none bg-transparent
                       ${pinError
-                        ? 'bg-red-500/10 border-red-500/50 text-red-400 animate-shake'
+                        ? 'border-red-500/50 text-red-400 animate-shake'
                         : pin[index]
-                          ? 'bg-emerald-500/10 border-emerald-500/50 text-emerald-400 shadow-lg shadow-emerald-500/20'
-                          : 'bg-slate-900/50 border-slate-700/50 text-white hover:border-emerald-500/30 focus:border-emerald-500 focus:bg-emerald-500/5 focus:shadow-lg focus:shadow-emerald-500/10'
+                          ? 'border-amber-500/50 text-amber-400 shadow-lg shadow-amber-500/10'
+                          : 'border-white/10 text-white/80 hover:border-amber-500/20 focus:border-amber-500/40 focus:shadow-lg focus:shadow-amber-500/5'
                       }`}
+                    style={{ fontFamily: 'Georgia, serif' }}
                     autoFocus={index === 0}
                   />
                 ))}
@@ -420,25 +467,32 @@ const CustomerMenu = () => {
 
               {/* Error Message */}
               {pinError && (
-                <div className="flex items-center justify-center gap-2 text-red-400 text-sm animate-pulse">
+                <div className="flex items-center justify-center gap-2 text-red-400/80 text-sm font-light">
                   <AlertCircle className="w-4 h-4" />
-                  <span>PIN non valido. Riprova.</span>
+                  <span>Codice non valido</span>
                 </div>
               )}
             </div>
 
+            {/* Decorative divider */}
+            <div className="flex items-center justify-center gap-3 mb-6">
+              <div className="h-px flex-1 bg-gradient-to-r from-transparent to-white/5"></div>
+              <div className="w-1 h-1 rotate-45 bg-amber-500/30"></div>
+              <div className="h-px flex-1 bg-gradient-to-l from-transparent to-white/5"></div>
+            </div>
+
             {/* Help Text */}
             <div className="text-center">
-              <p className="text-slate-500 text-xs">
-                Il PIN è visualizzato sul display del tuo tavolo
+              <p className="text-white/20 text-xs tracking-wide">
+                Il codice è visualizzato sul segnaposto del tavolo
               </p>
             </div>
           </div>
 
           {/* Footer */}
-          <div className="mt-8 text-center">
-            <p className="text-slate-600 text-xs">
-              Powered by <span className="text-emerald-500/70 font-semibold">EasyFood</span>
+          <div className="mt-12 text-center">
+            <p className="text-white/10 text-[10px] tracking-[0.2em] uppercase">
+              Powered by EasyFood
             </p>
           </div>
         </div>
@@ -1091,7 +1145,7 @@ const AuthorizedMenuContent = ({ restaurantId, tableId, sessionId, activeSession
           </DrawerContent>
         </Drawer>
 
-        {/* Floating Bottom Bar (Summary) */}
+        {/* Floating Bottom Bar (Summary) - Luxury Style */}
         <AnimatePresence>
           {cart.length > 0 && (
             <motion.div
@@ -1100,21 +1154,21 @@ const AuthorizedMenuContent = ({ restaurantId, tableId, sessionId, activeSession
               exit={{ y: 100, opacity: 0 }}
               className="fixed bottom-4 left-4 right-4 z-40"
             >
-              <div className="bg-slate-900/95 backdrop-blur-xl rounded-2xl border border-slate-700/50 p-4 shadow-2xl flex items-center justify-between gap-4">
+              <div className="bg-zinc-950/95 backdrop-blur-xl rounded-xl border border-amber-500/20 p-4 shadow-2xl shadow-black/50 flex items-center justify-between gap-4">
                 <div onClick={() => setIsCartOpen(true)} className="flex items-center gap-3 cursor-pointer">
-                  <div className="bg-emerald-500 text-white w-10 h-10 rounded-xl flex items-center justify-center font-bold">{cartCount}</div>
+                  <div className="w-11 h-11 rounded-full border border-amber-500/30 flex items-center justify-center text-amber-400 font-light text-lg">{cartCount}</div>
                   <div>
-                    <p className="text-xs text-slate-400">In invio</p>
-                    <p className="text-lg font-bold text-white">€{cartTotal.toFixed(2)}</p>
+                    <p className="text-[10px] text-white/40 tracking-wide uppercase">Carrello</p>
+                    <p className="text-lg font-light text-amber-400 tracking-wide">€ {cartTotal.toFixed(2)}</p>
                   </div>
                 </div>
 
                 <div className="flex gap-2">
-                  <Button variant="ghost" className="h-12 w-12 p-0 border border-slate-700 text-white hover:bg-slate-800 rounded-xl" onClick={() => setIsCartOpen(true)}>
-                    <ChevronUp className="w-6 h-6" />
+                  <Button variant="ghost" className="h-11 w-11 p-0 border border-white/10 text-white/60 hover:bg-white/5 hover:border-amber-500/20 rounded-lg" onClick={() => setIsCartOpen(true)}>
+                    <ChevronUp className="w-5 h-5" strokeWidth={1.5} />
                   </Button>
-                  <Button className="h-12 px-6 bg-emerald-600 hover:bg-emerald-700 text-white font-bold rounded-xl shadow-lg shadow-emerald-500/20" onClick={handleSubmitClick} disabled={isOrderSubmitting}>
-                    <Send className="w-5 h-5" />
+                  <Button className="h-11 px-6 bg-amber-500/10 hover:bg-amber-500/20 border border-amber-500/30 text-amber-400 font-light rounded-lg tracking-wide transition-all duration-300" onClick={handleSubmitClick} disabled={isOrderSubmitting}>
+                    <Send className="w-4 h-4" strokeWidth={1.5} />
                   </Button>
                 </div>
               </div>
@@ -1265,40 +1319,47 @@ const AuthorizedMenuContent = ({ restaurantId, tableId, sessionId, activeSession
   }
 
 
-
   return (
-    <div className="h-[100dvh] bg-gradient-to-b from-slate-50 via-white to-slate-100 dark:from-slate-950 dark:via-slate-900 dark:to-slate-950 font-sans select-none flex flex-col overflow-hidden">
+    <div className="h-[100dvh] bg-gradient-to-b from-zinc-950 via-neutral-950 to-zinc-900 font-sans select-none flex flex-col overflow-hidden">
       <div className="flex-1 flex flex-col min-h-0 relative">
         {activeTab === 'menu' && (
           <>
-            <header className="flex-none z-20 bg-white/70 dark:bg-slate-900/70 backdrop-blur-xl border-b border-white/20 dark:border-slate-800/50 shadow-sm shadow-slate-200/50 dark:shadow-black/10">
-              <div className="max-w-2xl mx-auto px-4 py-3">
+            <header className="flex-none z-20 bg-zinc-950/90 backdrop-blur-xl border-b border-amber-500/10">
+              <div className="max-w-2xl mx-auto px-4 py-4">
+                {/* Restaurant Name - Luxury Header */}
                 {restaurantName && (
-                  <div className="text-center mb-3 pb-3 border-b border-slate-200/50 dark:border-slate-700/50">
-                    <h1 className="font-bold text-2xl leading-tight tracking-tight text-slate-900 dark:text-white">
+                  <div className="text-center mb-4 pb-4 border-b border-white/5">
+                    <p className="text-amber-500/50 text-[10px] tracking-[0.3em] uppercase mb-2">Menu</p>
+                    <h1 className="text-2xl font-light text-white tracking-wide" style={{ fontFamily: 'Georgia, serif' }}>
                       {restaurantName}
                     </h1>
-                    <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">Benvenuti</p>
+                    <div className="flex items-center justify-center gap-3 mt-3">
+                      <div className="h-px w-8 bg-gradient-to-r from-transparent to-amber-500/30"></div>
+                      <div className="w-1 h-1 rotate-45 bg-amber-500/30"></div>
+                      <div className="h-px w-8 bg-gradient-to-l from-transparent to-amber-500/30"></div>
+                    </div>
                   </div>
                 )}
-                <div className="flex items-center justify-between mb-3">
+
+                {/* Menu Header & Search */}
+                <div className="flex items-center justify-between mb-4">
                   <div className="flex items-center gap-3">
                     <div className="relative">
-                      <div className="bg-gradient-to-br from-emerald-500 to-teal-600 p-2.5 rounded-2xl shadow-lg shadow-emerald-500/30">
-                        <Utensils className="w-5 h-5 text-white" />
+                      <div className="w-10 h-10 rounded-full border border-amber-500/30 flex items-center justify-center bg-zinc-900">
+                        <Utensils className="w-4 h-4 text-amber-400" strokeWidth={1.5} />
                       </div>
-                      {activeSession && <div className="absolute -top-1 -right-1 w-3 h-3 rounded-full bg-green-500 border-2 border-white dark:border-slate-900 animate-pulse" />}
+                      {activeSession && <div className="absolute -top-0.5 -right-0.5 w-2.5 h-2.5 rounded-full bg-amber-500 border-2 border-zinc-950" />}
                     </div>
                     <div>
-                      <h2 className="font-bold text-base leading-none tracking-tight text-slate-900 dark:text-white">Menu</h2>
-                      <div className="flex items-center gap-1.5 mt-1">
+                      <h2 className="font-light text-sm text-white/80 tracking-wide">{tableName || 'Tavolo'}</h2>
+                      <div className="flex items-center gap-1.5 mt-0.5">
                         {activeSession ? (
-                          <span className="text-[11px] text-emerald-600 dark:text-emerald-400 font-semibold flex items-center gap-1.5 bg-emerald-500/10 px-2.5 py-0.5 rounded-full">
-                            <div className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
-                            {tableName}
+                          <span className="text-[10px] text-amber-400/70 flex items-center gap-1.5">
+                            <div className="w-1.5 h-1.5 rounded-full bg-amber-500 animate-pulse" />
+                            Sessione attiva
                           </span>
                         ) : (
-                          <span className="text-[11px] text-amber-600 dark:text-amber-400 font-semibold bg-amber-500/10 px-2.5 py-0.5 rounded-full">
+                          <span className="text-[10px] text-white/30">
                             In attesa...
                           </span>
                         )}
@@ -1306,24 +1367,25 @@ const AuthorizedMenuContent = ({ restaurantId, tableId, sessionId, activeSession
                     </div>
                   </div>
                   <div className="relative w-36 transition-all focus-within:w-44 duration-300">
-                    <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
+                    <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-white/30" />
                     <Input
                       placeholder="Cerca..."
-                      className="h-10 pl-9 pr-3 text-sm rounded-xl bg-white/50 dark:bg-slate-800/50 border-white/30 dark:border-slate-700/50 focus-visible:ring-2 focus-visible:ring-emerald-500/50 backdrop-blur-sm shadow-inner"
+                      className="h-10 pl-9 pr-3 text-sm rounded-lg bg-zinc-900/80 border-white/5 text-white placeholder:text-white/30 focus-visible:ring-1 focus-visible:ring-amber-500/30 focus-visible:border-amber-500/30"
                       value={searchTerm}
                       onChange={(e) => setSearchTerm(e.target.value)}
                     />
                   </div>
                 </div>
 
+                {/* Category Pills - Luxury Style */}
                 <div className="overflow-x-auto scrollbar-hide -mx-4 px-4 pb-1">
                   <div className="flex gap-2 min-w-max">
                     <button
                       onClick={() => setActiveCategory('all')}
-                      className={`px - 4 py - 2 text - xs font - semibold rounded - full transition - all duration - 300 ${activeCategory === 'all'
-                        ? 'bg-gradient-to-r from-slate-900 to-slate-800 dark:from-white dark:to-slate-100 text-white dark:text-slate-900 shadow-lg shadow-slate-900/20 dark:shadow-white/20 scale-105'
-                        : 'bg-white/50 dark:bg-slate-800/50 text-slate-600 dark:text-slate-400 border border-white/30 dark:border-slate-700/30 hover:bg-white/80 backdrop-blur-sm'
-                        } `}
+                      className={`px-4 py-2 text-xs tracking-wide transition-all duration-300 rounded-full border ${activeCategory === 'all'
+                        ? 'bg-amber-500/10 text-amber-400 border-amber-500/30'
+                        : 'bg-transparent text-white/40 border-white/10 hover:border-amber-500/20 hover:text-white/60'
+                        }`}
                     >
                       Tutto
                     </button>
@@ -1331,10 +1393,10 @@ const AuthorizedMenuContent = ({ restaurantId, tableId, sessionId, activeSession
                       <button
                         key={cat.id}
                         onClick={() => setActiveCategory(cat.id)}
-                        className={`px - 4 py - 2 text - xs font - semibold rounded - full transition - all duration - 300 ${activeCategory === cat.id
-                          ? 'bg-gradient-to-r from-slate-900 to-slate-800 dark:from-white dark:to-slate-100 text-white dark:text-slate-900 shadow-lg shadow-slate-900/20 dark:shadow-white/20 scale-105'
-                          : 'bg-white/50 dark:bg-slate-800/50 text-slate-600 dark:text-slate-400 border border-white/30 dark:border-slate-700/30 hover:bg-white/80 backdrop-blur-sm'
-                          } `}
+                        className={`px-4 py-2 text-xs tracking-wide transition-all duration-300 rounded-full border ${activeCategory === cat.id
+                          ? 'bg-amber-500/10 text-amber-400 border-amber-500/30'
+                          : 'bg-transparent text-white/40 border-white/10 hover:border-amber-500/20 hover:text-white/60'
+                          }`}
                       >
                         {cat.name}
                       </button>
@@ -1344,7 +1406,7 @@ const AuthorizedMenuContent = ({ restaurantId, tableId, sessionId, activeSession
               </div>
             </header>
 
-            <main className="flex-1 overflow-y-auto scrollbar-hide px-4 py-4 space-y-2 max-w-2xl mx-auto w-full pb-32">
+            <main className="flex-1 overflow-y-auto scrollbar-hide px-4 py-4 space-y-3 max-w-2xl mx-auto w-full pb-32">
               <AnimatePresence mode="popLayout">
                 {activeCategory === 'all' && dishesByCategory ? (
                   dishesByCategory.map(({ category, dishes: catDishes }, catIndex) => (
@@ -1356,16 +1418,16 @@ const AuthorizedMenuContent = ({ restaurantId, tableId, sessionId, activeSession
                       transition={{ duration: 0.3, delay: catIndex * 0.1 }}
                     >
                       <motion.div
-                        className="flex items-center gap-3 pt-4 pb-2 first:pt-0"
+                        className="flex items-center gap-4 pt-6 pb-3 first:pt-0"
                         initial={{ opacity: 0, scale: 0.9 }}
                         animate={{ opacity: 1, scale: 1 }}
                         transition={{ duration: 0.4 }}
                       >
-                        <div className="h-px flex-1 bg-gradient-to-r from-transparent via-slate-300 dark:via-slate-700 to-transparent" />
-                        <span className="text-xs font-bold uppercase tracking-widest text-slate-500 dark:text-slate-400 px-3 py-1.5 bg-white/50 dark:bg-slate-800/50 backdrop-blur-sm rounded-full border border-white/30 dark:border-slate-700/30 shadow-sm">
+                        <div className="h-px flex-1 bg-gradient-to-r from-transparent via-amber-500/20 to-transparent" />
+                        <span className="text-[10px] font-light uppercase tracking-[0.2em] text-amber-400/70 px-4 py-1.5 bg-zinc-900/80 backdrop-blur-sm rounded-full border border-amber-500/20" style={{ fontFamily: 'Georgia, serif' }}>
                           {category.name}
                         </span>
-                        <div className="h-px flex-1 bg-gradient-to-r from-transparent via-slate-300 dark:via-slate-700 to-transparent" />
+                        <div className="h-px flex-1 bg-gradient-to-r from-transparent via-amber-500/20 to-transparent" />
                       </motion.div>
                       {catDishes.map((dish, index) => (
                         <DishCard
