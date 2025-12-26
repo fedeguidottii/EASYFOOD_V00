@@ -103,7 +103,7 @@ const DishCard = ({
     animate={{ opacity: 1, y: 0 }}
     exit={{ opacity: 0, y: -20 }}
     transition={{ duration: 0.3, delay: index * 0.03 }}
-    className="flex items-center gap-4 p-4 bg-zinc-900/80 backdrop-blur-sm rounded-xl border border-amber-500/10 hover:border-amber-500/30 shadow-lg shadow-black/20 hover:shadow-amber-500/5 transition-all duration-500 cursor-pointer group active:scale-[0.98]"
+    className="flex items-center gap-4 p-4 bg-zinc-900/90 backdrop-blur-sm rounded-xl border border-amber-500/20 hover:border-amber-500/40 shadow-lg shadow-black/30 hover:shadow-amber-500/10 transition-all duration-500 cursor-pointer group active:scale-[0.98]"
     onClick={() => onSelect(dish)}
   >
     <div className="w-18 h-18 shrink-0 relative rounded-lg overflow-hidden bg-gradient-to-br from-zinc-800 to-zinc-900 shadow-inner border border-white/5">
@@ -122,18 +122,18 @@ const DishCard = ({
     </div>
 
     <div className="flex-1 min-w-0 py-0.5">
-      <h3 className="font-light text-base leading-tight text-white line-clamp-1 mb-1 tracking-wide" style={{ fontFamily: 'Georgia, serif' }}>{dish.name}</h3>
+      <h3 className="font-normal text-base leading-tight text-white line-clamp-1 mb-1 tracking-wide" style={{ fontFamily: 'Georgia, serif' }}>{dish.name}</h3>
       {dish.description && (
-        <p className="text-xs text-white/40 line-clamp-1 leading-snug font-light">{dish.description}</p>
+        <p className="text-xs text-white/60 line-clamp-1 leading-snug font-light">{dish.description}</p>
       )}
       <div className="flex items-center justify-between mt-2">
-        <span className="font-light text-sm text-amber-400 tracking-wide">€ {dish.price.toFixed(2)}</span>
+        <span className="font-medium text-sm text-amber-400 tracking-wide">€ {dish.price.toFixed(2)}</span>
       </div>
     </div>
 
     <Button
       size="sm"
-      className="h-10 w-10 rounded-full p-0 bg-transparent border border-amber-500/30 hover:bg-amber-500/10 hover:border-amber-500/50 text-amber-400 transition-all duration-300 hover:scale-110 shrink-0"
+      className="h-10 w-10 rounded-full p-0 bg-amber-500/10 border border-amber-500/40 hover:bg-amber-500/20 hover:border-amber-500/60 text-amber-400 transition-all duration-300 hover:scale-110 shrink-0"
       onClick={(e) => { e.stopPropagation(); onAdd(dish); }}
     >
       <Plus className="w-4 h-4" strokeWidth={1.5} />
@@ -1365,15 +1365,15 @@ const AuthorizedMenuContent = ({ restaurantId, tableId, sessionId, activeSession
                       {activeSession && <div className="absolute -top-0.5 -right-0.5 w-2.5 h-2.5 rounded-full bg-amber-500 border-2 border-zinc-950" />}
                     </div>
                     <div>
-                      <h2 className="font-light text-sm text-white/80 tracking-wide">{tableName || 'Tavolo'}</h2>
+                      <h2 className="font-medium text-sm text-white tracking-wide">{tableName || 'Tavolo'}</h2>
                       <div className="flex items-center gap-1.5 mt-0.5">
                         {activeSession ? (
-                          <span className="text-[10px] text-amber-400/70 flex items-center gap-1.5">
+                          <span className="text-[11px] text-amber-400 flex items-center gap-1.5">
                             <div className="w-1.5 h-1.5 rounded-full bg-amber-500 animate-pulse" />
                             Sessione attiva
                           </span>
                         ) : (
-                          <span className="text-[10px] text-white/30">
+                          <span className="text-[11px] text-white/50">
                             In attesa...
                           </span>
                         )}
@@ -1381,10 +1381,10 @@ const AuthorizedMenuContent = ({ restaurantId, tableId, sessionId, activeSession
                     </div>
                   </div>
                   <div className="relative w-36 transition-all focus-within:w-44 duration-300">
-                    <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-white/30" />
+                    <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-white/50" />
                     <Input
                       placeholder="Cerca..."
-                      className="h-10 pl-9 pr-3 text-sm rounded-lg bg-zinc-900/80 border-white/5 text-white placeholder:text-white/30 focus-visible:ring-1 focus-visible:ring-amber-500/30 focus-visible:border-amber-500/30"
+                      className="h-10 pl-9 pr-3 text-sm rounded-lg bg-zinc-900/80 border border-white/10 text-white placeholder:text-white/40 focus-visible:ring-1 focus-visible:ring-amber-500/50 focus-visible:border-amber-500/50"
                       value={searchTerm}
                       onChange={(e) => setSearchTerm(e.target.value)}
                     />
@@ -1398,7 +1398,7 @@ const AuthorizedMenuContent = ({ restaurantId, tableId, sessionId, activeSession
                       onClick={() => setActiveCategory('all')}
                       className={`px-4 py-2 text-xs tracking-wide transition-all duration-300 rounded-full border ${activeCategory === 'all'
                         ? 'bg-amber-500/10 text-amber-400 border-amber-500/30'
-                        : 'bg-transparent text-white/40 border-white/10 hover:border-amber-500/20 hover:text-white/60'
+                        : 'bg-zinc-900/50 text-white/70 border-white/20 hover:border-amber-500/30 hover:text-white'
                         }`}
                     >
                       Tutto
@@ -1409,7 +1409,7 @@ const AuthorizedMenuContent = ({ restaurantId, tableId, sessionId, activeSession
                         onClick={() => setActiveCategory(cat.id)}
                         className={`px-4 py-2 text-xs tracking-wide transition-all duration-300 rounded-full border ${activeCategory === cat.id
                           ? 'bg-amber-500/10 text-amber-400 border-amber-500/30'
-                          : 'bg-transparent text-white/40 border-white/10 hover:border-amber-500/20 hover:text-white/60'
+                          : 'bg-zinc-900/50 text-white/70 border-white/20 hover:border-amber-500/30 hover:text-white'
                           }`}
                       >
                         {cat.name}
