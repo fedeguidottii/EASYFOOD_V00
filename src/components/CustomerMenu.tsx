@@ -313,16 +313,43 @@ const CustomerMenu = () => {
   }, [sessionId, restaurantId])
 
   const handlePinSubmit = async (enteredPin: string) => {
+    // Retry joining session if missing (connection recovery)
     if (!activeSession) {
-      toast.error("Sessione non trovata. Riprova a scansionare il QR.")
-      return
+      if (tableId && restaurantId) {
+        toast.loading("Tentativo di connessione al tavolo...")
+        const joined = await joinSession(tableId, restaurantId)
+        if (!joined) {
+          toast.dismiss()
+          toast.error("Impossibile connettersi. Scansiona di nuovo il QR.")
+          return
+        }
+        // If joined successfully, we need to wait for activeSession to update in the effect
+        // But we can't wait for React state here easily without refactoring. 
+        // For now, let's ask user to click again once connected, or rely on the fact that joinSession sets state.
+        // However, joinSession updates Context state, which updates formatted activeSession asynchronously.
+
+        // Let's just return here and let the user click again (or auto-submit if we could)
+        // Better UX: check session via DB directly here to verify PIN immediately
+        const session = await DatabaseService.getSessionById(sessionId || (await DatabaseService.getActiveSession(tableId))?.id!)
+        if (session && enteredPin === session.session_pin) {
+          toast.dismiss()
+          setActiveSession(session)
+          setIsAuthenticated(true)
+          localStorage.setItem('sessionPin', enteredPin)
+          toast.success("Accesso effettuato!")
+          return
+        }
+      } else {
+        toast.error("Dati tavolo mancanti. Riprova a scansionare il QR.")
+        return
+      }
     }
 
-    if (enteredPin === activeSession.session_pin) {
+    if (activeSession && enteredPin === activeSession.session_pin) {
       setIsAuthenticated(true)
       localStorage.setItem('sessionPin', enteredPin)
       toast.success("Accesso effettuato!")
-    } else {
+    } else if (activeSession) {
       setPinError(true)
       toast.error("PIN non valido")
       setTimeout(() => setPinError(false), 2000)
