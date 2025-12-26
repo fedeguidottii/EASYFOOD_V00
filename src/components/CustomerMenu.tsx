@@ -484,7 +484,7 @@ const CustomerMenu = () => {
 export default CustomerMenu
 
 // Refactored Content Component to keep logic clean
-const AuthorizedMenuContent = ({ restaurantId, tableId, sessionId, activeSession }: { restaurantId: string, tableId: string, sessionId: string, activeSession: TableSession }) => {
+function AuthorizedMenuContent({ restaurantId, tableId, sessionId, activeSession }: { restaurantId: string, tableId: string, sessionId: string, activeSession: TableSession }) {
   // Using passed props instead of resolving them
   const isWaiterMode = false // Or pass as prop if needed
 
@@ -738,8 +738,7 @@ const AuthorizedMenuContent = ({ restaurantId, tableId, sessionId, activeSession
   const [activeDragItem, setActiveDragItem] = useState<CartItem | null>(null)
 
   const sensors = useSensors(
-    useSensor(PointerSensor, { activationConstraint: { distance: 8 } }),
-    useSensor(TouchSensor, { activationConstraint: { delay: 100, tolerance: 5 } })
+    useSensor(PointerSensor, { activationConstraint: { distance: 8 } })
   )
 
   const handleDragStart = (event: DragStartEvent) => {
