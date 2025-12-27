@@ -72,8 +72,14 @@ export default function ClientTableAccess({ tableId, onAccessGranted }: ClientTa
     }
 
     const handlePinFocus = (index: number) => {
-        // When a field is focused, select its content for easy replacement
-        inputRefs.current[index]?.select()
+        // Always focus the first empty field instead of the clicked one
+        const firstEmptyIndex = pin.findIndex(digit => digit === '')
+        if (firstEmptyIndex !== -1 && firstEmptyIndex !== index) {
+            inputRefs.current[firstEmptyIndex]?.focus()
+        } else {
+            // If all filled or clicked on the first empty, select content for replacement
+            inputRefs.current[index]?.select()
+        }
     }
 
     const handleKeyDown = (index: number, e: React.KeyboardEvent<HTMLInputElement>) => {

@@ -167,3 +167,34 @@ export interface CartItem {
 export interface RestaurantSettings {
     default_reservation_duration?: number // Durata in minuti (default 120)
 }
+
+// Custom Menus System
+export type MealType = 'lunch' | 'dinner' | 'all'
+
+export interface CustomMenu {
+    id: string
+    restaurant_id: string
+    name: string
+    description?: string
+    is_active: boolean
+    created_at?: string
+    updated_at?: string
+}
+
+export interface CustomMenuDish {
+    id: string
+    custom_menu_id: string
+    dish_id: string
+    created_at?: string
+}
+
+export interface CustomMenuSchedule {
+    id: string
+    custom_menu_id: string
+    day_of_week?: number // 0=Sunday, 1=Monday, ..., 6=Saturday, null=any day
+    meal_type: MealType
+    start_time?: string
+    end_time?: string
+    is_active: boolean
+    created_at?: string
+}

@@ -30,6 +30,7 @@ import { KitchenView } from './KitchenView'
 import { SettingsView } from './SettingsView'
 import ReservationsManager from './ReservationsManager'
 import AnalyticsCharts from './AnalyticsCharts'
+import CustomMenusManager from './CustomMenusManager'
 import { generateQrCode } from '../utils/qrUtils'
 import type { Table, Order, Dish, Category, TableSession, Booking, Restaurant, Room } from '../services/types'
 import { soundManager, type SoundType } from '../utils/SoundManager'
@@ -211,6 +212,7 @@ const RestaurantDashboard = ({ user, onLogout }: RestaurantDashboardProps) => {
   const [kitchenViewMode, setKitchenViewMode] = useState<'table' | 'dish'>('table')
   const [selectedKitchenCategories, setSelectedKitchenCategories] = useState<string[]>([])
   const [kitchenZoom, setKitchenZoom] = useState(1)
+  const [tableZoom, setTableZoom] = useState(1)
 
   // AYCE and Coperto Settings
   const [ayceEnabled, setAyceEnabled] = useState(false)
@@ -1064,7 +1066,7 @@ const RestaurantDashboard = ({ user, onLogout }: RestaurantDashboardProps) => {
                   <Button
                     variant="ghost"
                     size="sm"
-                    onClick={() => setKitchenZoom(prev => Math.max(0.7, Math.round((prev - 0.1) * 10) / 10))}
+                    onClick={() => setKitchenZoom(prev => Math.max(0.5, Math.round((prev - 0.1) * 10) / 10))}
                     className="h-7 w-7 p-0"
                   >
                     <Minus size={14} />
@@ -1073,7 +1075,7 @@ const RestaurantDashboard = ({ user, onLogout }: RestaurantDashboardProps) => {
                   <Button
                     variant="ghost"
                     size="sm"
-                    onClick={() => setKitchenZoom(prev => Math.min(1.4, Math.round((prev + 0.1) * 10) / 10))}
+                    onClick={() => setKitchenZoom(prev => Math.min(2.0, Math.round((prev + 0.1) * 10) / 10))}
                     className="h-7 w-7 p-0"
                   >
                     <Plus size={14} />
@@ -1209,6 +1211,28 @@ const RestaurantDashboard = ({ user, onLogout }: RestaurantDashboardProps) => {
                     Stato
                   </Button>
                 </div>
+
+                <div className="flex items-center gap-2 bg-muted p-1 rounded-lg">
+                  <span className="text-[10px] font-bold uppercase text-muted-foreground px-2">Zoom</span>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => setTableZoom(prev => Math.max(0.5, Math.round((prev - 0.1) * 10) / 10))}
+                    className="h-7 w-7 p-0"
+                  >
+                    <Minus size={14} />
+                  </Button>
+                  <span className="w-10 text-center text-xs font-bold">{Math.round(tableZoom * 100)}%</span>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => setTableZoom(prev => Math.min(2.0, Math.round((prev + 0.1) * 10) / 10))}
+                    className="h-7 w-7 p-0"
+                  >
+                    <Plus size={14} />
+                  </Button>
+                </div>
+
                 <Dialog>
                   <DialogTrigger asChild>
                     <Button variant="outline" size="sm" className="h-10 shadow-sm hover:shadow-md transition-shadow">
@@ -1480,10 +1504,18 @@ const RestaurantDashboard = ({ user, onLogout }: RestaurantDashboardProps) => {
               </Dialog>
             </div>
 
-            <div className="grid gap-6 grid-cols-[repeat(auto-fill,minmax(240px,1fr))]">
-              {restaurantTables
-                .filter(t => selectedRoomFilter === 'all' || t.room_id === selectedRoomFilter)
-                .map(table => {
+            <div
+              className="origin-top-left transition-all duration-200"
+              style={{
+                transform: `scale(${tableZoom})`,
+                transformOrigin: 'top left',
+                width: `${100 / tableZoom}%`
+              }}
+            >
+              <div className="grid gap-6 grid-cols-[repeat(auto-fill,minmax(240px,1fr))]">
+                {restaurantTables
+                  .filter(t => selectedRoomFilter === 'all' || t.room_id === selectedRoomFilter)
+                  .map(table => {
                   const session = getOpenSessionForTable(table.id)
                   const isActive = session?.status === 'OPEN'
                   const activeOrder = restaurantOrders.find(o => getTableIdFromOrder(o) === table.id)
@@ -1590,6 +1622,7 @@ const RestaurantDashboard = ({ user, onLogout }: RestaurantDashboardProps) => {
 
                   )
                 })}
+              </div>
             </div>
           </TabsContent >
 
@@ -1970,6 +2003,14 @@ const RestaurantDashboard = ({ user, onLogout }: RestaurantDashboardProps) => {
               setCourseSplittingEnabled={setCourseSplittingEnabled}
               updateCourseSplitting={updateCourseSplitting}
             />
+
+            {/* Custom Menus Manager */}
+            <div className="mt-8">
+              <CustomMenusManager
+                restaurantId={restaurantId}
+                dishes={dishes || []}
+              />
+            </div>
           </TabsContent>
         </Tabs>
         <div className="mt-8"></div> {/* Spacer or container for dialogs if needed */}

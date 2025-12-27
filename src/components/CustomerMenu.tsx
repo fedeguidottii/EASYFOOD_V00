@@ -672,7 +672,7 @@ function AuthorizedMenuContent({ restaurantId, tableId, sessionId, activeSession
 
     const { data: orders } = await supabase
       .from('orders')
-      .select('*, items:order_items(*)')
+      .select('*, items:order_items(*, dishes(*))')
       .eq('table_session_id', sessionId)
       .order('created_at', { ascending: false })
 
@@ -1187,15 +1187,28 @@ function AuthorizedMenuContent({ restaurantId, tableId, sessionId, activeSession
                         <span className="text-amber-400 font-bold text-lg">€{order.total_amount?.toFixed(2)}</span>
                       </div>
                       <div className="space-y-2">
-                        {order.items?.map(item => (
-                          <div key={item.id} className="flex justify-between items-center text-sm text-white/80">
-                            <div className="flex items-baseline gap-2">
-                              <span className="font-bold">{item.quantity}x</span>
-                              <span className="font-medium">{item.dishes?.name || 'Piatto Sconosciuto'}</span>
+                        {order.items?.map(item => {
+                          const dish = dishes.find(d => d.id === item.dish_id) || item.dishes
+                          return (
+                            <div
+                              key={item.id}
+                              className="flex justify-between items-center text-sm text-white/80 cursor-pointer hover:bg-zinc-800/50 p-2 rounded-lg transition-colors"
+                              onClick={() => {
+                                if (dish) {
+                                  setSelectedDish(dish as Dish)
+                                  setDishQuantity(1)
+                                  setDishNote('')
+                                }
+                              }}
+                            >
+                              <div className="flex items-baseline gap-2">
+                                <span className="font-bold">{item.quantity}x</span>
+                                <span className="font-medium">{dish?.name || 'Piatto non disponibile'}</span>
+                              </div>
+                              <span className="text-white/60">€{(item.price * item.quantity).toFixed(2)}</span>
                             </div>
-                            <span className="text-white/60">€{(item.price * item.quantity).toFixed(2)}</span>
-                          </div>
-                        ))}
+                          )
+                        })}
                       </div>
                       <p className="text-xs text-zinc-500 mt-3 text-right">Inviato il {new Date(order.created_at).toLocaleString()}</p>
                     </div>

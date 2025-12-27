@@ -100,9 +100,12 @@ export function KitchenView({ orders, tables, dishes, selectedCategoryIds = [], 
             className="h-[calc(100vh-180px)] w-full overflow-hidden bg-background relative"
         >
             <div
-                className="w-full h-full overflow-y-auto px-2 pb-20 origin-top-left transition-all duration-200"
+                className="w-full h-full overflow-y-auto px-2 origin-top-left transition-all duration-200"
                 style={{
-                    zoom: zoom // Try using native zoom property for better layout handling if supported, or fallback to transform
+                    transform: `scale(${zoom})`,
+                    transformOrigin: 'top left',
+                    width: `${100 / zoom}%`,
+                    paddingBottom: `${20 / zoom}px`
                 }}
             >
                 <div
