@@ -1,17 +1,23 @@
 import { useState, useEffect } from 'react'
 import { supabase } from '../lib/supabase'
-import { Button } from './ui/button'
-import { Input } from './ui/input'
-import { Label } from './ui/label'
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from './ui/card'
-import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from './ui/dialog'
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from './ui/select'
-import { Switch } from './ui/switch'
-import { Checkbox } from './ui/checkbox'
-import { Badge } from './ui/badge'
+import { Button } from '@/components/ui/button'
+import { Input } from '@/components/ui/input'
+import { Label } from '@/components/ui/label'
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog'
+import {
+    Sheet,
+    SheetContent,
+    SheetDescription,
+    SheetHeader,
+    SheetTitle,
+    SheetTrigger,
+} from "@/components/ui/sheet"
+import { Badge } from '@/components/ui/badge'
 import { toast } from 'sonner'
-import { Plus, Trash, Calendar, Clock, CheckCircle, Utensils } from '@phosphor-icons/react'
+import { Plus, Trash, Calendar, Clock, CheckCircle, Utensils, Pencil, X, Check } from '@phosphor-icons/react'
 import type { CustomMenu, CustomMenuSchedule, Dish, MealType } from '../services/types'
+import { cn } from '@/lib/utils'
 
 interface CustomMenusManagerProps {
     restaurantId: string
@@ -28,6 +34,12 @@ const DAYS_OF_WEEK = [
     { value: 0, label: 'Domenica' }
 ]
 
+const MEAL_TYPES: { value: MealType, label: string }[] = [
+    { value: 'lunch', label: 'Pranzo' },
+    { value: 'dinner', label: 'Cena' },
+    { value: 'all', label: 'Tutto il Giorno' }
+]
+
 export default function CustomMenusManager({ restaurantId, dishes }: CustomMenusManagerProps) {
     const [customMenus, setCustomMenus] = useState<CustomMenu[]>([])
     const [selectedMenu, setSelectedMenu] = useState<CustomMenu | null>(null)
@@ -38,6 +50,7 @@ export default function CustomMenusManager({ restaurantId, dishes }: CustomMenus
     const [showCreateDialog, setShowCreateDialog] = useState(false)
     const [newMenuName, setNewMenuName] = useState('')
     const [newMenuDescription, setNewMenuDescription] = useState('')
+    const [isEditing, setIsEditing] = useState(false)
 
     // Fetch custom menus
     const fetchCustomMenus = async () => {
@@ -79,6 +92,9 @@ export default function CustomMenusManager({ restaurantId, dishes }: CustomMenus
         if (selectedMenu) {
             fetchMenuDishes(selectedMenu.id)
             fetchMenuSchedules(selectedMenu.id)
+            setIsEditing(true)
+        } else {
+            setIsEditing(false)
         }
     }, [selectedMenu])
 
@@ -109,11 +125,14 @@ export default function CustomMenusManager({ restaurantId, dishes }: CustomMenus
             setNewMenuDescription('')
             setShowCreateDialog(false)
             fetchCustomMenus()
+            setSelectedMenu(data) // Open immediately
         }
     }
 
     // Delete menu
     const handleDeleteMenu = async (menuId: string) => {
+        if (!confirm('Sei sicuro di voler eliminare questo menù?')) return
+
         const { error } = await supabase
             .from('custom_menus')
             .delete()
@@ -134,41 +153,49 @@ export default function CustomMenusManager({ restaurantId, dishes }: CustomMenus
 
         if (menuDishes.includes(dishId)) {
             // Remove
-            await supabase
+            const { error } = await supabase
                 .from('custom_menu_dishes')
                 .delete()
                 .eq('custom_menu_id', selectedMenu.id)
                 .eq('dish_id', dishId)
+
+            if (!error) setMenuDishes(prev => prev.filter(id => id !== dishId))
         } else {
             // Add
-            await supabase
+            const { error } = await supabase
                 .from('custom_menu_dishes')
                 .insert({
                     custom_menu_id: selectedMenu.id,
                     dish_id: dishId
                 })
-        }
 
-        fetchMenuDishes(selectedMenu.id)
+            if (!error) setMenuDishes(prev => [...prev, dishId])
+        }
     }
 
     // Apply menu (activate it)
-    const handleApplyMenu = async (menuId: string) => {
-        const { error } = await supabase.rpc('apply_custom_menu', { menu_id: menuId })
+    const handleApplyMenu = async (menuId: string, e?: React.MouseEvent) => {
+        if (e) e.stopPropagation()
 
+        toast.loading('Applicazione menu in corso...')
+        const { error } = await supabase.rpc('apply_custom_menu', { p_restaurant_id: restaurantId, p_menu_id: menuId })
+
+        toast.dismiss()
         if (error) {
             toast.error('Errore applicazione menù')
             console.error(error)
         } else {
-            toast.success('Menù applicato! Piatti aggiornati.')
+            toast.success('Menù applicato con successo!')
             fetchCustomMenus()
         }
     }
 
     // Reset to full menu
     const handleResetToFullMenu = async () => {
-        const { error } = await supabase.rpc('reset_to_full_menu', { restaurant_uuid: restaurantId })
+        toast.loading('Ripristino menu completo...')
+        const { error } = await supabase.rpc('reset_to_full_menu', { p_restaurant_id: restaurantId })
 
+        toast.dismiss()
         if (error) {
             toast.error('Errore ripristino menù completo')
             console.error(error)
@@ -179,139 +206,149 @@ export default function CustomMenusManager({ restaurantId, dishes }: CustomMenus
     }
 
     // Add schedule
-    const handleAddSchedule = async (dayOfWeek: number | null, mealType: MealType) => {
+    const handleToggleSchedule = async (dayOfWeek: number, mealType: MealType) => {
         if (!selectedMenu) return
 
-        const { error } = await supabase
-            .from('custom_menu_schedules')
-            .insert({
-                custom_menu_id: selectedMenu.id,
-                day_of_week: dayOfWeek,
-                meal_type: mealType,
-                is_active: true
-            })
+        // Check if exists
+        const existing = schedules.find(s => s.day_of_week === dayOfWeek && s.meal_type === mealType)
 
-        if (error) {
-            toast.error('Errore aggiunta pianificazione')
-            console.error(error)
+        if (existing) {
+            // Delete
+            await supabase.from('custom_menu_schedules').delete().eq('id', existing.id)
+            setSchedules(prev => prev.filter(s => s.id !== existing.id))
         } else {
-            toast.success('Pianificazione aggiunta')
-            fetchMenuSchedules(selectedMenu.id)
-        }
-    }
+            // Add (first remove conflicting 'all' if trying to add 'lunch' or 'dinner', or vice versa)
+            // Ideally we should manage conflicts, but for simplicity let's just add
+            const { data, error } = await supabase
+                .from('custom_menu_schedules')
+                .insert({
+                    custom_menu_id: selectedMenu.id,
+                    day_of_week: dayOfWeek,
+                    meal_type: mealType,
+                    is_active: true
+                })
+                .select()
+                .single()
 
-    // Delete schedule
-    const handleDeleteSchedule = async (scheduleId: string) => {
-        const { error } = await supabase
-            .from('custom_menu_schedules')
-            .delete()
-            .eq('id', scheduleId)
-
-        if (error) {
-            toast.error('Errore eliminazione pianificazione')
-        } else {
-            toast.success('Pianificazione eliminata')
-            if (selectedMenu) fetchMenuSchedules(selectedMenu.id)
+            if (data) setSchedules(prev => [...prev, data])
+            if (error) toast.error("Errore pianificazione")
         }
     }
 
     const activatedMenu = customMenus.find(m => m.is_active)
 
     return (
-        <div className="space-y-6">
-            <div className="flex items-center justify-between">
+        <div className="space-y-8 animate-in fade-in duration-500">
+            {/* Header Section */}
+            <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
                 <div>
-                    <h3 className="text-xl font-semibold">Menù Personalizzati</h3>
-                    <p className="text-sm text-muted-foreground mt-1">
-                        Crea menù ricorrenti e pianifica quando attivarli automaticamente
+                    <h2 className="text-3xl font-bold bg-gradient-to-r from-emerald-600 to-teal-600 bg-clip-text text-transparent">
+                        Menu Personalizzati
+                    </h2>
+                    <p className="text-muted-foreground mt-1">
+                        Gestisci menu speciali, carte vini, o menu stagionali ricorrenti.
                     </p>
                 </div>
                 <Dialog open={showCreateDialog} onOpenChange={setShowCreateDialog}>
                     <DialogTrigger asChild>
-                        <Button>
-                            <Plus size={16} className="mr-2" />
-                            Nuovo Menù
+                        <Button size="lg" className="shadow-lg shadow-emerald-500/20 bg-emerald-600 hover:bg-emerald-700 text-white rounded-full">
+                            <Plus weight="bold" className="mr-2 h-5 w-5" />
+                            Crea Nuovo Menu
                         </Button>
                     </DialogTrigger>
-                    <DialogContent>
+                    <DialogContent className="sm:max-w-md bg-white dark:bg-slate-950 border-slate-200 dark:border-slate-800">
                         <DialogHeader>
                             <DialogTitle>Crea Menù Personalizzato</DialogTitle>
                             <DialogDescription>
-                                Crea un nuovo menù e seleziona quali piatti mostrare
+                                Dai un nome al tuo menu (es. "Menu Invernale", "Speciale Sabato")
                             </DialogDescription>
                         </DialogHeader>
                         <div className="space-y-4 mt-4">
-                            <div>
+                            <div className="space-y-2">
                                 <Label>Nome Menù</Label>
                                 <Input
                                     value={newMenuName}
                                     onChange={(e) => setNewMenuName(e.target.value)}
-                                    placeholder="es. Menù Pranzo, Menù Weekend..."
+                                    placeholder="es. Pranzo di Lavoro"
+                                    className="bg-muted/50"
                                 />
                             </div>
-                            <div>
+                            <div className="space-y-2">
                                 <Label>Descrizione (opzionale)</Label>
                                 <Input
                                     value={newMenuDescription}
                                     onChange={(e) => setNewMenuDescription(e.target.value)}
-                                    placeholder="Breve descrizione del menù"
+                                    placeholder="Visibile solo allo staff"
+                                    className="bg-muted/50"
                                 />
                             </div>
-                            <Button onClick={handleCreateMenu} className="w-full">
-                                Crea Menù
+                            <Button onClick={handleCreateMenu} className="w-full mt-2" size="lg">
+                                Crea e Configura
                             </Button>
                         </div>
                     </DialogContent>
                 </Dialog>
             </div>
 
-            {/* Active Menu Status */}
-            {activatedMenu && (
-                <Card className="bg-emerald-50 dark:bg-emerald-950/30 border-emerald-200 dark:border-emerald-800">
-                    <CardContent className="pt-6 flex items-center justify-between">
-                        <div className="flex items-center gap-3">
-                            <CheckCircle size={24} weight="fill" className="text-emerald-600 dark:text-emerald-400" />
-                            <div>
-                                <p className="font-semibold text-emerald-900 dark:text-emerald-100">
-                                    Menù Attivo: {activatedMenu.name}
-                                </p>
-                                <p className="text-sm text-emerald-700 dark:text-emerald-300">
-                                    I piatti sono filtrati secondo questo menù
-                                </p>
-                            </div>
+            {/* Active Status Card */}
+            <Card className="border-0 shadow-lg bg-gradient-to-r from-emerald-50 via-teal-50 to-emerald-50 dark:from-emerald-950/40 dark:via-teal-950/20 dark:to-emerald-950/40 overflow-hidden relative">
+                <div className="absolute top-0 right-0 p-32 bg-emerald-500/5 rounded-full blur-3xl -mr-16 -mt-16 pointer-events-none" />
+                <CardContent className="p-6 flex flex-col sm:flex-row items-center justify-between gap-6 relative z-10">
+                    <div className="flex items-center gap-5">
+                        <div className={cn(
+                            "w-16 h-16 rounded-2xl flex items-center justify-center shadow-inner",
+                            activatedMenu
+                                ? "bg-emerald-100 dark:bg-emerald-900/50 text-emerald-600 dark:text-emerald-400"
+                                : "bg-slate-100 dark:bg-slate-800 text-slate-400"
+                        )}>
+                            {activatedMenu ? <CheckCircle weight="fill" className="w-8 h-8" /> : <Utensils weight="duotone" className="w-8 h-8" />}
                         </div>
-                        <Button variant="outline" size="sm" onClick={handleResetToFullMenu}>
-                            Ripristina Menù Completo
+                        <div>
+                            <h3 className="text-xl font-bold text-foreground">
+                                {activatedMenu ? `Menu Attivo: ${activatedMenu.name}` : "Menu Completo Attivo"}
+                            </h3>
+                            <p className="text-sm text-muted-foreground mt-1 max-w-lg">
+                                {activatedMenu
+                                    ? "I clienti vedranno solo i piatti inclusi in questo menu personalizzato."
+                                    : "Attualmente è visibile l'intero listino piatti del ristorante."
+                                }
+                            </p>
+                        </div>
+                    </div>
+                    {activatedMenu && (
+                        <Button
+                            variant="outline"
+                            onClick={handleResetToFullMenu}
+                            className="bg-white/80 dark:bg-black/20 backdrop-blur-sm border-emerald-200 dark:border-emerald-800 hover:bg-white dark:hover:bg-black/40 text-emerald-700 dark:text-emerald-300 shadow-sm"
+                        >
+                            Ripristina Menu Completo
                         </Button>
-                    </CardContent>
-                </Card>
-            )}
+                    )}
+                </CardContent>
+            </Card>
 
-            {/* Menus List */}
-            <div className="grid gap-4 md:grid-cols-2">
+            {/* Menu Grid */}
+            <div className="grid gap-6 md:grid-cols-2 xl:grid-cols-3">
                 {customMenus.map(menu => (
                     <Card
                         key={menu.id}
-                        className={`cursor-pointer transition-all ${selectedMenu?.id === menu.id ? 'ring-2 ring-primary' : ''}`}
+                        className={cn(
+                            "group hover:shadow-xl transition-all duration-300 border-l-4 overflow-hidden relative cursor-pointer",
+                            menu.is_active
+                                ? "border-l-emerald-500 border-y-slate-200 border-r-slate-200 dark:border-y-slate-800 dark:border-r-slate-800 bg-emerald-50/10 dark:bg-emerald-900/10"
+                                : "border-l-transparent hover:border-l-slate-300 dark:hover:border-l-slate-600 border-slate-200 dark:border-slate-800"
+                        )}
                         onClick={() => setSelectedMenu(menu)}
                     >
-                        <CardHeader>
-                            <div className="flex items-start justify-between">
-                                <div>
-                                    <CardTitle className="flex items-center gap-2">
-                                        {menu.name}
-                                        {menu.is_active && (
-                                            <Badge variant="default" className="bg-emerald-600">Attivo</Badge>
-                                        )}
-                                    </CardTitle>
-                                    {menu.description && (
-                                        <CardDescription className="mt-1">{menu.description}</CardDescription>
-                                    )}
-                                </div>
+                        <CardHeader className="pb-3 relative z-10">
+                            <div className="flex justify-between items-start">
+                                <Badge variant={menu.is_active ? "default" : "secondary"} className={cn("mb-2", menu.is_active ? "bg-emerald-500 hover:bg-emerald-600" : "")}>
+                                    {menu.is_active ? "ATTIVO ORA" : "INATTIVO"}
+                                </Badge>
                                 <Button
                                     variant="ghost"
                                     size="icon"
-                                    className="text-destructive"
+                                    className="text-muted-foreground hover:text-destructive p-0 h-6 w-6 opacity-0 group-hover:opacity-100 transition-opacity"
                                     onClick={(e) => {
                                         e.stopPropagation()
                                         handleDeleteMenu(menu.id)
@@ -320,134 +357,195 @@ export default function CustomMenusManager({ restaurantId, dishes }: CustomMenus
                                     <Trash size={16} />
                                 </Button>
                             </div>
+                            <CardTitle className="text-xl flex items-center justify-between">
+                                <span className="line-clamp-1" title={menu.name}>{menu.name}</span>
+                            </CardTitle>
+                            <CardDescription className="line-clamp-2 min-h-[40px]">
+                                {menu.description || "Nessuna descrizione"}
+                            </CardDescription>
                         </CardHeader>
-                        <CardContent>
-                            <div className="flex items-center justify-between">
-                                <Button
-                                    size="sm"
-                                    variant={menu.is_active ? "outline" : "default"}
-                                    onClick={(e) => {
-                                        e.stopPropagation()
-                                        handleApplyMenu(menu.id)
-                                    }}
-                                    disabled={menu.is_active}
-                                >
-                                    {menu.is_active ? 'Già Attivo' : 'Attiva Menù'}
-                                </Button>
+                        <CardContent className="relative z-10">
+                            <div className="flex items-center justify-between mt-2 pt-4 border-t border-dashed border-slate-200 dark:border-slate-800">
+                                <span className="text-xs font-medium text-muted-foreground uppercase tracking-wider flex items-center gap-1">
+                                    <Pencil size={12} /> Modifica
+                                </span>
+                                {menu.is_active ? (
+                                    <span className="text-xs font-bold text-emerald-600 dark:text-emerald-400 flex items-center gap-1">
+                                        <CheckCircle weight="fill" /> Applicato
+                                    </span>
+                                ) : (
+                                    <Button
+                                        size="sm"
+                                        className="h-8 bg-slate-900 text-white dark:bg-slate-100 dark:text-slate-900 hover:bg-slate-800"
+                                        onClick={(e) => handleApplyMenu(menu.id, e)}
+                                    >
+                                        Attiva Menu
+                                    </Button>
+                                )}
                             </div>
                         </CardContent>
                     </Card>
                 ))}
 
-                {customMenus.length === 0 && (
-                    <Card className="col-span-2">
-                        <CardContent className="pt-16 pb-16 text-center text-muted-foreground">
-                            <Utensils size={48} className="mx-auto mb-4 opacity-20" />
-                            <p>Nessun menù personalizzato creato</p>
-                            <p className="text-sm mt-2">Clicca su "Nuovo Menù" per iniziare</p>
-                        </CardContent>
-                    </Card>
-                )}
+                {/* Add New Card (Empty State) */}
+                <Card
+                    className="border-dashed border-2 border-slate-300 dark:border-slate-700 bg-transparent hover:bg-slate-50 dark:hover:bg-slate-900/50 cursor-pointer flex flex-col items-center justify-center p-8 transition-colors min-h-[220px]"
+                    onClick={() => setShowCreateDialog(true)}
+                >
+                    <div className="w-16 h-16 rounded-full bg-slate-100 dark:bg-slate-800 flex items-center justify-center mb-4 text-slate-400 group-hover:text-emerald-500 transition-colors">
+                        <Plus size={32} />
+                    </div>
+                    <p className="font-semibold text-muted-foreground">Crea Nuovo Menu</p>
+                </Card>
             </div>
 
-            {/* Menu Editor */}
-            {selectedMenu && (
-                <Card>
-                    <CardHeader>
-                        <CardTitle>Modifica Menù: {selectedMenu.name}</CardTitle>
-                        <CardDescription>Seleziona i piatti da includere in questo menù</CardDescription>
-                    </CardHeader>
-                    <CardContent>
-                        <div className="space-y-6">
-                            {/* Dish Selection */}
-                            <div>
-                                <h4 className="font-medium mb-3">Piatti nel Menù</h4>
-                                <div className="grid gap-2 max-h-96 overflow-y-auto border rounded-lg p-3">
-                                    {dishes.map(dish => (
-                                        <label
-                                            key={dish.id}
-                                            className="flex items-center gap-3 p-2 rounded-md hover:bg-muted cursor-pointer"
-                                        >
-                                            <Checkbox
-                                                checked={menuDishes.includes(dish.id)}
-                                                onCheckedChange={() => handleToggleDish(dish.id)}
-                                            />
-                                            <span className="flex-1">{dish.name}</span>
-                                            <Badge variant="outline" className="text-xs">
-                                                €{dish.price.toFixed(2)}
-                                            </Badge>
-                                        </label>
-                                    ))}
+            {/* EDIT SIDE SHEET */}
+            <Sheet open={!!selectedMenu} onOpenChange={(open) => !open && setSelectedMenu(null)}>
+                <SheetContent side="right" className="w-full sm:max-w-xl md:max-w-2xl overflow-y-auto bg-white dark:bg-slate-950 p-0 border-l border-slate-200 dark:border-slate-800">
+                    {selectedMenu && (
+                        <div className="flex flex-col h-full">
+                            {/* Sheet Header */}
+                            <div className="p-6 border-b border-slate-200 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-900/50 backdrop-blur-sm sticky top-0 z-20">
+                                <div className="flex items-center justify-between mb-2">
+                                    <Badge variant="outline" className="bg-background">Editor Menu</Badge>
+                                    <Button variant="ghost" size="icon" onClick={() => setSelectedMenu(null)}>
+                                        <X size={20} />
+                                    </Button>
                                 </div>
-                                <p className="text-sm text-muted-foreground mt-2">
-                                    {menuDishes.length} piatti selezionati
-                                </p>
-                            </div>
+                                <SheetTitle className="text-3xl font-bold">{selectedMenu.name}</SheetTitle>
+                                <SheetDescription className="text-base mt-1">Configura piatti e pianificazione</SheetDescription>
 
-                            {/* Schedule Section */}
-                            <div>
-                                <h4 className="font-medium mb-3 flex items-center gap-2">
-                                    <Calendar size={16} />
-                                    Pianificazione Automatica
-                                </h4>
-                                <p className="text-sm text-muted-foreground mb-3">
-                                    Imposta quando questo menù deve essere attivato automaticamente
-                                </p>
-
-                                {/* Add Schedule Buttons */}
-                                <div className="flex flex-wrap gap-2 mb-4">
-                                    {DAYS_OF_WEEK.map(day => (
-                                        <Button
-                                            key={day.value}
-                                            size="sm"
-                                            variant="outline"
-                                            onClick={() => handleAddSchedule(day.value, 'all')}
-                                        >
-                                            + {day.label}
-                                        </Button>
-                                    ))}
-                                </div>
-
-                                {/* Existing Schedules */}
-                                {schedules.length > 0 ? (
-                                    <div className="space-y-2">
-                                        {schedules.map(schedule => (
-                                            <div
-                                                key={schedule.id}
-                                                className="flex items-center justify-between p-3 border rounded-lg bg-muted/30"
-                                            >
-                                                <div className="flex items-center gap-3">
-                                                    <Clock size={16} className="text-muted-foreground" />
-                                                    <span className="font-medium">
-                                                        {schedule.day_of_week !== null && schedule.day_of_week !== undefined
-                                                            ? DAYS_OF_WEEK.find(d => d.value === schedule.day_of_week)?.label
-                                                            : 'Ogni giorno'}
-                                                    </span>
-                                                    <Badge variant="secondary">
-                                                        {schedule.meal_type === 'lunch' ? 'Pranzo' : schedule.meal_type === 'dinner' ? 'Cena' : 'Tutto il giorno'}
-                                                    </Badge>
-                                                </div>
-                                                <Button
-                                                    size="sm"
-                                                    variant="ghost"
-                                                    className="text-destructive"
-                                                    onClick={() => handleDeleteSchedule(schedule.id)}
-                                                >
-                                                    <Trash size={14} />
-                                                </Button>
-                                            </div>
-                                        ))}
-                                    </div>
-                                ) : (
-                                    <p className="text-sm text-muted-foreground text-center py-4 border rounded-lg">
-                                        Nessuna pianificazione impostata
-                                    </p>
+                                {!selectedMenu.is_active && (
+                                    <Button
+                                        className="w-full mt-6 bg-emerald-600 hover:bg-emerald-700 text-white shadow-md shadow-emerald-500/20"
+                                        onClick={() => handleApplyMenu(selectedMenu.id)}
+                                    >
+                                        <CheckCircle weight="fill" className="mr-2 text-lg" />
+                                        Attiva Questo Menu Ora
+                                    </Button>
                                 )}
                             </div>
+
+                            <div className="flex-1 p-6 space-y-10">
+                                {/* 1. Dish Selection */}
+                                <section className="space-y-4">
+                                    <div className="flex items-center justify-between">
+                                        <h4 className="text-lg font-bold flex items-center gap-2">
+                                            <Utensils className="text-emerald-500" />
+                                            Selezione Piatti
+                                        </h4>
+                                        <Badge variant="secondary">{menuDishes.length} selezionati</Badge>
+                                    </div>
+                                    <p className="text-sm text-muted-foreground">
+                                        I piatti non selezionati verranno nascosti quando questo menu è attivo.
+                                    </p>
+
+                                    <div className="bg-slate-50 dark:bg-slate-900 rounded-xl border border-slate-200 dark:border-slate-800 overflow-hidden">
+                                        <div className="max-h-[400px] overflow-y-auto p-2 grid gap-1">
+                                            {dishes.length === 0 ? (
+                                                <p className="p-8 text-center text-muted-foreground">Nessun piatto nel database.</p>
+                                            ) : (
+                                                dishes.map(dish => {
+                                                    const isSelected = menuDishes.includes(dish.id)
+                                                    return (
+                                                        <div
+                                                            key={dish.id}
+                                                            onClick={() => handleToggleDish(dish.id)}
+                                                            className={cn(
+                                                                "flex items-center gap-3 p-3 rounded-lg cursor-pointer transition-all duration-200 border",
+                                                                isSelected
+                                                                    ? "bg-emerald-50 dark:bg-emerald-950/30 border-emerald-200 dark:border-emerald-900/50 shadow-sm"
+                                                                    : "hover:bg-white dark:hover:bg-slate-800 border-transparent"
+                                                            )}
+                                                        >
+                                                            <div className={cn(
+                                                                "w-5 h-5 rounded flex items-center justify-center border transition-colors",
+                                                                isSelected ? "bg-emerald-600 border-emerald-600 text-white" : "border-slate-300 dark:border-slate-600"
+                                                            )}>
+                                                                {isSelected && <Check size={12} weight="bold" />}
+                                                            </div>
+                                                            <div className="flex-1">
+                                                                <p className={cn("font-medium text-sm", isSelected ? "text-emerald-900 dark:text-emerald-100" : "text-foreground")}>{dish.name}</p>
+                                                            </div>
+                                                            <div className="font-mono text-xs font-semibold text-muted-foreground">
+                                                                €{dish.price.toFixed(2)}
+                                                            </div>
+                                                        </div>
+                                                    )
+                                                })
+                                            )}
+                                        </div>
+                                    </div>
+                                </section>
+
+                                {/* 2. Weekly Scheduler */}
+                                <section className="space-y-4">
+                                    <div className="flex items-center justify-between">
+                                        <h4 className="text-lg font-bold flex items-center gap-2">
+                                            <Calendar className="text-indigo-500" />
+                                            Pianificazione Settimanale
+                                        </h4>
+                                    </div>
+                                    <p className="text-sm text-muted-foreground">
+                                        Clicca sulle celle per attivare automaticamente questo menu in giorni e orari specifici.
+                                    </p>
+
+                                    <div className="overflow-x-auto pb-4">
+                                        <div className="min-w-[500px] grid grid-cols-[100px_repeat(7,1fr)] gap-2">
+                                            {/* Header Row: Days */}
+                                            <div className="font-bold text-xs text-muted-foreground uppercase tracking-wider py-2">Orario</div>
+                                            {DAYS_OF_WEEK.map(day => (
+                                                <div key={day.value} className="text-center font-bold text-xs text-muted-foreground uppercase tracking-wider py-2 bg-slate-100 dark:bg-slate-800 rounded-md">
+                                                    {day.label.slice(0, 3)}
+                                                </div>
+                                            ))}
+
+                                            {/* Meal Rows */}
+                                            {MEAL_TYPES.filter(m => m.value !== 'all').map(meal => (
+                                                <>
+                                                    <div key={meal.value} className="font-medium text-sm py-3 flex items-center">
+                                                        {meal.label}
+                                                    </div>
+                                                    {DAYS_OF_WEEK.map(day => {
+                                                        const isActive = schedules.some(s => s.day_of_week === day.value && s.meal_type === meal.value)
+                                                        return (
+                                                            <button
+                                                                key={`${day.value}-${meal.value}`}
+                                                                onClick={() => handleToggleSchedule(day.value, meal.value)}
+                                                                className={cn(
+                                                                    "h-12 rounded-lg transition-all duration-200 border-2 flex items-center justify-center",
+                                                                    isActive
+                                                                        ? "bg-indigo-600 border-indigo-600 text-white shadow-md shadow-indigo-500/20"
+                                                                        : "bg-slate-50 dark:bg-slate-900 border-slate-100 dark:border-slate-800 hover:border-indigo-300 dark:hover:border-indigo-700 hover:bg-indigo-50 dark:hover:bg-indigo-900/20"
+                                                                )}
+                                                            >
+                                                                {isActive && <Check weight="bold" />}
+                                                            </button>
+                                                        )
+                                                    })}
+                                                </>
+                                            ))}
+                                        </div>
+                                    </div>
+
+                                    {schedules.length > 0 && (
+                                        <div className="p-4 rounded-lg bg-indigo-50/50 dark:bg-indigo-950/10 border border-indigo-100 dark:border-indigo-900/20 text-xs text-indigo-600 dark:text-indigo-400">
+                                            <p className="font-medium flex items-center gap-2">
+                                                <Clock weight="fill" />
+                                                Automazione Attiva
+                                            </p>
+                                            <p className="mt-1 opacity-90">
+                                                Il sistema verificherà ogni minuto e applicherà questo menu negli orari selezionati.
+                                                Assicurati che la Dashboard sia aperta su almeno un dispositivo.
+                                            </p>
+                                        </div>
+                                    )}
+                                </section>
+                            </div>
                         </div>
-                    </CardContent>
-                </Card>
-            )}
+                    )}
+                </SheetContent>
+            </Sheet>
         </div>
     )
 }

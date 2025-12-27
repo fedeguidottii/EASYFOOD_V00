@@ -2,10 +2,10 @@ import { useState, useEffect, useMemo } from 'react'
 import { Order, OrderItem, Table, Dish } from '../services/types'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader } from '@/components/ui/card'
-import { Check, Clock, Minus, Plus } from '@phosphor-icons/react'
+import { Check, Clock, Info } from '@phosphor-icons/react'
 import { cn } from '@/lib/utils'
-
 import { TableSession } from '../services/types'
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog'
 
 interface KitchenViewProps {
     orders: Order[]
@@ -22,6 +22,7 @@ interface KitchenViewProps {
 
 export function KitchenView({ orders, tables, dishes, selectedCategoryIds = [], viewMode, onCompleteDish, onCompleteOrder, sessions, zoom = 1 }: KitchenViewProps) {
     const [now, setNow] = useState(new Date())
+    const [selectedDishInfo, setSelectedDishInfo] = useState<{ dish: Dish | undefined, itemId?: string } | null>(null)
 
     useEffect(() => {
         const interval = setInterval(() => setNow(new Date()), 1000 * 60)
@@ -29,7 +30,6 @@ export function KitchenView({ orders, tables, dishes, selectedCategoryIds = [], 
     }, [])
 
     const getTableName = (tableId?: string, sessionId?: string) => {
-        // Try to find session
         if (sessionId) {
             const session = sessions.find(s => s.id === sessionId)
             if (session) {
@@ -37,12 +37,10 @@ export function KitchenView({ orders, tables, dishes, selectedCategoryIds = [], 
                 if (table) return `${table.number}`
             }
         }
-        // Fallback if tableId is provided directly (legacy)
         if (tableId) {
             const table = tables.find(t => t.id === tableId)
             if (table) return `${table.number}`
         }
-
         return '?'
     }
 
@@ -96,28 +94,22 @@ export function KitchenView({ orders, tables, dishes, selectedCategoryIds = [], 
     }, [activeOrders, dishes, selectedCategoryIds])
 
     return (
-        <div
-            className="h-[calc(100vh-180px)] w-full overflow-hidden bg-background relative"
-        >
+        <div className="h-[calc(100vh-180px)] w-full overflow-hidden bg-background relative">
             <div
                 className="w-full h-full overflow-y-auto px-2 origin-top-left transition-all duration-200"
                 style={{
                     transform: `scale(${zoom})`,
-                    transformOrigin: 'top left',
                     width: `${100 / zoom}%`,
-                    paddingBottom: `${20 / zoom}px`
+                    paddingBottom: `${100 / zoom}px` // Extra padding to prevent clipping
                 }}
             >
-                <div
-                    className="grid gap-4 content-start grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5"
-                >
+                <div className="grid gap-4 content-start grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5 pb-20">
                     {viewMode === 'table' ? (() => {
-                        // Group orders by table (via session)
                         const ordersByTable = new Map<string, { tableName: string, orders: Order[] }>()
 
                         activeOrders.forEach(order => {
                             const tableName = getTableName(undefined, order.table_session_id)
-                            const tableKey = tableName
+                            const tableKey = tableName || 'unknown'
 
                             if (!ordersByTable.has(tableKey)) {
                                 ordersByTable.set(tableKey, { tableName, orders: [] })
@@ -126,7 +118,6 @@ export function KitchenView({ orders, tables, dishes, selectedCategoryIds = [], 
                         })
 
                         return Array.from(ordersByTable.values()).map(({ tableName, orders: tableOrders }) => {
-                            // Collect all items from all orders for this table
                             const allItems = tableOrders.flatMap(order =>
                                 (order.items?.filter(item => itemMatchesCategory(item)) || []).map(item => ({
                                     ...item,
@@ -137,13 +128,10 @@ export function KitchenView({ orders, tables, dishes, selectedCategoryIds = [], 
 
                             if (allItems.length === 0) return null
 
-                            // Calculate time diff from oldest order
                             const oldestOrder = tableOrders.reduce((oldest, current) =>
                                 new Date(current.created_at).getTime() < new Date(oldest.created_at).getTime() ? current : oldest
                             )
                             const timeDiff = (now.getTime() - new Date(oldestOrder.created_at).getTime()) / 1000 / 60
-
-                            // Check if all items are completed
                             const allItemsDone = allItems.every(item => item.status === 'SERVED' || item.status === 'READY')
 
                             // Group items by course_number
@@ -159,24 +147,19 @@ export function KitchenView({ orders, tables, dishes, selectedCategoryIds = [], 
                             return (
                                 <Card
                                     key={`table-${tableName}`}
-                                    className="flex flex-col overflow-hidden rounded-2xl border-0 bg-gradient-to-br from-slate-900/95 via-slate-800/90 to-slate-900/95 backdrop-blur-xl shadow-[0_8px_32px_rgba(0,0,0,0.4),0_0_0_1px_rgba(255,255,255,0.05)] transition-all duration-300 hover:shadow-[0_12px_48px_rgba(0,0,0,0.5),0_0_0_1px_rgba(255,255,255,0.1)] hover:scale-[1.01]"
+                                    className="flex flex-col rounded-2xl border-0 bg-gradient-to-br from-slate-900/95 via-slate-800/90 to-slate-900/95 backdrop-blur-xl shadow-lg transition-all duration-300 hover:scale-[1.01] h-fit"
                                 >
-                                    <CardHeader className="pb-3 pt-4 px-4 bg-gradient-to-r from-emerald-500/10 via-transparent to-cyan-500/10 border-b border-white/5">
+                                    <CardHeader className="pb-3 pt-4 px-4 bg-gradient-to-r from-emerald-500/10 via-transparent to-cyan-500/10 border-b border-white/5 shrink-0">
                                         <div className="flex justify-between items-center w-full">
-                                            <span className="text-4xl font-black bg-gradient-to-r from-white to-slate-300 bg-clip-text text-transparent drop-shadow-sm whitespace-nowrap">
+                                            <span className="text-4xl font-black bg-gradient-to-r from-white to-slate-300 bg-clip-text text-transparent drop-shadow-sm whitespace-nowrap overflow-hidden text-ellipsis max-w-[60%]">
                                                 {tableName}
                                             </span>
 
-                                            <div className="flex items-center gap-3">
+                                            <div className="flex items-center gap-3 shrink-0">
                                                 <div className="flex items-center gap-2 px-3 py-1.5 rounded-xl font-bold text-2xl bg-slate-800/80 border border-white/10 shadow-inner">
                                                     <Clock weight="fill" className="h-7 w-7 text-amber-400" />
                                                     <span className="text-white">{formatTime(timeDiff)}</span>
                                                 </div>
-                                                {tableOrders.length > 1 && (
-                                                    <div className="px-3 py-1.5 rounded-xl text-xs font-bold bg-gradient-to-r from-amber-500/20 to-orange-500/20 text-amber-300 border border-amber-500/20 shadow-lg shadow-amber-500/10">
-                                                        {tableOrders.length} ordini
-                                                    </div>
-                                                )}
                                             </div>
                                         </div>
                                     </CardHeader>
@@ -184,39 +167,41 @@ export function KitchenView({ orders, tables, dishes, selectedCategoryIds = [], 
                                     <CardContent className="flex-1 p-4 flex flex-col gap-1">
                                         {courseNumbers.map((courseNum, courseIdx) => (
                                             <div key={courseNum}>
-                                                {/* Items in this course */}
                                                 {itemsByCourse[courseNum].map((item, idx) => {
                                                     const dish = getDish(item.dish_id)
                                                     const isItemDone = item.status === 'SERVED' || item.status === 'READY'
-
-                                                    if (!dish) {
-                                                        console.warn('Dish not found for order item:', item.dish_id, item)
-                                                    }
+                                                    const dishName = dish?.name || `❓ Sconosciuto`
 
                                                     return (
                                                         <div
                                                             key={`${item.id}-${idx}`}
                                                             className={cn(
-                                                                "flex items-center justify-between p-3 rounded-xl border transition-all duration-300 mb-2 group",
+                                                                "flex items-center justify-between p-3 rounded-xl border transition-all duration-300 mb-2 group relative",
                                                                 isItemDone
                                                                     ? "opacity-40 bg-slate-800/30 border-transparent scale-[0.98]"
                                                                     : "bg-gradient-to-r from-slate-800/60 to-slate-700/40 border-white/5 hover:from-slate-700/70 hover:to-slate-600/50 hover:border-white/10 hover:shadow-lg hover:shadow-emerald-500/5"
                                                             )}
                                                         >
-                                                            <div className="flex-1">
+                                                            <div 
+                                                                className="flex-1 cursor-pointer"
+                                                                onClick={() => setSelectedDishInfo({ dish, itemId: item.id })}
+                                                            >
                                                                 <div className="flex items-baseline gap-3">
                                                                     <span className={cn(
-                                                                        "text-4xl font-black transition-colors duration-300",
+                                                                        "text-4xl font-black transition-colors duration-300 shrink-0",
                                                                         isItemDone ? "text-slate-500" : "text-emerald-400 group-hover:text-emerald-300"
                                                                     )}>
                                                                         {item.quantity}
                                                                     </span>
-                                                                    <span className={cn(
-                                                                        "text-3xl font-bold leading-tight transition-colors duration-300",
-                                                                        isItemDone ? "text-slate-500" : "text-white group-hover:text-slate-100"
-                                                                    )}>
-                                                                        {dish?.name || `Piatto non trovato (${item.dish_id.slice(0, 8)}...)`}
-                                                                    </span>
+                                                                    <div className="flex flex-col">
+                                                                      <span className={cn(
+                                                                          "text-3xl font-bold leading-tight transition-colors duration-300 line-clamp-2",
+                                                                          isItemDone ? "text-slate-500" : "text-white group-hover:text-slate-100"
+                                                                      )}>
+                                                                          {dishName}
+                                                                      </span>
+                                                                      {!dish && <span className="text-xs text-red-400">ID: {item.dish_id.slice(0, 8)}...</span>}
+                                                                    </div>
                                                                 </div>
                                                                 {item.note && (
                                                                     <div className="mt-2 text-red-400 font-bold text-lg bg-red-950/50 inline-block px-3 py-1 rounded-lg border border-red-500/30 shadow-lg shadow-red-500/10">
@@ -243,39 +228,36 @@ export function KitchenView({ orders, tables, dishes, selectedCategoryIds = [], 
                                                     )
                                                 })}
 
-                                                {/* Elegant divider between courses */}
                                                 {hasMultipleCourses && courseIdx < courseNumbers.length - 1 && (
-                                                    <div className="my-4 flex items-center gap-3">
-                                                        <div className="flex-1 h-px bg-gradient-to-r from-transparent via-slate-500/50 to-transparent" />
-                                                        <div className="flex gap-1">
-                                                            <div className="w-1.5 h-1.5 rounded-full bg-slate-500/50" />
-                                                            <div className="w-1.5 h-1.5 rounded-full bg-slate-500/50" />
-                                                            <div className="w-1.5 h-1.5 rounded-full bg-slate-500/50" />
-                                                        </div>
-                                                        <div className="flex-1 h-px bg-gradient-to-r from-transparent via-slate-500/50 to-transparent" />
+                                                    // Divider
+                                                    <div className="my-4 flex items-center gap-3 opacity-60">
+                                                        <div className="flex-1 h-px bg-slate-500/50" />
+                                                        <span className="text-xs font-bold uppercase text-slate-500">Portata Succ.</span>
+                                                        <div className="flex-1 h-px bg-slate-500/50" />
                                                     </div>
                                                 )}
                                             </div>
                                         ))}
-
-                                        {/* Complete All Button */}
+                                        
+                                        {/* Sticky Complete Button */}
                                         {!allItemsDone && (
-                                            <Button
-                                                className="w-full mt-4 h-14 text-xl font-bold rounded-xl bg-gradient-to-r from-emerald-600 via-emerald-500 to-teal-500 hover:from-emerald-500 hover:via-emerald-400 hover:to-teal-400 text-white shadow-lg shadow-emerald-500/30 hover:shadow-emerald-500/50 transition-all duration-300 hover:scale-[1.02] active:scale-[0.98]"
-                                                onClick={(e) => {
-                                                    e.preventDefault()
-                                                    e.stopPropagation()
-                                                    // Mark all items as served for all orders in this table
-                                                    allItems.forEach(item => {
-                                                        if (item.status !== 'SERVED' && item.status !== 'READY') {
-                                                            onCompleteDish(item.orderId, item.id)
-                                                        }
-                                                    })
-                                                }}
-                                            >
-                                                <Check weight="bold" className="h-7 w-7 mr-2" />
-                                                Completa Tutto
-                                            </Button>
+                                            <div className="sticky bottom-0 mt-auto pt-2 pb-1 bg-slate-900/0 backdrop-blur-none z-10">
+                                                <Button
+                                                    className="w-full h-14 text-xl font-bold rounded-xl bg-gradient-to-r from-emerald-600 via-emerald-500 to-teal-500 hover:from-emerald-500 hover:via-emerald-400 hover:to-teal-400 text-white shadow-lg shadow-emerald-500/30 hover:shadow-emerald-500/50 transition-all duration-300 hover:scale-[1.02] active:scale-[0.98]"
+                                                    onClick={(e) => {
+                                                        e.preventDefault()
+                                                        e.stopPropagation()
+                                                        allItems.forEach(item => {
+                                                            if (item.status !== 'SERVED' && item.status !== 'READY') {
+                                                                onCompleteDish(item.orderId, item.id)
+                                                            }
+                                                        })
+                                                    }}
+                                                >
+                                                    <Check weight="bold" className="h-7 w-7 mr-2" />
+                                                    Completa Tutto
+                                                </Button>
+                                            </div>
                                         )}
                                     </CardContent>
                                 </Card>
@@ -289,13 +271,17 @@ export function KitchenView({ orders, tables, dishes, selectedCategoryIds = [], 
                             return (
                                 <Card
                                     key={`dish-view-${idx}`}
-                                    className="flex flex-col shadow-[0_4px_20px_rgba(0,0,0,0.2)] border border-cyan-500/30 bg-slate-900/90 overflow-hidden"
+                                    className="flex flex-col shadow-lg border border-cyan-500/30 bg-slate-900/90 overflow-hidden h-fit"
                                 >
-                                    <CardHeader className="pb-2 border-b border-cyan-500/30 bg-cyan-500/5 p-3">
-                                        <div className="flex justify-between items-center w-full">
-                                            <span className="text-4xl font-black text-foreground leading-tight">
-                                                {data.dish?.name}
+                                    <CardHeader className="pb-2 border-b border-cyan-500/30 bg-cyan-500/5 p-3 shrink-0">
+                                        <div 
+                                            className="flex justify-between items-center w-full cursor-pointer hover:opacity-80"
+                                            onClick={() => setSelectedDishInfo({ dish: data.dish })}
+                                        >
+                                            <span className="text-3xl font-black text-foreground leading-tight line-clamp-2">
+                                                {data.dish?.name || 'Piatto Sconosciuto'}
                                             </span>
+                                            {!data.dish && <Info className="text-red-400" />}
                                         </div>
                                     </CardHeader>
 
@@ -325,7 +311,7 @@ export function KitchenView({ orders, tables, dishes, selectedCategoryIds = [], 
                                                     </div>
 
                                                     <div className="flex items-center gap-4">
-                                                        <div className="font-bold text-2xl text-muted-foreground">
+                                                        <div className="font-bold text-2xl text-muted-foreground whitespace-nowrap">
                                                             {formatTime(timeDiff)}
                                                         </div>
                                                         <Button
@@ -351,6 +337,39 @@ export function KitchenView({ orders, tables, dishes, selectedCategoryIds = [], 
                     )}
                 </div>
             </div>
+
+            {/* Dish Info Dialog */}
+            <Dialog open={!!selectedDishInfo} onOpenChange={(open) => !open && setSelectedDishInfo(null)}>
+                <DialogContent className="bg-slate-900 text-white border-slate-700">
+                    <DialogHeader>
+                        <DialogTitle>{selectedDishInfo?.dish?.name || 'Dettagli Piatto Sconosciuto'}</DialogTitle>
+                        <DialogDescription>
+                            Info dettagliate
+                        </DialogDescription>
+                    </DialogHeader>
+                    <div>
+                        {selectedDishInfo?.dish ? (
+                            <div className="space-y-4">
+                                {selectedDishInfo.dish.image_url && (
+                                    <img src={selectedDishInfo.dish.image_url} alt="Dish" className="w-full h-48 object-cover rounded-xl" />
+                                )}
+                                <p className="text-lg text-slate-300">{selectedDishInfo.dish.description || 'Nessuna descrizione.'}</p>
+                                {selectedDishInfo.dish.allergens && selectedDishInfo.dish.allergens.length > 0 && (
+                                    <div className="p-3 bg-red-950/30 rounded-lg border border-red-500/20">
+                                        <p className="font-bold text-red-400">Allergeni:</p>
+                                        <p className="text-red-200">{selectedDishInfo.dish.allergens.join(', ')}</p>
+                                    </div>
+                                )}
+                            </div>
+                        ) : (
+                            <div className="p-4 bg-yellow-950/30 rounded-xl border border-yellow-500/20 text-yellow-200">
+                                <p>⚠ Attenzione: Questo piatto non esiste più nel database (ID: {selectedDishInfo?.itemId || '?'})</p>
+                                <p className="text-sm mt-2">Potrebbe essere stato eliminato dal menu.</p>
+                            </div>
+                        )}
+                    </div>
+                </DialogContent>
+            </Dialog>
         </div>
     )
 }

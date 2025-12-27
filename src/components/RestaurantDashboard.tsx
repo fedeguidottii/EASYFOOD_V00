@@ -92,6 +92,59 @@ const RestaurantDashboard = ({ user, onLogout }: RestaurantDashboardProps) => {
     localStorage.setItem('selectedSound', selectedSound)
   }, [selectedSound])
 
+  // --- Scheduled Menu Automation ---
+  useEffect(() => {
+    if (!restaurantId) return
+
+    const checkAndApplySchedules = async () => {
+      try {
+        const now = new Date()
+        const dayOfWeek = now.getDay() // 0 = Sunday
+        const hour = now.getHours()
+
+        // Define meal types based on time
+        // Lunch: 11:00 - 16:00
+        // Dinner: 18:00 - 23:59
+        let currentMealType: string | null = null
+        if (hour >= 11 && hour < 16) currentMealType = 'lunch'
+        else if (hour >= 18) currentMealType = 'dinner'
+
+        if (!currentMealType) return // No automation outside valid meal times
+
+        // Fetch schedules
+        const { data: schedules } = await supabase
+          .from('custom_menu_schedules')
+          .select('*')
+          .eq('is_active', true)
+          .eq('day_of_week', dayOfWeek)
+          .or(`meal_type.eq.${currentMealType},meal_type.eq.all`)
+
+        if (schedules && schedules.length > 0) {
+          // Found a schedule to apply. 
+          // Prioritize 'all' if both exist? Or specific meal type? 
+          // Let's pick the first one for now or specific meal type match first.
+          const match = schedules.find(s => s.meal_type === currentMealType) || schedules[0]
+
+          if (match) {
+            // Apply it. The RPC handles idempotent application (or we can just call it, it's cheap)
+            await supabase.rpc('apply_custom_menu', {
+              p_restaurant_id: restaurantId,
+              p_menu_id: match.custom_menu_id
+            })
+            // Optionally log or toast? Better keep it silent to avoid spamming every minute
+          }
+        }
+      } catch (err) {
+        console.error("Error in menu scheduler:", err)
+      }
+    }
+
+    const interval = setInterval(checkAndApplySchedules, 60 * 1000) // Every minute
+    checkAndApplySchedules() // Run immediately
+
+    return () => clearInterval(interval)
+  }, [restaurantId])
+
   // Fetch Orders with Relations
   const fetchOrders = async () => {
     if (!restaurantId) return
@@ -1066,17 +1119,17 @@ const RestaurantDashboard = ({ user, onLogout }: RestaurantDashboardProps) => {
                   <Button
                     variant="ghost"
                     size="sm"
-                    onClick={() => setKitchenZoom(prev => Math.max(0.5, Math.round((prev - 0.1) * 10) / 10))}
-                    className="h-7 w-7 p-0"
+                    onClick={() => setKitchenZoom(prev => Math.max(0.2, Math.round((prev - 0.1) * 10) / 10))}
+                    className="h-7 w-7 p-0 hover:bg-slate-200 dark:hover:bg-slate-700 rounded-md"
                   >
                     <Minus size={14} />
                   </Button>
-                  <span className="w-10 text-center text-xs font-bold">{Math.round(kitchenZoom * 100)}%</span>
+                  <span className="w-10 text-center text-xs font-bold font-mono">{Math.round(kitchenZoom * 100)}%</span>
                   <Button
                     variant="ghost"
                     size="sm"
-                    onClick={() => setKitchenZoom(prev => Math.min(2.0, Math.round((prev + 0.1) * 10) / 10))}
-                    className="h-7 w-7 p-0"
+                    onClick={() => setKitchenZoom(prev => Math.min(3.0, Math.round((prev + 0.1) * 10) / 10))}
+                    className="h-7 w-7 p-0 hover:bg-slate-200 dark:hover:bg-slate-700 rounded-md"
                   >
                     <Plus size={14} />
                   </Button>
@@ -1217,17 +1270,17 @@ const RestaurantDashboard = ({ user, onLogout }: RestaurantDashboardProps) => {
                   <Button
                     variant="ghost"
                     size="sm"
-                    onClick={() => setTableZoom(prev => Math.max(0.5, Math.round((prev - 0.1) * 10) / 10))}
-                    className="h-7 w-7 p-0"
+                    onClick={() => setTableZoom(prev => Math.max(0.2, Math.round((prev - 0.1) * 10) / 10))}
+                    className="h-7 w-7 p-0 hover:bg-slate-200 dark:hover:bg-slate-700 rounded-md"
                   >
                     <Minus size={14} />
                   </Button>
-                  <span className="w-10 text-center text-xs font-bold">{Math.round(tableZoom * 100)}%</span>
+                  <span className="w-10 text-center text-xs font-bold font-mono">{Math.round(tableZoom * 100)}%</span>
                   <Button
                     variant="ghost"
                     size="sm"
-                    onClick={() => setTableZoom(prev => Math.min(2.0, Math.round((prev + 0.1) * 10) / 10))}
-                    className="h-7 w-7 p-0"
+                    onClick={() => setTableZoom(prev => Math.min(3.0, Math.round((prev + 0.1) * 10) / 10))}
+                    className="h-7 w-7 p-0 hover:bg-slate-200 dark:hover:bg-slate-700 rounded-md"
                   >
                     <Plus size={14} />
                   </Button>
@@ -1516,112 +1569,112 @@ const RestaurantDashboard = ({ user, onLogout }: RestaurantDashboardProps) => {
                 {restaurantTables
                   .filter(t => selectedRoomFilter === 'all' || t.room_id === selectedRoomFilter)
                   .map(table => {
-                  const session = getOpenSessionForTable(table.id)
-                  const isActive = session?.status === 'OPEN'
-                  const activeOrder = restaurantOrders.find(o => getTableIdFromOrder(o) === table.id)
+                    const session = getOpenSessionForTable(table.id)
+                    const isActive = session?.status === 'OPEN'
+                    const activeOrder = restaurantOrders.find(o => getTableIdFromOrder(o) === table.id)
 
-                  return (
-                    <Card
-                      key={table.id}
-                      className={`relative overflow-hidden transition-all duration-300 group cursor-pointer ${isActive
-                        ? 'bg-gradient-to-br from-emerald-100 to-emerald-50 dark:from-emerald-950/30 dark:to-background shadow-lg shadow-emerald-500/20 ring-2 ring-emerald-400/50 dark:ring-emerald-800/50 border-emerald-200 dark:border-emerald-800'
-                        : 'bg-gradient-to-br from-slate-100 to-white dark:from-slate-900/50 dark:to-background shadow-md hover:shadow-lg border-slate-200 dark:border-slate-800'
-                        }`}
-                      onClick={() => {
-                        if (isActive) {
-                          navigate(`/waiter/table/${table.id}`)
-                        } else {
-                          setPendingAutoOrderTableId(table.id)
-                          handleToggleTable(table.id)
-                        }
-                      }}
-                    >
-                      <CardContent className="p-0 flex flex-col h-full">
-                        <div className="p-4 flex flex-wrap items-center justify-between gap-2 border-b border-border/5">
-                          <div className="flex items-center gap-3">
-                            <span className="text-2xl font-bold text-foreground tracking-tight whitespace-nowrap">
-                              {table.number}
-                            </span>
-                            <div className="flex items-center gap-1.5 text-foreground bg-muted px-3 py-1 rounded-full">
-                              <Users size={16} weight="bold" />
-                              <span className="text-sm font-bold">{table.seats || 4}</span>
-                            </div>
-                          </div>
-                          <Badge
-                            variant={isActive ? 'default' : 'outline'}
-                            className={isActive ? 'bg-red-600 hover:bg-red-700 border-none text-white shadow-sm font-semibold' : 'bg-green-600 text-white border-none font-semibold'}
-                          >
-                            {isActive ? 'Occupato' : 'Libero'}
-                          </Badge>
-                        </div>
-
-                        <div className="flex-1 p-5 flex flex-col items-center justify-center gap-3">
-                          {isActive ? (
-                            <>
-                              <div className="text-center">
-                                <p className="text-[9px] text-muted-foreground mb-1 uppercase tracking-[0.2em] font-semibold">PIN</p>
-                                <div className="bg-gradient-to-br from-slate-100 to-slate-50 dark:from-slate-800 dark:to-slate-900 px-6 py-3 rounded-xl border border-slate-200/50 dark:border-slate-700/50 shadow-inner min-w-[120px]">
-                                  <span className="text-4xl font-mono font-bold tracking-widest text-foreground whitespace-nowrap">
-                                    {session?.session_pin || '...'}
-                                  </span>
-                                </div>
+                    return (
+                      <Card
+                        key={table.id}
+                        className={`relative overflow-hidden transition-all duration-300 group cursor-pointer ${isActive
+                          ? 'bg-gradient-to-br from-emerald-100 to-emerald-50 dark:from-emerald-950/30 dark:to-background shadow-lg shadow-emerald-500/20 ring-2 ring-emerald-400/50 dark:ring-emerald-800/50 border-emerald-200 dark:border-emerald-800'
+                          : 'bg-gradient-to-br from-slate-100 to-white dark:from-slate-900/50 dark:to-background shadow-md hover:shadow-lg border-slate-200 dark:border-slate-800'
+                          }`}
+                        onClick={() => {
+                          if (isActive) {
+                            navigate(`/waiter/table/${table.id}`)
+                          } else {
+                            setPendingAutoOrderTableId(table.id)
+                            handleToggleTable(table.id)
+                          }
+                        }}
+                      >
+                        <CardContent className="p-0 flex flex-col h-full">
+                          <div className="p-4 flex flex-wrap items-center justify-between gap-2 border-b border-border/5">
+                            <div className="flex items-center gap-3">
+                              <span className="text-2xl font-bold text-foreground tracking-tight whitespace-nowrap">
+                                {table.number}
+                              </span>
+                              <div className="flex items-center gap-1.5 text-foreground bg-muted px-3 py-1 rounded-full">
+                                <Users size={16} weight="bold" />
+                                <span className="text-sm font-bold">{table.seats || 4}</span>
                               </div>
-                              {activeOrder && (
-                                <Badge variant="outline" className="text-[10px] bg-background/50 backdrop-blur-sm border-emerald-200 dark:border-emerald-800">
-                                  <CheckCircle size={10} className="mr-1" weight="fill" />
-                                  {activeOrder.items?.filter(i => i.status === 'SERVED').length || 0} completati
-                                </Badge>
-                              )}
-                            </>
-                          ) : (
-                            <div className="text-center text-muted-foreground/30 group-hover:text-muted-foreground/50 transition-all duration-300">
-                              <ForkKnife size={32} className="mx-auto mb-1" weight="duotone" />
-                              <p className="text-xs font-medium">Clicca per Ordinare</p>
                             </div>
-                          )}
-                        </div>
-
-                        <div className="p-3 bg-gradient-to-t from-muted/10 to-transparent border-t border-border/5 grid gap-2">
-                          {isActive ? (
-                            <div className="grid grid-cols-2 gap-2">
-                              <Button variant="outline" size="sm" onClick={(e) => { e.stopPropagation(); handleShowTableQr(table); }} className="shadow-sm hover:shadow transition-shadow h-8 text-xs">
-                                <QrCode size={14} className="mr-1.5" />
-                                QR
-                              </Button>
-                              <Button
-                                className="bg-gradient-to-r from-primary to-primary/80 text-primary-foreground hover:from-primary/90 hover:to-primary/70 shadow-sm hover:shadow transition-all h-8 text-xs"
-                                size="sm"
-                                onClick={(e) => { e.stopPropagation(); setSelectedTableForActions(table); setShowTableBillDialog(true); }}
-                              >
-                                <Receipt size={14} className="mr-1.5" />
-                                Conto
-                              </Button>
-                            </div>
-                          ) : (
-                            <Button
-                              className="w-full shadow-sm hover:shadow transition-shadow h-8 text-xs"
-                              size="sm"
-                              onClick={(e) => { e.stopPropagation(); handleToggleTable(table.id); }}
+                            <Badge
+                              variant={isActive ? 'default' : 'outline'}
+                              className={isActive ? 'bg-red-600 hover:bg-red-700 border-none text-white shadow-sm font-semibold' : 'bg-green-600 text-white border-none font-semibold'}
                             >
-                              <Plus size={14} className="mr-1.5" />
-                              Attiva
+                              {isActive ? 'Occupato' : 'Libero'}
+                            </Badge>
+                          </div>
+
+                          <div className="flex-1 p-5 flex flex-col items-center justify-center gap-3">
+                            {isActive ? (
+                              <>
+                                <div className="text-center">
+                                  <p className="text-[9px] text-muted-foreground mb-1 uppercase tracking-[0.2em] font-semibold">PIN</p>
+                                  <div className="bg-gradient-to-br from-slate-100 to-slate-50 dark:from-slate-800 dark:to-slate-900 px-6 py-3 rounded-xl border border-slate-200/50 dark:border-slate-700/50 shadow-inner min-w-[120px]">
+                                    <span className="text-4xl font-mono font-bold tracking-widest text-foreground whitespace-nowrap">
+                                      {session?.session_pin || '...'}
+                                    </span>
+                                  </div>
+                                </div>
+                                {activeOrder && (
+                                  <Badge variant="outline" className="text-[10px] bg-background/50 backdrop-blur-sm border-emerald-200 dark:border-emerald-800">
+                                    <CheckCircle size={10} className="mr-1" weight="fill" />
+                                    {activeOrder.items?.filter(i => i.status === 'SERVED').length || 0} completati
+                                  </Badge>
+                                )}
+                              </>
+                            ) : (
+                              <div className="text-center text-muted-foreground/30 group-hover:text-muted-foreground/50 transition-all duration-300">
+                                <ForkKnife size={32} className="mx-auto mb-1" weight="duotone" />
+                                <p className="text-xs font-medium">Clicca per Ordinare</p>
+                              </div>
+                            )}
+                          </div>
+
+                          <div className="p-3 bg-gradient-to-t from-muted/10 to-transparent border-t border-border/5 grid gap-2">
+                            {isActive ? (
+                              <div className="grid grid-cols-2 gap-2">
+                                <Button variant="outline" size="sm" onClick={(e) => { e.stopPropagation(); handleShowTableQr(table); }} className="shadow-sm hover:shadow transition-shadow h-8 text-xs">
+                                  <QrCode size={14} className="mr-1.5" />
+                                  QR
+                                </Button>
+                                <Button
+                                  className="bg-gradient-to-r from-primary to-primary/80 text-primary-foreground hover:from-primary/90 hover:to-primary/70 shadow-sm hover:shadow transition-all h-8 text-xs"
+                                  size="sm"
+                                  onClick={(e) => { e.stopPropagation(); setSelectedTableForActions(table); setShowTableBillDialog(true); }}
+                                >
+                                  <Receipt size={14} className="mr-1.5" />
+                                  Conto
+                                </Button>
+                              </div>
+                            ) : (
+                              <Button
+                                className="w-full shadow-sm hover:shadow transition-shadow h-8 text-xs"
+                                size="sm"
+                                onClick={(e) => { e.stopPropagation(); handleToggleTable(table.id); }}
+                              >
+                                <Plus size={14} className="mr-1.5" />
+                                Attiva
+                              </Button>
+                            )}
+                          </div>
+
+                          <div className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity flex gap-1 bg-background/90 backdrop-blur-md p-1 rounded-lg border border-border/30 shadow-lg">
+                            <Button variant="ghost" size="icon" className="h-6 w-6 hover:bg-muted" onClick={(e) => { e.stopPropagation(); handleEditTable(table); }}>
+                              <PencilSimple size={12} />
                             </Button>
-                          )}
-                        </div>
+                            <Button variant="ghost" size="icon" className="h-6 w-6 text-destructive hover:bg-destructive/10" onClick={(e) => { e.stopPropagation(); handleDeleteTable(table.id); }}>
+                              <Trash size={12} />
+                            </Button>
+                          </div>
+                        </CardContent>
+                      </Card>
 
-                        <div className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity flex gap-1 bg-background/90 backdrop-blur-md p-1 rounded-lg border border-border/30 shadow-lg">
-                          <Button variant="ghost" size="icon" className="h-6 w-6 hover:bg-muted" onClick={(e) => { e.stopPropagation(); handleEditTable(table); }}>
-                            <PencilSimple size={12} />
-                          </Button>
-                          <Button variant="ghost" size="icon" className="h-6 w-6 text-destructive hover:bg-destructive/10" onClick={(e) => { e.stopPropagation(); handleDeleteTable(table.id); }}>
-                            <Trash size={12} />
-                          </Button>
-                        </div>
-                      </CardContent>
-                    </Card>
-
-                  )
-                })}
+                    )
+                  })}
               </div>
             </div>
           </TabsContent >

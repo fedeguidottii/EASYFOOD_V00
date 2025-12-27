@@ -364,6 +364,18 @@ const CustomerMenu = () => {
 
   // Handle individual PIN digit input
   const handlePinDigitChange = (index: number, value: string) => {
+    // If user tries to type in a later box while previous are empty, redirect to first empty
+    const firstEmptyIndex = pin.findIndex(p => p === '')
+    if (firstEmptyIndex !== -1 && index > firstEmptyIndex) {
+      const el = document.getElementById(`pin-${firstEmptyIndex}`)
+      el?.focus()
+      // If value is valid, apply it to the first empty slot
+      if (/^\d$/.test(value)) {
+        handlePinDigitChange(firstEmptyIndex, value)
+      }
+      return
+    }
+
     if (value.length > 1) value = value.slice(-1)
     if (!/^\d*$/.test(value)) return
 
@@ -433,27 +445,39 @@ const CustomerMenu = () => {
             <p className="text-center text-zinc-500 text-xs tracking-widest uppercase mb-8">Inserisci codice tavolo</p>
 
             <div className="flex justify-center gap-3">
-              {[0, 1, 2, 3].map((index) => (
-                <input
-                  key={index}
-                  id={`pin-${index}`}
-                  type="tel"
-                  inputMode="numeric"
-                  maxLength={1}
-                  value={pin[index]}
-                  onChange={(e) => handlePinDigitChange(index, e.target.value)}
-                  onKeyDown={(e) => handlePinKeyDown(index, e)}
-                  className={`w-12 h-16 text-center text-2xl font-light bg-transparent border-b-2 outline-none transition-all duration-300 rounded-none
-                    ${pinError
-                      ? 'border-red-500 text-red-500 animate-shake'
-                      : pin[index]
-                        ? 'border-amber-500 text-white'
-                        : 'border-zinc-800 text-zinc-600 focus:border-zinc-600'
-                    }`}
-                  style={{ fontFamily: 'Georgia, serif' }}
-                  autoFocus={index === 0}
-                />
-              ))}
+              {[0, 1, 2, 3].map((index) => {
+                const isActive = index === 0 || (pin[index - 1] !== '')
+                return (
+                  <input
+                    key={index}
+                    id={`pin-${index}`}
+                    type="tel"
+                    inputMode="numeric"
+                    maxLength={1}
+                    value={pin[index]}
+                    onChange={(e) => handlePinDigitChange(index, e.target.value)}
+                    onKeyDown={(e) => handlePinKeyDown(index, e)}
+                    disabled={!isActive && pin[index] === ''}
+                    className={`w-12 h-16 text-center text-2xl font-light bg-transparent border-b-2 outline-none transition-all duration-300 rounded-none
+                      ${!isActive ? 'opacity-30 cursor-not-allowed' : 'opacity-100'}
+                      ${pinError
+                        ? 'border-red-500 text-red-500 animate-shake'
+                        : pin[index]
+                          ? 'border-amber-500 text-white'
+                          : 'border-zinc-800 text-zinc-600 focus:border-zinc-600'
+                      }`}
+                    style={{ fontFamily: 'Georgia, serif' }}
+                    autoFocus={index === 0}
+                    onFocus={(e) => {
+                      // Ensure focus always goes to the first empty slot if clicked out of order
+                      const firstEmpty = pin.findIndex(p => p === '')
+                      if (firstEmpty !== -1 && index > firstEmpty) {
+                        document.getElementById(`pin-${firstEmpty}`)?.focus()
+                      }
+                    }}
+                  />
+                )
+              })}
             </div>
 
             {/* Error Message */}
