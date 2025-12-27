@@ -50,7 +50,7 @@ const RestaurantDashboard = ({ user, onLogout }: RestaurantDashboardProps) => {
   const [tableSearchTerm, setTableSearchTerm] = useState('')
 
   const [orders, setOrders] = useState<Order[]>([])
-  const [dishes, , , setDishes] = useSupabaseData<Dish>('dishes', [], { column: 'restaurant_id', value: restaurantId })
+  const [dishes, , refreshDishes, setDishes] = useSupabaseData<Dish>('dishes', [], { column: 'restaurant_id', value: restaurantId })
   const [tables, , , setTables] = useSupabaseData<Table>('tables', [], { column: 'restaurant_id', value: restaurantId })
   const [categories, , , setCategories] = useSupabaseData<Category>('categories', [], { column: 'restaurant_id', value: restaurantId })
   const [bookings, , refreshBookings] = useSupabaseData<Booking>('bookings', [], { column: 'restaurant_id', value: restaurantId })
@@ -2056,9 +2056,11 @@ const RestaurantDashboard = ({ user, onLogout }: RestaurantDashboardProps) => {
               setCourseSplittingEnabled={setCourseSplittingEnabled}
               updateCourseSplitting={updateCourseSplitting}
 
+              // Custom Menus
               restaurantId={restaurantId}
-              dishes={restaurantDishes}
+              dishes={dishes}
               categories={restaurantCategories}
+              onDishesChange={refreshDishes}
             />
           </TabsContent>
         </Tabs>

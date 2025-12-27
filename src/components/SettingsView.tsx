@@ -70,6 +70,7 @@ interface SettingsViewProps {
     restaurantId: string
     dishes: Dish[]
     categories: Category[]
+    onDishesChange: () => void
 }
 
 export function SettingsView({
@@ -110,7 +111,8 @@ export function SettingsView({
     updateCourseSplitting,
     restaurantId,
     dishes,
-    categories
+    categories,
+    onDishesChange
 }: SettingsViewProps) {
 
     return (
@@ -379,6 +381,7 @@ export function SettingsView({
                             restaurantId={restaurantId}
                             dishes={dishes}
                             categories={categories}
+                            onDishesChange={onDishesChange}
                         />
                     </div>
                 </TabsContent>

@@ -10,7 +10,7 @@ import { Badge } from '@/components/ui/badge'
 import { Switch } from '@/components/ui/switch'
 import { toast } from 'sonner'
 import {
-    Plus, Trash, Calendar, Clock, CheckCircle, Utensils,
+    Plus, Trash, Calendar, Clock, CheckCircle, ForkKnife,
     Pencil, X, Check, CaretRight, Info, MagnifyingGlass,
     ArrowRight, Sparkle
 } from '@phosphor-icons/react'
@@ -22,6 +22,7 @@ interface CustomMenusManagerProps {
     restaurantId: string
     dishes: Dish[]
     categories: Category[]
+    onDishesChange: () => void  // New Callback
 }
 
 const DAYS_OF_WEEK = [
@@ -39,7 +40,7 @@ const MEAL_TYPES: { value: MealType, label: string }[] = [
     { value: 'dinner', label: 'Cena' },
 ]
 
-export default function CustomMenusManager({ restaurantId, dishes, categories }: CustomMenusManagerProps) {
+export default function CustomMenusManager({ restaurantId, dishes, categories, onDishesChange }: CustomMenusManagerProps) {
     const [customMenus, setCustomMenus] = useState<CustomMenu[]>([])
     const [selectedMenu, setSelectedMenu] = useState<CustomMenu | null>(null)
     const [menuDishes, setMenuDishes] = useState<string[]>([])
@@ -147,6 +148,7 @@ export default function CustomMenusManager({ restaurantId, dishes, categories }:
         } else {
             toast.success('Menù Attivato!', { description: 'I clienti vedranno solo i piatti di questo menu.' })
             fetchCustomMenus()
+            onDishesChange() // Refresh Dishes
         }
     }
 
@@ -159,6 +161,7 @@ export default function CustomMenusManager({ restaurantId, dishes, categories }:
         } else {
             toast.success('Menu Completo Ripristinato')
             fetchCustomMenus()
+            onDishesChange() // Refresh Dishes
         }
     }
 
@@ -298,7 +301,7 @@ export default function CustomMenusManager({ restaurantId, dishes, categories }:
                                 <Badge variant="outline" className="text-xs font-normal text-muted-foreground">{selectedMenu.description || 'Custom Menu'}</Badge>
                             </h2>
                             <div className="flex items-center gap-4 text-sm text-muted-foreground">
-                                <span className="flex items-center gap-1"><Utensils size={14} /> {menuDishes.length} Piatti</span>
+                                <span className="flex items-center gap-1"><ForkKnife size={14} /> {menuDishes.length} Piatti</span>
                                 <span className="flex items-center gap-1"><Calendar size={14} /> {schedules.length} Attivazioni</span>
                             </div>
                         </div>
@@ -325,7 +328,7 @@ export default function CustomMenusManager({ restaurantId, dishes, categories }:
                             className={cn("justify-start text-lg h-12", activeTab === 'dishes' && "bg-background shadow-sm")}
                             onClick={() => setActiveTab('dishes')}
                         >
-                            <Utensils className="mr-2" size={20} />
+                            <ForkKnife className="mr-2" size={20} />
                             Selezione Piatti
                         </Button>
                         <Button
@@ -375,7 +378,7 @@ export default function CustomMenusManager({ restaurantId, dishes, categories }:
                                         <ScrollArea className="flex-1 p-4">
                                             {menuDishes.length === 0 ? (
                                                 <div className="h-full flex flex-col items-center justify-center text-muted-foreground opacity-50 space-y-2">
-                                                    <Utensils size={48} weight="duotone" />
+                                                    <ForkKnife size={48} weight="duotone" />
                                                     <p>Nessun piatto selezionato</p>
                                                     <p className="text-sm">Seleziona i piatti dalla lista a destra</p>
                                                 </div>
@@ -387,7 +390,7 @@ export default function CustomMenusManager({ restaurantId, dishes, categories }:
                                                         <div key={cat.id} className="mb-6 animate-in slide-in-from-left-2 duration-300">
                                                             <div className="flex items-center justify-between mb-2">
                                                                 <h4 className="font-bold text-sm text-primary uppercase tracking-wide">{cat.name}</h4>
-                                                                <Button variant="ghost" size="xs" className="h-6 text-xs text-destructive hover:bg-destructive/10" onClick={() => handleRemoveAllFromCategory(cat.id)}>Rimuovi Tutti</Button>
+                                                                <Button variant="ghost" size="sm" className="h-6 text-xs text-destructive hover:bg-destructive/10" onClick={() => handleRemoveAllFromCategory(cat.id)}>Rimuovi Tutti</Button>
                                                             </div>
                                                             <div className="space-y-2">
                                                                 {catDishes.map(dish => (
@@ -423,7 +426,7 @@ export default function CustomMenusManager({ restaurantId, dishes, categories }:
                                                     <div key={cat.id} className="mb-6">
                                                         <div className="flex items-center justify-between mb-2">
                                                             <h4 className="font-bold text-sm text-muted-foreground uppercase tracking-wide">{cat.name}</h4>
-                                                            <Button variant="ghost" size="xs" className="h-6 text-xs" onClick={() => handleAddAllFromCategory(cat.id)}>Aggiungi Tutti</Button>
+                                                            <Button variant="ghost" size="sm" className="h-6 text-xs" onClick={() => handleAddAllFromCategory(cat.id)}>Aggiungi Tutti</Button>
                                                         </div>
                                                         <div className="grid gap-2">
                                                             {visibleDishes.map(dish => (
@@ -534,7 +537,7 @@ export default function CustomMenusManager({ restaurantId, dishes, categories }:
                             "w-20 h-20 rounded-2xl flex items-center justify-center shadow-inner text-4xl",
                             activatedMenu ? "bg-emerald-500 text-white shadow-emerald-500/40" : "bg-slate-700 text-slate-400"
                         )}>
-                            {activatedMenu ? <Sparkle weight="fill" /> : <Utensils weight="duotone" />}
+                            {activatedMenu ? <Sparkle weight="fill" /> : <ForkKnife weight="duotone" />}
                         </div>
                         <div>
                             <h3 className="text-2xl font-bold">
