@@ -103,7 +103,10 @@ export function KitchenView({ orders, tables, dishes, selectedCategoryIds = [], 
                     paddingBottom: `${100 / zoom}px` // Extra padding to prevent clipping
                 }}
             >
-                <div className="grid gap-4 content-start grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5 pb-20">
+                <div
+                    className="grid gap-4 content-start pb-20"
+                    style={{ gridTemplateColumns: 'repeat(auto-fill, minmax(320px, 1fr))' }}
+                >
                     {viewMode === 'table' ? (() => {
                         const ordersByTable = new Map<string, { tableName: string, orders: Order[] }>()
 
@@ -182,7 +185,7 @@ export function KitchenView({ orders, tables, dishes, selectedCategoryIds = [], 
                                                                     : "bg-gradient-to-r from-slate-800/60 to-slate-700/40 border-white/5 hover:from-slate-700/70 hover:to-slate-600/50 hover:border-white/10 hover:shadow-lg hover:shadow-emerald-500/5"
                                                             )}
                                                         >
-                                                            <div 
+                                                            <div
                                                                 className="flex-1 cursor-pointer"
                                                                 onClick={() => setSelectedDishInfo({ dish, itemId: item.id })}
                                                             >
@@ -194,13 +197,13 @@ export function KitchenView({ orders, tables, dishes, selectedCategoryIds = [], 
                                                                         {item.quantity}
                                                                     </span>
                                                                     <div className="flex flex-col">
-                                                                      <span className={cn(
-                                                                          "text-3xl font-bold leading-tight transition-colors duration-300 line-clamp-2",
-                                                                          isItemDone ? "text-slate-500" : "text-white group-hover:text-slate-100"
-                                                                      )}>
-                                                                          {dishName}
-                                                                      </span>
-                                                                      {!dish && <span className="text-xs text-red-400">ID: {item.dish_id.slice(0, 8)}...</span>}
+                                                                        <span className={cn(
+                                                                            "text-3xl font-bold leading-tight transition-colors duration-300 line-clamp-2",
+                                                                            isItemDone ? "text-slate-500" : "text-white group-hover:text-slate-100"
+                                                                        )}>
+                                                                            {dishName}
+                                                                        </span>
+                                                                        {!dish && <span className="text-xs text-red-400">ID: {item.dish_id.slice(0, 8)}...</span>}
                                                                     </div>
                                                                 </div>
                                                                 {item.note && (
@@ -238,7 +241,7 @@ export function KitchenView({ orders, tables, dishes, selectedCategoryIds = [], 
                                                 )}
                                             </div>
                                         ))}
-                                        
+
                                         {/* Sticky Complete Button */}
                                         {!allItemsDone && (
                                             <div className="sticky bottom-0 mt-auto pt-2 pb-1 bg-slate-900/0 backdrop-blur-none z-10">
@@ -274,7 +277,7 @@ export function KitchenView({ orders, tables, dishes, selectedCategoryIds = [], 
                                     className="flex flex-col shadow-lg border border-cyan-500/30 bg-slate-900/90 overflow-hidden h-fit"
                                 >
                                     <CardHeader className="pb-2 border-b border-cyan-500/30 bg-cyan-500/5 p-3 shrink-0">
-                                        <div 
+                                        <div
                                             className="flex justify-between items-center w-full cursor-pointer hover:opacity-80"
                                             onClick={() => setSelectedDishInfo({ dish: data.dish })}
                                         >

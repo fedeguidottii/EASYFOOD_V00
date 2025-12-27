@@ -2061,7 +2061,8 @@ const RestaurantDashboard = ({ user, onLogout }: RestaurantDashboardProps) => {
             <div className="mt-8">
               <CustomMenusManager
                 restaurantId={restaurantId}
-                dishes={dishes || []}
+                dishes={restaurantDishes}
+                categories={restaurantCategories}
               />
             </div>
           </TabsContent>
