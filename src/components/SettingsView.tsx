@@ -65,9 +65,6 @@ interface SettingsViewProps {
     courseSplittingEnabled: boolean
     setCourseSplittingEnabled: (enabled: boolean) => void
     updateCourseSplitting: (enabled: boolean) => void
-    courseSplittingEnabled: boolean
-    setCourseSplittingEnabled: (enabled: boolean) => void
-    updateCourseSplitting: (enabled: boolean) => void
 
     // Custom Menus Props
     restaurantId: string
@@ -108,9 +105,6 @@ export function SettingsView({
     setOpeningTime,
     closingTime,
     setClosingTime,
-    courseSplittingEnabled,
-    setCourseSplittingEnabled,
-    updateCourseSplitting
     courseSplittingEnabled,
     setCourseSplittingEnabled,
     updateCourseSplitting,
