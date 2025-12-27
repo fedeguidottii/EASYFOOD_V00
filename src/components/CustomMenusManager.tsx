@@ -188,6 +188,8 @@ export default function CustomMenusManager({ restaurantId, dishes, categories, o
                 .from('dishes')
                 .update({ is_active: isAdding }) // True if adding, False if removing
                 .eq('id', dishId)
+
+            onDishesChange() // Refresh Dishes immediately
         }
     }
 
@@ -209,6 +211,8 @@ export default function CustomMenusManager({ restaurantId, dishes, categories, o
                 .from('dishes')
                 .update({ is_active: true })
                 .in('id', newDishes)
+
+            onDishesChange() // Refresh Dishes immediately
         }
 
         toast.success(`Aggiunti ${newDishes.length} piatti`)
@@ -230,6 +234,8 @@ export default function CustomMenusManager({ restaurantId, dishes, categories, o
                 .from('dishes')
                 .update({ is_active: false })
                 .in('id', categoryDishes)
+
+            onDishesChange() // Refresh Dishes immediately
         }
 
         toast.success(`Rimossi piatti dalla categoria`)
