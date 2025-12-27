@@ -1,5 +1,7 @@
 import { useState } from 'react'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
+import CustomMenusManager from './CustomMenusManager'
+import { Dish, Category } from '../services/types'
 import { Label } from '@/components/ui/label'
 import { Input } from '@/components/ui/input'
 import { Switch } from '@/components/ui/switch'
@@ -63,6 +65,14 @@ interface SettingsViewProps {
     courseSplittingEnabled: boolean
     setCourseSplittingEnabled: (enabled: boolean) => void
     updateCourseSplitting: (enabled: boolean) => void
+    courseSplittingEnabled: boolean
+    setCourseSplittingEnabled: (enabled: boolean) => void
+    updateCourseSplitting: (enabled: boolean) => void
+
+    // Custom Menus Props
+    restaurantId: string
+    dishes: Dish[]
+    categories: Category[]
 }
 
 export function SettingsView({
@@ -101,6 +111,12 @@ export function SettingsView({
     courseSplittingEnabled,
     setCourseSplittingEnabled,
     updateCourseSplitting
+    courseSplittingEnabled,
+    setCourseSplittingEnabled,
+    updateCourseSplitting,
+    restaurantId,
+    dishes,
+    categories
 }: SettingsViewProps) {
 
     return (
@@ -361,6 +377,15 @@ export function SettingsView({
                                 </div>
                             </CardContent>
                         </Card>
+                    </div>
+
+                    {/* Custom Menus Section */}
+                    <div className="mt-8">
+                        <CustomMenusManager
+                            restaurantId={restaurantId}
+                            dishes={dishes}
+                            categories={categories}
+                        />
                     </div>
                 </TabsContent>
 

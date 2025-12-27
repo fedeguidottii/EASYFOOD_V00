@@ -25,13 +25,11 @@ import {
 import { useRestaurantLogic } from '../hooks/useRestaurantLogic'
 import { DatabaseService } from '../services/DatabaseService'
 import { useSupabaseData } from '../hooks/useSupabaseData'
-import QRCodeGenerator from './QRCodeGenerator'
 import { KitchenView } from './KitchenView'
 import { SettingsView } from './SettingsView'
 import ReservationsManager from './ReservationsManager'
 import AnalyticsCharts from './AnalyticsCharts'
 import CustomMenusManager from './CustomMenusManager'
-import { generateQrCode } from '../utils/qrUtils'
 import type { Table, Order, Dish, Category, TableSession, Booking, Restaurant, Room } from '../services/types'
 import { soundManager, type SoundType } from '../utils/SoundManager'
 import { ModeToggle } from './ModeToggle'
@@ -824,8 +822,8 @@ const RestaurantDashboard = ({ user, onLogout }: RestaurantDashboardProps) => {
   }
 
   const handleCompleteDish = async (orderId: string, itemId: string, showToast = true) => {
-    // FIX: Set status to 'ready' so it appears in Waiter Dashboard for pickup
-    await updateOrderItemStatus(orderId, itemId, 'ready')
+    // FIX: Set status to 'READY' (uppercase) so it is recognized as done by KitchenView
+    await updateOrderItemStatus(orderId, itemId, 'READY')
 
     // Update local orders state immediately for UI refresh
     setOrders(prevOrders => prevOrders.map(order => {
@@ -833,7 +831,7 @@ const RestaurantDashboard = ({ user, onLogout }: RestaurantDashboardProps) => {
         return {
           ...order,
           items: order.items?.map(item =>
-            item.id === itemId ? { ...item, status: 'ready' as const } : item
+            item.id === itemId ? { ...item, status: 'READY' as const } : item
           )
         }
       }
@@ -2055,16 +2053,13 @@ const RestaurantDashboard = ({ user, onLogout }: RestaurantDashboardProps) => {
               courseSplittingEnabled={courseSplittingEnabled}
               setCourseSplittingEnabled={setCourseSplittingEnabled}
               updateCourseSplitting={updateCourseSplitting}
-            />
+              setCourseSplittingEnabled={setCourseSplittingEnabled}
+              updateCourseSplitting={updateCourseSplitting}
 
-            {/* Custom Menus Manager */}
-            <div className="mt-8">
-              <CustomMenusManager
-                restaurantId={restaurantId}
-                dishes={restaurantDishes}
-                categories={restaurantCategories}
-              />
-            </div>
+              restaurantId={restaurantId}
+              dishes={restaurantDishes}
+              categories={restaurantCategories}
+            />
           </TabsContent>
         </Tabs>
         <div className="mt-8"></div> {/* Spacer or container for dialogs if needed */}

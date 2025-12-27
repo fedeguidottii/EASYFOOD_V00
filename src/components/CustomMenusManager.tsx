@@ -166,13 +166,25 @@ export default function CustomMenusManager({ restaurantId, dishes, categories }:
     const handleToggleDish = async (dishId: string) => {
         if (!selectedMenu) return
 
-        if (menuDishes.includes(dishId)) {
-            // Optimistic update
+        const isAdding = !menuDishes.includes(dishId)
+
+        if (!isAdding) {
+            // REMOVE
             setMenuDishes(prev => prev.filter(id => id !== dishId))
             await supabase.from('custom_menu_dishes').delete().match({ custom_menu_id: selectedMenu.id, dish_id: dishId })
         } else {
+            // ADD
             setMenuDishes(prev => [...prev, dishId])
             await supabase.from('custom_menu_dishes').insert({ custom_menu_id: selectedMenu.id, dish_id: dishId })
+        }
+
+        // --- REAL-TIME SYNC ---
+        // If the menu being edited is currently ACTIVE, we must update the actual dish visibility immediately.
+        if (selectedMenu.is_active) {
+            await supabase
+                .from('dishes')
+                .update({ is_active: isAdding }) // True if adding, False if removing
+                .eq('id', dishId)
         }
     }
 
@@ -187,6 +199,15 @@ export default function CustomMenusManager({ restaurantId, dishes, categories }:
 
         setMenuDishes(prev => [...prev, ...newDishes])
         await supabase.from('custom_menu_dishes').insert(inserts)
+
+        // --- REAL-TIME SYNC ---
+        if (selectedMenu.is_active) {
+            await supabase
+                .from('dishes')
+                .update({ is_active: true })
+                .in('id', newDishes)
+        }
+
         toast.success(`Aggiunti ${newDishes.length} piatti`)
     }
 
@@ -199,6 +220,15 @@ export default function CustomMenusManager({ restaurantId, dishes, categories }:
             .delete()
             .eq('custom_menu_id', selectedMenu.id)
             .in('dish_id', categoryDishes)
+
+        // --- REAL-TIME SYNC ---
+        if (selectedMenu.is_active) {
+            await supabase
+                .from('dishes')
+                .update({ is_active: false })
+                .in('id', categoryDishes)
+        }
+
         toast.success(`Rimossi piatti dalla categoria`)
     }
 
