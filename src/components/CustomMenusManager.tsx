@@ -205,7 +205,7 @@ export default function CustomMenusManager({ restaurantId, dishes, categories, o
         const activeMenu = customMenus.find(m => m.is_active)
 
         return (
-            <div className="flex flex-col h-full min-h-[70vh] w-full max-w-6xl mx-auto bg-background/50 backdrop-blur-sm">
+            <div className="flex flex-col h-full w-full bg-background/50 backdrop-blur-sm overflow-hidden">
 
                 {/* Header Section - Spaced correctly to avoid close button overlap */}
                 <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center px-8 pt-8 pb-6 border-b bg-muted/5">
