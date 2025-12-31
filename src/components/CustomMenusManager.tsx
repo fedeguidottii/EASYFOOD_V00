@@ -550,24 +550,24 @@ export default function CustomMenusManager({ restaurantId, dishes, categories, o
                             </div>
                         </>
                     ) : (
-                        <div className="flex-1 p-6 flex flex-col items-center bg-muted/5 w-full overflow-auto">
-                            <div className="w-full max-w-7xl bg-card p-8 rounded-3xl border shadow-sm">
-                                <div className="text-center mb-8">
-                                    <h3 className="text-2xl font-bold flex items-center justify-center gap-3">
-                                        <Clock weight="duotone" size={32} className="text-primary" />
+                        <div className="flex-1 p-4 flex flex-col items-center bg-muted/5 w-full overflow-auto">
+                            <div className="w-full max-w-[98%] bg-card p-6 rounded-3xl border shadow-sm">
+                                <div className="text-center mb-6">
+                                    <h3 className="text-xl font-bold flex items-center justify-center gap-3">
+                                        <Clock weight="duotone" size={28} className="text-primary" />
                                         Programmazione Automatica
                                     </h3>
-                                    <p className="text-muted-foreground text-base mt-2">
+                                    <p className="text-muted-foreground text-sm mt-1">
                                         Attiva automaticamente il menu negli orari selezionati.
                                     </p>
                                 </div>
 
                                 <div className="border rounded-2xl overflow-x-auto shadow-sm">
-                                    <div className="min-w-[900px] grid grid-cols-[140px_repeat(7,1fr)] bg-muted/20">
+                                    <div className="min-w-[1100px] grid grid-cols-[100px_repeat(7,1fr)] bg-muted/20">
                                         {/* Header Row */}
-                                        <div className="p-6 border-r border-b bg-muted/50"></div> {/* Corner */}
+                                        <div className="p-3 border-r border-b bg-muted/50"></div> {/* Corner */}
                                         {DAYS_OF_WEEK.map(day => (
-                                            <div key={day.value} className="p-6 text-center text-sm font-bold text-muted-foreground uppercase border-b border-r last:border-r-0 bg-muted/50 tracking-wider">
+                                            <div key={day.value} className="p-3 text-center text-xs font-bold text-muted-foreground uppercase border-b border-r last:border-r-0 bg-muted/50 tracking-wider">
                                                 {day.label}
                                             </div>
                                         ))}
@@ -577,7 +577,7 @@ export default function CustomMenusManager({ restaurantId, dishes, categories, o
                                             <div key={meal.value} className="contents group">
                                                 {/* Row Label */}
                                                 <div className={cn(
-                                                    "p-6 flex items-center justify-end font-semibold text-base uppercase tracking-wider text-muted-foreground border-r bg-muted/10",
+                                                    "p-3 flex items-center justify-end font-semibold text-sm uppercase tracking-wider text-muted-foreground border-r bg-muted/10",
                                                     index !== MEAL_TYPES.length - 1 && "border-b"
                                                 )}>
                                                     {meal.label}
@@ -590,19 +590,19 @@ export default function CustomMenusManager({ restaurantId, dishes, categories, o
                                                         <div
                                                             key={`${day.value}-${meal.value}`}
                                                             className={cn(
-                                                                "relative h-36 border-r last:border-r-0 flex items-center justify-center p-4 transition-all cursor-pointer hover:bg-muted/50",
+                                                                "relative h-28 border-r last:border-r-0 flex items-center justify-center p-2 transition-all cursor-pointer hover:bg-muted/50",
                                                                 index !== MEAL_TYPES.length - 1 && "border-b",
                                                                 isActive && "bg-emerald-50/50 hover:bg-emerald-100/50 dark:bg-emerald-900/10 dark:hover:bg-emerald-900/20"
                                                             )}
                                                             onClick={() => handleToggleSchedule(day.value, meal.value)}
                                                         >
                                                             <div className={cn(
-                                                                "w-16 h-16 rounded-full flex items-center justify-center transition-all duration-300",
+                                                                "w-14 h-14 rounded-full flex items-center justify-center transition-all duration-300",
                                                                 isActive
                                                                     ? "bg-emerald-500 text-white shadow-lg scale-110"
                                                                     : "bg-transparent text-transparent border-2 border-dashed border-muted-foreground/20 group-hover:border-primary/20"
                                                             )}>
-                                                                <Check size={28} weight="bold" />
+                                                                <Check size={24} weight="bold" />
                                                             </div>
                                                         </div>
                                                     )
@@ -612,8 +612,8 @@ export default function CustomMenusManager({ restaurantId, dishes, categories, o
                                     </div>
                                 </div>
 
-                                <div className="mt-6 flex items-start gap-3 p-4 bg-blue-50 dark:bg-blue-950/20 text-blue-700 dark:text-blue-300 rounded-xl text-sm border border-blue-100 dark:border-blue-900/50">
-                                    <Info size={24} weight="fill" className="shrink-0 mt-0.5" />
+                                <div className="mt-4 flex items-start gap-2 p-3 bg-blue-50 dark:bg-blue-950/20 text-blue-700 dark:text-blue-300 rounded-xl text-xs border border-blue-100 dark:border-blue-900/50">
+                                    <Info size={20} weight="fill" className="shrink-0 mt-0.5" />
                                     <p className="leading-relaxed">
                                         Il sistema attiverà automaticamente questo menu all'inizio del servizio selezionato. Il menu rimane attivo fino all'inizio del pasto successivo impostato nelle impostazioni.
                                     </p>
