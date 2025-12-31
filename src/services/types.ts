@@ -152,6 +152,8 @@ export interface TableSession {
     session_pin?: string
     customer_count?: number
     created_at: string
+    coperto_enabled?: boolean
+    ayce_enabled?: boolean
 }
 
 export interface Room {

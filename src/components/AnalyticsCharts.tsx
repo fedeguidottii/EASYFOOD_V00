@@ -8,7 +8,7 @@ import { Label } from '@/components/ui/label'
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, BarChart, Bar, Area, AreaChart } from 'recharts'
-import { TrendUp, CurrencyEur, Users, ShoppingBag, Clock, ChartLine, CalendarBlank, List, CaretDown, Star, Package, TrendDown, Minus } from '@phosphor-icons/react'
+import { TrendUp, CurrencyEur, Users, ShoppingBag, Clock, ChartLine, CalendarBlank, List, CaretDown, Star, Package, TrendDown, Minus, Check } from '@phosphor-icons/react'
 import type { Order, Dish, Category, OrderItem } from '../services/types'
 import AIAnalyticsSection from './AIAnalyticsSection'
 
@@ -265,10 +265,10 @@ export default function AnalyticsCharts({ orders, completedOrders, dishes, categ
     const { start: invStart, end: invEnd } = getInventoryDateRange(inventoryPeriod)
     const periodDays = Math.max(1, Math.ceil((invEnd - invStart) / (24 * 60 * 60 * 1000)))
 
-    // Filter orders for inventory period
+    // Filter orders for inventory period (excluding cancelled)
     const inventoryOrders = allOrders.filter(order => {
       const orderTime = new Date(order.created_at).getTime()
-      return orderTime >= invStart && orderTime <= invEnd
+      return orderTime >= invStart && orderTime <= invEnd && order.status !== 'CANCELLED'
     })
 
     // Calculate historical average (limit to last 2 years for relevance) - EXCLUDE CURRENT PERIOD
@@ -276,7 +276,7 @@ export default function AnalyticsCharts({ orders, completedOrders, dishes, categ
     const historicalOrders = allOrders.filter(order => {
       const orderTime = new Date(order.created_at).getTime()
       // STRICTLY BEFORE the start of the current inventory period
-      return orderTime >= twoYearsAgo && orderTime < invStart
+      return orderTime >= twoYearsAgo && orderTime < invStart && order.status !== 'CANCELLED'
     })
 
     const historicalDays = historicalOrders.length > 0
@@ -663,59 +663,66 @@ export default function AnalyticsCharts({ orders, completedOrders, dishes, categ
           </Card>
         </div>
 
-        {/* INTEGRATED INVENTORY SECTION */}
-        <Card className="shadow-lg border-none overflow-hidden">
-          <CardHeader className="bg-gradient-to-r from-primary/5 to-primary/10">
-            <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
-              <div>
-                <CardTitle className="flex items-center gap-2 text-xl">
-                  <Package size={24} className="text-primary" />
-                  Analisi Magazzino
-                </CardTitle>
-                <p className="text-sm text-muted-foreground mt-1">
-                  Monitora le porzioni vendute e confronta con la media storica (ultimi 2 anni)
-                </p>
+        {/* REDESIGNED INVENTORY SECTION */}
+        <Card className="shadow-2xl border-none overflow-hidden bg-gradient-to-br from-zinc-900 via-zinc-900 to-zinc-950 ring-1 ring-white/5">
+          <CardHeader className="border-b border-white/5 pb-4 bg-black/20">
+            <div className="flex flex-col md:flex-row md:items-center justify-between gap-6">
+              <div className="flex items-center gap-4">
+                <div className="p-3 bg-amber-500/10 rounded-2xl border border-amber-500/20 shadow-inner">
+                  <Package size={24} className="text-amber-500" weight="duotone" />
+                </div>
+                <div>
+                  <CardTitle className="text-xl font-bold text-white tracking-tight">
+                    Analisi Magazzino
+                  </CardTitle>
+                  <p className="text-sm text-zinc-400 mt-1">
+                    Confronto vendite vs periodo precedente (2 anni)
+                  </p>
+                </div>
               </div>
 
               <div className="flex flex-wrap items-center gap-3">
-                {/* Category Filter for Inventory */}
+                {/* Category Filter */}
                 <Popover>
                   <PopoverTrigger asChild>
-                    <Button variant="outline" className="gap-2 h-10 border-dashed">
-                      <List size={16} />
+                    <Button variant="outline" size="sm" className="h-9 border-zinc-700 bg-zinc-800/50 text-zinc-300 hover:bg-zinc-800 hover:text-white transition-all">
+                      <List size={16} className="mr-2 opacity-70" />
                       Categorie
-                      <Badge variant="secondary" className="ml-1 h-5 px-1.5 min-w-5">
-                        {inventoryCategories.length}
-                      </Badge>
+                      {inventoryCategories.length > 0 && inventoryCategories.length < categories.length && (
+                        <Badge variant="secondary" className="ml-2 h-5 bg-amber-500/10 text-amber-500 border border-amber-500/20">
+                          {inventoryCategories.length}
+                        </Badge>
+                      )}
                     </Button>
                   </PopoverTrigger>
-                  <PopoverContent className="w-64 p-3" align="end">
-                    <div className="flex items-center justify-between mb-3 pb-2 border-b">
-                      <span className="text-xs font-medium text-muted-foreground">Filtra per categoria</span>
+                  <PopoverContent className="w-64 p-3 bg-zinc-900 border-zinc-800" align="end">
+                    <div className="flex items-center justify-between mb-3 pb-2 border-b border-white/5">
+                      <span className="text-xs font-semibold text-zinc-400 uppercase tracking-wider">Filtra per categoria</span>
                       <div className="flex gap-1">
-                        <Button size="sm" variant="ghost" className="h-6 px-2 text-xs" onClick={() => setInventoryCategories(categories.map(c => c.id))}>Tutte</Button>
-                        <Button size="sm" variant="ghost" className="h-6 px-2 text-xs" onClick={() => setInventoryCategories([])}>Nessuna</Button>
+                        <Button size="sm" variant="ghost" className="h-6 px-2 text-xs text-zinc-500 hover:text-white" onClick={() => setInventoryCategories(categories.map(c => c.id))}>Tutte</Button>
+                        <Button size="sm" variant="ghost" className="h-6 px-2 text-xs text-zinc-500 hover:text-white" onClick={() => setInventoryCategories([])}>Nessuna</Button>
                       </div>
                     </div>
-                    <div className="space-y-1 max-h-64 overflow-y-auto">
+                    <div className="space-y-1 max-h-64 overflow-y-auto pr-1 custom-scrollbar">
                       {categories.map(category => {
                         const checked = inventoryCategories.includes(category.id)
                         return (
-                          <label key={category.id} className="flex items-center gap-2 text-sm px-2 py-1.5 rounded-md hover:bg-muted cursor-pointer transition-colors">
-                            <input
-                              type="checkbox"
-                              checked={checked}
-                              onChange={(e) => {
-                                if (e.target.checked) {
-                                  setInventoryCategories(prev => Array.from(new Set([...prev, category.id])))
-                                } else {
-                                  setInventoryCategories(prev => prev.filter(id => id !== category.id))
-                                }
-                              }}
-                              className="h-4 w-4 rounded border-primary text-primary focus:ring-primary"
-                            />
-                            <span className="truncate">{category.name}</span>
-                          </label>
+                          <div
+                            key={category.id}
+                            className={`flex items-center gap-2 text-sm px-2 py-1.5 rounded-lg cursor-pointer transition-all ${checked ? 'bg-amber-500/10 text-amber-400' : 'text-zinc-400 hover:bg-zinc-800 hover:text-zinc-200'}`}
+                            onClick={() => {
+                              if (checked) {
+                                setInventoryCategories(prev => prev.filter(id => id !== category.id))
+                              } else {
+                                setInventoryCategories(prev => Array.from(new Set([...prev, category.id])))
+                              }
+                            }}
+                          >
+                            <div className={`w-4 h-4 rounded border flex items-center justify-center transition-colors ${checked ? 'bg-amber-500 border-amber-500' : 'border-zinc-600'}`}>
+                              {checked && <Check size={10} className="text-black" weight="bold" />}
+                            </div>
+                            <span className="truncate flex-1">{category.name}</span>
+                          </div>
                         )
                       })}
                     </div>
@@ -724,176 +731,135 @@ export default function AnalyticsCharts({ orders, completedOrders, dishes, categ
 
                 {/* Period Selector */}
                 <Select value={inventoryPeriod} onValueChange={(v: InventoryPeriod) => setInventoryPeriod(v)}>
-                  <SelectTrigger className="w-40 h-10">
-                    <CalendarBlank size={16} className="mr-2 text-muted-foreground" />
+                  <SelectTrigger className="w-[140px] h-9 border-zinc-700 bg-zinc-800/50 text-zinc-300">
                     <SelectValue />
                   </SelectTrigger>
-                  <SelectContent>
+                  <SelectContent className="bg-zinc-900 border-zinc-800 text-zinc-300">
                     {inventoryPeriods.map(period => (
-                      <SelectItem key={period.value} value={period.value}>{period.label}</SelectItem>
+                      <SelectItem key={period.value} value={period.value} className="focus:bg-zinc-800 focus:text-white">{period.label}</SelectItem>
                     ))}
                   </SelectContent>
                 </Select>
 
-                {/* Sort By Selector */}
+                {/* Sort Selector */}
                 <Select value={inventorySortBy} onValueChange={(v: any) => setInventorySortBy(v)}>
-                  <SelectTrigger className="w-44 h-10">
-                    <List size={16} className="mr-2 text-muted-foreground" />
+                  <SelectTrigger className="w-[160px] h-9 border-zinc-700 bg-zinc-800/50 text-zinc-300">
+                    <span className="opacity-50 mr-2 text-xs uppercase">Ordina:</span>
                     <SelectValue />
                   </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="quantity">Piatti Venduti</SelectItem>
-                    <SelectItem value="revenue">Incassi</SelectItem>
-                    <SelectItem value="category">Categoria</SelectItem>
-                    <SelectItem value="price">Prezzo</SelectItem>
+                  <SelectContent className="bg-zinc-900 border-zinc-800 text-zinc-300">
+                    <SelectItem value="quantity" className="focus:bg-zinc-800 focus:text-white">Piatti Venduti</SelectItem>
+                    <SelectItem value="revenue" className="focus:bg-zinc-800 focus:text-white">Incassi Totali</SelectItem>
+                    <SelectItem value="category" className="focus:bg-zinc-800 focus:text-white">Categoria</SelectItem>
+                    <SelectItem value="price" className="focus:bg-zinc-800 focus:text-white">Prezzo Listino</SelectItem>
                   </SelectContent>
                 </Select>
-
-                {/* Custom Date Range */}
-                {inventoryPeriod === 'custom' && (
-                  <div className="flex items-center gap-2">
-                    <Input
-                      type="date"
-                      value={inventoryCustomStart}
-                      onChange={(e) => setInventoryCustomStart(e.target.value)}
-                      className="w-36 h-10"
-                    />
-                    <span className="text-muted-foreground">-</span>
-                    <Input
-                      type="date"
-                      value={inventoryCustomEnd}
-                      onChange={(e) => setInventoryCustomEnd(e.target.value)}
-                      className="w-36 h-10"
-                    />
-                  </div>
-                )}
               </div>
             </div>
+
+            {/* Custom Date Inputs */}
+            {inventoryPeriod === 'custom' && (
+              <div className="flex justify-end mt-4 gap-2">
+                <Input
+                  type="date"
+                  value={inventoryCustomStart}
+                  onChange={(e) => setInventoryCustomStart(e.target.value)}
+                  className="w-auto h-8 bg-zinc-900 border-zinc-700 text-xs"
+                />
+                <span className="text-zinc-500 self-center">-</span>
+                <Input
+                  type="date"
+                  value={inventoryCustomEnd}
+                  onChange={(e) => setInventoryCustomEnd(e.target.value)}
+                  className="w-auto h-8 bg-zinc-900 border-zinc-700 text-xs"
+                />
+              </div>
+            )}
           </CardHeader>
 
-          <CardContent className="pt-6">
-            {/* Summary Stats */}
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
-              <div className="bg-muted/30 rounded-xl p-4 text-center">
-                <p className="text-2xl font-bold text-primary">{inventoryData.totalPortions}</p>
-                <p className="text-xs text-muted-foreground font-medium">Porzioni Totali</p>
-              </div>
-              <div className="bg-muted/30 rounded-xl p-4 text-center">
-                <p className="text-2xl font-bold">{inventoryData.dishes.length}</p>
-                <p className="text-xs text-muted-foreground font-medium">Piatti nel Menù</p>
-              </div>
-              <div className="bg-muted/30 rounded-xl p-4 text-center">
-                <p className="text-2xl font-bold">{inventoryData.periodDays}</p>
-                <p className="text-xs text-muted-foreground font-medium">Giorni Periodo</p>
-              </div>
-              <div className="bg-muted/30 rounded-xl p-4 text-center">
-                <p className="text-2xl font-bold">{inventoryData.dishes.filter(d => d.periodQuantity > 0).length}</p>
-                <p className="text-xs text-muted-foreground font-medium">Piatti Venduti</p>
-              </div>
+          <CardContent className="p-0">
+            {/* Quick Stats Bar */}
+            <div className="grid grid-cols-4 gap-px bg-white/5 border-b border-white/5">
+              {[
+                { label: "Porzioni Vendute", value: inventoryData.totalPortions, icon: <Package size={16} weight="fill" className="text-blue-400" /> },
+                { label: "Piatti Analizzati", value: inventoryData.dishes.length, icon: <List size={16} weight="bold" className="text-zinc-400" /> },
+                { label: "Giorni Analizzati", value: inventoryData.periodDays, icon: <CalendarBlank size={16} weight="fill" className="text-zinc-400" /> },
+                { label: "Piatti Attivi", value: inventoryData.dishes.filter(d => d.periodQuantity > 0).length, icon: <Check size={16} weight="bold" className="text-emerald-400" /> },
+              ].map((stat, i) => (
+                <div key={i} className="p-4 flex flex-col items-center justify-center bg-zinc-900/50 hover:bg-zinc-900 transition-colors">
+                  <div className="flex items-center gap-2 mb-1 opacity-70">
+                    {stat.icon}
+                    <span className="text-[10px] uppercase font-bold text-zinc-400">{stat.label}</span>
+                  </div>
+                  <span className="text-xl font-bold text-white">{stat.value}</span>
+                </div>
+              ))}
             </div>
 
-            {/* Trend Alerts */}
-            {inventoryData.trendAlerts && inventoryData.trendAlerts.length > 0 && (
-              <div className="mb-6 p-4 rounded-xl bg-gradient-to-r from-amber-500/10 to-orange-500/10 border border-amber-500/20">
-                <div className="flex items-center gap-2 mb-3">
-                  <Star size={18} className="text-amber-500" weight="fill" />
-                  <span className="font-semibold text-amber-700 dark:text-amber-400">Variazioni Significative</span>
+            {/* Table Header */}
+            <div className="grid grid-cols-12 gap-4 px-6 py-3 bg-zinc-950/30 border-b border-white/5 text-[10px] font-bold text-zinc-500 uppercase tracking-wider">
+              <div className="col-span-4 pl-2">Piatto / Categoria</div>
+              <div className="col-span-2 text-center">Prezzo</div>
+              <div className="col-span-2 text-center">Vendite Tot.</div>
+              <div className="col-span-2 text-center">Media / GG</div>
+              <div className="col-span-2 text-right pr-2">Trend (vs 2 Anni)</div>
+            </div>
+
+            {/* Scrollable List */}
+            <div className="max-h-[500px] overflow-y-auto custom-scrollbar">
+              {inventoryData.dishes.length === 0 ? (
+                <div className="flex flex-col items-center justify-center py-20 text-zinc-500">
+                  <Package size={48} weight="duotone" className="mb-4 opacity-20" />
+                  <p>Nessun dato disponibile</p>
                 </div>
-                <div className="grid gap-2">
-                  {inventoryData.trendAlerts.map((alert, idx) => (
-                    <div key={idx} className="flex items-center justify-between p-3 rounded-lg bg-background/60 backdrop-blur-sm">
-                      <div className="flex items-center gap-3">
-                        <div className={`p-2 rounded-lg ${alert.change > 0 ? 'bg-green-100 dark:bg-green-900/30' : 'bg-red-100 dark:bg-red-900/30'}`}>
-                          {alert.change > 0 ? <TrendUp size={20} className="text-green-600 dark:text-green-400" /> : <TrendDown size={20} className="text-red-600 dark:text-red-400" />}
-                        </div>
-                        <div>
-                          <p className="font-semibold">{alert.name}</p>
-                          <p className="text-xs text-muted-foreground">{alert.category}</p>
-                        </div>
-                      </div>
-                      <div className={`px-3 py-1.5 rounded-full text-sm font-bold ${alert.change > 0 ? 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400' : 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400'}`}>
-                        {alert.change > 0 ? '+' : ''}{alert.change}%
+              ) : (
+                inventoryData.dishes.map((dish, i) => (
+                  <div
+                    key={dish.id}
+                    className="grid grid-cols-12 gap-4 px-6 py-4 items-center border-b border-white/5 hover:bg-white/[0.02] transition-colors group"
+                  >
+                    {/* Dish Info */}
+                    <div className="col-span-4 pl-2 min-w-0">
+                      <p className="font-semibold text-zinc-200 group-hover:text-white transition-colors truncate">{dish.name}</p>
+                      <Badge variant="outline" className="mt-1 text-[10px] h-5 px-1.5 border-zinc-800 text-zinc-500 bg-zinc-900/50">
+                        {dish.category}
+                      </Badge>
+                    </div>
+
+                    {/* Price */}
+                    <div className="col-span-2 text-center">
+                      <span className="text-sm text-zinc-400">€{dish.price.toFixed(2)}</span>
+                    </div>
+
+                    {/* Sales */}
+                    <div className="col-span-2 text-center">
+                      <span className={`text-sm font-bold ${dish.periodQuantity > 0 ? 'text-white' : 'text-zinc-600'}`}>
+                        {dish.periodQuantity}
+                      </span>
+                    </div>
+
+                    {/* Avg/Day */}
+                    <div className="col-span-2 flex flex-col items-center justify-center">
+                      <span className="text-sm font-semibold text-zinc-300">{dish.periodAvgPerDay}</span>
+                      <span className="text-[10px] text-zinc-600">storico: {dish.allTimeAvgPerDay}</span>
+                    </div>
+
+                    {/* Trend */}
+                    <div className="col-span-2 flex justify-end pr-2">
+                      <div className={`
+                          flex items-center gap-1.5 px-2.5 py-1 rounded-md text-xs font-bold border
+                          ${dish.percentageChange === 0 ? 'bg-zinc-900/50 text-zinc-500 border-zinc-800' : ''}
+                          ${dish.percentageChange > 0 ? 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20' : ''}
+                          ${dish.percentageChange < 0 ? 'bg-rose-500/10 text-rose-400 border-rose-500/20' : ''}
+                       `}>
+                        {dish.percentageChange > 0 ? <TrendUp weight="bold" /> : dish.percentageChange < 0 ? <TrendDown weight="bold" /> : <Minus />}
+                        {Math.abs(dish.percentageChange)}%
                       </div>
                     </div>
-                  ))}
-                </div>
-              </div>
-            )}
-
-            {/* Scrollable Inventory Grid */}
-            {inventoryData.dishes.length === 0 ? (
-              <div className="text-center py-16 text-muted-foreground">
-                <Package size={48} className="mx-auto mb-4 opacity-20" />
-                <p className="font-medium">Nessun dato disponibile</p>
-                <p className="text-sm">Seleziona almeno una categoria per visualizzare i dati</p>
-              </div>
-            ) : (
-              <div className="grid gap-3 max-h-[500px] overflow-y-auto pr-2">
-                {inventoryData.dishes.map((dish, index) => {
-                  const revenue = dish.periodQuantity * dish.price
-                  return (
-                    <div
-                      key={dish.id}
-                      className={`flex items-center justify-between p-4 rounded-xl border transition-all hover:shadow-md ${dish.periodQuantity === 0
-                          ? 'bg-muted/20 opacity-60'
-                          : dish.percentageChange > 30
-                            ? 'bg-gradient-to-r from-green-50 to-green-100/50 dark:from-green-950/30 dark:to-green-900/20 border-green-200 dark:border-green-800'
-                            : dish.percentageChange < -30
-                              ? 'bg-gradient-to-r from-red-50 to-red-100/50 dark:from-red-950/30 dark:to-red-900/20 border-red-200 dark:border-red-800'
-                              : 'bg-card hover:bg-muted/30'
-                        }`}
-                    >
-                      <div className="flex items-center gap-4 min-w-0">
-                        <div className={`w-10 h-10 rounded-xl flex items-center justify-center text-sm font-bold shrink-0 ${index < 3 && dish.periodQuantity > 0
-                            ? 'bg-primary text-primary-foreground'
-                            : 'bg-muted text-muted-foreground'
-                          }`}>
-                          {dish.periodQuantity > 0 ? index + 1 : '-'}
-                        </div>
-                        <div className="min-w-0">
-                          <p className="font-bold text-foreground truncate">{dish.name}</p>
-                          <div className="flex items-center gap-2 mt-0.5">
-                            <Badge variant="outline" className="text-[10px]">{dish.category}</Badge>
-                            <span className="text-xs text-muted-foreground">€{dish.price.toFixed(2)}</span>
-                          </div>
-                        </div>
-                      </div>
-
-                      <div className="flex items-center gap-6 shrink-0">
-                        <div className="text-center">
-                          <p className="text-[10px] text-muted-foreground uppercase font-semibold">Venduti</p>
-                          <p className="text-xl font-bold">{dish.periodQuantity}</p>
-                        </div>
-                        <div className="text-center">
-                          <p className="text-[10px] text-muted-foreground uppercase font-semibold">Media/gg</p>
-                          <p className="text-sm font-semibold">{dish.periodAvgPerDay}</p>
-                          <p className="text-[10px] text-muted-foreground">storica: {dish.allTimeAvgPerDay}</p>
-                        </div>
-                        <div className="text-center min-w-[70px]">
-                          <p className="text-[10px] text-muted-foreground uppercase font-semibold">Incasso</p>
-                          <p className="text-sm font-bold text-emerald-600">€{revenue.toFixed(0)}</p>
-                        </div>
-                        <div className={`flex items-center gap-1.5 px-3 py-2 rounded-lg text-sm font-bold ${dish.percentageChange > 10
-                            ? 'bg-green-100 text-green-700 dark:bg-green-900/40 dark:text-green-400'
-                            : dish.percentageChange < -10
-                              ? 'bg-red-100 text-red-700 dark:bg-red-900/40 dark:text-red-400'
-                              : 'bg-muted text-muted-foreground'
-                          }`}>
-                          {dish.percentageChange > 0 ? (
-                            <TrendUp size={16} />
-                          ) : dish.percentageChange < 0 ? (
-                            <TrendDown size={16} />
-                          ) : (
-                            <Minus size={16} />
-                          )}
-                          {dish.percentageChange > 0 ? '+' : ''}{dish.percentageChange}%
-                        </div>
-                      </div>
-                    </div>
-                  )
-                })}
-              </div>
-            )}
+                  </div>
+                ))
+              )}
+            </div>
           </CardContent>
         </Card>
       </div>

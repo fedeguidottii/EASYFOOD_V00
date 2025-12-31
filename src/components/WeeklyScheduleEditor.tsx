@@ -24,16 +24,12 @@ interface WeeklyScheduleEditorProps {
     type: 'coperto' | 'ayce'
     schedule: WeeklyCopertoSchedule | WeeklyAyceSchedule
     onChange: (schedule: WeeklyCopertoSchedule | WeeklyAyceSchedule) => void
-    lunchStart?: string
-    dinnerStart?: string
 }
 
 export default function WeeklyScheduleEditor({
     type,
     schedule,
-    onChange,
-    lunchStart = '12:00',
-    dinnerStart = '19:00'
+    onChange
 }: WeeklyScheduleEditorProps) {
     const [showAdvanced, setShowAdvanced] = useState(schedule.useWeeklySchedule)
 
@@ -146,11 +142,11 @@ export default function WeeklyScheduleEditor({
                                 <div className="flex gap-8">
                                     <span className="flex items-center gap-1">
                                         <Sun size={14} weight="duotone" className="text-amber-400" />
-                                        Pranzo ({lunchStart})
+                                        Pranzo
                                     </span>
                                     <span className="flex items-center gap-1">
                                         <Moon size={14} weight="duotone" className="text-indigo-400" />
-                                        Cena ({dinnerStart})
+                                        Cena
                                     </span>
                                 </div>
                             </div>

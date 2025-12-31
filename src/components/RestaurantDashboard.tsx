@@ -654,6 +654,8 @@ const RestaurantDashboard = ({ user, onLogout }: RestaurantDashboardProps) => {
     if (!isAyceEnabled && !isCopertoEnabled) {
       handleActivateTable(tableId, 1)
     } else {
+      setTableCopertoOverride(isCopertoEnabled)
+      setTableAyceOverride(isAyceEnabled)
       setSelectedTable(table)
       setShowTableDialog(true)
     }
@@ -675,7 +677,9 @@ const RestaurantDashboard = ({ user, onLogout }: RestaurantDashboardProps) => {
         status: 'OPEN',
         opened_at: new Date().toISOString(),
         session_pin: generatePin(),
-        customer_count: customerCount
+        customer_count: customerCount,
+        coperto_enabled: copertoEnabled ? tableCopertoOverride : false,
+        ayce_enabled: ayceEnabled ? tableAyceOverride : false
       })
 
       if (ayceEnabled) {
@@ -2653,8 +2657,9 @@ const RestaurantDashboard = ({ user, onLogout }: RestaurantDashboardProps) => {
                   const allOrders = [...tableOrders, ...completedOrders]
 
                   let subtotal = 0
-                  const isAyceActive = ayceEnabled
-                  const isCoverActive = copertoEnabled
+                  // Use session overrides if available, otherwise fallback to global settings
+                  const isAyceActive = session?.ayce_enabled ?? ayceEnabled
+                  const isCoverActive = session?.coperto_enabled ?? copertoEnabled
 
                   const parsedCoperto = typeof copertoPrice === 'string' ? parseFloat(copertoPrice) : copertoPrice
                   const parsedAyce = typeof aycePrice === 'string' ? parseFloat(aycePrice) : aycePrice
@@ -2674,7 +2679,7 @@ const RestaurantDashboard = ({ user, onLogout }: RestaurantDashboardProps) => {
                               const dish = restaurantDishes.find(d => d.id === item.dish_id)
                               if (!dish) return null
 
-                              const itemTotal = dish.is_ayce && currentRestaurant?.all_you_can_eat?.enabled ? 0 : dish.price * item.quantity
+                              const itemTotal = (dish.is_ayce && isAyceActive) ? 0 : dish.price * item.quantity
                               subtotal += itemTotal
 
                               return (

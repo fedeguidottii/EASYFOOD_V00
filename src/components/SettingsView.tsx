@@ -248,19 +248,19 @@ export function SettingsView({
                                                 </SelectTrigger>
                                                 <SelectContent className="bg-zinc-900 border-zinc-800 text-zinc-200">
                                                     <SelectItem value="classic">Classico (Campanello)</SelectItem>
-                                                    <SelectItem value="modern">Moderno (Minimal)</SelectItem>
-                                                    <SelectItem value="subtle">Sottile (Delicato)</SelectItem>
-                                                    <SelectItem value="kitchen">Cucina (Forte)</SelectItem>
+                                                    <SelectItem value="chime">Moderno (Chime)</SelectItem>
+                                                    <SelectItem value="soft">Sottile (Delicato)</SelectItem>
+                                                    <SelectItem value="kitchen-bell">Cucina (Forte)</SelectItem>
                                                 </SelectContent>
                                             </Select>
                                             <Button
                                                 variant="outline"
                                                 size="icon"
                                                 className="h-12 w-12 border-white/10 bg-black/20 hover:bg-amber-500/20 hover:text-amber-500 hover:border-amber-500/50 transition-all"
-                                                onClick={() => {
-                                                    import('../utils/SoundManager').then(({ soundManager }) => {
-                                                        soundManager.play(selectedSound)
-                                                    })
+                                                onClick={async () => {
+                                                    const { soundManager } = await import('../utils/SoundManager')
+                                                    // Ensure audio context is unlocked on user interaction
+                                                    soundManager.play(selectedSound)
                                                 }}
                                             >
                                                 <SpeakerHigh size={20} weight="duotone" />
@@ -304,8 +304,6 @@ export function SettingsView({
                                             setAyceEnabled(schedule.enabled)
                                             setAycePrice(schedule.defaultPrice)
                                         }}
-                                        lunchStart={lunchTimeStart}
-                                        dinnerStart={dinnerTimeStart}
                                     />
                                 </div>
                             </div>
@@ -325,13 +323,10 @@ export function SettingsView({
                                             schedule: {}
                                         }}
                                         onChange={(schedule) => {
-                                            setWeeklyCoperto(schedule)
-                                            // Also sync legacy state for backwards compatibility
-                                            setCopertoEnabled(schedule.enabled)
-                                            setCopertoPrice(schedule.defaultPrice)
+                                            setWeeklyCoperto(schedule as any)
+                                            // Sync global coperto status as fallback/legacy support
+                                            if (setCopertoEnabled) setCopertoEnabled(schedule.enabled)
                                         }}
-                                        lunchStart={lunchTimeStart}
-                                        dinnerStart={dinnerTimeStart}
                                     />
                                 </div>
                             </div>

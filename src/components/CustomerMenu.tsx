@@ -244,7 +244,7 @@ const CustomerMenu = () => {
         try {
           const { data: tableData, error } = await supabase
             .from('tables')
-            .select('restaurant_id, restaurants(name, is_active, enable_course_splitting)')
+            .select('restaurant_id, restaurants(name, is_active)')
             .eq('id', tableId)
             .single()
 
@@ -263,11 +263,12 @@ const CustomerMenu = () => {
           if (tableData) {
             // Check if restaurant is active - Supabase join returns object or array
             const restaurantsData = tableData.restaurants as unknown
-            const restaurant = Array.isArray(restaurantsData) ? restaurantsData[0] : restaurantsData as { name: string, is_active: boolean, enable_course_splitting?: boolean } | null
+            const restaurant = Array.isArray(restaurantsData) ? restaurantsData[0] : restaurantsData as { name: string, is_active: boolean } | null
 
             if (restaurant) {
               setRestaurantName(restaurant.name)
-              setCourseSplittingEnabled(restaurant.enable_course_splitting !== false)
+              // Default course splitting to true if we can't fetch it
+              // setCourseSplittingEnabled(restaurant.enable_course_splitting !== false)
               if (restaurant.is_active === false) {
                 setRestaurantId(null) // Prevent loading
                 setRestaurantSuspended(true)
@@ -297,15 +298,15 @@ const CustomerMenu = () => {
       const fetchRestaurantId = async () => {
         const { data: tableData } = await supabase
           .from('tables')
-          .select('restaurant_id, restaurants(name, is_active, enable_course_splitting)')
+          .select('restaurant_id, restaurants(name, is_active)')
           .eq('id', tableId)
           .single()
         if (tableData) {
           const restaurantsData = tableData.restaurants as unknown
-          const restaurant = Array.isArray(restaurantsData) ? restaurantsData[0] : restaurantsData as { name: string, is_active: boolean, enable_course_splitting?: boolean } | null
+          const restaurant = Array.isArray(restaurantsData) ? restaurantsData[0] : restaurantsData as { name: string, is_active: boolean } | null
           if (restaurant) {
             setRestaurantName(restaurant.name)
-            setCourseSplittingEnabled(restaurant.enable_course_splitting !== false)
+            // setCourseSplittingEnabled(restaurant.enable_course_splitting !== false)
             if (restaurant.is_active === false) {
               setRestaurantSuspended(true)
               setIsAuthenticated(false)
@@ -703,7 +704,16 @@ function AuthorizedMenuContent({ restaurantId, tableId, sessionId, activeSession
     return grouped
   }, [sortedCategories, filteredDishes, activeCategory])
 
-  const cartTotal = useMemo(() => cart.reduce((total, item) => total + (item.price * item.quantity), 0), [cart])
+  const cartTotal = useMemo(() => {
+    return cart.reduce((total, item) => {
+      // Check if AYCE is active for this session
+      const isAyce = activeSession?.ayce_enabled ?? false
+
+      // If AYCE is active and the dish is included in AYCE, price is 0
+      const itemPrice = (item.is_ayce && isAyce) ? 0 : item.price
+      return total + (itemPrice * item.quantity)
+    }, 0)
+  }, [cart, activeSession])
   const cartCount = useMemo(() => cart.reduce((count, item) => count + item.quantity, 0), [cart])
   const historyTotal = useMemo(() => previousOrders.reduce((sum, order) => sum + (order.total_amount || 0), 0), [previousOrders])
   const grandTotal = cartTotal + historyTotal
@@ -1149,7 +1159,9 @@ function AuthorizedMenuContent({ restaurantId, tableId, sessionId, activeSession
                         <div className="flex-1 min-w-0">
                           <div className="flex justify-between items-start gap-2">
                             <h3 className="font-normal text-white text-base line-clamp-1" style={{ fontFamily: 'Georgia, serif' }}>{item.name}</h3>
-                            <span className="font-medium text-amber-400 text-sm whitespace-nowrap">€ {(item.price * item.quantity).toFixed(2)}</span>
+                            <span className="font-medium text-amber-400 text-sm whitespace-nowrap">
+                              € {((item.is_ayce && activeSession?.ayce_enabled) ? 0 : item.price * item.quantity).toFixed(2)}
+                            </span>
                           </div>
                           {item.notes && (
                             <p className="text-[10px] text-white/50 mt-1 italic line-clamp-1 font-light">Note: {item.notes}</p>
