@@ -205,7 +205,7 @@ export default function CustomMenusManager({ restaurantId, dishes, categories, o
         const activeMenu = customMenus.find(m => m.is_active)
 
         return (
-        <div className="flex flex-col h-full min-h-[70vh] w-full max-w-6xl mx-auto bg-background/50 backdrop-blur-sm">
+            <div className="flex flex-col h-full min-h-[70vh] w-full max-w-6xl mx-auto bg-background/50 backdrop-blur-sm">
 
                 {/* Header Section - Spaced correctly to avoid close button overlap */}
                 <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center px-8 pt-8 pb-6 border-b bg-muted/5">
@@ -403,7 +403,7 @@ export default function CustomMenusManager({ restaurantId, dishes, categories, o
 
     // --- VIEW: EDITOR (Minimal refinement) ---
     return (
-        <div className="flex flex-col h-[92vh] w-[98vw] max-w-[2400px] bg-background">
+        <div className="flex flex-col h-full w-full bg-background">
             {/* Header */}
             <div className="flex items-center justify-between px-10 py-6 border-b bg-muted/5 pr-12">
                 {/* Added pr-12 to avoid Dialog Close X overlap */}
@@ -565,51 +565,51 @@ export default function CustomMenusManager({ restaurantId, dishes, categories, o
                                 <div className="w-full overflow-x-auto pb-4">
                                     <div className="border rounded-2xl shadow-sm min-w-[900px]">
                                         <div className="grid grid-cols-[100px_repeat(7,1fr)] bg-muted/20">
-                                        {/* Header Row */}
-                                        <div className="p-3 border-r border-b bg-muted/50"></div> {/* Corner */}
-                                        {DAYS_OF_WEEK.map(day => (
-                                            <div key={day.value} className="p-3 text-center text-xs font-bold text-muted-foreground uppercase border-b border-r last:border-r-0 bg-muted/50 tracking-wider">
-                                                {day.label}
-                                            </div>
-                                        ))}
-
-                                        {/* Rows */}
-                                        {MEAL_TYPES.map((meal, index) => (
-                                            <div key={meal.value} className="contents group">
-                                                {/* Row Label */}
-                                                <div className={cn(
-                                                    "p-3 flex items-center justify-end font-semibold text-sm uppercase tracking-wider text-muted-foreground border-r bg-muted/10",
-                                                    index !== MEAL_TYPES.length - 1 && "border-b"
-                                                )}>
-                                                    {meal.label}
+                                            {/* Header Row */}
+                                            <div className="p-3 border-r border-b bg-muted/50"></div> {/* Corner */}
+                                            {DAYS_OF_WEEK.map(day => (
+                                                <div key={day.value} className="p-3 text-center text-xs font-bold text-muted-foreground uppercase border-b border-r last:border-r-0 bg-muted/50 tracking-wider">
+                                                    {day.label}
                                                 </div>
+                                            ))}
 
-                                                {/* Cells */}
-                                                {DAYS_OF_WEEK.map((day, dIndex) => {
-                                                    const isActive = schedules.some(s => s.day_of_week === day.value && s.meal_type === meal.value)
-                                                    return (
-                                                        <div
-                                                            key={`${day.value}-${meal.value}`}
-                                                            className={cn(
-                                                                "relative h-28 border-r last:border-r-0 flex items-center justify-center p-2 transition-all cursor-pointer hover:bg-muted/50",
-                                                                index !== MEAL_TYPES.length - 1 && "border-b",
-                                                                isActive && "bg-emerald-50/50 hover:bg-emerald-100/50 dark:bg-emerald-900/10 dark:hover:bg-emerald-900/20"
-                                                            )}
-                                                            onClick={() => handleToggleSchedule(day.value, meal.value)}
-                                                        >
-                                                            <div className={cn(
-                                                                "w-14 h-14 rounded-full flex items-center justify-center transition-all duration-300",
-                                                                isActive
-                                                                    ? "bg-emerald-500 text-white shadow-lg scale-110"
-                                                                    : "bg-transparent text-transparent border-2 border-dashed border-muted-foreground/20 group-hover:border-primary/20"
-                                                            )}>
-                                                                <Check size={24} weight="bold" />
+                                            {/* Rows */}
+                                            {MEAL_TYPES.map((meal, index) => (
+                                                <div key={meal.value} className="contents group">
+                                                    {/* Row Label */}
+                                                    <div className={cn(
+                                                        "p-3 flex items-center justify-end font-semibold text-sm uppercase tracking-wider text-muted-foreground border-r bg-muted/10",
+                                                        index !== MEAL_TYPES.length - 1 && "border-b"
+                                                    )}>
+                                                        {meal.label}
+                                                    </div>
+
+                                                    {/* Cells */}
+                                                    {DAYS_OF_WEEK.map((day, dIndex) => {
+                                                        const isActive = schedules.some(s => s.day_of_week === day.value && s.meal_type === meal.value)
+                                                        return (
+                                                            <div
+                                                                key={`${day.value}-${meal.value}`}
+                                                                className={cn(
+                                                                    "relative h-28 border-r last:border-r-0 flex items-center justify-center p-2 transition-all cursor-pointer hover:bg-muted/50",
+                                                                    index !== MEAL_TYPES.length - 1 && "border-b",
+                                                                    isActive && "bg-emerald-50/50 hover:bg-emerald-100/50 dark:bg-emerald-900/10 dark:hover:bg-emerald-900/20"
+                                                                )}
+                                                                onClick={() => handleToggleSchedule(day.value, meal.value)}
+                                                            >
+                                                                <div className={cn(
+                                                                    "w-14 h-14 rounded-full flex items-center justify-center transition-all duration-300",
+                                                                    isActive
+                                                                        ? "bg-emerald-500 text-white shadow-lg scale-110"
+                                                                        : "bg-transparent text-transparent border-2 border-dashed border-muted-foreground/20 group-hover:border-primary/20"
+                                                                )}>
+                                                                    <Check size={24} weight="bold" />
+                                                                </div>
                                                             </div>
-                                                        </div>
-                                                    )
-                                                })}
-                                            </div>
-                                        ))}
+                                                        )
+                                                    })}
+                                                </div>
+                                            ))}
                                         </div>
                                     </div>
                                 </div>
