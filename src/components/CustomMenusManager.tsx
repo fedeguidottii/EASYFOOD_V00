@@ -403,7 +403,7 @@ export default function CustomMenusManager({ restaurantId, dishes, categories, o
 
     // --- VIEW: EDITOR (Minimal refinement) ---
     return (
-        <div className="flex flex-col h-[92vh] w-[95vw] max-w-[1800px] bg-background">
+        <div className="flex flex-col h-[92vh] w-[98vw] max-w-[2400px] bg-background">
             {/* Header */}
             <div className="flex items-center justify-between px-10 py-6 border-b bg-muted/5 pr-12">
                 {/* Added pr-12 to avoid Dialog Close X overlap */}
@@ -444,7 +444,7 @@ export default function CustomMenusManager({ restaurantId, dishes, categories, o
 
             <div className="flex flex-1 overflow-hidden">
                 {/* Sidebar Navigation */}
-                <div className="w-[60px] sm:w-[140px] flex-shrink-0 border-r bg-muted/10 flex flex-col gap-3 p-3">
+                <div className="w-[50px] sm:w-[100px] flex-shrink-0 border-r bg-muted/10 flex flex-col gap-3 p-3">
                     <Button
                         variant={editorTab === 'dishes' ? 'secondary' : 'ghost'}
                         size="sm"
@@ -491,7 +491,7 @@ export default function CustomMenusManager({ restaurantId, dishes, categories, o
                                 </div>
                             </div>
                             <div className="flex-1 overflow-y-auto p-6">
-                                <div className="max-w-4xl mx-auto pb-10">
+                                <div className="w-full max-w-full pb-10">
                                     {filteredCategories.map(cat => {
                                         const catDishes = dishes.filter(d => d.category_id === cat.id)
                                         if (dishSearch && catDishes.every(d => !d.name.toLowerCase().includes(dishSearch.toLowerCase()))) return null
@@ -511,7 +511,7 @@ export default function CustomMenusManager({ restaurantId, dishes, categories, o
                                                     <div className="h-px bg-border flex-1" />
                                                 </div>
 
-                                                <div className="grid grid-cols-1 gap-2"> {/* Changed to grid-cols-1 for better visibility in popup */}
+                                                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 w-full">
                                                     {visibleDishes.map(dish => {
                                                         const isSelected = menuDishes.includes(dish.id)
                                                         return (
@@ -519,7 +519,7 @@ export default function CustomMenusManager({ restaurantId, dishes, categories, o
                                                                 key={dish.id}
                                                                 onClick={() => handleToggleDish(dish.id)}
                                                                 className={cn(
-                                                                    "relative flex items-center justify-between p-3 rounded-xl border cursor-pointer transition-all duration-200 group active:scale-[0.98]",
+                                                                    "relative flex items-center justify-between p-4 rounded-xl border cursor-pointer transition-all duration-200 group active:scale-[0.98]",
                                                                     isSelected
                                                                         ? "bg-emerald-50/80 border-emerald-500/50 dark:bg-emerald-950/30 dark:border-emerald-500/50 shadow-sm"
                                                                         : "bg-card hover:bg-muted/50 border-transparent shadow-sm hover:shadow-md"
@@ -527,16 +527,16 @@ export default function CustomMenusManager({ restaurantId, dishes, categories, o
                                                             >
                                                                 <div className="flex items-center gap-3 overflow-hidden w-full">
                                                                     <div className={cn(
-                                                                        "w-5 h-5 rounded-md border flex items-center justify-center flex-shrink-0 transition-all",
+                                                                        "w-6 h-6 rounded-md border flex items-center justify-center flex-shrink-0 transition-all",
                                                                         isSelected
                                                                             ? "bg-emerald-500 border-emerald-500 scale-110"
                                                                             : "border-muted-foreground/30 group-hover:border-primary/50"
                                                                     )}>
-                                                                        {isSelected && <Check size={12} className="text-white" weight="bold" />}
+                                                                        {isSelected && <Check size={14} className="text-white" weight="bold" />}
                                                                     </div>
-                                                                    <div className="flex-1 min-w-0 flex items-center justify-between">
-                                                                        <p className={cn("text-sm truncate transition-colors", isSelected ? "font-semibold text-emerald-900 dark:text-emerald-100" : "font-medium text-foreground")}>{dish.name}</p>
-                                                                        <p className="text-xs text-muted-foreground font-mono ml-2">€{dish.price.toFixed(2)}</p>
+                                                                    <div className="flex-1 min-w-0 flex flex-col gap-1">
+                                                                        <p className={cn("text-sm transition-colors", isSelected ? "font-semibold text-emerald-900 dark:text-emerald-100" : "font-medium text-foreground")}>{dish.name}</p>
+                                                                        <p className="text-xs text-muted-foreground font-mono">€{dish.price.toFixed(2)}</p>
                                                                     </div>
                                                                 </div>
                                                             </div>
@@ -562,8 +562,8 @@ export default function CustomMenusManager({ restaurantId, dishes, categories, o
                                     </p>
                                 </div>
 
-                                <div className="w-full overflow-x-auto">
-                                    <div className="border rounded-2xl shadow-sm min-w-[1100px]">
+                                <div className="w-full overflow-x-auto pb-4">
+                                    <div className="border rounded-2xl shadow-sm min-w-[900px]">
                                         <div className="grid grid-cols-[100px_repeat(7,1fr)] bg-muted/20">
                                         {/* Header Row */}
                                         <div className="p-3 border-r border-b bg-muted/50"></div> {/* Corner */}
