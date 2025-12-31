@@ -364,34 +364,28 @@ const CustomerMenu = () => {
 
   // Handle individual PIN digit input
   const handlePinDigitChange = (index: number, value: string) => {
-    // If user tries to type in a later box while previous are empty, redirect to first empty
-    const firstEmptyIndex = pin.findIndex(p => p === '')
-    if (firstEmptyIndex !== -1 && index > firstEmptyIndex) {
-      const el = document.getElementById(`pin-${firstEmptyIndex}`)
-      el?.focus()
-      // If value is valid, apply it to the first empty slot
-      if (/^\d$/.test(value)) {
-        handlePinDigitChange(firstEmptyIndex, value)
-      }
-      return
-    }
+    // Sanitize input: allow only numbers
+    const sanitizedValue = value.replace(/\D/g, '').slice(-1)
 
-    if (value.length > 1) value = value.slice(-1)
-    if (!/^\d*$/.test(value)) return
-
+    // Update state
     const newPin = [...pin]
-    newPin[index] = value
+    newPin[index] = sanitizedValue
     setPin(newPin)
 
-    // Auto-focus next input
-    if (value && index < 3) {
-      const nextInput = document.getElementById(`pin-${index + 1}`)
-      nextInput?.focus()
-    }
-
-    // Auto-submit when all digits entered
-    if (newPin.every(d => d !== '')) {
-      handlePinSubmit(newPin.join(''))
+    // Auto-focus logic
+    if (sanitizedValue) {
+      // If a digit was entered, move to next field if valid
+      if (index < 3) {
+        const nextInput = document.getElementById(`pin-${index + 1}`)
+        nextInput?.focus()
+      } else {
+        // If last digit entered, try to submit
+        if (newPin.every(d => d !== '')) {
+          handlePinSubmit(newPin.join(''))
+        }
+      }
+    } else {
+      // Handle deletion (empty value) - stay on current or move back logic is in OnKeyDown usually
     }
   }
 

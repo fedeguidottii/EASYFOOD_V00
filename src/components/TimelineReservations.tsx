@@ -1,4 +1,4 @@
-import { useState, useRef } from 'react'
+import React, { useState, useRef } from 'react'
 import { Card, CardContent } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog'
@@ -646,7 +646,7 @@ export default function TimelineReservations({ user, restaurantId, tables, booki
                               {block.booking.name}
                             </div>
                             <div className="text-sm truncate opacity-90 mt-1 font-medium">
-                              {minutesToTime(block.startMinutes)} • {block.booking.guests}p
+                              {minutesToTime(block.startMinutes)} - {minutesToTime(block.startMinutes + block.duration)} • {block.booking.guests}p
                             </div>
 
                             {!isCompleted && (

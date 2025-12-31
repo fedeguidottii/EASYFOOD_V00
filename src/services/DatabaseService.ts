@@ -70,7 +70,7 @@ export const DatabaseService = {
         const payload: any = {}
 
         // Campi permessi per l'aggiornamento
-        const allowedFields = ['name', 'address', 'phone', 'email', 'logo_url', 'owner_id', 'waiter_mode_enabled', 'allow_waiter_payments', 'waiter_password', 'all_you_can_eat', 'cover_charge_per_person', 'lunch_time_start', 'dinner_time_start', 'enable_course_splitting']
+        const allowedFields = ['name', 'address', 'phone', 'email', 'logo_url', 'cover_image_url', 'owner_id', 'all_you_can_eat', 'cover_charge_per_person', 'lunch_time_start', 'dinner_time_start', 'enable_course_splitting', 'reservation_duration']
 
         // Copia solo i campi presenti nell'oggetto input
         allowedFields.forEach(field => {

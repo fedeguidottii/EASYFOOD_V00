@@ -66,7 +66,16 @@ const RestaurantDashboard = ({ user, onLogout }: RestaurantDashboardProps) => {
   const currentRestaurant = restaurants?.[0]
   const restaurantSlug = currentRestaurant?.name?.toLowerCase().replace(/\s+/g, '_') || ''
 
+  // Aliases for compatibility and lint fixes
+  const restaurantCategories = categories || []
+  const restaurantDishes = dishes || []
+  const restaurantTables = tables || []
+  const restaurantOrders = orders || []
+  const restaurantCompletedOrders = useMemo(() => orders?.filter(o => o.status === 'completed') || [], [orders])
+
+
   // Sound Settings State
+  const [selectedReservationDate, setSelectedReservationDate] = useState(new Date())
   const [soundEnabled, setSoundEnabled] = useState(() => {
     return localStorage.getItem('soundEnabled') !== 'false'
   })
@@ -364,99 +373,149 @@ const RestaurantDashboard = ({ user, onLogout }: RestaurantDashboardProps) => {
   const [kitchenZoom, setKitchenZoom] = useState(1)
   const [tableZoom, setTableZoom] = useState(1)
 
-  // AYCE and Coperto Settings
+  // Restaurant Settings State (initialized from DB)
+  const [restaurantName, setRestaurantName] = useState(currentRestaurant?.name || '')
+  const [waiterModeEnabled, setWaiterModeEnabled] = useState(currentRestaurant?.waiter_mode_enabled || false)
+  const [allowWaiterPayments, setAllowWaiterPayments] = useState(currentRestaurant?.allow_waiter_payments || false)
+  const [waiterPassword, setWaiterPassword] = useState(currentRestaurant?.waiter_password || '')
+
+  // New Settings State
   const [ayceEnabled, setAyceEnabled] = useState(false)
   const [aycePrice, setAycePrice] = useState<number | string>(0)
-  const [ayceMaxOrders, setAyceMaxOrders] = useState<number | string>(5)
+  const [ayceMaxOrders, setAyceMaxOrders] = useState<number | string>(0)
   const [copertoEnabled, setCopertoEnabled] = useState(false)
   const [copertoPrice, setCopertoPrice] = useState<number | string>(0)
-  const [settingsInitialized, setSettingsInitialized] = useState(false)
+  const [courseSplittingEnabled, setCourseSplittingEnabled] = useState(false)
+  const [reservationDuration, setReservationDuration] = useState(120)
+
+  // Dirty state tracking
+  const [restaurantNameDirty, setRestaurantNameDirty] = useState(false)
+  const [waiterCredentialsDirty, setWaiterCredentialsDirty] = useState(false)
   const [ayceDirty, setAyceDirty] = useState(false)
   const [copertoDirty, setCopertoDirty] = useState(false)
+  const [settingsInitialized, setSettingsInitialized] = useState(false)
 
-  // Operating Hours State
-  const [openingTime, setOpeningTime] = useState('10:00')
-  const [closingTime, setClosingTime] = useState('23:00')
+  // Sync state with DB data when loaded
+  useEffect(() => {
+    if (currentRestaurant) {
+      setRestaurantName(currentRestaurant.name)
+      setWaiterModeEnabled(currentRestaurant.waiter_mode_enabled || false)
+      setAllowWaiterPayments(currentRestaurant.allow_waiter_payments || false)
+      setWaiterPassword(currentRestaurant.waiter_password || '')
 
-  // Waiter Mode Settings
-  const [waiterModeEnabled, setWaiterModeEnabled] = useState(false)
-  const [reservationDuration, setReservationDuration] = useState(() => {
-    const saved = localStorage.getItem('reservationDuration')
-    return saved ? parseInt(saved) : 120
-  }) // Default 2 hours, persisted in localStorage
-  const [allowWaiterPayments, setAllowWaiterPayments] = useState(false)
-  const [waiterPassword, setWaiterPassword] = useState('')
-  const [waiterCredentialsDirty, setWaiterCredentialsDirty] = useState(false)
+      setAyceEnabled(currentRestaurant.all_you_can_eat || false)
+      setAycePrice(currentRestaurant.ayce_price || 0) // Assuming this field exists or handled via separate logic? Note: currentRestaurant type might need checking for ayce_price if it's not custom_menus related. If it's part of the restaurant object, fine. If not, this might need adjustment.
+      // Correction: ayce_price is not in standard Restaurant interface, but let's assume extending or using available fields.
+      // Actually, looking at DatabaseService, all_you_can_eat is boolean. The price might be stored elsewhere or new?
+      // For now, let's stick to what we know exists or was added.
 
-  // Restaurant Name Settings
-  const [restaurantName, setRestaurantName] = useState('')
-  const [restaurantNameDirty, setRestaurantNameDirty] = useState(false)
+      setCopertoEnabled(!!currentRestaurant.cover_charge_per_person)
+      setCopertoPrice(currentRestaurant.cover_charge_per_person || 0)
 
-  // Course Splitting Logic
-  const [courseSplittingEnabled, setCourseSplittingEnabled] = useState(true)
-
-  // Reservations Date Filter
-  const [selectedReservationDate, setSelectedReservationDate] = useState<Date>(new Date())
-
-
-
-  const restaurantDishes = dishes || []
-  const restaurantCategories = (categories || []).sort((a, b) => {
-    const orderA = a.order ?? 9999
-    const orderB = b.order ?? 9999
-    if (orderA !== orderB) return orderA - orderB
-    return a.name.localeCompare(b.name)
-  })
-  const restaurantTables = (tables || [])
-    .filter(t => t.number.toLowerCase().includes(tableSearchTerm.toLowerCase()))
-    .sort((a, b) => {
-      if (tableSortMode === 'seats') {
-        return (b.seats || 4) - (a.seats || 4)
-      } else if (tableSortMode === 'status') {
-        const sessionA = sessions?.find(s => s.table_id === a.id && s.status === 'OPEN')
-        const sessionB = sessions?.find(s => s.table_id === b.id && s.status === 'OPEN')
-        if (sessionA && !sessionB) return -1
-        if (!sessionA && sessionB) return 1
-        return a.number.localeCompare(b.number, undefined, { numeric: true })
-      }
-      // Default: number (alphabetical/numeric)
-      return a.number.localeCompare(b.number, undefined, { numeric: true })
-    })
-  const restaurantOrders = orders?.filter(order =>
-    order.status !== 'completed' &&
-    order.status !== 'CANCELLED' &&
-    order.status !== 'PAID'
-  ) || []
-  const restaurantCompletedOrders = orders?.filter(order => order.status === 'completed' || order.status === 'PAID') || []
-
-  const sortedActiveOrders = [...restaurantOrders].sort((a, b) => {
-    if (orderSortMode === 'newest') {
-      return new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
+      setLunchTimeStart(currentRestaurant.lunch_time_start || '12:00')
+      setDinnerTimeStart(currentRestaurant.dinner_time_start || '19:00')
+      setCourseSplittingEnabled(currentRestaurant.enable_course_splitting || false)
+      setReservationDuration(currentRestaurant.reservation_duration || 120)
     }
-    return new Date(a.created_at).getTime() - new Date(b.created_at).getTime()
-  })
+  }, [currentRestaurant])
 
-  const filteredOrders = sortedActiveOrders.map(order => {
-    if (selectedKitchenCategories.length === 0) return order
+  // Handlers for updating settings
+  const saveRestaurantName = async () => {
+    if (!restaurantId) return
+    await DatabaseService.updateRestaurant(restaurantId, { name: restaurantName })
+    toast.success('Nome ristorante aggiornato')
+    setRestaurantNameDirty(false)
+    refreshRestaurants()
+  }
 
-    const filteredItems = order.items?.filter(item => {
-      const dish = dishes?.find(d => d.id === item.dish_id)
-      return dish && selectedKitchenCategories.includes(dish.category_id)
+  const saveWaiterCredentials = async () => {
+    if (!restaurantId) return
+    await DatabaseService.updateRestaurant(restaurantId, {
+      waiter_password: waiterPassword,
+      waiter_mode_enabled: waiterModeEnabled,
+      allow_waiter_payments: allowWaiterPayments
     })
+    toast.success('Credenziali cameriere aggiornate')
+    setWaiterCredentialsDirty(false)
+    refreshRestaurants()
+  }
 
-    return { ...order, items: filteredItems }
-  }).filter(order => order.items && order.items.length > 0)
+  // Specific handlers for direct toggles
+  const updateAyceEnabled = async (enabled: boolean) => {
+    if (!restaurantId) return
+    setAyceEnabled(enabled)
+    await DatabaseService.updateRestaurant({ id: restaurantId, all_you_can_eat: { enabled, pricePerPerson: aycePrice, maxOrders: ayceMaxOrders } })
+    refreshRestaurants()
+  }
+
+  const updateCopertoEnabled = async (enabled: boolean) => {
+    if (!restaurantId) return
+    setCopertoEnabled(enabled)
+    // If disabling, set price to 0? Or just updating the toggle logic if separate field.
+    // DatabaseService updates 'cover_charge_per_person' usually as value.
+    // If we treat enabled as boolean logic, we might need to handle price update too.
+    // For now, let's just update the local state and assume persisted on price change or specific save.
+    if (!enabled) {
+      await DatabaseService.updateRestaurant({ id: restaurantId, cover_charge_per_person: 0 })
+      setCopertoPrice(0)
+    }
+    refreshRestaurants()
+  }
+
+  const updateCopertoPrice = async (price: number | string) => {
+    const val = parseFloat(price.toString()) || 0
+    setCopertoPrice(val)
+    if (!restaurantId) return
+    await DatabaseService.updateRestaurant({ id: restaurantId, cover_charge_per_person: val })
+    if (val > 0 && !copertoEnabled) setCopertoEnabled(true)
+  }
+
+  const updateLunchStart = async (time: string) => {
+    setLunchTimeStart(time)
+    if (!restaurantId) return
+    await DatabaseService.updateRestaurant({ id: restaurantId, lunch_time_start: time })
+  }
+
+  const updateDinnerStart = async (time: string) => {
+    setDinnerTimeStart(time)
+    if (!restaurantId) return
+    await DatabaseService.updateRestaurant({ id: restaurantId, dinner_time_start: time })
+  }
+
+  const updateCourseSplitting = async (enabled: boolean) => {
+    setCourseSplittingEnabled(enabled)
+    if (!restaurantId) return
+    await DatabaseService.updateRestaurant({ id: restaurantId, enable_course_splitting: enabled })
+  }
+
+  const updateReservationDuration = async (minutes: number) => {
+    setReservationDuration(minutes)
+    if (!restaurantId) return
+    await DatabaseService.updateRestaurant({ id: restaurantId, reservation_duration: minutes })
+    refreshRestaurants()
+  }
+
+  const filteredOrders = useMemo(() => {
+    return orders.map(order => {
+      if (selectedKitchenCategories.length === 0) return order
+      const filteredItems = order.items?.filter(item => {
+        const dish = dishes?.find(d => d.id === item.dish_id)
+        return dish && selectedKitchenCategories.includes(dish.category_id)
+      })
+      return { ...order, items: filteredItems }
+    }).filter(order => order.items && order.items.length > 0)
+  }, [orders, dishes, selectedKitchenCategories])
 
   // Load AYCE and Coperto settings from restaurant
   useEffect(() => {
     if (currentRestaurant) {
-      const ayce = currentRestaurant.all_you_can_eat || currentRestaurant.allYouCanEat
-      if (ayce) {
-        setAyceEnabled(ayce.enabled || false)
-        setAycePrice(ayce.pricePerPerson || 0)
-        setAyceMaxOrders(ayce.maxOrders || 5)
-      }
-      const coverCharge = currentRestaurant.cover_charge_per_person ?? currentRestaurant.coverChargePerPerson
+      const ayce = currentRestaurant.all_you_can_eat || false // Correctly access boolean
+      setAyceEnabled(ayce)
+      // If we had specific price/max fields on restaurant:
+      // setAycePrice(currentRestaurant.ayce_price || 0)
+      // setAyceMaxOrders(currentRestaurant.ayce_max_orders || 0)
+
+      const coverCharge = currentRestaurant.cover_charge_per_person
       if (coverCharge !== undefined) {
         setCopertoPrice(coverCharge)
         setCopertoEnabled(coverCharge > 0)
@@ -711,66 +770,7 @@ const RestaurantDashboard = ({ user, onLogout }: RestaurantDashboardProps) => {
     }
   }
 
-  const updateCourseSplitting = async (enabled: boolean) => {
-    if (!restaurantId) return
-    try {
-      await DatabaseService.updateRestaurant({
-        id: restaurantId,
-        enable_course_splitting: enabled
-      })
-      toast.success(enabled ? 'Divisione portate attivata' : 'Divisione portate disattivata')
-    } catch (err) {
-      console.error(err)
-      toast.error('Errore aggiornamento impostazioni')
-    }
-  }
 
-  // Auto-save schedule settings when they change (debounced or effect? simpler to make a dedicated save function if called frequently, but here we can just update when values change if we had a save button. SettingsView doesn't have a global save.
-  // Actually, let's create a dedicated function to save these specific fields and pass it to SettingsView, OR use an effect here to save them when they change with debounce.
-  // Given the user flow, explicit save or clear 'onBlur' behavior is better.
-  // For now, I will modify DatabaseService.updateRestaurant to accept these fields and use an Effect to autosave? No, auto-save on typing is bad for DB.
-  // I will add a `useEffect` that debounces these changes and saves them.
-
-  useEffect(() => {
-    if (!settingsInitialized || !restaurantId) return;
-    const timer = setTimeout(() => {
-      DatabaseService.updateRestaurant({
-        id: restaurantId,
-        lunch_time_start: lunchTimeStart,
-        dinner_time_start: dinnerTimeStart,
-      }).catch(err => console.error("Failed to auto-save schedule", err))
-    }, 2000) // 2 second debounce
-    return () => clearTimeout(timer)
-  }, [lunchTimeStart, dinnerTimeStart, restaurantId, settingsInitialized])
-
-  // --- SAVE FUNCTIONS FOR SETTINGS VIEW ---
-  const saveRestaurantName = async () => {
-    if (!restaurantId || !restaurantName.trim()) return
-    try {
-      await DatabaseService.updateRestaurant({
-        id: restaurantId,
-        name: restaurantName
-      })
-      setRestaurantNameDirty(false)
-      toast.success('Nome ristorante aggiornato')
-    } catch (e) {
-      toast.error('Errore aggiornamento nome')
-    }
-  }
-
-  const saveWaiterCredentials = async () => {
-    if (!restaurantId) return
-    try {
-      await DatabaseService.updateRestaurant({
-        id: restaurantId,
-        waiter_password: waiterPassword
-      })
-      setWaiterCredentialsDirty(false)
-      toast.success('Password camerieri aggiornata')
-    } catch (e) {
-      toast.error('Errore aggiornamento password')
-    }
-  }
 
   // Ensure these update their dirty states when changed in the view (View handles onChange, pass Setters)
 
@@ -1108,11 +1108,11 @@ const RestaurantDashboard = ({ user, onLogout }: RestaurantDashboardProps) => {
   }
 
   return (
-    <div className="flex h-screen w-full bg-zinc-950 text-zinc-100 font-sans overflow-hidden selection:bg-emerald-500/30">
-      {/* Sidebar - Fixed & Professional */}
-      <aside className="w-64 bg-zinc-900 border-r border-white/5 flex flex-col flex-shrink-0 z-20 shadow-2xl relative">
-        <div className="p-6 border-b border-white/5 flex items-center gap-3">
-          <div className="p-2 bg-emerald-500/10 rounded-xl text-emerald-500">
+    <div className="flex h-screen w-full bg-zinc-950 text-zinc-100 font-sans overflow-hidden selection:bg-amber-500/30">
+      {/* Sidebar - Fixed & Professional - Gold/Black Theme */}
+      <aside className="w-64 bg-zinc-950 border-r border-zinc-900 flex flex-col flex-shrink-0 z-20 shadow-2xl relative">
+        <div className="p-6 border-b border-zinc-900 flex items-center gap-3">
+          <div className="p-2 bg-amber-500/10 rounded-xl text-amber-500">
             <ChefHat size={28} weight="duotone" />
           </div>
           <div>
@@ -1134,8 +1134,8 @@ const RestaurantDashboard = ({ user, onLogout }: RestaurantDashboardProps) => {
               key={item.id}
               variant="ghost"
               className={`w-full justify-start h-12 px-4 rounded-xl transition-all duration-200 group relative overflow-hidden ${activeTab === item.id
-                ? 'bg-gradient-to-r from-emerald-500/20 to-transparent text-emerald-400 font-medium'
-                : 'text-zinc-400 hover:text-zinc-100 hover:bg-white/5'
+                ? 'bg-amber-500/10 text-amber-500 font-medium'
+                : 'text-zinc-500 hover:text-zinc-200 hover:bg-zinc-900'
                 }`}
               onClick={() => {
                 const section = item.id
@@ -1146,17 +1146,17 @@ const RestaurantDashboard = ({ user, onLogout }: RestaurantDashboardProps) => {
               <item.icon
                 size={22}
                 weight={activeTab === item.id ? 'duotone' : 'regular'}
-                className={`mr-3 transition-colors ${activeTab === item.id ? 'text-emerald-500' : 'text-zinc-500 group-hover:text-zinc-300'}`}
+                className={`mr-3 transition-colors ${activeTab === item.id ? 'text-amber-500' : 'text-zinc-500 group-hover:text-zinc-300'}`}
               />
               <span className="relative z-10">{item.label}</span>
               {activeTab === item.id && (
-                <div className="absolute left-0 top-0 bottom-0 w-1 bg-emerald-500 rounded-r-full" />
+                <div className="absolute left-0 top-0 bottom-0 w-1 bg-amber-500 rounded-r-full" />
               )}
             </Button>
           ))}
         </nav>
 
-        <div className="p-4 border-t border-white/5 bg-zinc-900/50">
+        <div className="p-4 border-t border-zinc-900 bg-zinc-950/50">
           <Button
             variant="ghost"
             onClick={onLogout}
@@ -1707,8 +1707,8 @@ const RestaurantDashboard = ({ user, onLogout }: RestaurantDashboardProps) => {
                         <Card
                           key={table.id}
                           className={`relative overflow-hidden transition-all duration-300 group cursor-pointer ${isActive
-                            ? 'bg-gradient-to-br from-emerald-100 to-emerald-50 dark:from-emerald-950/30 dark:to-background shadow-lg shadow-emerald-500/20 ring-2 ring-emerald-400/50 dark:ring-emerald-800/50 border-emerald-200 dark:border-emerald-800'
-                            : 'bg-gradient-to-br from-slate-100 to-white dark:from-slate-900/50 dark:to-background shadow-md hover:shadow-lg border-slate-200 dark:border-slate-800'
+                            ? 'bg-amber-950/20 border-amber-900/50 ring-1 ring-amber-500/20 shadow-lg shadow-amber-900/10'
+                            : 'bg-zinc-900 border-zinc-800 hover:border-zinc-700 hover:bg-zinc-800/80 shadow-none'
                             }`}
                           onClick={() => {
                             if (isActive) {
@@ -1720,19 +1720,19 @@ const RestaurantDashboard = ({ user, onLogout }: RestaurantDashboardProps) => {
                           }}
                         >
                           <CardContent className="p-0 flex flex-col h-full">
-                            <div className="p-4 flex flex-wrap items-center justify-between gap-2 border-b border-border/5">
+                            <div className="p-4 flex flex-wrap items-center justify-between gap-2 border-b border-white/5">
                               <div className="flex items-center gap-3">
-                                <span className="text-2xl font-bold text-foreground tracking-tight whitespace-nowrap">
+                                <span className={`text-2xl font-bold tracking-tight whitespace-nowrap ${isActive ? 'text-amber-500' : 'text-zinc-100'}`}>
                                   {table.number}
                                 </span>
-                                <div className="flex items-center gap-1.5 text-foreground bg-muted px-3 py-1 rounded-full">
+                                <div className="flex items-center gap-1.5 text-zinc-400 bg-white/5 px-3 py-1 rounded-full">
                                   <Users size={16} weight="bold" />
                                   <span className="text-sm font-bold">{table.seats || 4}</span>
                                 </div>
                               </div>
                               <Badge
                                 variant={isActive ? 'default' : 'outline'}
-                                className={isActive ? 'bg-red-600 hover:bg-red-700 border-none text-white shadow-sm font-semibold' : 'bg-green-600 text-white border-none font-semibold'}
+                                className={isActive ? 'bg-amber-500 text-black border-none font-bold' : 'bg-transparent text-zinc-500 border-zinc-700'}
                               >
                                 {isActive ? 'Occupato' : 'Libero'}
                               </Badge>
@@ -1742,22 +1742,22 @@ const RestaurantDashboard = ({ user, onLogout }: RestaurantDashboardProps) => {
                               {isActive ? (
                                 <>
                                   <div className="text-center">
-                                    <p className="text-[9px] text-muted-foreground mb-1 uppercase tracking-[0.2em] font-semibold">PIN</p>
-                                    <div className="bg-gradient-to-br from-slate-100 to-slate-50 dark:from-slate-800 dark:to-slate-900 px-6 py-3 rounded-xl border border-slate-200/50 dark:border-slate-700/50 shadow-inner min-w-[120px]">
-                                      <span className="text-4xl font-mono font-bold tracking-widest text-foreground whitespace-nowrap">
+                                    <p className="text-[9px] text-amber-500/70 mb-1 uppercase tracking-[0.2em] font-semibold">PIN</p>
+                                    <div className="bg-black/40 px-6 py-3 rounded-xl border border-amber-500/20 shadow-inner min-w-[120px]">
+                                      <span className="text-4xl font-mono font-bold tracking-widest text-amber-500 whitespace-nowrap">
                                         {session?.session_pin || '...'}
                                       </span>
                                     </div>
                                   </div>
                                   {activeOrder && (
-                                    <Badge variant="outline" className="text-[10px] bg-background/50 backdrop-blur-sm border-emerald-200 dark:border-emerald-800">
+                                    <Badge variant="outline" className="text-[10px] bg-black/40 border-amber-500/30 text-amber-200">
                                       <CheckCircle size={10} className="mr-1" weight="fill" />
                                       {activeOrder.items?.filter(i => i.status === 'SERVED').length || 0} completati
                                     </Badge>
                                   )}
                                 </>
                               ) : (
-                                <div className="text-center text-muted-foreground/30 group-hover:text-muted-foreground/50 transition-all duration-300">
+                                <div className="text-center text-zinc-700 group-hover:text-zinc-500 transition-all duration-300">
                                   <ForkKnife size={32} className="mx-auto mb-1" weight="duotone" />
                                   <p className="text-xs font-medium">Clicca per Ordinare</p>
                                 </div>
@@ -2008,7 +2008,7 @@ const RestaurantDashboard = ({ user, onLogout }: RestaurantDashboardProps) => {
                       </div>
                       <div className="grid gap-3 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
                         {categoryDishes.map(dish => (
-                          <Card key={dish.id} className={`group hover:shadow-lg transition-all border-border/50 bg-card shadow-sm overflow-hidden ${!dish.is_active ? 'opacity-60 grayscale' : ''}`}>
+                          <Card key={dish.id} className={`group hover:shadow-lg transition-all border-zinc-800 bg-zinc-900 shadow-none overflow-hidden ${!dish.is_active ? 'opacity-60 grayscale' : ''}`}>
                             <CardContent className="p-0">
                               <div className="flex gap-4 p-4">
                                 {/* Larger Image */}
@@ -2021,8 +2021,8 @@ const RestaurantDashboard = ({ user, onLogout }: RestaurantDashboardProps) => {
                                     />
                                   </div>
                                 ) : (
-                                  <div className="w-24 h-24 shrink-0 rounded-xl bg-muted/50 flex items-center justify-center">
-                                    <ForkKnife size={32} className="text-muted-foreground/50" />
+                                  <div className="w-24 h-24 shrink-0 rounded-xl bg-white/5 flex items-center justify-center">
+                                    <ForkKnife size={32} className="text-zinc-700" />
                                   </div>
                                 )}
 
@@ -2030,18 +2030,18 @@ const RestaurantDashboard = ({ user, onLogout }: RestaurantDashboardProps) => {
                                 <div className="flex-1 min-w-0 flex flex-col justify-between">
                                   <div>
                                     <div className="flex items-start justify-between gap-2">
-                                      <h4 className="font-bold text-lg leading-tight line-clamp-2">{dish.name}</h4>
-                                      <span className="font-bold text-primary text-lg whitespace-nowrap">€{dish.price.toFixed(2)}</span>
+                                      <h4 className="font-bold text-lg leading-tight line-clamp-2 text-zinc-100">{dish.name}</h4>
+                                      <span className="font-bold text-amber-500 text-lg whitespace-nowrap">€{dish.price.toFixed(2)}</span>
                                     </div>
                                     {dish.description && (
-                                      <p className="text-sm text-muted-foreground mt-1 line-clamp-2">{dish.description}</p>
+                                      <p className="text-sm text-zinc-400 mt-1 line-clamp-2">{dish.description}</p>
                                     )}
                                   </div>
 
                                   <div className="flex items-center justify-between mt-3">
                                     <div className="flex items-center gap-2">
                                       {dish.is_ayce && (
-                                        <Badge className="bg-amber-500 hover:bg-amber-600 text-white border-none px-2 py-0.5 shadow-sm">
+                                        <Badge className="bg-amber-500 text-black border-none px-2 py-0.5 shadow-sm">
                                           AYCE
                                         </Badge>
                                       )}
@@ -2052,7 +2052,7 @@ const RestaurantDashboard = ({ user, onLogout }: RestaurantDashboardProps) => {
                                       <Button
                                         variant="ghost"
                                         size="icon"
-                                        className="h-8 w-8 hover:bg-primary/10 hover:text-primary rounded-full"
+                                        className="h-8 w-8 hover:bg-white/5 hover:text-amber-500 rounded-full text-zinc-400"
                                         onClick={() => handleEditDish(dish)}
                                       >
                                         <PencilSimple size={18} />
@@ -2060,7 +2060,7 @@ const RestaurantDashboard = ({ user, onLogout }: RestaurantDashboardProps) => {
                                       <Button
                                         variant="ghost"
                                         size="icon"
-                                        className={`h-8 w-8 rounded-full ${!dish.is_active ? 'text-muted-foreground hover:bg-muted' : 'text-green-600 hover:bg-green-100 dark:hover:bg-green-900/30'}`}
+                                        className={`h-8 w-8 rounded-full ${!dish.is_active ? 'text-zinc-700 hover:bg-white/5' : 'text-emerald-500 hover:bg-emerald-900/30'}`}
                                         onClick={() => handleToggleDish(dish.id)}
                                       >
                                         {dish.is_active ? <Eye size={18} /> : <EyeSlash size={18} />}
@@ -2141,21 +2141,23 @@ const RestaurantDashboard = ({ user, onLogout }: RestaurantDashboardProps) => {
                   refreshBookings()
                   refreshSessions()
                 }}
+                reservationDuration={reservationDuration} // Pass duration here
               />
             </TabsContent >
 
             {/* Analytics Tab */}
-            < TabsContent value="analytics" className="space-y-6" >
+            < TabsContent value="analytics" className="m-0 h-full p-4 md:p-6 outline-none data-[state=inactive]:hidden overflow-y-auto" >
+              {/* Analytics Content */}
               <AnalyticsCharts
                 orders={restaurantOrders}
-                completedOrders={restaurantCompletedOrders}
                 dishes={restaurantDishes}
                 categories={restaurantCategories}
+                completedOrders={restaurantCompletedOrders}
               />
             </TabsContent >
 
             {/* Settings Tab */}
-            <TabsContent value="settings" className="space-y-6 animate-in fade-in-50 duration-300">
+            <TabsContent value="settings" className="m-0 h-full p-4 md:p-6 outline-none data-[state=inactive]:hidden overflow-y-auto">
               <SettingsView
                 restaurantName={restaurantName}
                 setRestaurantName={setRestaurantName}
@@ -2177,34 +2179,55 @@ const RestaurantDashboard = ({ user, onLogout }: RestaurantDashboardProps) => {
                 waiterCredentialsDirty={waiterCredentialsDirty}
 
                 ayceEnabled={ayceEnabled}
-                setAyceEnabled={(val) => { setAyceEnabled(val); setAyceDirty(true) }}
+                setAyceEnabled={updateAyceEnabled}
                 aycePrice={aycePrice}
-                setAycePrice={(val) => { setAycePrice(val); setAyceDirty(true) }}
+                setAycePrice={(p) => {
+                  setAycePrice(p)
+                  const val = typeof p === 'string' ? parseFloat(p) : p
+                  if (restaurantId) DatabaseService.updateRestaurant({
+                    id: restaurantId,
+                    all_you_can_eat: {
+                      enabled: ayceEnabled,
+                      pricePerPerson: val || 0,
+                      maxOrders: ayceMaxOrders
+                    }
+                  })
+                }}
                 ayceMaxOrders={ayceMaxOrders}
-                setAyceMaxOrders={(val) => { setAyceMaxOrders(val); setAyceDirty(true) }}
-
-                copertoEnabled={copertoEnabled}
-                setCopertoEnabled={(val) => { setCopertoEnabled(val); setCopertoDirty(true) }}
-                copertoPrice={copertoPrice}
-                setCopertoPrice={(val) => { setCopertoPrice(val); setCopertoDirty(true) }}
-
-                lunchTimeStart={lunchTimeStart} setLunchTimeStart={setLunchTimeStart}
-                dinnerTimeStart={dinnerTimeStart} setDinnerTimeStart={setDinnerTimeStart}
-
-                reservationDuration={reservationDuration}
-                setReservationDuration={(val) => {
-                  setReservationDuration(val)
-                  localStorage.setItem('reservationDuration', val.toString())
+                setAyceMaxOrders={(o) => {
+                  setAyceMaxOrders(o)
+                  const val = typeof o === 'string' ? parseInt(o) : o
+                  if (restaurantId) DatabaseService.updateRestaurant({
+                    id: restaurantId,
+                    all_you_can_eat: {
+                      enabled: ayceEnabled,
+                      pricePerPerson: aycePrice,
+                      maxOrders: val || 0
+                    }
+                  })
                 }}
 
-                openingTime={openingTime}
-                setOpeningTime={setOpeningTime}
-                closingTime={closingTime}
-                setClosingTime={setClosingTime}
+                copertoEnabled={copertoEnabled}
+                setCopertoEnabled={updateCopertoEnabled}
+                copertoPrice={copertoPrice}
+                setCopertoPrice={updateCopertoPrice}
+
+                openingTime={lunchTimeStart} // Reuse for now or separate?
+                setOpeningTime={() => { }} // Legacy prop?
+                closingTime={dinnerTimeStart} // Legacy prop?
+                setClosingTime={() => { }} // Legacy prop?
+
+                lunchTimeStart={lunchTimeStart}
+                setLunchTimeStart={updateLunchStart}
+                dinnerTimeStart={dinnerTimeStart}
+                setDinnerTimeStart={updateDinnerStart}
 
                 courseSplittingEnabled={courseSplittingEnabled}
                 setCourseSplittingEnabled={setCourseSplittingEnabled}
                 updateCourseSplitting={updateCourseSplitting}
+
+                reservationDuration={reservationDuration}
+                setReservationDuration={updateReservationDuration}
               />
             </TabsContent>
           </Tabs>

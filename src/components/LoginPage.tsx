@@ -123,17 +123,17 @@ export default function LoginPage({ onLogin }: Props) {
   }
 
   return (
-    <div className="min-h-screen flex flex-col items-center justify-center bg-zinc-950 text-zinc-50 p-4 font-sans selection:bg-emerald-500/30">
+    <div className="min-h-screen flex flex-col items-center justify-center bg-zinc-950 text-zinc-50 p-4 font-sans selection:bg-amber-500/30">
       <div className="w-full max-w-[400px] animate-in fade-in-50 zoom-in-95 duration-500">
         <div className="text-center mb-10 space-y-2">
-          <div className="inline-flex items-center justify-center w-16 h-16 rounded-2xl bg-zinc-900 border border-white/5 text-emerald-500 mb-6 shadow-2xl">
+          <div className="inline-flex items-center justify-center w-16 h-16 rounded-2xl bg-zinc-900 border border-zinc-800 text-amber-500 mb-6 shadow-2xl shadow-amber-900/10">
             <Users weight="duotone" size={32} />
           </div>
           <h1 className="text-2xl font-bold tracking-tight text-white">Bentornato</h1>
           <p className="text-sm text-zinc-400">Inserisci le tue credenziali per accedere</p>
         </div>
 
-        <div className="bg-zinc-900/50 border border-white/5 rounded-2xl p-8 backdrop-blur-sm shadow-xl space-y-6">
+        <div className="bg-zinc-900/50 border border-zinc-800 rounded-2xl p-8 backdrop-blur-sm shadow-xl space-y-6">
           <div className="space-y-4">
             <div className="space-y-2">
               <Label htmlFor="username" className="text-xs font-medium text-zinc-400 uppercase tracking-wider">Nome Utente</Label>
@@ -142,7 +142,7 @@ export default function LoginPage({ onLogin }: Props) {
                 value={username}
                 onChange={(e) => setUsername(e.target.value)}
                 placeholder="es. nomeristorante"
-                className="bg-zinc-950/50 border-white/5 focus:border-emerald-500/50 focus:ring-emerald-500/20 text-zinc-100 placeholder:text-zinc-600 h-11"
+                className="bg-zinc-950/50 border-zinc-800 focus:border-amber-500/50 focus:ring-amber-500/20 text-zinc-100 placeholder:text-zinc-600 h-11 transition-all"
               />
             </div>
             <div className="space-y-2">
@@ -156,7 +156,7 @@ export default function LoginPage({ onLogin }: Props) {
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
                   placeholder="••••••••"
-                  className="bg-zinc-950/50 border-white/5 focus:border-emerald-500/50 focus:ring-emerald-500/20 text-zinc-100 placeholder:text-zinc-600 h-11 pr-10"
+                  className="bg-zinc-950/50 border-zinc-800 focus:border-amber-500/50 focus:ring-amber-500/20 text-zinc-100 placeholder:text-zinc-600 h-11 pr-10 transition-all"
                 />
                 <button
                   type="button"
@@ -174,7 +174,7 @@ export default function LoginPage({ onLogin }: Props) {
                 id="remember-me"
                 checked={rememberMe}
                 onCheckedChange={(checked) => setRememberMe(checked === true)}
-                className="border-white/10 data-[state=checked]:bg-emerald-500 data-[state=checked]:border-emerald-500"
+                className="border-white/10 data-[state=checked]:bg-amber-500 data-[state=checked]:border-amber-500 text-black"
               />
               <Label htmlFor="remember-me" className="text-sm text-zinc-400 cursor-pointer font-normal hover:text-zinc-300 transition-colors">
                 Ricordami
@@ -185,11 +185,11 @@ export default function LoginPage({ onLogin }: Props) {
           <Button
             onClick={handleAdminLogin}
             disabled={isLoading || !username || !password}
-            className="w-full bg-emerald-600 hover:bg-emerald-500 text-white h-11 font-medium rounded-lg transition-all shadow-lg shadow-emerald-900/20 disabled:opacity-50 disabled:cursor-not-allowed"
+            className="w-full bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-400 hover:to-amber-500 text-black h-11 font-bold rounded-lg transition-all shadow-lg shadow-amber-900/20 disabled:opacity-50 disabled:cursor-not-allowed border-none"
           >
             {isLoading ? (
               <div className="flex items-center gap-2">
-                <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                <div className="w-4 h-4 border-2 border-black/30 border-t-black rounded-full animate-spin" />
                 <span>Accesso...</span>
               </div>
             ) : 'Accedi'}
