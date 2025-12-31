@@ -403,7 +403,7 @@ export default function CustomMenusManager({ restaurantId, dishes, categories, o
 
     // --- VIEW: EDITOR (Minimal refinement) ---
     return (
-        <div className="flex flex-col h-[92vh] bg-background">
+        <div className="flex flex-col h-[92vh] w-[95vw] max-w-[1800px] bg-background">
             {/* Header */}
             <div className="flex items-center justify-between px-10 py-6 border-b bg-muted/5 pr-12">
                 {/* Added pr-12 to avoid Dialog Close X overlap */}
@@ -444,7 +444,7 @@ export default function CustomMenusManager({ restaurantId, dishes, categories, o
 
             <div className="flex flex-1 overflow-hidden">
                 {/* Sidebar Navigation */}
-                <div className="w-[80px] sm:w-[220px] flex-shrink-0 border-r bg-muted/10 flex flex-col gap-3 p-4">
+                <div className="w-[60px] sm:w-[140px] flex-shrink-0 border-r bg-muted/10 flex flex-col gap-3 p-3">
                     <Button
                         variant={editorTab === 'dishes' ? 'secondary' : 'ghost'}
                         size="sm"
@@ -550,8 +550,8 @@ export default function CustomMenusManager({ restaurantId, dishes, categories, o
                             </div>
                         </>
                     ) : (
-                        <div className="flex-1 p-4 flex flex-col items-center bg-muted/5 w-full overflow-auto">
-                            <div className="w-full max-w-[98%] bg-card p-6 rounded-3xl border shadow-sm">
+                        <div className="flex-1 p-6 flex flex-col bg-muted/5 w-full overflow-auto">
+                            <div className="w-full max-w-full bg-card p-6 rounded-3xl border shadow-sm">
                                 <div className="text-center mb-6">
                                     <h3 className="text-xl font-bold flex items-center justify-center gap-3">
                                         <Clock weight="duotone" size={28} className="text-primary" />
@@ -562,8 +562,9 @@ export default function CustomMenusManager({ restaurantId, dishes, categories, o
                                     </p>
                                 </div>
 
-                                <div className="border rounded-2xl overflow-x-auto shadow-sm">
-                                    <div className="min-w-[1100px] grid grid-cols-[100px_repeat(7,1fr)] bg-muted/20">
+                                <div className="w-full overflow-x-auto">
+                                    <div className="border rounded-2xl shadow-sm min-w-[1100px]">
+                                        <div className="grid grid-cols-[100px_repeat(7,1fr)] bg-muted/20">
                                         {/* Header Row */}
                                         <div className="p-3 border-r border-b bg-muted/50"></div> {/* Corner */}
                                         {DAYS_OF_WEEK.map(day => (
@@ -609,6 +610,7 @@ export default function CustomMenusManager({ restaurantId, dishes, categories, o
                                                 })}
                                             </div>
                                         ))}
+                                        </div>
                                     </div>
                                 </div>
 
