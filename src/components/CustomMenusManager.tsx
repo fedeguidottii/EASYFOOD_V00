@@ -496,7 +496,7 @@ export default function CustomMenusManager({ restaurantId, dishes, categories, o
                                                     <div className="h-px bg-border flex-1" />
                                                 </div>
 
-                                                <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-3">
+                                                <div className="grid grid-cols-1 gap-2"> {/* Changed to grid-cols-1 for better visibility in popup */}
                                                     {visibleDishes.map(dish => {
                                                         const isSelected = menuDishes.includes(dish.id)
                                                         return (
@@ -510,7 +510,7 @@ export default function CustomMenusManager({ restaurantId, dishes, categories, o
                                                                         : "bg-card hover:bg-muted/50 border-transparent shadow-sm hover:shadow-md"
                                                                 )}
                                                             >
-                                                                <div className="flex items-center gap-3 overflow-hidden">
+                                                                <div className="flex items-center gap-3 overflow-hidden w-full">
                                                                     <div className={cn(
                                                                         "w-5 h-5 rounded-md border flex items-center justify-center flex-shrink-0 transition-all",
                                                                         isSelected
@@ -519,9 +519,9 @@ export default function CustomMenusManager({ restaurantId, dishes, categories, o
                                                                     )}>
                                                                         {isSelected && <Check size={12} className="text-white" weight="bold" />}
                                                                     </div>
-                                                                    <div>
+                                                                    <div className="flex-1 min-w-0 flex items-center justify-between">
                                                                         <p className={cn("text-sm truncate transition-colors", isSelected ? "font-semibold text-emerald-900 dark:text-emerald-100" : "font-medium text-foreground")}>{dish.name}</p>
-                                                                        <p className="text-xs text-muted-foreground font-mono">€{dish.price.toFixed(2)}</p>
+                                                                        <p className="text-xs text-muted-foreground font-mono ml-2">€{dish.price.toFixed(2)}</p>
                                                                     </div>
                                                                 </div>
                                                             </div>
