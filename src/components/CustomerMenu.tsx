@@ -30,7 +30,8 @@ import {
 import { SortableContext, verticalListSortingStrategy, useSortable } from '@dnd-kit/sortable'
 import { CSS } from '@dnd-kit/utilities'
 import { motion, AnimatePresence } from 'framer-motion'
-import type { Category, Dish, Order, TableSession } from '../services/types'
+import type { Category, Dish, Order, TableSession, Restaurant } from '../services/types'
+import { getCurrentCopertoPrice } from '../utils/pricingUtils'
 
 // --- HELPER COMPONENTS ---
 
@@ -233,6 +234,7 @@ const CustomerMenu = () => {
   const [activeSession, setActiveSession] = useState<TableSession | null>(null)
   const [restaurantId, setRestaurantId] = useState<string | null>(() => localStorage.getItem('restaurantId')) // Init from localStorage
   const [restaurantName, setRestaurantName] = useState<string>('') // Restaurant name for PIN screen
+  const [fullRestaurant, setFullRestaurant] = useState<Restaurant | null>(null)
   const [restaurantSuspended, setRestaurantSuspended] = useState(false)
   const [courseSplittingEnabled, setCourseSplittingEnabled] = useState(true) // Default to true for backwards compat
 
@@ -244,7 +246,7 @@ const CustomerMenu = () => {
         try {
           const { data: tableData, error } = await supabase
             .from('tables')
-            .select('restaurant_id, restaurants(name, is_active)')
+            .select('restaurant_id, restaurants(*)')
             .eq('id', tableId)
             .single()
 
@@ -263,17 +265,21 @@ const CustomerMenu = () => {
           if (tableData) {
             // Check if restaurant is active - Supabase join returns object or array
             const restaurantsData = tableData.restaurants as unknown
-            const restaurant = Array.isArray(restaurantsData) ? restaurantsData[0] : restaurantsData as { name: string, is_active: boolean } | null
+            const restaurant = (Array.isArray(restaurantsData) ? restaurantsData[0] : restaurantsData) as Restaurant | null
 
             if (restaurant) {
               setRestaurantName(restaurant.name)
-              // Default course splitting to true if we can't fetch it
-              // setCourseSplittingEnabled(restaurant.enable_course_splitting !== false)
-              if (restaurant.is_active === false) {
-                setRestaurantId(null) // Prevent loading
-                setRestaurantSuspended(true)
-                setIsAuthenticated(false) // Ensure not authenticated if suspended
-                return // Stop further processing if suspended
+              setFullRestaurant(restaurant)
+              setCourseSplittingEnabled(restaurant.enable_course_splitting !== false)
+              if (restaurant.isActive === false) { // Note: types.ts uses isActive, DB uses is_active. Checking both for safety or assuming mapped
+                // Check raw DB field if possible or mapped
+                // Assuming raw return:
+                if ((restaurant as any).is_active === false) {
+                  setRestaurantId(null)
+                  setRestaurantSuspended(true)
+                  setIsAuthenticated(false)
+                  return
+                }
               }
             }
 
@@ -298,19 +304,23 @@ const CustomerMenu = () => {
       const fetchRestaurantId = async () => {
         const { data: tableData } = await supabase
           .from('tables')
-          .select('restaurant_id, restaurants(name, is_active)')
+          .select('restaurant_id, restaurants(*)')
           .eq('id', tableId)
           .single()
-        if (tableData) {
+
+        if (tableData && tableData.restaurants) {
           const restaurantsData = tableData.restaurants as unknown
-          const restaurant = Array.isArray(restaurantsData) ? restaurantsData[0] : restaurantsData as { name: string, is_active: boolean } | null
+          const restaurant = (Array.isArray(restaurantsData) ? restaurantsData[0] : restaurantsData) as Restaurant | null
           if (restaurant) {
             setRestaurantName(restaurant.name)
-            // setCourseSplittingEnabled(restaurant.enable_course_splitting !== false)
-            if (restaurant.is_active === false) {
-              setRestaurantSuspended(true)
-              setIsAuthenticated(false)
-              return
+            setFullRestaurant(restaurant)
+            setCourseSplittingEnabled(restaurant.enable_course_splitting !== false)
+            if (restaurant.isActive === false) {
+              // Check raw DB field if needed
+              if ((restaurant as any).is_active === false) {
+                setRestaurantSuspended(true)
+                setIsAuthenticated(false)
+              }
             }
           }
           setRestaurantId(tableData.restaurant_id)
@@ -1194,6 +1204,60 @@ function AuthorizedMenuContent({ restaurantId, tableId, sessionId, activeSession
                         </div>
                       </div>
                     ))}
+                  </div>
+
+                  <div className="bg-zinc-900/50 rounded-xl p-4 border border-zinc-800 space-y-2 text-sm text-zinc-400">
+                    {/* Coperto Calculation */}
+                    {(() => {
+                      const isCopertoEnabled = activeSession?.coperto_enabled ?? true
+                      if (!isCopertoEnabled) return null;
+
+                      const currentCoperto = fullRestaurant
+                        ? getCurrentCopertoPrice(
+                          fullRestaurant,
+                          fullRestaurant.lunch_time_start || '12:00',
+                          fullRestaurant.dinner_time_start || '19:00'
+                        ).price
+                        : (fullRestaurant?.cover_charge_per_person || 0)
+
+                      if (currentCoperto <= 0) return null;
+
+                      const personCount = activeSession?.customer_count || 1;
+                      const totalCoperto = currentCoperto * personCount;
+
+                      return (
+                        <div className="flex justify-between items-center text-zinc-500">
+                          <span>Coperto ({personCount} pers.)</span>
+                          <span>€ {totalCoperto.toFixed(2)}</span>
+                        </div>
+                      )
+                    })()}
+
+                    <div className="flex justify-between items-center bg-zinc-950 p-3 rounded-lg border border-white/5">
+                      <span className="font-semibold text-white uppercase tracking-wider">Totale Stimato</span>
+                      <span className="font-bold text-amber-500 text-lg">
+                        € {(() => {
+                          const isCopertoEnabled = activeSession?.coperto_enabled ?? true
+                          let copertoTotal = 0
+                          if (isCopertoEnabled) {
+                            const currentCoperto = fullRestaurant
+                              ? getCurrentCopertoPrice(
+                                fullRestaurant,
+                                fullRestaurant.lunch_time_start || '12:00',
+                                fullRestaurant.dinner_time_start || '19:00'
+                              ).price
+                              : (fullRestaurant?.cover_charge_per_person || 0)
+                            if (currentCoperto > 0) {
+                              copertoTotal = currentCoperto * (activeSession?.customer_count || 1)
+                            }
+                          }
+                          return (cartTotal + copertoTotal).toFixed(2)
+                        })()}
+                      </span>
+                    </div>
+                    <p className="text-[10px] text-center text-zinc-600 pt-1">
+                      Il totale finale potrebbe subire variazioni al momento del pagamento in cassa.
+                    </p>
                   </div>
 
                   <div className="mt-4">

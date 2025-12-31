@@ -25,6 +25,7 @@ import {
 import { useRestaurantLogic } from '../hooks/useRestaurantLogic'
 import { DatabaseService } from '../services/DatabaseService'
 import { useSupabaseData } from '../hooks/useSupabaseData'
+import { getCurrentCopertoPrice, getCurrentAyceSettings } from '../utils/pricingUtils'
 import { KitchenView } from './KitchenView'
 import { SettingsView } from './SettingsView'
 import ReservationsManager from './ReservationsManager'
@@ -2661,11 +2662,17 @@ const RestaurantDashboard = ({ user, onLogout }: RestaurantDashboardProps) => {
                   const isAyceActive = session?.ayce_enabled ?? ayceEnabled
                   const isCoverActive = session?.coperto_enabled ?? copertoEnabled
 
-                  const parsedCoperto = typeof copertoPrice === 'string' ? parseFloat(copertoPrice) : copertoPrice
-                  const parsedAyce = typeof aycePrice === 'string' ? parseFloat(aycePrice) : aycePrice
+                  // Calculate effective prices based on schedule
+                  const effectiveCoperto = currentRestaurant
+                    ? getCurrentCopertoPrice(currentRestaurant, lunchTimeStart, dinnerTimeStart).price
+                    : (typeof copertoPrice === 'string' ? parseFloat(copertoPrice) : copertoPrice)
 
-                  const coverCharge = (isCoverActive ? (parsedCoperto || 0) : 0) * customerCount
-                  const ayceCharge = (isAyceActive ? (parsedAyce || 0) : 0) * customerCount
+                  const effectiveAyce = currentRestaurant
+                    ? getCurrentAyceSettings(currentRestaurant, lunchTimeStart, dinnerTimeStart).price
+                    : (typeof aycePrice === 'string' ? parseFloat(aycePrice) : aycePrice)
+
+                  const coverCharge = (isCoverActive ? (effectiveCoperto || 0) : 0) * customerCount
+                  const ayceCharge = (isAyceActive ? (effectiveAyce || 0) : 0) * customerCount
 
                   return (
                     <>
