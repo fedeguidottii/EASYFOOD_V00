@@ -77,6 +77,11 @@ const RestaurantDashboard = ({ user, onLogout }: RestaurantDashboardProps) => {
   // Sound refs for stable subscription usage
   const soundEnabledRef = useRef(soundEnabled)
   const selectedSoundRef = useRef(selectedSound)
+  const lastScheduledMenuRef = useRef<{ menuId: string | null, mealType: string | null, day: number | null }>({
+    menuId: null,
+    mealType: null,
+    day: null
+  })
 
   useEffect(() => {
     soundEnabledRef.current = soundEnabled
@@ -116,50 +121,83 @@ const RestaurantDashboard = ({ user, onLogout }: RestaurantDashboardProps) => {
         const lunchStart = parseTime(lunchTimeStart)
         const dinnerStart = parseTime(dinnerTimeStart)
 
-        // Determine meal type (Lunch until Dinner, Dinner until end of day/next lunch)
+        const hasLunch = lunchStart > 0
+        const hasDinner = dinnerStart > 0
         let currentMealType: string | null = null
 
-        // Define Lunch Period: From LunchStart (inclusive) to DinnerStart (exclusive)
-        // Define Dinner Period: From DinnerStart (inclusive) onwards
-
-        if (lunchStart > 0 && dinnerStart > 0) {
-          // Standard case: Lunch comes before Dinner
+        if (hasLunch && hasDinner) {
           if (lunchStart < dinnerStart) {
             if (currentTime >= lunchStart && currentTime < dinnerStart) {
               currentMealType = 'lunch'
-            } else if (currentTime >= dinnerStart) {
+            } else if (currentTime >= dinnerStart || currentTime < lunchStart) {
               currentMealType = 'dinner'
             }
-          } else {
-            // Weak edge case protection if dinner is somehow set before lunch?
+          } else if (lunchStart > dinnerStart) {
+            if (currentTime >= dinnerStart && currentTime < lunchStart) {
+              currentMealType = 'dinner'
+            } else {
+              currentMealType = 'lunch'
+            }
           }
-        } else if (lunchStart > 0) {
-          // Only lunch configured?
+        } else if (hasLunch) {
           if (currentTime >= lunchStart) currentMealType = 'lunch'
-        } else if (dinnerStart > 0) {
+        } else if (hasDinner) {
           if (currentTime >= dinnerStart) currentMealType = 'dinner'
         }
 
-        if (!currentMealType) return
+        if (!currentMealType) {
+          if (lastScheduledMenuRef.current.menuId) {
+            await supabase.rpc('reset_to_full_menu', { p_restaurant_id: restaurantId })
+            lastScheduledMenuRef.current = { menuId: null, mealType: null, day: null }
+          }
+          return
+        }
+
+        let scheduleDay = dayOfWeek
+        if (
+          currentMealType === 'dinner'
+          && hasLunch
+          && hasDinner
+          && lunchStart < dinnerStart
+          && currentTime < lunchStart
+        ) {
+          scheduleDay = (dayOfWeek + 6) % 7
+        }
 
         // Fetch schedules
         const { data: schedules } = await supabase
           .from('custom_menu_schedules')
           .select('*')
           .eq('is_active', true)
-          .eq('day_of_week', dayOfWeek)
+          .eq('day_of_week', scheduleDay)
           .or(`meal_type.eq.${currentMealType},meal_type.eq.all`)
 
-        if (schedules && schedules.length > 0) {
-          const match = schedules.find(s => s.meal_type === currentMealType) || schedules[0]
+        const match = schedules?.find(s => s.meal_type === currentMealType) || schedules?.[0]
 
-          if (match) {
-            await supabase.rpc('apply_custom_menu', {
-              p_restaurant_id: restaurantId,
-              p_menu_id: match.custom_menu_id
-            })
-            // Success (silent)
+        if (!match) {
+          if (lastScheduledMenuRef.current.menuId) {
+            await supabase.rpc('reset_to_full_menu', { p_restaurant_id: restaurantId })
+            lastScheduledMenuRef.current = { menuId: null, mealType: null, day: null }
           }
+          return
+        }
+
+        if (
+          lastScheduledMenuRef.current.menuId === match.custom_menu_id
+          && lastScheduledMenuRef.current.mealType === currentMealType
+          && lastScheduledMenuRef.current.day === scheduleDay
+        ) {
+          return
+        }
+
+        await supabase.rpc('apply_custom_menu', {
+          p_restaurant_id: restaurantId,
+          p_menu_id: match.custom_menu_id
+        })
+        lastScheduledMenuRef.current = {
+          menuId: match.custom_menu_id,
+          mealType: currentMealType,
+          day: scheduleDay
         }
       } catch (err) {
         console.error("Error in menu scheduler:", err)
@@ -1748,7 +1786,7 @@ const RestaurantDashboard = ({ user, onLogout }: RestaurantDashboardProps) => {
                       Menu Personalizzati
                     </Button>
                   </DialogTrigger>
-                  <DialogContent className="max-w-[95vw] p-0 overflow-hidden">
+                  <DialogContent className="w-[1100px] max-w-[96vw] h-[90vh] p-0 overflow-hidden">
                     <CustomMenusManager
                       restaurantId={restaurantId || ''}
                       dishes={dishes || []}

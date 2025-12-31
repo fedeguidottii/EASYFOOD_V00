@@ -205,7 +205,7 @@ export default function CustomMenusManager({ restaurantId, dishes, categories, o
         const activeMenu = customMenus.find(m => m.is_active)
 
         return (
-            <div className="flex flex-col h-[650px] w-full max-w-5xl mx-auto bg-background/50 backdrop-blur-sm">
+        <div className="flex flex-col h-full min-h-[70vh] w-full max-w-6xl mx-auto bg-background/50 backdrop-blur-sm">
 
                 {/* Header Section - Spaced correctly to avoid close button overlap */}
                 <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center px-8 pt-8 pb-6 border-b bg-muted/5">
@@ -405,7 +405,7 @@ export default function CustomMenusManager({ restaurantId, dishes, categories, o
     return (
         <div className="flex flex-col h-[85vh] bg-background">
             {/* Header */}
-            <div className="flex items-center justify-between px-6 py-4 border-b bg-muted/5 pr-12">
+            <div className="flex items-center justify-between px-8 py-5 border-b bg-muted/5 pr-12">
                 {/* Added pr-12 to avoid Dialog Close X overlap */}
                 <div className="flex items-center gap-4">
                     <Button
@@ -444,7 +444,7 @@ export default function CustomMenusManager({ restaurantId, dishes, categories, o
 
             <div className="flex flex-1 overflow-hidden">
                 {/* Sidebar Navigation */}
-                <div className="w-[70px] sm:w-[200px] flex-shrink-0 border-r bg-muted/10 flex flex-col gap-2 p-3">
+                <div className="w-[80px] sm:w-[220px] flex-shrink-0 border-r bg-muted/10 flex flex-col gap-3 p-4">
                     <Button
                         variant={editorTab === 'dishes' ? 'secondary' : 'ghost'}
                         size="sm"
@@ -550,9 +550,9 @@ export default function CustomMenusManager({ restaurantId, dishes, categories, o
                             </div>
                         </>
                     ) : (
-                        <div className="flex-1 p-6 flex flex-col items-center justify-center bg-muted/5 w-full">
-                            <div className="w-full max-w-5xl bg-card p-8 rounded-2xl border shadow-sm">
-                                <div className="text-center mb-8">
+                        <div className="flex-1 p-8 flex flex-col items-center justify-center bg-muted/5 w-full">
+                            <div className="w-full max-w-6xl bg-card p-10 rounded-3xl border shadow-sm">
+                                <div className="text-center mb-10">
                                     <h3 className="text-lg font-bold flex items-center justify-center gap-2">
                                         <Clock weight="duotone" size={28} className="text-primary" />
                                         Programmazione Automatica
@@ -562,12 +562,12 @@ export default function CustomMenusManager({ restaurantId, dishes, categories, o
                                     </p>
                                 </div>
 
-                                <div className="border rounded-xl overflow-hidden shadow-sm">
-                                    <div className="grid grid-cols-[100px_repeat(7,1fr)] bg-muted/20">
+                                <div className="border rounded-2xl overflow-auto shadow-sm">
+                                    <div className="min-w-[860px] grid grid-cols-[120px_repeat(7,1fr)] bg-muted/20">
                                         {/* Header Row */}
-                                        <div className="p-4 border-r border-b bg-muted/50"></div> {/* Corner */}
+                                        <div className="p-5 border-r border-b bg-muted/50"></div> {/* Corner */}
                                         {DAYS_OF_WEEK.map(day => (
-                                            <div key={day.value} className="p-4 text-center text-xs font-bold text-muted-foreground uppercase border-b border-r last:border-r-0 bg-muted/50 tracking-wider">
+                                            <div key={day.value} className="p-5 text-center text-xs font-bold text-muted-foreground uppercase border-b border-r last:border-r-0 bg-muted/50 tracking-wider">
                                                 {day.label}
                                             </div>
                                         ))}
@@ -577,7 +577,7 @@ export default function CustomMenusManager({ restaurantId, dishes, categories, o
                                             <div key={meal.value} className="contents group">
                                                 {/* Row Label */}
                                                 <div className={cn(
-                                                    "p-4 flex items-center justify-end font-semibold text-sm uppercase tracking-wider text-muted-foreground border-r bg-muted/10",
+                                                    "p-5 flex items-center justify-end font-semibold text-sm uppercase tracking-wider text-muted-foreground border-r bg-muted/10",
                                                     index !== MEAL_TYPES.length - 1 && "border-b"
                                                 )}>
                                                     {meal.label}
@@ -590,7 +590,7 @@ export default function CustomMenusManager({ restaurantId, dishes, categories, o
                                                         <div
                                                             key={`${day.value}-${meal.value}`}
                                                             className={cn(
-                                                                "relative h-24 border-r last:border-r-0 flex items-center justify-center p-2 transition-all cursor-pointer hover:bg-muted/50",
+                                                                "relative h-28 border-r last:border-r-0 flex items-center justify-center p-2 transition-all cursor-pointer hover:bg-muted/50",
                                                                 index !== MEAL_TYPES.length - 1 && "border-b",
                                                                 isActive && "bg-emerald-50/50 hover:bg-emerald-100/50 dark:bg-emerald-900/10 dark:hover:bg-emerald-900/20"
                                                             )}
