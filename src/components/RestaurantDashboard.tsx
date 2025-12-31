@@ -409,13 +409,24 @@ const RestaurantDashboard = ({ user, onLogout }: RestaurantDashboardProps) => {
       setAyceMaxOrders(currentRestaurant.all_you_can_eat?.maxOrders || 0)
       // For now, let's stick to what we know exists or was added.
 
-      setCopertoEnabled(!!currentRestaurant.cover_charge_per_person)
-      setCopertoPrice(currentRestaurant.cover_charge_per_person || 0)
+      // refreshRestaurants() // This was causing an infinite loop, removed.
 
-      setLunchTimeStart(currentRestaurant.lunch_time_start || '12:00')
-      setDinnerTimeStart(currentRestaurant.dinner_time_start || '19:00')
+      const coverCharge = currentRestaurant.cover_charge_per_person
+      if (coverCharge !== undefined) {
+        setCopertoPrice(coverCharge)
+        setCopertoEnabled(coverCharge > 0)
+      }
+      setSettingsInitialized(true)
+
+      setWaiterModeEnabled(currentRestaurant.waiter_mode_enabled || false)
+      setAllowWaiterPayments(currentRestaurant.allow_waiter_payments || false)
+      setWaiterPassword(currentRestaurant.waiter_password || '')
+      setRestaurantName(currentRestaurant.name || '')
       setCourseSplittingEnabled(currentRestaurant.enable_course_splitting || false)
-      setReservationDuration(currentRestaurant.reservation_duration || 120)
+
+      // Schedule Times
+      if (currentRestaurant.lunch_time_start) setLunchTimeStart(currentRestaurant.lunch_time_start)
+      if (currentRestaurant.dinner_time_start) setDinnerTimeStart(currentRestaurant.dinner_time_start)
     }
   }, [currentRestaurant])
 
@@ -427,6 +438,9 @@ const RestaurantDashboard = ({ user, onLogout }: RestaurantDashboardProps) => {
     setRestaurantNameDirty(false)
     refreshRestaurants()
   }
+
+  // This block was misplaced and causing a syntax error. It's removed as per instruction.
+  // if (currentRestaurant && currentRestaurant.isActive === false) {sword,
 
   const saveWaiterCredentials = async () => {
     if (!restaurantId) return
@@ -1732,7 +1746,8 @@ const RestaurantDashboard = ({ user, onLogout }: RestaurantDashboardProps) => {
                             }`}
                           onClick={() => {
                             if (isActive) {
-                              navigate(`/waiter/table/${table.id}`)
+                              setPendingAutoOrderTableId(table.id)
+                              handleToggleTable(table.id) // Or handle opening table details
                             } else {
                               setPendingAutoOrderTableId(table.id)
                               handleToggleTable(table.id)
@@ -2247,10 +2262,17 @@ const RestaurantDashboard = ({ user, onLogout }: RestaurantDashboardProps) => {
                 setLunchTimeStart={updateLunchStart}
                 dinnerTimeStart={dinnerTimeStart}
                 setDinnerTimeStart={updateDinnerStart}
-
                 courseSplittingEnabled={courseSplittingEnabled}
-                setCourseSplittingEnabled={setCourseSplittingEnabled}
-                updateCourseSplitting={updateCourseSplitting}
+                setCourseSplittingEnabled={(enabled) => {
+                  setCourseSplittingEnabled(enabled)
+                  if (restaurantId) DatabaseService.updateRestaurant({
+                    id: restaurantId,
+                    enable_course_splitting: enabled
+                  })
+                }}
+                updateCourseSplitting={(enabled) => {
+                  /* Legacy prop, mapped above */
+                }}
 
                 reservationDuration={reservationDuration}
                 setReservationDuration={updateReservationDuration}

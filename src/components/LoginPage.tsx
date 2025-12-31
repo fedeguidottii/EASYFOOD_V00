@@ -52,6 +52,13 @@ export default function LoginPage({ onLogin }: Props) {
         )
 
         if (targetRestaurant && targetRestaurant.waiter_mode_enabled) {
+          // Check if restaurant is active
+          if (targetRestaurant.isActive === false) {
+            toast.error('Ristorante temporaneamente sospeso. Contatta l\'amministrazione.')
+            setIsLoading(false)
+            return
+          }
+
           if (targetRestaurant.waiter_password === password) {
             // Successful Waiter Login
             const waiterUser: User = {
@@ -85,6 +92,14 @@ export default function LoginPage({ onLogin }: Props) {
             setIsLoading(false)
             return
           }
+
+          // Check if restaurant is active
+          if (userRestaurant.isActive === false) {
+            toast.error('Il tuo ristorante è stato temporaneamente sospeso. Contatta l\'assistenza.')
+            setIsLoading(false)
+            return
+          }
+
           // Attach restaurant_id to the user object
           const userWithRestaurant = { ...user, restaurant_id: userRestaurant.id }
 

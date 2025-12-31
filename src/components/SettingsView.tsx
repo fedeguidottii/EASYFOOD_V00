@@ -227,17 +227,31 @@ export function SettingsView({
                                 {soundEnabled && (
                                     <div className="space-y-3 max-w-md animate-in slide-in-from-top-2">
                                         <Label className="text-zinc-400">Tono di notifica</Label>
-                                        <Select value={selectedSound} onValueChange={(val) => setSelectedSound(val as SoundType)}>
-                                            <SelectTrigger className="h-12 bg-black/20 border-white/10">
-                                                <SelectValue />
-                                            </SelectTrigger>
-                                            <SelectContent className="bg-zinc-900 border-zinc-800 text-zinc-200">
-                                                <SelectItem value="classic">Classico (Campanello)</SelectItem>
-                                                <SelectItem value="modern">Moderno (Minimal)</SelectItem>
-                                                <SelectItem value="subtle">Sottile (Delicato)</SelectItem>
-                                                <SelectItem value="kitchen">Cucina (Forte)</SelectItem>
-                                            </SelectContent>
-                                        </Select>
+                                        <div className="flex gap-2">
+                                            <Select value={selectedSound} onValueChange={(val) => setSelectedSound(val as SoundType)}>
+                                                <SelectTrigger className="h-12 bg-black/20 border-white/10 flex-1">
+                                                    <SelectValue />
+                                                </SelectTrigger>
+                                                <SelectContent className="bg-zinc-900 border-zinc-800 text-zinc-200">
+                                                    <SelectItem value="classic">Classico (Campanello)</SelectItem>
+                                                    <SelectItem value="modern">Moderno (Minimal)</SelectItem>
+                                                    <SelectItem value="subtle">Sottile (Delicato)</SelectItem>
+                                                    <SelectItem value="kitchen">Cucina (Forte)</SelectItem>
+                                                </SelectContent>
+                                            </Select>
+                                            <Button
+                                                variant="outline"
+                                                size="icon"
+                                                className="h-12 w-12 border-white/10 bg-black/20 hover:bg-amber-500/20 hover:text-amber-500 hover:border-amber-500/50 transition-all"
+                                                onClick={() => {
+                                                    import('../utils/SoundManager').then(({ soundManager }) => {
+                                                        soundManager.play(selectedSound)
+                                                    })
+                                                }}
+                                            >
+                                                <SpeakerHigh size={20} weight="duotone" />
+                                            </Button>
+                                        </div>
                                     </div>
                                 )}
                             </div>

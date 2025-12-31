@@ -16,10 +16,11 @@ import { Input } from '@/components/ui/input'
 import { Textarea } from '@/components/ui/textarea'
 import { toast } from 'sonner'
 // Icons
+import { Minus, Plus, ShoppingCart, Trash, User, Info, X, Clock, Wallet, Check, Warning, ForkKnife, Note, Storefront } from '@phosphor-icons/react'
 import {
-  ShoppingBasket, Plus, Minus, Utensils, Clock, CheckCircle, ChefHat, Search, Info,
-  X, RefreshCw, AlertCircle, ChevronUp, ChevronDown, Layers, ArrowLeft, Send,
-  ChevronRight, Trash, GripVertical, ArrowUp, ArrowDown, Menu, History
+  ShoppingBasket, Utensils, CheckCircle, ChefHat, Search,
+  RefreshCw, AlertCircle, ChevronUp, ChevronDown, Layers, ArrowLeft, Send,
+  ChevronRight, GripVertical, ArrowUp, ArrowDown, Menu, History
 } from 'lucide-react'
 import {
   DndContext, DragOverlay, useSensor, useSensors, PointerSensor,
@@ -233,6 +234,7 @@ const CustomerMenu = () => {
   const [activeSession, setActiveSession] = useState<TableSession | null>(null)
   const [restaurantId, setRestaurantId] = useState<string | null>(null) // State to hold restaurantId fetched from table
   const [restaurantName, setRestaurantName] = useState<string>('') // Restaurant name for PIN screen
+  const [restaurantSuspended, setRestaurantSuspended] = useState(false)
 
   // Attempt joining session on mount if tableId exists
   useEffect(() => {
@@ -248,7 +250,7 @@ const CustomerMenu = () => {
             .single()
 
           if (error) {
-            console.error('Table fetch error:', error)
+            console.error('Error fetching table:', error)
             if (error.message?.includes('Failed to fetch')) {
               toast.error("Errore di connessione. Verifica la tua connessione internet.")
             } else if (error.code === 'PGRST116') {
@@ -260,22 +262,20 @@ const CustomerMenu = () => {
           }
 
           if (tableData) {
-            // Fetch restaurant name for PIN screen
-            // Fetch restaurant name
-            const { data: restaurantData } = await supabase
-              .from('restaurants')
-              .select('name')
-              .eq('id', tableData.restaurant_id)
-              .single()
+            // Check if restaurant is active
+            const restaurant = tableData.restaurants as { name: string, is_active: boolean } | null
 
-            if (tableData.restaurant_id) {
-              setRestaurantId(tableData.restaurant_id);
+            if (restaurant) {
+              setRestaurantName(restaurant.name)
+              if (restaurant.is_active === false) {
+                setRestaurantId(null) // Prevent loading
+                setRestaurantSuspended(true)
+                setIsAuthenticated(false) // Ensure not authenticated if suspended
+                return // Stop further processing if suspended
+              }
             }
 
-            if (restaurantData?.name) {
-              setRestaurantName(restaurantData.name)
-            }
-
+            setRestaurantId(tableData.restaurant_id)
             // Attempt auto-join
             joinSession(tableId, tableData.restaurant_id)
           } else {
@@ -398,6 +398,19 @@ const CustomerMenu = () => {
 
   // --- RENDER GATES ---
 
+  if (restaurantSuspended) return (
+    <div className="min-h-screen bg-zinc-950 flex flex-col items-center justify-center p-8 text-center">
+      <div className="w-20 h-20 bg-red-500/10 rounded-full flex items-center justify-center mb-6 text-red-500">
+        <Storefront size={40} weight="duotone" />
+      </div>
+      <h1 className="text-2xl font-bold text-white mb-2">Servizio Non Disponibile</h1>
+      <p className="text-zinc-400 max-w-md">
+        Il servizio per &quot;{restaurantName || 'questo ristorante'}&quot; è momentaneamente sospeso.
+        Ci scusiamo per il disagio.
+      </p>
+    </div>
+  )
+
   if (!tableId) return (
     <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-zinc-950 via-neutral-950 to-zinc-900 p-6">
       <div className="text-center text-amber-100/60">
@@ -451,7 +464,7 @@ const CustomerMenu = () => {
                     value={pin[index]}
                     onChange={(e) => handlePinDigitChange(index, e.target.value)}
                     onKeyDown={(e) => handlePinKeyDown(index, e)}
-                    disabled={!isActive && pin[index] === ''}
+                    // disabled attribute removed to allow focus transition
                     className={`w-12 h-16 text-center text-2xl font-light bg-transparent border-b-2 outline-none transition-all duration-300 rounded-none
                       ${!isActive ? 'opacity-30 cursor-not-allowed' : 'opacity-100'}
                       ${pinError
@@ -1206,7 +1219,15 @@ function AuthorizedMenuContent({ restaurantId, tableId, sessionId, activeSession
                       </div>
                       <div className="space-y-2">
                         {order.items?.map(item => {
-                          const dish = dishes.find(d => d.id === item.dish_id) || item.dishes
+                          // Try to find the dish locally or use the one joined from the backend
+                          const localDish = dishes.find(d => d.id === item.dish_id)
+                          // Handle potential property name mismatch from Supabase join (dishes vs dish)
+                          const joinedDish = item.dish || (item as any).dishes
+                          const dish = localDish || joinedDish
+
+                          // Price might not be on item directly, use dish price
+                          const price = dish?.price || 0
+
                           return (
                             <div
                               key={item.id}
@@ -1223,7 +1244,7 @@ function AuthorizedMenuContent({ restaurantId, tableId, sessionId, activeSession
                                 <span className="font-bold">{item.quantity}x</span>
                                 <span className="font-medium">{dish?.name || 'Piatto non disponibile'}</span>
                               </div>
-                              <span className="text-white/60">€{(item.price * item.quantity).toFixed(2)}</span>
+                              <span className="text-white/60">€{(price * item.quantity).toFixed(2)}</span>
                             </div>
                           )
                         })}
