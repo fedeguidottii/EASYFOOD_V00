@@ -1,3 +1,4 @@
+import { motion } from 'framer-motion'
 import { useState } from 'react'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
@@ -22,6 +23,7 @@ export default function LoginPage({ onLogin }: Props) {
   const [rememberMe, setRememberMe] = useState(false)
 
   const handleAdminLogin = async () => {
+    // ... logic remains same
     setIsLoading(true)
 
     try {
@@ -123,17 +125,52 @@ export default function LoginPage({ onLogin }: Props) {
   }
 
   return (
-    <div className="min-h-screen flex flex-col items-center justify-center bg-zinc-950 text-zinc-50 p-4 font-sans selection:bg-amber-500/30">
-      <div className="w-full max-w-[400px] animate-in fade-in-50 zoom-in-95 duration-500">
+    <div className="min-h-screen flex flex-col items-center justify-center bg-zinc-950 text-zinc-50 p-4 font-sans selection:bg-amber-500/30 overflow-hidden relative">
+      {/* Ambient Background */}
+      <div className="absolute inset-0 overflow-hidden pointer-events-none">
+        <div className="absolute top-[-10%] left-[-10%] w-[50%] h-[50%] bg-amber-500/5 rounded-full blur-[150px]" />
+        <div className="absolute bottom-[-10%] right-[-10%] w-[40%] h-[40%] bg-amber-500/5 rounded-full blur-[120px]" />
+      </div>
+
+      <motion.div
+        initial={{ opacity: 0, scale: 0.95, y: 20 }}
+        animate={{ opacity: 1, scale: 1, y: 0 }}
+        transition={{ duration: 0.5, ease: "easeOut" }}
+        className="w-full max-w-[400px] relative z-10"
+      >
         <div className="text-center mb-10 space-y-2">
-          <div className="inline-flex items-center justify-center w-16 h-16 rounded-2xl bg-zinc-900 border border-zinc-800 text-amber-500 mb-6 shadow-2xl shadow-amber-900/10">
+          <motion.div
+            initial={{ scale: 0, rotate: -20 }}
+            animate={{ scale: 1, rotate: 0 }}
+            transition={{ type: "spring", stiffness: 260, damping: 20, delay: 0.1 }}
+            className="inline-flex items-center justify-center w-16 h-16 rounded-2xl bg-zinc-900 border border-zinc-800 text-amber-500 mb-6 shadow-2xl shadow-amber-900/10"
+          >
             <Users weight="duotone" size={32} />
-          </div>
-          <h1 className="text-2xl font-bold tracking-tight text-white">Bentornato</h1>
-          <p className="text-sm text-zinc-400">Inserisci le tue credenziali per accedere</p>
+          </motion.div>
+          <motion.h1
+            initial={{ opacity: 0, y: 10 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.2 }}
+            className="text-2xl font-bold tracking-tight text-white"
+          >
+            Bentornato
+          </motion.h1>
+          <motion.p
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            transition={{ delay: 0.3 }}
+            className="text-sm text-zinc-400"
+          >
+            Inserisci le tue credenziali per accedere
+          </motion.p>
         </div>
 
-        <div className="bg-zinc-900/50 border border-zinc-800 rounded-2xl p-8 backdrop-blur-sm shadow-xl space-y-6">
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.4 }}
+          className="bg-zinc-900/50 border border-zinc-800 rounded-2xl p-8 backdrop-blur-sm shadow-xl space-y-6"
+        >
           <div className="space-y-4">
             <div className="space-y-2">
               <Label htmlFor="username" className="text-xs font-medium text-zinc-400 uppercase tracking-wider">Nome Utente</Label>
@@ -146,7 +183,7 @@ export default function LoginPage({ onLogin }: Props) {
               />
             </div>
             <div className="space-y-2">
-              <Label htmlFor="password" showPassword={showPassword} className="text-xs font-medium text-zinc-400 uppercase tracking-wider flex justify-between">
+              <Label htmlFor="password" className="text-xs font-medium text-zinc-400 uppercase tracking-wider flex justify-between">
                 <span>Password</span>
               </Label>
               <div className="relative">
@@ -182,24 +219,31 @@ export default function LoginPage({ onLogin }: Props) {
             </div>
           </div>
 
-          <Button
-            onClick={handleAdminLogin}
-            disabled={isLoading || !username || !password}
-            className="w-full bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-400 hover:to-amber-500 text-black h-11 font-bold rounded-lg transition-all shadow-lg shadow-amber-900/20 disabled:opacity-50 disabled:cursor-not-allowed border-none"
-          >
-            {isLoading ? (
-              <div className="flex items-center gap-2">
-                <div className="w-4 h-4 border-2 border-black/30 border-t-black rounded-full animate-spin" />
-                <span>Accesso...</span>
-              </div>
-            ) : 'Accedi'}
-          </Button>
-        </div>
+          <motion.div whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.98 }}>
+            <Button
+              onClick={handleAdminLogin}
+              disabled={isLoading || !username || !password}
+              className="w-full bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-400 hover:to-amber-500 text-black h-11 font-bold rounded-lg transition-all shadow-lg shadow-amber-900/20 disabled:opacity-50 disabled:cursor-not-allowed border-none"
+            >
+              {isLoading ? (
+                <div className="flex items-center gap-2">
+                  <div className="w-4 h-4 border-2 border-black/30 border-t-black rounded-full animate-spin" />
+                  <span>Accesso...</span>
+                </div>
+              ) : 'Accedi'}
+            </Button>
+          </motion.div>
+        </motion.div>
 
-        <p className="text-center text-xs text-zinc-600 mt-8">
+        <motion.p
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          transition={{ delay: 0.6 }}
+          className="text-center text-xs text-zinc-600 mt-8"
+        >
           &copy; {new Date().getFullYear()} EASYFOOD. Tutti i diritti riservati.
-        </p>
-      </div>
+        </motion.p>
+      </motion.div>
     </div>
   )
 }

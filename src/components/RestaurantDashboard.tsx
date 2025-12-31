@@ -20,7 +20,7 @@ import {
   Plus, Minus, Trash, Pencil, Check, X,
   CaretDown, CaretUp, Funnel, MagnifyingGlass,
   ChefHat, SignOut, SpeakerHigh, ForkKnife, Receipt, ClockCounterClockwise,
-  Users, CheckCircle, QrCode, PencilSimple, List, DotsSixVertical, Tag, Eye, EyeSlash, ZoomIn, ZoomOut, Sparkle
+  Users, CheckCircle, QrCode, PencilSimple, List, DotsSixVertical, Tag, Eye, EyeSlash, Sparkle
 } from '@phosphor-icons/react'
 import { useRestaurantLogic } from '../hooks/useRestaurantLogic'
 import { DatabaseService } from '../services/DatabaseService'
@@ -34,6 +34,7 @@ import QRCodeGenerator from './QRCodeGenerator'
 import type { Table, Order, Dish, Category, TableSession, Booking, Restaurant, Room } from '../services/types'
 import { soundManager, type SoundType } from '../utils/SoundManager'
 import { ModeToggle } from './ModeToggle'
+import { motion, AnimatePresence } from 'framer-motion'
 
 interface RestaurantDashboardProps {
   user: any
@@ -54,6 +55,7 @@ const RestaurantDashboard = ({ user, onLogout }: RestaurantDashboardProps) => {
   const [lunchTimeStart, setLunchTimeStart] = useState('12:00')
   const [dinnerTimeStart, setDinnerTimeStart] = useState('19:00')
 
+  // Orders state initialized with explicit type to prevent 'never' inference
   const [orders, setOrders] = useState<Order[]>([])
   const [dishes, , refreshDishes, setDishes] = useSupabaseData<Dish>('dishes', [], { column: 'restaurant_id', value: restaurantId })
   const [tables, , , setTables] = useSupabaseData<Table>('tables', [], { column: 'restaurant_id', value: restaurantId })
@@ -72,7 +74,6 @@ const RestaurantDashboard = ({ user, onLogout }: RestaurantDashboardProps) => {
   const restaurantTables = tables || []
   const restaurantOrders = orders || []
   const restaurantCompletedOrders = useMemo(() => orders?.filter(o => o.status === 'completed') || [], [orders])
-
 
   // Sound Settings State
   const [selectedReservationDate, setSelectedReservationDate] = useState(new Date())
@@ -403,10 +404,9 @@ const RestaurantDashboard = ({ user, onLogout }: RestaurantDashboardProps) => {
       setAllowWaiterPayments(currentRestaurant.allow_waiter_payments || false)
       setWaiterPassword(currentRestaurant.waiter_password || '')
 
-      setAyceEnabled(currentRestaurant.all_you_can_eat || false)
-      setAycePrice(currentRestaurant.ayce_price || 0) // Assuming this field exists or handled via separate logic? Note: currentRestaurant type might need checking for ayce_price if it's not custom_menus related. If it's part of the restaurant object, fine. If not, this might need adjustment.
-      // Correction: ayce_price is not in standard Restaurant interface, but let's assume extending or using available fields.
-      // Actually, looking at DatabaseService, all_you_can_eat is boolean. The price might be stored elsewhere or new?
+      setAyceEnabled(!!currentRestaurant.all_you_can_eat?.enabled)
+      setAycePrice(currentRestaurant.all_you_can_eat?.pricePerPerson || 0)
+      setAyceMaxOrders(currentRestaurant.all_you_can_eat?.maxOrders || 0)
       // For now, let's stick to what we know exists or was added.
 
       setCopertoEnabled(!!currentRestaurant.cover_charge_per_person)
@@ -422,7 +422,7 @@ const RestaurantDashboard = ({ user, onLogout }: RestaurantDashboardProps) => {
   // Handlers for updating settings
   const saveRestaurantName = async () => {
     if (!restaurantId) return
-    await DatabaseService.updateRestaurant(restaurantId, { name: restaurantName })
+    await DatabaseService.updateRestaurant({ id: restaurantId, name: restaurantName })
     toast.success('Nome ristorante aggiornato')
     setRestaurantNameDirty(false)
     refreshRestaurants()
@@ -430,7 +430,8 @@ const RestaurantDashboard = ({ user, onLogout }: RestaurantDashboardProps) => {
 
   const saveWaiterCredentials = async () => {
     if (!restaurantId) return
-    await DatabaseService.updateRestaurant(restaurantId, {
+    await DatabaseService.updateRestaurant({
+      id: restaurantId,
       waiter_password: waiterPassword,
       waiter_mode_enabled: waiterModeEnabled,
       allow_waiter_payments: allowWaiterPayments
@@ -444,20 +445,29 @@ const RestaurantDashboard = ({ user, onLogout }: RestaurantDashboardProps) => {
   const updateAyceEnabled = async (enabled: boolean) => {
     if (!restaurantId) return
     setAyceEnabled(enabled)
-    await DatabaseService.updateRestaurant({ id: restaurantId, all_you_can_eat: { enabled, pricePerPerson: aycePrice, maxOrders: ayceMaxOrders } })
+    const price = typeof aycePrice === 'string' ? parseFloat(aycePrice) : aycePrice
+    const maxOrders = typeof ayceMaxOrders === 'string' ? parseInt(ayceMaxOrders) : ayceMaxOrders
+    await DatabaseService.updateRestaurant({
+      id: restaurantId,
+      all_you_can_eat: {
+        enabled,
+        pricePerPerson: price || 0,
+        maxOrders: maxOrders || 0
+      }
+    })
     refreshRestaurants()
   }
 
   const updateCopertoEnabled = async (enabled: boolean) => {
     if (!restaurantId) return
     setCopertoEnabled(enabled)
-    // If disabling, set price to 0? Or just updating the toggle logic if separate field.
-    // DatabaseService updates 'cover_charge_per_person' usually as value.
-    // If we treat enabled as boolean logic, we might need to handle price update too.
-    // For now, let's just update the local state and assume persisted on price change or specific save.
-    if (!enabled) {
+    if (enabled) {
+      // If enabling and price is 0, set a default or keep 0 but ensure DB knows
+      const price = Number(copertoPrice) || 2.0
+      setCopertoPrice(price)
+      await DatabaseService.updateRestaurant({ id: restaurantId, cover_charge_per_person: price })
+    } else {
       await DatabaseService.updateRestaurant({ id: restaurantId, cover_charge_per_person: 0 })
-      setCopertoPrice(0)
     }
     refreshRestaurants()
   }
@@ -466,8 +476,9 @@ const RestaurantDashboard = ({ user, onLogout }: RestaurantDashboardProps) => {
     const val = parseFloat(price.toString()) || 0
     setCopertoPrice(val)
     if (!restaurantId) return
-    await DatabaseService.updateRestaurant({ id: restaurantId, cover_charge_per_person: val })
-    if (val > 0 && !copertoEnabled) setCopertoEnabled(true)
+    if (copertoEnabled) {
+      await DatabaseService.updateRestaurant({ id: restaurantId, cover_charge_per_person: val })
+    }
   }
 
   const updateLunchStart = async (time: string) => {
@@ -1174,18 +1185,18 @@ const RestaurantDashboard = ({ user, onLogout }: RestaurantDashboardProps) => {
           <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-8 animate-in fade-in-30 duration-500">
             {/* Orders Tab */}
             <TabsContent value="orders" className="space-y-6">
-              <div className="flex flex-col md:flex-row items-start md:items-center justify-between mb-6 gap-4 pb-4 border-b border-slate-200 dark:border-slate-800">
+              <div className="flex flex-col md:flex-row items-start md:items-center justify-between mb-6 gap-4 pb-4 border-b border-white/10">
                 <div>
-                  <h2 className="text-2xl font-semibold text-slate-900 dark:text-slate-100">Gestione Ordini</h2>
-                  <p className="text-sm text-slate-500 dark:text-slate-400 mt-1">Gestisci gli ordini in tempo reale</p>
+                  <h2 className="text-2xl font-bold bg-gradient-to-r from-amber-200 to-amber-500 bg-clip-text text-transparent">Gestione Ordini</h2>
+                  <p className="text-sm text-zinc-400 mt-1">Gestisci gli ordini in tempo reale</p>
                 </div>
                 <div className="flex items-center gap-2">
-                  <div className="flex bg-muted p-1 rounded-lg mr-2">
+                  <div className="flex bg-zinc-900 p-1 rounded-lg mr-2 border border-zinc-800">
                     <Button
                       variant={kitchenViewMode === 'table' ? 'default' : 'ghost'}
                       size="sm"
                       onClick={() => setKitchenViewMode('table')}
-                      className="h-7 text-xs font-bold"
+                      className={`h-7 text-xs font-bold ${kitchenViewMode === 'table' ? 'bg-zinc-800 text-amber-500' : 'text-zinc-400'}`}
                     >
                       Tavoli
                     </Button>
@@ -1287,63 +1298,65 @@ const RestaurantDashboard = ({ user, onLogout }: RestaurantDashboardProps) => {
                     Storico
                   </Button>
                 </div>
-              </div>
+              </div >
 
-              {showOrderHistory ? (
-                <div className="space-y-4">
-                  <h3 className="text-lg font-semibold mb-4">Storico Ordini Completati</h3>
-                  {restaurantCompletedOrders.length === 0 ? (
-                    <div className="text-center py-10 text-muted-foreground">
-                      Nessun ordine completato
+              {
+                showOrderHistory ? (
+                  <div className="space-y-4" >
+                    <h3 className="text-lg font-semibold mb-4">Storico Ordini Completati</h3>
+                    {restaurantCompletedOrders.length === 0 ? (
+                      <div className="text-center py-10 text-muted-foreground">
+                        Nessun ordine completato
+                      </div>
+                    ) : (
+                      <div className="grid gap-4">
+                        {restaurantCompletedOrders.sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime()).map(order => (
+                          <Card key={order.id} className="bg-card border-border/50 shadow-sm">
+                            <CardHeader className="p-4 pb-2">
+                              <div className="flex justify-between items-center">
+                                <CardTitle className="text-base">Ordine #{order.id.slice(0, 8)}</CardTitle>
+                                <Badge variant="outline">{new Date(order.created_at).toLocaleString()}</Badge>
+                              </div>
+                              <CardDescription>{restaurantTables.find(t => t.id === getTableIdFromOrder(order))?.number || 'N/D'}</CardDescription>
+                            </CardHeader>
+                            <CardContent className="p-4 pt-2">
+                              <div className="space-y-2">
+                                {order.items?.map(item => (
+                                  <div key={item.id} className="flex justify-between text-sm">
+                                    <span>{item.quantity}x {restaurantDishes.find(d => d.id === item.dish_id)?.name}</span>
+                                    <Badge variant="secondary" className="text-xs">Completato</Badge>
+                                  </div>
+                                ))}
+                              </div>
+                            </CardContent>
+                          </Card>
+                        ))}
+                      </div>
+                    )
+                    }
+                  </div >
+                ) : filteredOrders.length === 0 ? (
+                  <div className="col-span-full text-center py-16">
+                    <div className="w-16 h-16 rounded-2xl bg-muted/20 flex items-center justify-center mx-auto mb-4">
+                      <Clock size={32} className="text-muted-foreground/40" weight="duotone" />
                     </div>
-                  ) : (
-                    <div className="grid gap-4">
-                      {restaurantCompletedOrders.sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime()).map(order => (
-                        <Card key={order.id} className="bg-card border-border/50 shadow-sm">
-                          <CardHeader className="p-4 pb-2">
-                            <div className="flex justify-between items-center">
-                              <CardTitle className="text-base">Ordine #{order.id.slice(0, 8)}</CardTitle>
-                              <Badge variant="outline">{new Date(order.created_at).toLocaleString()}</Badge>
-                            </div>
-                            <CardDescription>{restaurantTables.find(t => t.id === getTableIdFromOrder(order))?.number || 'N/D'}</CardDescription>
-                          </CardHeader>
-                          <CardContent className="p-4 pt-2">
-                            <div className="space-y-2">
-                              {order.items?.map(item => (
-                                <div key={item.id} className="flex justify-between text-sm">
-                                  <span>{item.quantity}x {restaurantDishes.find(d => d.id === item.dish_id)?.name}</span>
-                                  <Badge variant="secondary" className="text-xs">Completato</Badge>
-                                </div>
-                              ))}
-                            </div>
-                          </CardContent>
-                        </Card>
-                      ))}
-                    </div>
-                  )}
-                </div>
-              ) : filteredOrders.length === 0 ? (
-                <div className="col-span-full text-center py-16">
-                  <div className="w-16 h-16 rounded-2xl bg-muted/20 flex items-center justify-center mx-auto mb-4">
-                    <Clock size={32} className="text-muted-foreground/40" weight="duotone" />
+                    <p className="text-lg font-semibold text-muted-foreground">Nessun ordine attivo</p>
+                    <p className="text-xs text-muted-foreground mt-1">Gli ordini appariranno qui non appena arrivano</p>
                   </div>
-                  <p className="text-lg font-semibold text-muted-foreground">Nessun ordine attivo</p>
-                  <p className="text-xs text-muted-foreground mt-1">Gli ordini appariranno qui non appena arrivano</p>
-                </div>
-              ) : (
-                <KitchenView
-                  orders={filteredOrders}
-                  tables={tables || []}
-                  dishes={dishes || []}
-                  selectedCategoryIds={selectedKitchenCategories}
-                  viewMode={kitchenViewMode}
-                  // columns={kitchenColumns} // Removed in favor of responsive grid
-                  onCompleteDish={handleCompleteDish}
-                  onCompleteOrder={handleCompleteOrder}
-                  sessions={sessions || []}
-                  zoom={kitchenZoom}
-                />
-              )}
+                ) : (
+                  <KitchenView
+                    orders={filteredOrders}
+                    tables={tables || []}
+                    dishes={dishes || []}
+                    selectedCategoryIds={selectedKitchenCategories}
+                    viewMode={kitchenViewMode}
+                    // columns={kitchenColumns} // Removed in favor of responsive grid
+                    onCompleteDish={handleCompleteDish}
+                    onCompleteOrder={handleCompleteOrder}
+                    sessions={sessions || []}
+                    zoom={kitchenZoom}
+                  />
+                )}
             </TabsContent >
 
             {/* Tables Tab */}
@@ -1423,10 +1436,10 @@ const RestaurantDashboard = ({ user, onLogout }: RestaurantDashboardProps) => {
                         Storico
                       </Button>
                     </DialogTrigger>
-                    <DialogContent className="max-w-4xl max-h-[85vh] overflow-hidden flex flex-col">
+                    <DialogContent className="max-w-4xl max-h-[85vh] overflow-hidden flex flex-col bg-zinc-950 border-zinc-800 text-zinc-100">
                       <DialogHeader>
                         <DialogTitle>Storico Tavoli Chiusi</DialogTitle>
-                        <DialogDescription>Visualizza le sessioni dei tavoli concluse con dettagli e incassi.</DialogDescription>
+                        <DialogDescription className="text-zinc-400">Visualizza le sessioni dei tavoli concluse con dettagli e incassi.</DialogDescription>
                       </DialogHeader>
                       <div className="flex flex-wrap gap-3 py-3 border-b">
                         <div className="relative flex-1 min-w-[200px]">
@@ -1547,8 +1560,8 @@ const RestaurantDashboard = ({ user, onLogout }: RestaurantDashboardProps) => {
                                     </div>
                                     <div>
                                       <div className="flex items-center gap-2 mb-1">
-                                        <span className="font-bold text-foreground">Tavolo {table?.number}</span>
-                                        <Badge variant="outline" className="text-[10px] font-mono">{session.session_pin}</Badge>
+                                        <span className="font-bold text-zinc-100">Tavolo {table?.number}</span>
+                                        <Badge variant="outline" className="text-[10px] font-mono border-zinc-700 text-zinc-400">{session.session_pin}</Badge>
                                       </div>
                                       <div className="flex items-center gap-3 text-xs text-muted-foreground">
                                         <span className="flex items-center gap-1">
@@ -1579,7 +1592,7 @@ const RestaurantDashboard = ({ user, onLogout }: RestaurantDashboardProps) => {
                                     </div>
                                     <div className="text-center min-w-[80px]">
                                       <p className="text-xs text-muted-foreground">Totale</p>
-                                      <p className="font-bold text-lg text-emerald-600">€{totalAmount.toFixed(2)}</p>
+                                      <p className="font-bold text-lg text-amber-500">€{totalAmount.toFixed(2)}</p>
                                     </div>
                                   </div>
                                   <div className="flex flex-wrap gap-3 mt-2 text-xs text-muted-foreground">
@@ -1625,15 +1638,15 @@ const RestaurantDashboard = ({ user, onLogout }: RestaurantDashboardProps) => {
 
                 <Dialog open={showRoomDialog} onOpenChange={setShowRoomDialog}>
                   <DialogTrigger asChild>
-                    <Button variant="ghost" size="sm" className="gap-2 text-muted-foreground hover:text-primary">
+                    <Button variant="ghost" size="sm" className="gap-2 text-muted-foreground hover:text-amber-500 hover:bg-amber-500/10 transition-colors">
                       <MapPin size={16} />
                       Gestisci Sale
                     </Button>
                   </DialogTrigger>
-                  <DialogContent>
+                  <DialogContent className="bg-zinc-950 border-zinc-800 text-zinc-100">
                     <DialogHeader>
                       <DialogTitle>Gestione Sale</DialogTitle>
-                      <DialogDescription>Crea e organizza le aree del tuo ristorante</DialogDescription>
+                      <DialogDescription className="text-zinc-400">Crea e organizza le aree del tuo ristorante</DialogDescription>
                     </DialogHeader>
                     <div className="space-y-4 mt-4">
                       <div className="flex gap-2">
@@ -1641,31 +1654,38 @@ const RestaurantDashboard = ({ user, onLogout }: RestaurantDashboardProps) => {
                           placeholder="Nuova Sala (es. Dehor, Interna...)"
                           value={newRoomName}
                           onChange={(e) => setNewRoomName(e.target.value)}
+                          className="bg-zinc-900 border-zinc-800 focus:border-amber-500"
                         />
-                        <Button onClick={async () => {
-                          if (!newRoomName.trim() || !restaurantId) return;
-                          try {
-                            await DatabaseService.createRoom({
-                              restaurant_id: restaurantId,
-                              name: newRoomName.trim(),
-                              is_active: true,
-                              order: rooms?.length || 0
-                            })
-                            setNewRoomName('')
-                            toast.success('Sala creata')
-                            refreshRooms()
-                          } catch (e) {
-                            toast.error('Errore creazione sala')
-                          }
-                        }}>Aggiungi</Button>
+                        <Button
+                          onClick={async () => {
+                            if (!newRoomName.trim() || !restaurantId) return;
+                            try {
+                              await DatabaseService.createRoom({
+                                restaurant_id: restaurantId,
+                                name: newRoomName.trim(),
+                                is_active: true,
+                                order: rooms?.length || 0
+                              })
+                              setNewRoomName('')
+                              toast.success('Sala creata')
+                              refreshRooms()
+                            } catch (e) {
+                              console.error(e)
+                              toast.error('Errore creazione sala: verifica permessi')
+                            }
+                          }}
+                          className="bg-amber-600 hover:bg-amber-700 text-white"
+                        >
+                          Aggiungi
+                        </Button>
                       </div>
 
                       <div className="space-y-2 mt-4">
                         {rooms?.map(room => (
-                          <div key={room.id} className="flex items-center justify-between p-3 bg-muted/30 rounded-lg border">
+                          <div key={room.id} className="flex items-center justify-between p-3 bg-zinc-900/50 rounded-lg border border-zinc-800">
                             <span className="font-medium">{room.name}</span>
                             <div className="flex items-center gap-2">
-                              <Button size="icon" variant="ghost" className="h-8 w-8 text-destructive" onClick={async () => {
+                              <Button size="icon" variant="ghost" className="h-8 w-8 text-zinc-500 hover:text-red-500 hover:bg-red-500/10" onClick={async () => {
                                 if (!confirm('Eliminare questa sala?')) return;
                                 try {
                                   await DatabaseService.deleteRoom(room.id)
@@ -1680,7 +1700,7 @@ const RestaurantDashboard = ({ user, onLogout }: RestaurantDashboardProps) => {
                             </div>
                           </div>
                         ))}
-                        {rooms?.length === 0 && <p className="text-center text-sm text-muted-foreground py-4">Nessuna sala configurata</p>}
+                        {rooms?.length === 0 && <p className="text-center text-sm text-zinc-500 py-4">Nessuna sala configurata</p>}
                       </div>
                     </div>
                   </DialogContent>
@@ -1824,16 +1844,22 @@ const RestaurantDashboard = ({ user, onLogout }: RestaurantDashboardProps) => {
                 <div className="flex gap-2">
                   <Dialog>
                     <DialogTrigger asChild>
-                      <Button variant="outline" className="border-dashed">
-                        <Sparkle size={16} className="mr-2 text-emerald-600" />
+                      <Button variant="outline" className="border-dashed border-zinc-700 hover:border-amber-500 hover:bg-amber-500/10 hover:text-amber-500 text-zinc-400">
+                        <Sparkle size={16} className="mr-2 text-amber-500" />
                         Menu Personalizzati
                       </Button>
                     </DialogTrigger>
-                    <DialogContent className="sm:max-w-[1100px] w-[1100px] max-w-[96vw] h-[90vh] p-0 overflow-hidden">
+                    <DialogContent className="sm:max-w-[1100px] w-[1100px] max-w-[96vw] h-[90vh] p-0 overflow-hidden bg-zinc-950 border-zinc-800 text-zinc-100">
+                      <DialogHeader className="px-6 py-4 border-b border-zinc-800 bg-zinc-900/50">
+                        <DialogTitle>Menu Personalizzati</DialogTitle>
+                        <DialogDescription className="text-zinc-400">
+                          Crea e gestisci i menu fissi per eventi o pranzi di lavoro
+                        </DialogDescription>
+                      </DialogHeader>
                       <CustomMenusManager
                         restaurantId={restaurantId || ''}
                         dishes={dishes || []}
-                        categories={reservationDuration ? (categories || []) : (categories || [])} // Hack to keep Typescript happy if needed, but really just passing categories
+                        categories={reservationDuration ? (categories || []) : (categories || [])}
                         onDishesChange={refreshDishes}
                       />
                     </DialogContent>
@@ -1846,7 +1872,7 @@ const RestaurantDashboard = ({ user, onLogout }: RestaurantDashboardProps) => {
                         Nuovo Piatto
                       </Button>
                     </DialogTrigger>
-                    <DialogContent>
+                    <DialogContent className="bg-zinc-950 border-zinc-800 text-zinc-100">
                       {/* Dish Form Content */}
                       <DialogHeader>
                         <DialogTitle>Aggiungi Piatto</DialogTitle>
@@ -1934,7 +1960,7 @@ const RestaurantDashboard = ({ user, onLogout }: RestaurantDashboardProps) => {
                         Categorie
                       </Button>
                     </DialogTrigger>
-                    <DialogContent>
+                    <DialogContent className="bg-zinc-950 border-zinc-800 text-zinc-100">
                       <DialogHeader>
                         <DialogTitle>Gestione Categorie</DialogTitle>
                         <DialogDescription>
@@ -2060,7 +2086,7 @@ const RestaurantDashboard = ({ user, onLogout }: RestaurantDashboardProps) => {
                                       <Button
                                         variant="ghost"
                                         size="icon"
-                                        className={`h-8 w-8 rounded-full ${!dish.is_active ? 'text-zinc-700 hover:bg-white/5' : 'text-emerald-500 hover:bg-emerald-900/30'}`}
+                                        className={`h-8 w-8 rounded-full ${!dish.is_active ? 'text-zinc-700 hover:bg-white/5' : 'text-amber-500 hover:bg-amber-900/30'}`}
                                         onClick={() => handleToggleDish(dish.id)}
                                       >
                                         {dish.is_active ? <Eye size={18} /> : <EyeSlash size={18} />}
@@ -2090,7 +2116,7 @@ const RestaurantDashboard = ({ user, onLogout }: RestaurantDashboardProps) => {
             {/* Reservations Tab */}
             < TabsContent value="reservations" className="space-y-6 p-6" >
               {/* Date Quick Filters */}
-              <div className="flex items-center gap-2 flex-wrap">
+              < div className="flex items-center gap-2 flex-wrap" >
                 <span className="text-sm font-medium text-muted-foreground mr-2">Seleziona data:</span>
                 <Button
                   variant={selectedReservationDate.toDateString() === new Date().toDateString() ? 'default' : 'outline'}
@@ -2129,7 +2155,7 @@ const RestaurantDashboard = ({ user, onLogout }: RestaurantDashboardProps) => {
                     className="w-[180px] h-9"
                   />
                 </div>
-              </div>
+              </div >
               <ReservationsManager
                 user={user}
                 restaurantId={restaurantId}
@@ -2148,7 +2174,7 @@ const RestaurantDashboard = ({ user, onLogout }: RestaurantDashboardProps) => {
             {/* Analytics Tab */}
             < TabsContent value="analytics" className="m-0 h-full p-4 md:p-6 outline-none data-[state=inactive]:hidden overflow-y-auto" >
               {/* Analytics Content */}
-              <AnalyticsCharts
+              < AnalyticsCharts
                 orders={restaurantOrders}
                 dishes={restaurantDishes}
                 categories={restaurantCategories}
@@ -2157,7 +2183,7 @@ const RestaurantDashboard = ({ user, onLogout }: RestaurantDashboardProps) => {
             </TabsContent >
 
             {/* Settings Tab */}
-            <TabsContent value="settings" className="m-0 h-full p-4 md:p-6 outline-none data-[state=inactive]:hidden overflow-y-auto">
+            < TabsContent value="settings" className="m-0 h-full p-4 md:p-6 outline-none data-[state=inactive]:hidden overflow-y-auto" >
               <SettingsView
                 restaurantName={restaurantName}
                 setRestaurantName={setRestaurantName}
@@ -2189,7 +2215,7 @@ const RestaurantDashboard = ({ user, onLogout }: RestaurantDashboardProps) => {
                     all_you_can_eat: {
                       enabled: ayceEnabled,
                       pricePerPerson: val || 0,
-                      maxOrders: ayceMaxOrders
+                      maxOrders: Number(ayceMaxOrders) || 0
                     }
                   })
                 }}
@@ -2201,7 +2227,7 @@ const RestaurantDashboard = ({ user, onLogout }: RestaurantDashboardProps) => {
                     id: restaurantId,
                     all_you_can_eat: {
                       enabled: ayceEnabled,
-                      pricePerPerson: aycePrice,
+                      pricePerPerson: Number(aycePrice) || 0,
                       maxOrders: val || 0
                     }
                   })
@@ -2229,11 +2255,11 @@ const RestaurantDashboard = ({ user, onLogout }: RestaurantDashboardProps) => {
                 reservationDuration={reservationDuration}
                 setReservationDuration={updateReservationDuration}
               />
-            </TabsContent>
-          </Tabs>
+            </TabsContent >
+          </Tabs >
           <div className="mt-8"></div> {/* Spacer or container for dialogs if needed */}
           < Dialog open={showTableDialog && !!selectedTable} onOpenChange={(open) => { if (!open) { setSelectedTable(null); setShowTableDialog(false) } }}>
-            <DialogContent>
+            <DialogContent className="bg-zinc-950 border-zinc-800 text-zinc-100">
               <DialogHeader>
                 <DialogTitle>Attiva {selectedTable?.number}</DialogTitle>
                 <DialogDescription>
@@ -2251,8 +2277,9 @@ const RestaurantDashboard = ({ user, onLogout }: RestaurantDashboardProps) => {
                     autoFocus
                   />
                 </div>
+
                 <Button
-                  className="w-full"
+                  className="w-full bg-amber-600 hover:bg-amber-700 text-white"
                   onClick={() => selectedTable && handleActivateTable(selectedTable.id, parseInt(customerCount))}
                 >
                   Attiva Tavolo
@@ -2262,7 +2289,7 @@ const RestaurantDashboard = ({ user, onLogout }: RestaurantDashboardProps) => {
           </Dialog >
 
           < Dialog open={showCreateTableDialog} onOpenChange={setShowCreateTableDialog} >
-            <DialogContent>
+            <DialogContent className="bg-zinc-950 border-zinc-800 text-zinc-100">
               <DialogHeader>
                 <DialogTitle>Nuovo Tavolo</DialogTitle>
                 <DialogDescription>
@@ -2313,7 +2340,7 @@ const RestaurantDashboard = ({ user, onLogout }: RestaurantDashboardProps) => {
 
           {/* Edit Table Dialog */}
           <Dialog open={!!editingTable} onOpenChange={(open) => { if (!open) setEditingTable(null) }}>
-            <DialogContent>
+            <DialogContent className="bg-zinc-950 border-zinc-800 text-zinc-100">
               <DialogHeader>
                 <DialogTitle>Modifica Tavolo</DialogTitle>
                 <DialogDescription>
@@ -2377,7 +2404,7 @@ const RestaurantDashboard = ({ user, onLogout }: RestaurantDashboardProps) => {
           </Dialog>
 
           < Dialog open={showQrDialog} onOpenChange={(open) => setShowQrDialog(open)}>
-            <DialogContent className="sm:max-w-md">
+            <DialogContent className="sm:max-w-md bg-zinc-950 border-zinc-800 text-zinc-100">
               <DialogHeader>
                 <DialogTitle>Tavolo Attivato!</DialogTitle>
                 <DialogDescription>
@@ -2405,7 +2432,7 @@ const RestaurantDashboard = ({ user, onLogout }: RestaurantDashboardProps) => {
           </Dialog >
 
           < Dialog open={!!editingCategory} onOpenChange={(open) => { if (!open) handleCancelEdit() }}>
-            <DialogContent>
+            <DialogContent className="bg-zinc-950 border-zinc-800 text-zinc-100">
               <DialogHeader>
                 <DialogTitle>Modifica Categoria</DialogTitle>
                 <DialogDescription>
@@ -2426,7 +2453,7 @@ const RestaurantDashboard = ({ user, onLogout }: RestaurantDashboardProps) => {
           </Dialog >
 
           < Dialog open={!!editingDish} onOpenChange={(open) => { if (!open) handleCancelDishEdit() }}>
-            <DialogContent>
+            <DialogContent className="bg-zinc-950 border-zinc-800 text-zinc-100">
               <DialogHeader>
                 <DialogTitle>Modifica Piatto</DialogTitle>
                 <DialogDescription>
@@ -2500,13 +2527,13 @@ const RestaurantDashboard = ({ user, onLogout }: RestaurantDashboardProps) => {
                   />
                   <Label htmlFor="edit_is_ayce">Incluso in All You Can Eat</Label>
                 </div>
-                <Button onClick={handleSaveDish} className="w-full">Salva Modifiche</Button>
+                <Button onClick={handleSaveDish} className="w-full bg-amber-600 hover:bg-amber-700 text-white">Salva Modifiche</Button>
               </div>
             </DialogContent>
           </Dialog >
 
           < Dialog open={showTableQrDialog} onOpenChange={(open) => setShowTableQrDialog(open)}>
-            <DialogContent className="sm:max-w-md">
+            <DialogContent className="sm:max-w-md bg-zinc-950 border-zinc-800 text-zinc-100">
               <DialogHeader>
                 <DialogTitle>QR Code & PIN - {selectedTableForActions?.number}</DialogTitle>
                 <DialogDescription>
@@ -2536,7 +2563,7 @@ const RestaurantDashboard = ({ user, onLogout }: RestaurantDashboardProps) => {
           </Dialog >
 
           < Dialog open={showTableBillDialog} onOpenChange={(open) => setShowTableBillDialog(open)}>
-            <DialogContent className="sm:max-w-lg">
+            <DialogContent className="sm:max-w-lg bg-zinc-950 border-zinc-800 text-zinc-100">
               <DialogHeader>
                 <DialogTitle>Conto - Tavolo {selectedTableForActions?.number}</DialogTitle>
                 <DialogDescription>
@@ -2619,7 +2646,7 @@ const RestaurantDashboard = ({ user, onLogout }: RestaurantDashboardProps) => {
                           Svuota Tavolo
                         </Button>
                         <Button
-                          className="bg-green-600 hover:bg-green-700 text-white"
+                          className="bg-amber-600 hover:bg-amber-700 text-white"
                           onClick={() => selectedTableForActions && handleCloseTable(selectedTableForActions.id, true)}
                         >
                           Segna Pagato
@@ -2632,9 +2659,9 @@ const RestaurantDashboard = ({ user, onLogout }: RestaurantDashboardProps) => {
             </DialogContent>
           </Dialog >
 
-        </div>
-      </main>
-    </div>
+        </div >
+      </main >
+    </div >
   )
 }
 

@@ -315,7 +315,7 @@ export default function ReservationsManager({ user, restaurantId, tables, rooms,
 
       const canvas = await html2canvas(qrContainer, {
         scale: 2,
-        backgroundColor: '#0f172a', // Dark background
+        backgroundColor: '#09090b', // Dark background (zinc-950)
         useCORS: true
       })
 
@@ -359,7 +359,7 @@ export default function ReservationsManager({ user, restaurantId, tables, rooms,
           <h2 className="text-2xl font-bold text-foreground">Prenotazioni del {selectedDate.toLocaleDateString('it-IT')}</h2>
           <div className="flex gap-2 flex-wrap">
             <Button
-              className="bg-emerald-600 hover:bg-emerald-700 text-white gap-2 shadow-sm"
+              className="bg-amber-600 hover:bg-amber-700 text-white gap-2 shadow-sm"
               onClick={() => setShowQrDialog(true)}
             >
               <QrCode size={18} weight="bold" />
@@ -389,7 +389,7 @@ export default function ReservationsManager({ user, restaurantId, tables, rooms,
         <TimelineReservations
           user={user}
           restaurantId={restaurantId}
-          tables={tables}
+          tables={restaurantTables}
           bookings={bookings}
           selectedDate={`${selectedDate.getFullYear()}-${String(selectedDate.getMonth() + 1).padStart(2, '0')}-${String(selectedDate.getDate()).padStart(2, '0')}`}
           openingTime={openingTime}
@@ -405,7 +405,7 @@ export default function ReservationsManager({ user, restaurantId, tables, rooms,
 
       {/* Edit Reservation Dialog */}
       <Dialog open={showEditDialog} onOpenChange={setShowEditDialog}>
-        <DialogContent className="max-w-2xl">
+        <DialogContent className="max-w-2xl bg-zinc-950 border-zinc-800 text-zinc-100">
           <DialogHeader>
             <DialogTitle>Modifica Prenotazione</DialogTitle>
             <DialogDescription>
@@ -494,7 +494,7 @@ export default function ReservationsManager({ user, restaurantId, tables, rooms,
               </Button>
               <Button
                 onClick={handleSaveEdit}
-                className="bg-primary hover:bg-primary/90"
+                className="bg-amber-600 hover:bg-amber-700 text-white"
               >
                 Salva Modifiche
               </Button>
@@ -505,7 +505,7 @@ export default function ReservationsManager({ user, restaurantId, tables, rooms,
 
       {/* Manage Reservation Dialog */}
       <Dialog open={showMoveDialog} onOpenChange={setShowMoveDialog}>
-        <DialogContent className="max-w-md">
+        <DialogContent className="max-w-md bg-zinc-950 border-zinc-800 text-zinc-100">
           <DialogHeader>
             <DialogTitle>Gestisci Prenotazione</DialogTitle>
             <DialogDescription>
@@ -546,7 +546,7 @@ export default function ReservationsManager({ user, restaurantId, tables, rooms,
                     handleCompleteBooking(selectedBooking)
                     setShowMoveDialog(false)
                   }}
-                  className="w-full bg-green-600 hover:bg-green-700 text-white"
+                  className="w-full bg-amber-600 hover:bg-amber-700 text-white"
                 >
                   Segna come Completata
                 </Button>
@@ -566,7 +566,7 @@ export default function ReservationsManager({ user, restaurantId, tables, rooms,
 
       {/* Delete Confirmation Dialog */}
       <Dialog open={showDeleteDialog} onOpenChange={setShowDeleteDialog}>
-        <DialogContent>
+        <DialogContent className="bg-zinc-950 border-zinc-800 text-zinc-100">
           <DialogHeader>
             <DialogTitle>Elimina Prenotazione</DialogTitle>
             <DialogDescription>
@@ -600,7 +600,7 @@ export default function ReservationsManager({ user, restaurantId, tables, rooms,
 
       {/* Reservation History Dialog */}
       <Dialog open={showHistoryDialog} onOpenChange={setShowHistoryDialog}>
-        <DialogContent className="max-w-4xl h-[80vh] flex flex-col">
+        <DialogContent className="max-w-4xl h-[80vh] flex flex-col bg-zinc-950 border-zinc-800 text-zinc-100">
           <DialogHeader>
             <DialogTitle>Storico Prenotazioni</DialogTitle>
             <DialogDescription>
@@ -703,7 +703,7 @@ export default function ReservationsManager({ user, restaurantId, tables, rooms,
 
       {/* Public Booking QR Code Dialog */}
       <Dialog open={showQrDialog} onOpenChange={setShowQrDialog}>
-        <DialogContent className="sm:max-w-lg">
+        <DialogContent className="sm:max-w-lg bg-zinc-950 border-zinc-800 text-zinc-100">
           <DialogHeader>
             <DialogTitle className="text-center text-xl">QR Prenotazioni</DialogTitle>
             <DialogDescription className="text-center">
@@ -713,7 +713,7 @@ export default function ReservationsManager({ user, restaurantId, tables, rooms,
           <div className="flex flex-col items-center justify-center p-6 space-y-6">
 
             {/* The actual QR display */}
-            <div className="bg-white p-6 rounded-2xl shadow-lg border-4 border-emerald-500/20">
+            <div className="bg-white p-6 rounded-2xl shadow-lg border-4 border-amber-500/20">
               <QRCodeGenerator
                 value={`${window.location.origin}/book/${restaurantId}`}
                 size={220}
@@ -726,7 +726,7 @@ export default function ReservationsManager({ user, restaurantId, tables, rooms,
               <Button
                 onClick={generatePDF}
                 disabled={isGeneratingPdf}
-                className="w-full bg-emerald-600 hover:bg-emerald-700 text-white font-bold h-12 shadow-md"
+                className="w-full bg-amber-600 hover:bg-amber-700 text-white font-bold h-12 shadow-md"
               >
                 {isGeneratingPdf ? 'Generazione PDF...' : '📷 Scarica PDF Locandina'}
               </Button>
@@ -737,7 +737,7 @@ export default function ReservationsManager({ user, restaurantId, tables, rooms,
               <div style={{
                 width: '100%',
                 height: '100%',
-                background: 'linear-gradient(135deg, #0f172a 0%, #1e293b 100%)',
+                background: 'linear-gradient(135deg, #09090b 0%, #18181b 100%)',
                 display: 'flex',
                 flexDirection: 'column',
                 alignItems: 'center',
@@ -747,7 +747,7 @@ export default function ReservationsManager({ user, restaurantId, tables, rooms,
                 padding: '60px'
               }}>
                 <div style={{
-                  border: '4px solid rgba(16, 185, 129, 0.3)',
+                  border: '4px solid rgba(245, 158, 11, 0.3)',
                   padding: '60px',
                   borderRadius: '40px',
                   background: 'rgba(255,255,255,0.03)',
@@ -766,7 +766,7 @@ export default function ReservationsManager({ user, restaurantId, tables, rooms,
                     padding: '30px',
                     borderRadius: '30px',
                     marginBottom: '40px',
-                    boxShadow: '0 0 40px rgba(16, 185, 129, 0.2)'
+                    boxShadow: '0 0 40px rgba(245, 158, 11, 0.2)'
                   }}>
                     <QRCodeGenerator
                       value={`${window.location.origin}/book/${restaurantId}`}
@@ -775,13 +775,13 @@ export default function ReservationsManager({ user, restaurantId, tables, rooms,
                   </div>
 
                   <div style={{
-                    background: 'rgba(16, 185, 129, 0.1)',
-                    border: '1px solid rgba(16, 185, 129, 0.3)',
+                    background: 'rgba(245, 158, 11, 0.1)',
+                    border: '1px solid rgba(245, 158, 11, 0.3)',
                     borderRadius: '20px',
                     padding: '30px',
                     width: '100%'
                   }}>
-                    <h3 style={{ color: '#34d399', fontSize: '28px', marginBottom: '15px' }}>📱 Scansiona Qui</h3>
+                    <h3 style={{ color: '#fbbf24', fontSize: '28px', marginBottom: '15px' }}>📱 Scansiona Qui</h3>
                     <p style={{ fontSize: '20px', color: '#cbd5e1' }}>Inquadra il codice con la fotocamera per prenotare in un attimo.</p>
                   </div>
                 </div>

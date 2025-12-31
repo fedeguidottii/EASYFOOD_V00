@@ -534,14 +534,14 @@ export default function TimelineReservations({ user, restaurantId, tables, booki
               let bgClass = 'bg-card'
 
               if (isCurrentlyOccupied) {
-                borderClass = 'border-l-4 border-l-red-500'
-                bgClass = 'bg-red-50/50 dark:bg-red-950/20'
+                borderClass = 'border-l-4 border-l-amber-500'
+                bgClass = 'bg-amber-500/10'
               } else if (isAvailable && searchTime) {
-                borderClass = 'border-l-4 border-l-green-500' // Explicitly available via search
-                bgClass = 'bg-green-50/50 dark:bg-green-950/20'
+                borderClass = 'border-l-4 border-l-emerald-500' // Available
+                bgClass = 'bg-emerald-500/10'
               } else {
                 // Default Free
-                borderClass = 'border-l-4 border-l-emerald-500/50'
+                borderClass = 'border-l-4 border-l-zinc-700/50'
               }
 
               // Collision check for ghost block
@@ -692,7 +692,7 @@ export default function TimelineReservations({ user, restaurantId, tables, booki
 
       {/* Search Table Dialog */}
       <Dialog open={showSmartSearch} onOpenChange={setShowSmartSearch}>
-        <DialogContent className="sm:max-w-md">
+        <DialogContent className="sm:max-w-md bg-zinc-950 border-zinc-800 text-zinc-100">
           <DialogHeader>
             <DialogTitle>Ricerca Tavolo Disponibile</DialogTitle>
             <DialogDescription>
@@ -728,7 +728,7 @@ export default function TimelineReservations({ user, restaurantId, tables, booki
               </div>
             </div>
 
-            <Button onClick={handleSmartSearch} className="w-full">
+            <Button onClick={handleSmartSearch} className="w-full bg-amber-600 hover:bg-amber-700 text-white">
               <Search className="mr-2" size={16} /> Cerca Tavoli
             </Button>
 
@@ -778,7 +778,7 @@ export default function TimelineReservations({ user, restaurantId, tables, booki
 
 
       <Dialog open={showReservationDialog} onOpenChange={setShowReservationDialog}>
-        <DialogContent>
+        <DialogContent className="bg-zinc-950 border-zinc-800 text-zinc-100">
           <DialogHeader>
             <DialogTitle>Nuova Prenotazione</DialogTitle>
             <DialogDescription>
@@ -830,13 +830,13 @@ export default function TimelineReservations({ user, restaurantId, tables, booki
                 />
               </div>
             </div>
-            <Button onClick={handleCreateReservation} className="w-full">Conferma Prenotazione</Button>
+            <Button onClick={handleCreateReservation} className="w-full bg-amber-600 hover:bg-amber-700 text-white">Conferma Prenotazione</Button>
           </div>
         </DialogContent>
       </Dialog>
 
       <Dialog open={showDragConfirmDialog} onOpenChange={(open) => { if (!open) { setDraggedBookingId(null); setDropTarget(null); setShowDragConfirmDialog(false) } }}>
-        <DialogContent>
+        <DialogContent className="bg-zinc-950 border-zinc-800 text-zinc-100">
           <DialogHeader>
             <DialogTitle>Sposta Prenotazione</DialogTitle>
             <DialogDescription>
@@ -844,15 +844,15 @@ export default function TimelineReservations({ user, restaurantId, tables, booki
             </DialogDescription>
           </DialogHeader>
           <div className="flex justify-end gap-2 mt-4">
-            <Button variant="outline" onClick={() => setShowDragConfirmDialog(false)}>Annulla</Button>
-            <Button onClick={confirmMove}>Conferma Spostamento</Button>
+            <Button variant="outline" onClick={() => setShowDragConfirmDialog(false)} className="border-zinc-700 text-zinc-300 hover:text-white hover:bg-zinc-800">Annulla</Button>
+            <Button onClick={confirmMove} className="bg-amber-600 hover:bg-amber-700 text-white">Conferma Spostamento</Button>
           </div>
         </DialogContent>
       </Dialog>
 
       {/* Delete Confirmation Dialog */}
       <Dialog open={showDeleteConfirmDialog} onOpenChange={setShowDeleteConfirmDialog}>
-        <DialogContent>
+        <DialogContent className="bg-zinc-950 border-zinc-800 text-zinc-100">
           <DialogHeader>
             <DialogTitle className="text-destructive">Elimina Prenotazione</DialogTitle>
             <DialogDescription>
@@ -869,7 +869,7 @@ export default function TimelineReservations({ user, restaurantId, tables, booki
 
       {/* Arrived Confirmation Dialog */}
       <Dialog open={showArriveConfirmDialog} onOpenChange={setShowArriveConfirmDialog}>
-        <DialogContent>
+        <DialogContent className="bg-zinc-950 border-zinc-800 text-zinc-100">
           <DialogHeader>
             <DialogTitle>Conferma Arrivo</DialogTitle>
             <DialogDescription>
@@ -878,7 +878,7 @@ export default function TimelineReservations({ user, restaurantId, tables, booki
           </DialogHeader>
           <div className="flex justify-end gap-2 mt-4">
             <Button variant="outline" onClick={() => setShowArriveConfirmDialog(false)}>Annulla</Button>
-            <Button className="bg-green-600 hover:bg-green-700 text-white" onClick={confirmCompleteBooking}>Conferma</Button>
+            <Button className="bg-amber-600 hover:bg-amber-700 text-white" onClick={confirmCompleteBooking}>Conferma</Button>
           </div>
         </DialogContent>
       </Dialog>
