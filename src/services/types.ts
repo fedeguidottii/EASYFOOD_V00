@@ -41,7 +41,13 @@ export interface Restaurant {
     cover_charge_per_person?: number
     waiter_mode_enabled?: boolean
     allow_waiter_payments?: boolean
+
     waiter_password?: string
+    // Schedule Configuration
+    lunch_time_start?: string
+    lunch_time_end?: string
+    dinner_time_start?: string
+    dinner_time_end?: string
 }
 
 export interface Category {

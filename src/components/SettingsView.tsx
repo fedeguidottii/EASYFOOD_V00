@@ -17,7 +17,9 @@ import {
     Coins,
     CalendarCheck,
     Storefront,
-    SpeakerHigh
+    SpeakerHigh,
+    Sun,
+    Moon
 } from '@phosphor-icons/react'
 import { SoundType } from '../utils/SoundManager'
 import { ModeToggle } from './ModeToggle'
@@ -62,6 +64,16 @@ interface SettingsViewProps {
     closingTime: string
     setClosingTime: (time: string) => void
 
+    // Schedule Props
+    lunchTimeStart: string
+    setLunchTimeStart: (time: string) => void
+    lunchTimeEnd: string
+    setLunchTimeEnd: (time: string) => void
+    dinnerTimeStart: string
+    setDinnerTimeStart: (time: string) => void
+    dinnerTimeEnd: string
+    setDinnerTimeEnd: (time: string) => void
+
     courseSplittingEnabled: boolean
     setCourseSplittingEnabled: (enabled: boolean) => void
     updateCourseSplitting: (enabled: boolean) => void
@@ -101,6 +113,13 @@ export function SettingsView({
     setOpeningTime,
     closingTime,
     setClosingTime,
+
+    // Schedule Destructuring
+    lunchTimeStart, setLunchTimeStart,
+    lunchTimeEnd, setLunchTimeEnd,
+    dinnerTimeStart, setDinnerTimeStart,
+    dinnerTimeEnd, setDinnerTimeEnd,
+
     courseSplittingEnabled,
     setCourseSplittingEnabled,
     updateCourseSplitting
@@ -361,6 +380,77 @@ export function SettingsView({
                                             updateCourseSplitting(val)
                                         }}
                                     />
+                                </div>
+                            </CardContent>
+                        </Card>
+
+                        {/* Schedule Configuration Card */}
+                        <Card className="border-none shadow-md bg-card md:col-span-2">
+                            <CardHeader>
+                                <CardTitle>Orari Servizio (Auto-Attivazione Menu)</CardTitle>
+                                <CardDescription>Definisci gli orari di Pranzo e Cena per l'attivazione automatica dei menu personalizzati.</CardDescription>
+                            </CardHeader>
+                            <CardContent>
+                                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                                    {/* Lunch Section */}
+                                    <div className="space-y-4 p-4 rounded-xl bg-orange-50/50 dark:bg-orange-950/20 border border-orange-100 dark:border-orange-900/50">
+                                        <div className="flex items-center gap-2 mb-2">
+                                            <div className="p-2 bg-orange-100 dark:bg-orange-900/50 rounded-lg text-orange-600 dark:text-orange-400">
+                                                <Sun size={20} weight="fill" />
+                                            </div>
+                                            <h4 className="font-bold text-orange-700 dark:text-orange-400">Pranzo</h4>
+                                        </div>
+                                        <div className="grid grid-cols-2 gap-4">
+                                            <div className="space-y-1.5">
+                                                <Label className="text-xs text-muted-foreground">Inizio</Label>
+                                                <Input
+                                                    type="time"
+                                                    value={lunchTimeStart}
+                                                    onChange={(e) => setLunchTimeStart(e.target.value)}
+                                                    className="bg-background"
+                                                />
+                                            </div>
+                                            <div className="space-y-1.5">
+                                                <Label className="text-xs text-muted-foreground">Fine</Label>
+                                                <Input
+                                                    type="time"
+                                                    value={lunchTimeEnd}
+                                                    onChange={(e) => setLunchTimeEnd(e.target.value)}
+                                                    className="bg-background"
+                                                />
+                                            </div>
+                                        </div>
+                                    </div>
+
+                                    {/* Dinner Section */}
+                                    <div className="space-y-4 p-4 rounded-xl bg-indigo-50/50 dark:bg-indigo-950/20 border border-indigo-100 dark:border-indigo-900/50">
+                                        <div className="flex items-center gap-2 mb-2">
+                                            <div className="p-2 bg-indigo-100 dark:bg-indigo-900/50 rounded-lg text-indigo-600 dark:text-indigo-400">
+                                                <Moon size={20} weight="fill" />
+                                            </div>
+                                            <h4 className="font-bold text-indigo-700 dark:text-indigo-400">Cena</h4>
+                                        </div>
+                                        <div className="grid grid-cols-2 gap-4">
+                                            <div className="space-y-1.5">
+                                                <Label className="text-xs text-muted-foreground">Inizio</Label>
+                                                <Input
+                                                    type="time"
+                                                    value={dinnerTimeStart}
+                                                    onChange={(e) => setDinnerTimeStart(e.target.value)}
+                                                    className="bg-background"
+                                                />
+                                            </div>
+                                            <div className="space-y-1.5">
+                                                <Label className="text-xs text-muted-foreground">Fine</Label>
+                                                <Input
+                                                    type="time"
+                                                    value={dinnerTimeEnd}
+                                                    onChange={(e) => setDinnerTimeEnd(e.target.value)}
+                                                    className="bg-background"
+                                                />
+                                            </div>
+                                        </div>
+                                    </div>
                                 </div>
                             </CardContent>
                         </Card>

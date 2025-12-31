@@ -550,48 +550,66 @@ export default function CustomMenusManager({ restaurantId, dishes, categories, o
                             </div>
                         </>
                     ) : (
-                        <div className="flex-1 p-6 flex flex-col items-center justify-center bg-muted/5">
-                            <div className="w-full max-w-2xl bg-card p-6 rounded-2xl border shadow-sm">
-                                <div className="text-center mb-6">
+                        <div className="flex-1 p-6 flex flex-col items-center justify-center bg-muted/5 w-full">
+                            <div className="w-full max-w-5xl bg-card p-8 rounded-2xl border shadow-sm">
+                                <div className="text-center mb-8">
                                     <h3 className="text-lg font-bold flex items-center justify-center gap-2">
-                                        <Clock weight="duotone" size={24} className="text-primary" />
+                                        <Clock weight="duotone" size={28} className="text-primary" />
                                         Programmazione Automatica
                                     </h3>
-                                    <p className="text-muted-foreground text-xs mt-1">
+                                    <p className="text-muted-foreground text-sm mt-1">
                                         Attiva automaticamente il menu negli orari selezionati.
                                     </p>
                                 </div>
 
-                                <div className="grid grid-cols-[auto_repeat(7,1fr)] gap-1">
-                                    <div className="h-8"></div>
-                                    {DAYS_OF_WEEK.map(day => (
-                                        <div key={day.value} className="text-center text-[10px] font-bold text-muted-foreground uppercase">{day.label}</div>
-                                    ))}
-
-                                    {MEAL_TYPES.map(meal => (
-                                        <div key={meal.value} className="contents">
-                                            <div className="h-10 flex items-center justify-end pr-3 text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-                                                {meal.label}
+                                <div className="border rounded-xl overflow-hidden shadow-sm">
+                                    <div className="grid grid-cols-[100px_repeat(7,1fr)] bg-muted/20">
+                                        {/* Header Row */}
+                                        <div className="p-4 border-r border-b bg-muted/50"></div> {/* Corner */}
+                                        {DAYS_OF_WEEK.map(day => (
+                                            <div key={day.value} className="p-4 text-center text-xs font-bold text-muted-foreground uppercase border-b border-r last:border-r-0 bg-muted/50 tracking-wider">
+                                                {day.label}
                                             </div>
-                                            {DAYS_OF_WEEK.map(day => {
-                                                const isActive = schedules.some(s => s.day_of_week === day.value && s.meal_type === meal.value)
-                                                return (
-                                                    <button
-                                                        key={`${day.value}-${meal.value}`}
-                                                        onClick={() => handleToggleSchedule(day.value, meal.value)}
-                                                        className={cn(
-                                                            "h-10 rounded-md transition-all flex items-center justify-center border",
-                                                            isActive
-                                                                ? "bg-emerald-500 border-emerald-500 text-white shadow-sm scale-100"
-                                                                : "bg-muted/30 border-transparent hover:border-primary/20 hover:bg-muted"
-                                                        )}
-                                                    >
-                                                        {isActive && <Check size={16} weight="bold" />}
-                                                    </button>
-                                                )
-                                            })}
-                                        </div>
-                                    ))}
+                                        ))}
+
+                                        {/* Rows */}
+                                        {MEAL_TYPES.map((meal, index) => (
+                                            <div key={meal.value} className="contents group">
+                                                {/* Row Label */}
+                                                <div className={cn(
+                                                    "p-4 flex items-center justify-end font-semibold text-sm uppercase tracking-wider text-muted-foreground border-r bg-muted/10",
+                                                    index !== MEAL_TYPES.length - 1 && "border-b"
+                                                )}>
+                                                    {meal.label}
+                                                </div>
+
+                                                {/* Cells */}
+                                                {DAYS_OF_WEEK.map((day, dIndex) => {
+                                                    const isActive = schedules.some(s => s.day_of_week === day.value && s.meal_type === meal.value)
+                                                    return (
+                                                        <div
+                                                            key={`${day.value}-${meal.value}`}
+                                                            className={cn(
+                                                                "relative h-24 border-r last:border-r-0 flex items-center justify-center p-2 transition-all cursor-pointer hover:bg-muted/50",
+                                                                index !== MEAL_TYPES.length - 1 && "border-b",
+                                                                isActive && "bg-emerald-50/50 hover:bg-emerald-100/50 dark:bg-emerald-900/10 dark:hover:bg-emerald-900/20"
+                                                            )}
+                                                            onClick={() => handleToggleSchedule(day.value, meal.value)}
+                                                        >
+                                                            <div className={cn(
+                                                                "w-12 h-12 rounded-full flex items-center justify-center transition-all duration-300",
+                                                                isActive
+                                                                    ? "bg-emerald-500 text-white shadow-lg scale-110"
+                                                                    : "bg-transparent text-transparent border-2 border-dashed border-muted-foreground/20 group-hover:border-primary/20"
+                                                            )}>
+                                                                <Check size={24} weight="bold" />
+                                                            </div>
+                                                        </div>
+                                                    )
+                                                })}
+                                            </div>
+                                        ))}
+                                    </div>
                                 </div>
 
                                 <div className="mt-8 flex items-center gap-3 p-4 bg-blue-50 dark:bg-blue-950/20 text-blue-700 dark:text-blue-300 rounded-xl text-sm border border-blue-100 dark:border-blue-900/50">

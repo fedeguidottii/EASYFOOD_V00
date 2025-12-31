@@ -99,16 +99,29 @@ const RestaurantDashboard = ({ user, onLogout }: RestaurantDashboardProps) => {
       try {
         const now = new Date()
         const dayOfWeek = now.getDay() // 0 = Sunday
-        const hour = now.getHours()
+        const currentTime = now.getHours() * 60 + now.getMinutes() // Minutes from midnight
 
-        // Define meal types based on time
-        // Lunch: 11:00 - 16:00
-        // Dinner: 18:00 - 23:59
+        // Parse time strings (e.g., "12:00") to minutes
+        const parseTime = (t: string) => {
+          if (!t) return 0
+          const [h, m] = t.split(':').map(Number)
+          return h * 60 + m
+        }
+
+        const lunchStart = parseTime(lunchTimeStart)
+        const lunchEnd = parseTime(lunchTimeEnd)
+        const dinnerStart = parseTime(dinnerTimeStart)
+        const dinnerEnd = parseTime(dinnerTimeEnd)
+
+        // Determine meal type
         let currentMealType: string | null = null
-        if (hour >= 11 && hour < 16) currentMealType = 'lunch'
-        else if (hour >= 18) currentMealType = 'dinner'
+        if (lunchStart > 0 && currentTime >= lunchStart && currentTime < lunchEnd) {
+          currentMealType = 'lunch'
+        } else if (dinnerStart > 0 && currentTime >= dinnerStart && currentTime < dinnerEnd) {
+          currentMealType = 'dinner'
+        }
 
-        if (!currentMealType) return // No automation outside valid meal times
+        if (!currentMealType) return
 
         // Fetch schedules
         const { data: schedules } = await supabase
@@ -119,18 +132,14 @@ const RestaurantDashboard = ({ user, onLogout }: RestaurantDashboardProps) => {
           .or(`meal_type.eq.${currentMealType},meal_type.eq.all`)
 
         if (schedules && schedules.length > 0) {
-          // Found a schedule to apply. 
-          // Prioritize 'all' if both exist? Or specific meal type? 
-          // Let's pick the first one for now or specific meal type match first.
           const match = schedules.find(s => s.meal_type === currentMealType) || schedules[0]
 
           if (match) {
-            // Apply it. The RPC handles idempotent application (or we can just call it, it's cheap)
             await supabase.rpc('apply_custom_menu', {
               p_restaurant_id: restaurantId,
               p_menu_id: match.custom_menu_id
             })
-            // Optionally log or toast? Better keep it silent to avoid spamming every minute
+            // Success (silent)
           }
         }
       } catch (err) {
@@ -248,6 +257,12 @@ const RestaurantDashboard = ({ user, onLogout }: RestaurantDashboardProps) => {
   const [showQrDialog, setShowQrDialog] = useState(false)
   const [customerCount, setCustomerCount] = useState('')
   const [showOrderHistory, setShowOrderHistory] = useState(false)
+
+  // Schedule Settings State
+  const [lunchTimeStart, setLunchTimeStart] = useState('12:00')
+  const [lunchTimeEnd, setLunchTimeEnd] = useState('15:00')
+  const [dinnerTimeStart, setDinnerTimeStart] = useState('19:00')
+  const [dinnerTimeEnd, setDinnerTimeEnd] = useState('23:00')
   const [orderSortMode, setOrderSortMode] = useState<'oldest' | 'newest'>('oldest')
   const [tableHistorySearch, setTableHistorySearch] = useState('')
   const [tableSortMode, setTableSortMode] = useState<'number' | 'seats' | 'status'>('number')
@@ -370,6 +385,12 @@ const RestaurantDashboard = ({ user, onLogout }: RestaurantDashboardProps) => {
       setWaiterPassword(currentRestaurant.waiter_password || '')
       setRestaurantName(currentRestaurant.name || '')
       setCourseSplittingEnabled(currentRestaurant.enable_course_splitting !== false)
+
+      // Schedule Times
+      if (currentRestaurant.lunch_time_start) setLunchTimeStart(currentRestaurant.lunch_time_start)
+      if (currentRestaurant.lunch_time_end) setLunchTimeEnd(currentRestaurant.lunch_time_end)
+      if (currentRestaurant.dinner_time_start) setDinnerTimeStart(currentRestaurant.dinner_time_start)
+      if (currentRestaurant.dinner_time_end) setDinnerTimeEnd(currentRestaurant.dinner_time_end)
     }
   }, [currentRestaurant])
 
@@ -622,6 +643,26 @@ const RestaurantDashboard = ({ user, onLogout }: RestaurantDashboardProps) => {
       toast.error('Errore aggiornamento impostazioni')
     }
   }
+
+  // Auto-save schedule settings when they change (debounced or effect? simpler to make a dedicated save function if called frequently, but here we can just update when values change if we had a save button. SettingsView doesn't have a global save.
+  // Actually, let's create a dedicated function to save these specific fields and pass it to SettingsView, OR use an effect here to save them when they change with debounce.
+  // Given the user flow, explicit save or clear 'onBlur' behavior is better.
+  // For now, I will modify DatabaseService.updateRestaurant to accept these fields and use an Effect to autosave? No, auto-save on typing is bad for DB.
+  // I will add a `useEffect` that debounces these changes and saves them.
+
+  useEffect(() => {
+    if (!settingsInitialized || !restaurantId) return;
+    const timer = setTimeout(() => {
+      DatabaseService.updateRestaurant({
+        id: restaurantId,
+        lunch_time_start: lunchTimeStart,
+        lunch_time_end: lunchTimeEnd,
+        dinner_time_start: dinnerTimeStart,
+        dinner_time_end: dinnerTimeEnd
+      }).catch(err => console.error("Failed to auto-save schedule", err))
+    }, 2000) // 2 second debounce
+    return () => clearTimeout(timer)
+  }, [lunchTimeStart, lunchTimeEnd, dinnerTimeStart, dinnerTimeEnd, restaurantId, settingsInitialized])
 
   // --- SAVE FUNCTIONS FOR SETTINGS VIEW ---
   const saveRestaurantName = async () => {
@@ -2056,6 +2097,11 @@ const RestaurantDashboard = ({ user, onLogout }: RestaurantDashboardProps) => {
               setCopertoEnabled={(val) => { setCopertoEnabled(val); setCopertoDirty(true) }}
               copertoPrice={copertoPrice}
               setCopertoPrice={(val) => { setCopertoPrice(val); setCopertoDirty(true) }}
+
+              lunchTimeStart={lunchTimeStart} setLunchTimeStart={setLunchTimeStart}
+              lunchTimeEnd={lunchTimeEnd} setLunchTimeEnd={setLunchTimeEnd}
+              dinnerTimeStart={dinnerTimeStart} setDinnerTimeStart={setDinnerTimeStart}
+              dinnerTimeEnd={dinnerTimeEnd} setDinnerTimeEnd={setDinnerTimeEnd}
 
               reservationDuration={reservationDuration}
               setReservationDuration={(val) => {
