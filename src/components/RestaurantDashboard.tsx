@@ -389,6 +389,10 @@ const RestaurantDashboard = ({ user, onLogout }: RestaurantDashboardProps) => {
   const [courseSplittingEnabled, setCourseSplittingEnabled] = useState(false)
   const [reservationDuration, setReservationDuration] = useState(120)
 
+  // Weekly schedule state
+  const [weeklyCoperto, setWeeklyCoperto] = useState<any>(currentRestaurant?.weekly_coperto || null)
+  const [weeklyAyce, setWeeklyAyce] = useState<any>(currentRestaurant?.weekly_ayce || null)
+
   // Dirty state tracking
   const [restaurantNameDirty, setRestaurantNameDirty] = useState(false)
   const [waiterCredentialsDirty, setWaiterCredentialsDirty] = useState(false)
@@ -427,6 +431,10 @@ const RestaurantDashboard = ({ user, onLogout }: RestaurantDashboardProps) => {
       // Schedule Times
       if (currentRestaurant.lunch_time_start) setLunchTimeStart(currentRestaurant.lunch_time_start)
       if (currentRestaurant.dinner_time_start) setDinnerTimeStart(currentRestaurant.dinner_time_start)
+
+      // Weekly schedules
+      if (currentRestaurant.weekly_coperto) setWeeklyCoperto(currentRestaurant.weekly_coperto)
+      if (currentRestaurant.weekly_ayce) setWeeklyAyce(currentRestaurant.weekly_ayce)
     }
   }, [currentRestaurant])
 
@@ -2261,6 +2269,21 @@ const RestaurantDashboard = ({ user, onLogout }: RestaurantDashboardProps) => {
 
                 reservationDuration={reservationDuration}
                 setReservationDuration={updateReservationDuration}
+
+                weeklyCoperto={weeklyCoperto}
+                setWeeklyCoperto={(schedule) => {
+                  setWeeklyCoperto(schedule)
+                  if (restaurantId) {
+                    DatabaseService.updateRestaurant({ id: restaurantId, weekly_coperto: schedule })
+                  }
+                }}
+                weeklyAyce={weeklyAyce}
+                setWeeklyAyce={(schedule) => {
+                  setWeeklyAyce(schedule)
+                  if (restaurantId) {
+                    DatabaseService.updateRestaurant({ id: restaurantId, weekly_ayce: schedule })
+                  }
+                }}
               />
             </TabsContent >
           </Tabs >

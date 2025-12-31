@@ -282,94 +282,54 @@ export function SettingsView({
                         exit="exit"
                         className="space-y-6"
                     >
-                        <div className="grid gap-6 md:grid-cols-2">
-                            {/* All You Can Eat */}
-                            <div className="relative p-6 rounded-2xl bg-gradient-to-br from-zinc-900/80 to-zinc-900/40 border border-white/5 overflow-hidden group">
-                                <div className="absolute top-0 right-0 p-8 opacity-5 group-hover:opacity-10 transition-opacity">
+                        <div className="grid gap-6">
+                            {/* All You Can Eat - Weekly Schedule */}
+                            <div className="relative p-6 rounded-2xl bg-gradient-to-br from-zinc-900/80 to-zinc-900/40 border border-white/5 overflow-hidden">
+                                <div className="absolute top-0 right-0 p-8 opacity-5">
                                     <ForkKnife size={120} weight="fill" />
                                 </div>
-
-                                <div className="flex items-center justify-between mb-6 relative z-10">
-                                    <div className="flex items-center gap-3">
-                                        <div className="p-3 rounded-lg bg-amber-500/10 text-amber-500">
-                                            <ForkKnife size={24} weight="duotone" />
-                                        </div>
-                                        <div>
-                                            <h3 className="text-xl font-bold">All You Can Eat</h3>
-                                            <p className="text-xs text-zinc-400">Formula a prezzo fisso</p>
-                                        </div>
-                                    </div>
-                                    <Switch
-                                        checked={ayceEnabled}
-                                        onCheckedChange={setAyceEnabled}
-                                        className="data-[state=checked]:bg-amber-500"
-                                    />
-                                </div>
-
-                                {ayceEnabled && (
-                                    <div className="space-y-4 relative z-10 animate-in fade-in slide-in-from-bottom-4">
-                                        <div className="grid gap-2">
-                                            <Label className="text-zinc-400">Prezzo a Persona (€)</Label>
-                                            <Input
-                                                type="number"
-                                                value={aycePrice}
-                                                onChange={(e) => setAycePrice(e.target.value)}
-                                                className="bg-black/20 border-white/10 text-xl font-bold text-amber-500 h-12"
-                                            />
-                                        </div>
-                                        <div className="grid gap-2">
-                                            <Label className="text-zinc-400">Limite Ordini / Giri</Label>
-                                            <Input
-                                                type="number"
-                                                value={ayceMaxOrders}
-                                                onChange={(e) => setAyceMaxOrders(e.target.value)}
-                                                className="bg-black/20 border-white/10 h-12"
-                                            />
-                                        </div>
-                                    </div>
-                                )}
+                                <WeeklyScheduleEditor
+                                    type="ayce"
+                                    schedule={weeklyAyce || {
+                                        enabled: ayceEnabled,
+                                        defaultPrice: Number(aycePrice) || 0,
+                                        defaultMaxOrders: Number(ayceMaxOrders) || 0,
+                                        useWeeklySchedule: false,
+                                        schedule: {}
+                                    }}
+                                    onChange={(schedule) => {
+                                        setWeeklyAyce(schedule as any)
+                                        // Also sync legacy state for backwards compatibility
+                                        setAyceEnabled(schedule.enabled)
+                                        setAycePrice(schedule.defaultPrice)
+                                    }}
+                                    lunchStart={lunchTimeStart}
+                                    dinnerStart={dinnerTimeStart}
+                                />
                             </div>
 
-                            {/* Coperto */}
-                            <div className="relative p-6 rounded-2xl bg-gradient-to-br from-zinc-900/80 to-zinc-900/40 border border-white/5 overflow-hidden group">
-                                <div className="absolute top-0 right-0 p-8 opacity-5 group-hover:opacity-10 transition-opacity">
+                            {/* Coperto - Weekly Schedule */}
+                            <div className="relative p-6 rounded-2xl bg-gradient-to-br from-zinc-900/80 to-zinc-900/40 border border-white/5 overflow-hidden">
+                                <div className="absolute top-0 right-0 p-8 opacity-5">
                                     <Coins size={120} weight="fill" />
                                 </div>
-
-                                <div className="flex items-center justify-between mb-6 relative z-10">
-                                    <div className="flex items-center gap-3">
-                                        <div className="p-3 rounded-lg bg-amber-500/10 text-amber-500">
-                                            <Coins size={24} weight="duotone" />
-                                        </div>
-                                        <div>
-                                            <h3 className="text-xl font-bold">Coperto</h3>
-                                            <p className="text-xs text-zinc-400">Costo di servizio fisso</p>
-                                        </div>
-                                    </div>
-                                    <Switch
-                                        checked={copertoEnabled}
-                                        onCheckedChange={setCopertoEnabled}
-                                        className="data-[state=checked]:bg-amber-500"
-                                    />
-                                </div>
-
-                                {copertoEnabled && (
-                                    <div className="space-y-4 relative z-10 animate-in fade-in slide-in-from-bottom-4">
-                                        <div className="grid gap-2">
-                                            <Label className="text-zinc-400">Prezzo a Persona (€)</Label>
-                                            <Input
-                                                type="number"
-                                                value={copertoPrice}
-                                                onChange={(e) => setCopertoPrice(e.target.value)}
-                                                className="bg-black/20 border-white/10 text-xl font-bold text-amber-500 h-12"
-                                            />
-                                        </div>
-                                        <div className="p-4 rounded-xl bg-amber-500/5 border border-amber-500/10 text-xs text-amber-400 leading-relaxed">
-                                            <Info className="inline mr-1 mb-0.5" />
-                                            Il coperto verrà applicato automaticamente ad ogni coperto aggiunto al tavolo.
-                                        </div>
-                                    </div>
-                                )}
+                                <WeeklyScheduleEditor
+                                    type="coperto"
+                                    schedule={weeklyCoperto || {
+                                        enabled: copertoEnabled,
+                                        defaultPrice: Number(copertoPrice) || 0,
+                                        useWeeklySchedule: false,
+                                        schedule: {}
+                                    }}
+                                    onChange={(schedule) => {
+                                        setWeeklyCoperto(schedule)
+                                        // Also sync legacy state for backwards compatibility
+                                        setCopertoEnabled(schedule.enabled)
+                                        setCopertoPrice(schedule.defaultPrice)
+                                    }}
+                                    lunchStart={lunchTimeStart}
+                                    dinnerStart={dinnerTimeStart}
+                                />
                             </div>
 
                             {/* Configurazione Portate */}
