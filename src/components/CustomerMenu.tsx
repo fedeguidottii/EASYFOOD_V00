@@ -234,6 +234,7 @@ const CustomerMenu = () => {
   const [restaurantId, setRestaurantId] = useState<string | null>(() => localStorage.getItem('restaurantId')) // Init from localStorage
   const [restaurantName, setRestaurantName] = useState<string>('') // Restaurant name for PIN screen
   const [restaurantSuspended, setRestaurantSuspended] = useState(false)
+  const [courseSplittingEnabled, setCourseSplittingEnabled] = useState(true) // Default to true for backwards compat
 
   // Attempt joining session on mount if tableId exists and no sessionId
   useEffect(() => {
@@ -243,7 +244,7 @@ const CustomerMenu = () => {
         try {
           const { data: tableData, error } = await supabase
             .from('tables')
-            .select('restaurant_id, restaurants(name, is_active)')
+            .select('restaurant_id, restaurants(name, is_active, enable_course_splitting)')
             .eq('id', tableId)
             .single()
 
@@ -262,10 +263,11 @@ const CustomerMenu = () => {
           if (tableData) {
             // Check if restaurant is active - Supabase join returns object or array
             const restaurantsData = tableData.restaurants as unknown
-            const restaurant = Array.isArray(restaurantsData) ? restaurantsData[0] : restaurantsData as { name: string, is_active: boolean } | null
+            const restaurant = Array.isArray(restaurantsData) ? restaurantsData[0] : restaurantsData as { name: string, is_active: boolean, enable_course_splitting?: boolean } | null
 
             if (restaurant) {
               setRestaurantName(restaurant.name)
+              setCourseSplittingEnabled(restaurant.enable_course_splitting !== false)
               if (restaurant.is_active === false) {
                 setRestaurantId(null) // Prevent loading
                 setRestaurantSuspended(true)
@@ -295,14 +297,15 @@ const CustomerMenu = () => {
       const fetchRestaurantId = async () => {
         const { data: tableData } = await supabase
           .from('tables')
-          .select('restaurant_id, restaurants(name, is_active)')
+          .select('restaurant_id, restaurants(name, is_active, enable_course_splitting)')
           .eq('id', tableId)
           .single()
         if (tableData) {
           const restaurantsData = tableData.restaurants as unknown
-          const restaurant = Array.isArray(restaurantsData) ? restaurantsData[0] : restaurantsData as { name: string, is_active: boolean } | null
+          const restaurant = Array.isArray(restaurantsData) ? restaurantsData[0] : restaurantsData as { name: string, is_active: boolean, enable_course_splitting?: boolean } | null
           if (restaurant) {
             setRestaurantName(restaurant.name)
+            setCourseSplittingEnabled(restaurant.enable_course_splitting !== false)
             if (restaurant.is_active === false) {
               setRestaurantSuspended(true)
               setIsAuthenticated(false)
@@ -1505,13 +1508,15 @@ function AuthorizedMenuContent({ restaurantId, tableId, sessionId, activeSession
                 <ChefHat className="w-5 h-5 mr-2" />
                 Invia tutto insieme
               </Button>
-              <Button variant="outline" className="h-14 border-slate-200 dark:border-slate-700 hover:bg-slate-50 dark:hover:bg-slate-800 rounded-xl font-medium" onClick={() => {
-                setShowCourseAlert(false);
-                setShowCourseManagement(true);
-              }}>
-                <Layers className="w-5 h-5 mr-2 text-amber-600" />
-                Dividi in portate
-              </Button>
+              {courseSplittingEnabled && (
+                <Button variant="outline" className="h-14 border-slate-200 dark:border-slate-700 hover:bg-slate-50 dark:hover:bg-slate-800 rounded-xl font-medium" onClick={() => {
+                  setShowCourseAlert(false);
+                  setShowCourseManagement(true);
+                }}>
+                  <Layers className="w-5 h-5 mr-2 text-amber-600" />
+                  Dividi in portate
+                </Button>
+              )}
             </div>
             <AlertDialogFooter>
               <AlertDialogCancel className="rounded-xl h-12 border-zinc-800 text-zinc-400 hover:bg-zinc-900 hover:text-white">Annulla</AlertDialogCancel>
