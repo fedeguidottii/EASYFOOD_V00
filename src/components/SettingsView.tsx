@@ -67,12 +67,8 @@ interface SettingsViewProps {
     // Schedule Props
     lunchTimeStart: string
     setLunchTimeStart: (time: string) => void
-    lunchTimeEnd: string
-    setLunchTimeEnd: (time: string) => void
     dinnerTimeStart: string
     setDinnerTimeStart: (time: string) => void
-    dinnerTimeEnd: string
-    setDinnerTimeEnd: (time: string) => void
 
     courseSplittingEnabled: boolean
     setCourseSplittingEnabled: (enabled: boolean) => void
@@ -116,9 +112,7 @@ export function SettingsView({
 
     // Schedule Destructuring
     lunchTimeStart, setLunchTimeStart,
-    lunchTimeEnd, setLunchTimeEnd,
     dinnerTimeStart, setDinnerTimeStart,
-    dinnerTimeEnd, setDinnerTimeEnd,
 
     courseSplittingEnabled,
     setCourseSplittingEnabled,
@@ -400,22 +394,13 @@ export function SettingsView({
                                             </div>
                                             <h4 className="font-bold text-orange-700 dark:text-orange-400">Pranzo</h4>
                                         </div>
-                                        <div className="grid grid-cols-2 gap-4">
+                                        <div className="grid grid-cols-1 gap-4">
                                             <div className="space-y-1.5">
-                                                <Label className="text-xs text-muted-foreground">Inizio</Label>
+                                                <Label className="text-xs text-muted-foreground">Inizio Pranzo</Label>
                                                 <Input
                                                     type="time"
                                                     value={lunchTimeStart}
                                                     onChange={(e) => setLunchTimeStart(e.target.value)}
-                                                    className="bg-background"
-                                                />
-                                            </div>
-                                            <div className="space-y-1.5">
-                                                <Label className="text-xs text-muted-foreground">Fine</Label>
-                                                <Input
-                                                    type="time"
-                                                    value={lunchTimeEnd}
-                                                    onChange={(e) => setLunchTimeEnd(e.target.value)}
                                                     className="bg-background"
                                                 />
                                             </div>
@@ -430,22 +415,13 @@ export function SettingsView({
                                             </div>
                                             <h4 className="font-bold text-indigo-700 dark:text-indigo-400">Cena</h4>
                                         </div>
-                                        <div className="grid grid-cols-2 gap-4">
+                                        <div className="grid grid-cols-1 gap-4">
                                             <div className="space-y-1.5">
-                                                <Label className="text-xs text-muted-foreground">Inizio</Label>
+                                                <Label className="text-xs text-muted-foreground">Inizio Cena</Label>
                                                 <Input
                                                     type="time"
                                                     value={dinnerTimeStart}
                                                     onChange={(e) => setDinnerTimeStart(e.target.value)}
-                                                    className="bg-background"
-                                                />
-                                            </div>
-                                            <div className="space-y-1.5">
-                                                <Label className="text-xs text-muted-foreground">Fine</Label>
-                                                <Input
-                                                    type="time"
-                                                    value={dinnerTimeEnd}
-                                                    onChange={(e) => setDinnerTimeEnd(e.target.value)}
                                                     className="bg-background"
                                                 />
                                             </div>

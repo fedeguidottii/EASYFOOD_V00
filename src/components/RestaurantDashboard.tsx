@@ -50,6 +50,10 @@ const RestaurantDashboard = ({ user, onLogout }: RestaurantDashboardProps) => {
   const [sidebarExpanded, setSidebarExpanded] = useState(false)
   const [tableSearchTerm, setTableSearchTerm] = useState('')
 
+  // Schedule Settings State
+  const [lunchTimeStart, setLunchTimeStart] = useState('12:00')
+  const [dinnerTimeStart, setDinnerTimeStart] = useState('19:00')
+
   const [orders, setOrders] = useState<Order[]>([])
   const [dishes, , refreshDishes, setDishes] = useSupabaseData<Dish>('dishes', [], { column: 'restaurant_id', value: restaurantId })
   const [tables, , , setTables] = useSupabaseData<Table>('tables', [], { column: 'restaurant_id', value: restaurantId })
@@ -92,6 +96,7 @@ const RestaurantDashboard = ({ user, onLogout }: RestaurantDashboardProps) => {
   }, [selectedSound])
 
   // --- Scheduled Menu Automation ---
+  // --- Scheduled Menu Automation ---
   useEffect(() => {
     if (!restaurantId) return
 
@@ -109,16 +114,30 @@ const RestaurantDashboard = ({ user, onLogout }: RestaurantDashboardProps) => {
         }
 
         const lunchStart = parseTime(lunchTimeStart)
-        const lunchEnd = parseTime(lunchTimeEnd)
         const dinnerStart = parseTime(dinnerTimeStart)
-        const dinnerEnd = parseTime(dinnerTimeEnd)
 
-        // Determine meal type
+        // Determine meal type (Lunch until Dinner, Dinner until end of day/next lunch)
         let currentMealType: string | null = null
-        if (lunchStart > 0 && currentTime >= lunchStart && currentTime < lunchEnd) {
-          currentMealType = 'lunch'
-        } else if (dinnerStart > 0 && currentTime >= dinnerStart && currentTime < dinnerEnd) {
-          currentMealType = 'dinner'
+
+        // Define Lunch Period: From LunchStart (inclusive) to DinnerStart (exclusive)
+        // Define Dinner Period: From DinnerStart (inclusive) onwards
+
+        if (lunchStart > 0 && dinnerStart > 0) {
+          // Standard case: Lunch comes before Dinner
+          if (lunchStart < dinnerStart) {
+            if (currentTime >= lunchStart && currentTime < dinnerStart) {
+              currentMealType = 'lunch'
+            } else if (currentTime >= dinnerStart) {
+              currentMealType = 'dinner'
+            }
+          } else {
+            // Weak edge case protection if dinner is somehow set before lunch?
+          }
+        } else if (lunchStart > 0) {
+          // Only lunch configured?
+          if (currentTime >= lunchStart) currentMealType = 'lunch'
+        } else if (dinnerStart > 0) {
+          if (currentTime >= dinnerStart) currentMealType = 'dinner'
         }
 
         if (!currentMealType) return
@@ -151,7 +170,7 @@ const RestaurantDashboard = ({ user, onLogout }: RestaurantDashboardProps) => {
     checkAndApplySchedules() // Run immediately
 
     return () => clearInterval(interval)
-  }, [restaurantId])
+  }, [restaurantId, lunchTimeStart, dinnerTimeStart])
 
   // Fetch Orders with Relations
   const fetchOrders = async () => {
@@ -257,12 +276,6 @@ const RestaurantDashboard = ({ user, onLogout }: RestaurantDashboardProps) => {
   const [showQrDialog, setShowQrDialog] = useState(false)
   const [customerCount, setCustomerCount] = useState('')
   const [showOrderHistory, setShowOrderHistory] = useState(false)
-
-  // Schedule Settings State
-  const [lunchTimeStart, setLunchTimeStart] = useState('12:00')
-  const [lunchTimeEnd, setLunchTimeEnd] = useState('15:00')
-  const [dinnerTimeStart, setDinnerTimeStart] = useState('19:00')
-  const [dinnerTimeEnd, setDinnerTimeEnd] = useState('23:00')
   const [orderSortMode, setOrderSortMode] = useState<'oldest' | 'newest'>('oldest')
   const [tableHistorySearch, setTableHistorySearch] = useState('')
   const [tableSortMode, setTableSortMode] = useState<'number' | 'seats' | 'status'>('number')
@@ -388,9 +401,7 @@ const RestaurantDashboard = ({ user, onLogout }: RestaurantDashboardProps) => {
 
       // Schedule Times
       if (currentRestaurant.lunch_time_start) setLunchTimeStart(currentRestaurant.lunch_time_start)
-      if (currentRestaurant.lunch_time_end) setLunchTimeEnd(currentRestaurant.lunch_time_end)
       if (currentRestaurant.dinner_time_start) setDinnerTimeStart(currentRestaurant.dinner_time_start)
-      if (currentRestaurant.dinner_time_end) setDinnerTimeEnd(currentRestaurant.dinner_time_end)
     }
   }, [currentRestaurant])
 
@@ -656,13 +667,11 @@ const RestaurantDashboard = ({ user, onLogout }: RestaurantDashboardProps) => {
       DatabaseService.updateRestaurant({
         id: restaurantId,
         lunch_time_start: lunchTimeStart,
-        lunch_time_end: lunchTimeEnd,
         dinner_time_start: dinnerTimeStart,
-        dinner_time_end: dinnerTimeEnd
       }).catch(err => console.error("Failed to auto-save schedule", err))
     }, 2000) // 2 second debounce
     return () => clearTimeout(timer)
-  }, [lunchTimeStart, lunchTimeEnd, dinnerTimeStart, dinnerTimeEnd, restaurantId, settingsInitialized])
+  }, [lunchTimeStart, dinnerTimeStart, restaurantId, settingsInitialized])
 
   // --- SAVE FUNCTIONS FOR SETTINGS VIEW ---
   const saveRestaurantName = async () => {
@@ -1739,7 +1748,7 @@ const RestaurantDashboard = ({ user, onLogout }: RestaurantDashboardProps) => {
                       Menu Personalizzati
                     </Button>
                   </DialogTrigger>
-                  <DialogContent className="max-w-6xl p-0 overflow-hidden">
+                  <DialogContent className="max-w-[95vw] p-0 overflow-hidden">
                     <CustomMenusManager
                       restaurantId={restaurantId || ''}
                       dishes={dishes || []}
@@ -2099,9 +2108,7 @@ const RestaurantDashboard = ({ user, onLogout }: RestaurantDashboardProps) => {
               setCopertoPrice={(val) => { setCopertoPrice(val); setCopertoDirty(true) }}
 
               lunchTimeStart={lunchTimeStart} setLunchTimeStart={setLunchTimeStart}
-              lunchTimeEnd={lunchTimeEnd} setLunchTimeEnd={setLunchTimeEnd}
               dinnerTimeStart={dinnerTimeStart} setDinnerTimeStart={setDinnerTimeStart}
-              dinnerTimeEnd={dinnerTimeEnd} setDinnerTimeEnd={setDinnerTimeEnd}
 
               reservationDuration={reservationDuration}
               setReservationDuration={(val) => {

@@ -403,7 +403,7 @@ export default function CustomMenusManager({ restaurantId, dishes, categories, o
 
     // --- VIEW: EDITOR (Minimal refinement) ---
     return (
-        <div className="flex flex-col h-[750px] bg-background">
+        <div className="flex flex-col h-[85vh] bg-background">
             {/* Header */}
             <div className="flex items-center justify-between px-6 py-4 border-b bg-muted/5 pr-12">
                 {/* Added pr-12 to avoid Dialog Close X overlap */}
