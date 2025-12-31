@@ -9,7 +9,7 @@ import { toast } from 'sonner'
 import {
     Plus, Trash, Calendar, Clock, CheckCircle, ForkKnife,
     Pencil, X, MagnifyingGlass, Sparkle, CopySimple,
-    CalendarCheck, Check
+    CalendarCheck, Check, Info
 } from '@phosphor-icons/react'
 import type { CustomMenu, CustomMenuSchedule, Dish, MealType, Category } from '../services/types'
 import { cn } from '@/lib/utils'
@@ -17,6 +17,7 @@ import { motion, AnimatePresence } from 'framer-motion'
 import { ScrollArea } from '@/components/ui/scroll-area'
 import { Separator } from '@/components/ui/separator'
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogFooter, DialogTrigger } from '@/components/ui/dialog'
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 
 interface CustomMenusManagerProps {
     restaurantId: string
@@ -133,6 +134,7 @@ export default function CustomMenusManager({ restaurantId, dishes, categories, o
             toast.success('Menù Attivato!')
             fetchCustomMenus()
             onDishesChange()
+            if (selectedMenu) setSelectedMenu({ ...selectedMenu, is_active: true })
         } else {
             toast.error('Errore attivazione')
         }
@@ -203,251 +205,356 @@ export default function CustomMenusManager({ restaurantId, dishes, categories, o
         const activeMenu = customMenus.find(m => m.is_active)
 
         return (
-            <div className="flex flex-col h-[500px] md:h-[600px] w-full max-w-4xl mx-auto">
-                <div className="flex justify-between items-center mb-6 px-1">
-                    <div>
-                        <h2 className="text-xl font-semibold tracking-tight">Menu Personalizzati</h2>
-                        <p className="text-sm text-muted-foreground">Crea sottomenu per eventi o orari specifici</p>
+            <div className="flex flex-col h-[650px] w-full max-w-5xl mx-auto bg-background/50 backdrop-blur-sm">
+
+                {/* Header Section - Spaced correctly to avoid close button overlap */}
+                <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center px-8 pt-8 pb-6 border-b bg-muted/5">
+                    <div className="space-y-1">
+                        <h2 className="text-2xl font-bold tracking-tight bg-gradient-to-r from-emerald-600 to-teal-500 bg-clip-text text-transparent">
+                            Menu Personalizzati
+                        </h2>
+                        <p className="text-sm text-muted-foreground flex items-center gap-2">
+                            Gestisci sottomenu, eventi e limitazioni orarie.
+                        </p>
                     </div>
+
                     <Dialog open={showCreateDialog} onOpenChange={setShowCreateDialog}>
                         <DialogTrigger asChild>
-                            <Button size="sm" className="gap-2">
-                                <Plus size={16} /> Nuovo
+                            <Button className="mt-4 sm:mt-0 bg-emerald-600 hover:bg-emerald-700 text-white shadow-lg shadow-emerald-900/20 transition-all hover:scale-105 active:scale-95">
+                                <Plus weight="bold" className="mr-2" size={16} />
+                                Nuovo Menu
                             </Button>
                         </DialogTrigger>
-                        <DialogContent>
+                        <DialogContent className="sm:max-w-md">
                             <DialogHeader>
-                                <DialogTitle>Nuovo Menu</DialogTitle>
-                                <DialogDescription>Dai un nome al tuo menu personalizzato</DialogDescription>
+                                <DialogTitle>Crea Nuovo Menu</DialogTitle>
+                                <DialogDescription>
+                                    Assegna un nome univoco per identificare questo menu (es. "Menu Pranzo", "San Valentino").
+                                </DialogDescription>
                             </DialogHeader>
-                            <div className="py-4">
-                                <Label>Nome Menu</Label>
-                                <Input
-                                    value={newMenuName}
-                                    onChange={(e) => setNewMenuName(e.target.value)}
-                                    placeholder="Es. Menu Pranzo"
-                                    className="mt-2"
-                                />
+                            <div className="py-4 space-y-4">
+                                <div className="space-y-2">
+                                    <Label>Nome del Menu</Label>
+                                    <Input
+                                        value={newMenuName}
+                                        onChange={(e) => setNewMenuName(e.target.value)}
+                                        placeholder="Inserisci nome..."
+                                        className="h-11"
+                                    />
+                                </div>
                             </div>
                             <DialogFooter>
-                                <Button onClick={handleCreateMenu}>Crea</Button>
+                                <Button onClick={handleCreateMenu} className="w-full bg-emerald-600 hover:bg-emerald-700 text-white">
+                                    Crea Menu
+                                </Button>
                             </DialogFooter>
                         </DialogContent>
                     </Dialog>
                 </div>
 
-                <div className="flex-1 overflow-y-auto space-y-3 px-1">
-                    {/* Active Status Banner */}
+                <div className="flex-1 overflow-y-auto p-6 space-y-8">
+                    {/* Active Menu Status Card */}
                     <div className={cn(
-                        "p-4 rounded-xl border flex items-center justify-between transition-all",
+                        "relative flex flex-col sm:flex-row items-start sm:items-center justify-between p-6 rounded-2xl border-2 transition-all duration-300",
                         activeMenu
-                            ? "bg-emerald-50 border-emerald-200 dark:bg-emerald-950/20 dark:border-emerald-800"
-                            : "bg-slate-50 border-slate-200 dark:bg-slate-900 dark:border-slate-800"
+                            ? "border-emerald-500/30 bg-emerald-500/5 shadow-[0_0_30px_-15px_rgba(16,185,129,0.2)]"
+                            : "border-slate-200 dark:border-slate-800 bg-card/50"
                     )}>
-                        <div className="flex items-center gap-3">
+                        <div className="flex items-start gap-4">
                             <div className={cn(
-                                "w-10 h-10 rounded-full flex items-center justify-center",
-                                activeMenu ? "bg-emerald-100 text-emerald-600 dark:bg-emerald-900 dark:text-emerald-400" : "bg-slate-200 text-slate-500"
+                                "w-12 h-12 rounded-xl flex items-center justify-center shadow-sm",
+                                activeMenu
+                                    ? "bg-gradient-to-br from-emerald-500 to-teal-600 text-white"
+                                    : "bg-slate-100 dark:bg-slate-800 text-slate-500"
                             )}>
-                                {activeMenu ? <Sparkle weight="fill" size={20} /> : <ForkKnife size={20} />}
+                                {activeMenu ? <Sparkle weight="fill" size={24} /> : <ForkKnife weight="duotone" size={24} />}
                             </div>
-                            <div>
-                                <h4 className="font-medium text-sm">
-                                    {activeMenu ? `Attivo: ${activeMenu.name}` : "Menu Completo Attivo"}
-                                </h4>
-                                <p className="text-xs text-muted-foreground">
+                            <div className="space-y-1">
+                                <Badge variant={activeMenu ? "default" : "outline"} className={cn(
+                                    "mb-1 px-2 py-0.5 text-[10px] uppercase tracking-wider font-bold",
+                                    activeMenu ? "bg-emerald-500 hover:bg-emerald-600 border-none" : "text-muted-foreground"
+                                )}>
+                                    {activeMenu ? "Attivo Ora" : "Standard"}
+                                </Badge>
+                                <h3 className="font-bold text-lg">
+                                    {activeMenu ? activeMenu.name : "Menu Completo (Tutti i Piatti)"}
+                                </h3>
+                                <p className="text-sm text-muted-foreground max-w-lg">
                                     {activeMenu
-                                        ? "I clienti vedono solo i piatti selezionati."
-                                        : "Tutti i piatti attivi sono visibili ai clienti."}
+                                        ? "I clienti vedono e possono ordinare SOLO i piatti inclusi in questo menu personalizzato."
+                                        : "Nessuna restrizione attiva. I clienti visualizzano l'intero catalogo piatti abilitati."}
                                 </p>
                             </div>
                         </div>
+
                         {activeMenu && (
-                            <Button variant="outline" size="sm" onClick={handleResetToFullMenu} className="h-8 text-xs bg-background">
-                                Ripristina Standard
+                            <Button
+                                variant="outline"
+                                onClick={handleResetToFullMenu}
+                                className="mt-4 sm:mt-0 border-destructive/30 text-destructive hover:bg-destructive/10 hover:border-destructive/50"
+                            >
+                                <X className="mr-2" size={16} /> Disattiva
                             </Button>
                         )}
                     </div>
 
-                    <Separator className="my-4" />
+                    <div className="space-y-4">
+                        <div className="flex items-center gap-2 pb-2">
+                            <h4 className="text-sm font-semibold text-muted-foreground uppercase tracking-wider">I Tuoi Menu</h4>
+                            <Separator className="flex-1" />
+                        </div>
 
-                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                        {customMenus.map(menu => (
-                            <div
-                                key={menu.id}
-                                onClick={() => openEditor(menu)}
-                                className={cn(
-                                    "group relative p-4 rounded-xl border bg-background hover:shadow-md transition-all cursor-pointer flex flex-col justify-between",
-                                    menu.is_active && "ring-1 ring-emerald-500 border-emerald-500"
-                                )}
-                            >
-                                <div className="flex justify-between items-start mb-2">
-                                    <h3 className="font-semibold text-sm truncate pr-6">{menu.name}</h3>
-                                    {menu.is_active && (
-                                        <Badge className="bg-emerald-500 text-white text-[10px] h-5">ATTIVO</Badge>
+                        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                            {customMenus.map(menu => (
+                                <motion.div
+                                    key={menu.id}
+                                    whileHover={{ y: -2 }}
+                                    onClick={() => openEditor(menu)}
+                                    className={cn(
+                                        "group relative flex flex-col justify-between h-[160px] p-5 rounded-xl border bg-card hover:shadow-lg transition-all cursor-pointer overflow-hidden backdrop-blur-sm",
+                                        menu.is_active
+                                            ? "ring-2 ring-emerald-500 border-emerald-500 bg-emerald-950/5 dark:bg-emerald-900/10"
+                                            : "hover:border-primary/50"
                                     )}
-                                </div>
-                                <div className="flex items-center justify-between mt-4">
-                                    <span className="text-xs text-muted-foreground bg-muted px-2 py-1 rounded-md group-hover:bg-slate-200 dark:group-hover:bg-slate-800 transition-colors">
-                                        Modifica
-                                    </span>
-                                    <div className="flex gap-1">
-                                        {!menu.is_active && (
+                                >
+                                    {/* Action Header */}
+                                    <div className="flex justify-between items-start">
+                                        <div className="p-2.5 rounded-lg bg-primary/10 text-primary mb-3 group-hover:bg-primary group-hover:text-primary-foreground transition-colors duration-300">
+                                            <ForkKnife size={20} weight={menu.is_active ? "fill" : "regular"} />
+                                        </div>
+                                        {menu.is_active && (
+                                            <div className="absolute top-0 right-0 p-1.5 bg-emerald-500 rounded-bl-xl text-white shadow-sm">
+                                                <Check size={14} weight="bold" />
+                                            </div>
+                                        )}
+                                    </div>
+
+                                    <div>
+                                        <h3 className="font-bold text-base truncate mb-1 pr-4">{menu.name}</h3>
+                                        <p className="text-xs text-muted-foreground flex items-center gap-1">
+                                            <span className="inline-block w-1.5 h-1.5 rounded-full bg-slate-300 dark:bg-slate-600 group-hover:bg-primary/50 transition-colors" />
+                                            Clicca per modificare
+                                        </p>
+                                    </div>
+
+                                    {/* Footer Actions Overlay (visible on hover) */}
+                                    <div className="absolute inset-x-0 bottom-0 h-14 bg-gradient-to-t from-background to-transparent opacity-0 group-hover:opacity-100 transition-opacity flex items-end justify-between px-5 pb-4">
+                                        <div className="flex gap-2 w-full justify-between items-center">
+                                            {!menu.is_active ? (
+                                                <Button
+                                                    size="sm"
+                                                    variant="secondary"
+                                                    className="h-8 text-xs bg-emerald-100 hover:bg-emerald-200 text-emerald-700 dark:bg-emerald-900/50 dark:hover:bg-emerald-800 dark:text-emerald-300 border-none"
+                                                    onClick={(e) => handleApplyMenu(menu.id, e)}
+                                                >
+                                                    <CheckCircle size={14} className="mr-1.5" weight="fill" />
+                                                    Attiva
+                                                </Button>
+                                            ) : (
+                                                <span className="text-[10px] font-bold text-emerald-600 dark:text-emerald-400 bg-emerald-100 dark:bg-emerald-900/30 px-2 py-1 rounded-full">
+                                                    ATTUALMENTE ATTIVO
+                                                </span>
+                                            )}
+
                                             <Button
                                                 size="icon"
                                                 variant="ghost"
-                                                className="h-7 w-7 text-emerald-600 hover:text-emerald-700 hover:bg-emerald-50 dark:hover:bg-emerald-950"
-                                                onClick={(e) => handleApplyMenu(menu.id, e)}
-                                                title="Attiva"
+                                                className="h-8 w-8 text-muted-foreground hover:text-destructive hover:bg-destructive/10 rounded-full"
+                                                onClick={(e) => handleDeleteMenu(menu.id, e)}
+                                                title="Elimina"
                                             >
-                                                <CheckCircle size={16} />
+                                                <Trash size={16} />
                                             </Button>
-                                        )}
-                                        <Button
-                                            size="icon"
-                                            variant="ghost"
-                                            className="h-7 w-7 text-muted-foreground hover:text-destructive"
-                                            onClick={(e) => handleDeleteMenu(menu.id, e)}
-                                        >
-                                            <Trash size={16} />
-                                        </Button>
+                                        </div>
                                     </div>
+                                </motion.div>
+                            ))}
+
+                            {/* Empty State Card */}
+                            <button
+                                onClick={() => setShowCreateDialog(true)}
+                                className="h-[160px] rounded-xl border-2 border-dashed border-muted-foreground/20 hover:border-primary/50 hover:bg-primary/5 flex flex-col items-center justify-center gap-3 transition-all group"
+                            >
+                                <div className="w-12 h-12 rounded-full bg-muted/50 group-hover:bg-primary/10 flex items-center justify-center text-muted-foreground group-hover:text-primary transition-colors">
+                                    <Plus size={24} />
                                 </div>
-                            </div>
-                        ))}
-                        {customMenus.length === 0 && (
-                            <div className="col-span-full py-10 text-center text-muted-foreground bg-muted/20 dashed border rounded-xl">
-                                <CopySimple size={32} className="mx-auto mb-2 opacity-50" />
-                                <p className="text-sm">Nessun menu personalizzato creato.</p>
-                            </div>
-                        )}
+                                <span className="text-sm font-medium text-muted-foreground group-hover:text-foreground">Crea Nuovo Menu</span>
+                            </button>
+                        </div>
                     </div>
                 </div>
             </div>
         )
     }
 
-    // --- VIEW: EDITOR ---
+    // --- VIEW: EDITOR (Minimal refinement) ---
     return (
-        <div className="flex flex-col h-[600px] -m-6">
+        <div className="flex flex-col h-[650px] -m-6 bg-background">
             {/* Header */}
-            <div className="flex items-center justify-between p-4 border-b bg-muted/10">
-                <div className="flex items-center gap-3">
-                    <Button variant="ghost" size="icon" onClick={closeEditor} className="h-8 w-8 rounded-full">
-                        <X size={18} />
+            <div className="flex items-center justify-between px-6 py-4 border-b bg-muted/5">
+                <div className="flex items-center gap-4">
+                    <Button
+                        variant="ghost"
+                        size="icon"
+                        onClick={closeEditor}
+                        className="h-9 w-9 rounded-full hover:bg-muted"
+                    >
+                        <X size={20} />
                     </Button>
+                    <div className="h-8 w-px bg-border/50 mx-2 hidden sm:block" />
                     <div>
-                        <h2 className="font-bold text-lg leading-none">{selectedMenu?.name}</h2>
-                        <span className="text-xs text-muted-foreground">
-                            {menuDishes.length} Piatti • {schedules.length} Attivazioni
-                        </span>
+                        <h2 className="font-bold text-xl leading-none tracking-tight">{selectedMenu?.name}</h2>
+                        <div className="flex items-center gap-2 mt-1">
+                            <span className="text-xs font-medium text-muted-foreground bg-muted px-2 py-0.5 rounded-full">
+                                {menuDishes.length} Piatti
+                            </span>
+                            <span className="text-xs font-medium text-muted-foreground bg-muted px-2 py-0.5 rounded-full">
+                                {schedules.length} Orari
+                            </span>
+                        </div>
                     </div>
                 </div>
                 {!selectedMenu?.is_active && (
-                    <Button size="sm" onClick={() => selectedMenu && handleApplyMenu(selectedMenu.id)} className="bg-emerald-600 hover:bg-emerald-700 text-white h-8 text-xs">
+                    <Button
+                        onClick={() => selectedMenu && handleApplyMenu(selectedMenu.id)}
+                        className="bg-emerald-600 hover:bg-emerald-700 text-white shadow-lg shadow-emerald-500/20"
+                    >
+                        <CheckCircle weight="fill" className="mr-2" />
                         Attiva Ora
                     </Button>
                 )}
             </div>
 
             <div className="flex flex-1 overflow-hidden">
-                {/* Sidebar Tabs */}
-                <div className="w-16 sm:w-48 border-r bg-muted/20 flex flex-col gap-1 p-2">
+                {/* Sidebar Navigation */}
+                <div className="w-[80px] sm:w-[220px] flex-shrink-0 border-r bg-muted/10 flex flex-col gap-2 p-3">
                     <Button
                         variant={editorTab === 'dishes' ? 'secondary' : 'ghost'}
-                        className={cn("justify-start h-10 px-2 sm:px-4", editorTab === 'dishes' && "bg-background shadow-sm")}
+                        className={cn(
+                            "justify-start h-12 px-3 sm:px-4 rounded-xl transition-all",
+                            editorTab === 'dishes' && "bg-white dark:bg-slate-800 shadow-sm border border-border/50 text-primary font-semibold"
+                        )}
                         onClick={() => setEditorTab('dishes')}
                     >
-                        <ForkKnife className="sm:mr-2" size={18} />
-                        <span className="hidden sm:inline text-xs font-medium">Piatti</span>
+                        <ForkKnife className="sm:mr-3 shrink-0" size={20} weight={editorTab === 'dishes' ? 'fill' : 'regular'} />
+                        <div className="hidden sm:flex flex-col items-start">
+                            <span className="text-sm">Selezione Piatti</span>
+                            <span className="text-[10px] text-muted-foreground font-normal opacity-80">Scegli cosa mostrare</span>
+                        </div>
                     </Button>
                     <Button
                         variant={editorTab === 'schedule' ? 'secondary' : 'ghost'}
-                        className={cn("justify-start h-10 px-2 sm:px-4", editorTab === 'schedule' && "bg-background shadow-sm")}
+                        className={cn(
+                            "justify-start h-12 px-3 sm:px-4 rounded-xl transition-all",
+                            editorTab === 'schedule' && "bg-white dark:bg-slate-800 shadow-sm border border-border/50 text-primary font-semibold"
+                        )}
                         onClick={() => setEditorTab('schedule')}
                     >
-                        <CalendarCheck className="sm:mr-2" size={18} />
-                        <span className="hidden sm:inline text-xs font-medium">Orari</span>
+                        <CalendarCheck className="sm:mr-3 shrink-0" size={20} weight={editorTab === 'schedule' ? 'fill' : 'regular'} />
+                        <div className="hidden sm:flex flex-col items-start">
+                            <span className="text-sm">Programmazione</span>
+                            <span className="text-[10px] text-muted-foreground font-normal opacity-80">Automazione oraria</span>
+                        </div>
                     </Button>
                 </div>
 
-                {/* Main Content */}
-                <div className="flex-1 flex flex-col overflow-hidden bg-background">
+                {/* Main Content Area */}
+                <div className="flex-1 flex flex-col overflow-hidden bg-background relative">
                     {editorTab === 'dishes' ? (
                         <>
-                            <div className="p-3 border-b">
-                                <div className="relative">
-                                    <MagnifyingGlass className="absolute left-2.5 top-1/2 -translate-y-1/2 text-muted-foreground" size={14} />
+                            <div className="p-4 border-b bg-card/50 backdrop-blur-sm z-10">
+                                <div className="relative max-w-md">
+                                    <MagnifyingGlass className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" size={16} />
                                     <Input
                                         placeholder="Cerca piatto..."
                                         value={dishSearch}
                                         onChange={(e) => setDishSearch(e.target.value)}
-                                        className="h-8 pl-8 text-xs bg-muted/30"
+                                        className="h-10 pl-9 bg-muted/20 border-border/50 focus:bg-background transition-all"
                                     />
                                 </div>
                             </div>
-                            <ScrollArea className="flex-1 p-4">
-                                {filteredCategories.map(cat => {
-                                    const catDishes = dishes.filter(d => d.category_id === cat.id)
-                                    if (dishSearch && catDishes.every(d => !d.name.toLowerCase().includes(dishSearch.toLowerCase()))) return null
-                                    
-                                    const visibleDishes = dishSearch 
-                                        ? catDishes.filter(d => d.name.toLowerCase().includes(dishSearch.toLowerCase()))
-                                        : catDishes
+                            <ScrollArea className="flex-1 p-6">
+                                <div className="max-w-4xl mx-auto pb-10">
+                                    {filteredCategories.map(cat => {
+                                        const catDishes = dishes.filter(d => d.category_id === cat.id)
+                                        if (dishSearch && catDishes.every(d => !d.name.toLowerCase().includes(dishSearch.toLowerCase()))) return null
 
-                                    if (visibleDishes.length === 0) return null
+                                        const visibleDishes = dishSearch
+                                            ? catDishes.filter(d => d.name.toLowerCase().includes(dishSearch.toLowerCase()))
+                                            : catDishes
 
-                                    return (
-                                        <div key={cat.id} className="mb-6">
-                                            <h4 className="text-xs font-bold text-muted-foreground uppercase tracking-wider mb-2 sticky top-0 bg-background py-1 z-10">
-                                                {cat.name}
-                                            </h4>
-                                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-                                                {visibleDishes.map(dish => {
-                                                    const isSelected = menuDishes.includes(dish.id)
-                                                    return (
-                                                        <div
-                                                            key={dish.id}
-                                                            onClick={() => handleToggleDish(dish.id)}
-                                                            className={cn(
-                                                                "flex items-center justify-between p-2 rounded-lg border cursor-pointer transition-all active:scale-[0.98]",
-                                                                isSelected 
-                                                                    ? "bg-emerald-50 border-emerald-200 dark:bg-emerald-950/20 dark:border-emerald-800 ring-1 ring-emerald-500/20" 
-                                                                    : "hover:bg-muted/50 border-transparent hover:border-border"
-                                                            )}
-                                                        >
-                                                            <div className="flex items-center gap-2 overflow-hidden">
-                                                                <div className={cn(
-                                                                    "w-4 h-4 rounded-full border flex items-center justify-center flex-shrink-0 transition-colors",
-                                                                    isSelected ? "bg-emerald-500 border-emerald-500" : "border-muted-foreground"
-                                                                )}>
-                                                                    {isSelected && <Check size={10} className="text-white" weight="bold" />}
+                                        if (visibleDishes.length === 0) return null
+
+                                        return (
+                                            <div key={cat.id} className="mb-8 last:mb-0">
+                                                <div className="flex items-center gap-4 mb-4">
+                                                    <h4 className="text-sm font-bold text-foreground bg-muted/50 px-3 py-1 rounded-lg uppercase tracking-wider backdrop-blur-sm sticky top-0">
+                                                        {cat.name}
+                                                    </h4>
+                                                    <div className="h-px bg-border flex-1" />
+                                                </div>
+
+                                                <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-3">
+                                                    {visibleDishes.map(dish => {
+                                                        const isSelected = menuDishes.includes(dish.id)
+                                                        return (
+                                                            <div
+                                                                key={dish.id}
+                                                                onClick={() => handleToggleDish(dish.id)}
+                                                                className={cn(
+                                                                    "relative flex items-center justify-between p-3 rounded-xl border cursor-pointer transition-all duration-200 group active:scale-[0.98]",
+                                                                    isSelected
+                                                                        ? "bg-emerald-50/80 border-emerald-500/50 dark:bg-emerald-950/30 dark:border-emerald-500/50 shadow-sm"
+                                                                        : "bg-card hover:bg-muted/50 border-transparent shadow-sm hover:shadow-md"
+                                                                )}
+                                                            >
+                                                                <div className="flex items-center gap-3 overflow-hidden">
+                                                                    <div className={cn(
+                                                                        "w-5 h-5 rounded-md border flex items-center justify-center flex-shrink-0 transition-all",
+                                                                        isSelected
+                                                                            ? "bg-emerald-500 border-emerald-500 scale-110"
+                                                                            : "border-muted-foreground/30 group-hover:border-primary/50"
+                                                                    )}>
+                                                                        {isSelected && <Check size={12} className="text-white" weight="bold" />}
+                                                                    </div>
+                                                                    <div>
+                                                                        <p className={cn("text-sm truncate transition-colors", isSelected ? "font-semibold text-emerald-900 dark:text-emerald-100" : "font-medium text-foreground")}>{dish.name}</p>
+                                                                        <p className="text-xs text-muted-foreground font-mono">€{dish.price.toFixed(2)}</p>
+                                                                    </div>
                                                                 </div>
-                                                                <span className={cn("text-sm truncate", isSelected && "font-medium")}>{dish.name}</span>
                                                             </div>
-                                                            <span className="text-xs text-muted-foreground">€{dish.price}</span>
-                                                        </div>
-                                                    )
-                                                })}
+                                                        )
+                                                    })}
+                                                </div>
                                             </div>
-                                        </div>
-                                    )
-                                })}
+                                        )
+                                    })}
+                                </div>
                             </ScrollArea>
                         </>
                     ) : (
-                        <div className="flex-1 p-6 flex flex-col items-center justify-center">
-                            <div className="max-w-md w-full">
-                                <h3 className="text-center font-semibold mb-6">Programmazione Automatica</h3>
+                        <div className="flex-1 p-8 flex flex-col items-center justify-center bg-muted/5">
+                            <div className="max-w-xl w-full bg-card p-8 rounded-2xl border shadow-sm">
+                                <div className="text-center mb-8">
+                                    <div className="w-12 h-12 bg-primary/10 text-primary rounded-full flex items-center justify-center mx-auto mb-4">
+                                        <Clock weight="duotone" size={32} />
+                                    </div>
+                                    <h3 className="text-xl font-bold">Programmazione Automatica</h3>
+                                    <p className="text-muted-foreground text-sm mt-2">
+                                        Seleziona gli orari in cui questo menu deve attivarsi automaticamente.
+                                        <br />Consigliato per Menu Pranzo/Cena o Eventi ricorrenti.
+                                    </p>
+                                </div>
+
                                 <div className="grid grid-cols-[auto_repeat(7,1fr)] gap-2">
-                                    <div className="h-8"></div>
+                                    <div className="h-10"></div>
                                     {DAYS_OF_WEEK.map(day => (
-                                        <div key={day.value} className="text-center text-[10px] font-bold text-muted-foreground">{day.label}</div>
+                                        <div key={day.value} className="text-center text-xs font-bold text-muted-foreground uppercase">{day.label}</div>
                                     ))}
 
                                     {MEAL_TYPES.map(meal => (
-                                        <>
-                                            <div key={meal.value} className="h-10 flex items-center justify-end pr-2 text-xs font-medium">
+                                        <div key={meal.value} className="contents">
+                                            <div className="h-12 flex items-center justify-end pr-4 text-sm font-semibold">
                                                 {meal.label}
                                             </div>
                                             {DAYS_OF_WEEK.map(day => {
@@ -457,22 +564,26 @@ export default function CustomMenusManager({ restaurantId, dishes, categories, o
                                                         key={`${day.value}-${meal.value}`}
                                                         onClick={() => handleToggleSchedule(day.value, meal.value)}
                                                         className={cn(
-                                                            "h-10 rounded-md transition-all flex items-center justify-center border",
+                                                            "h-12 rounded-lg transition-all flex items-center justify-center border-2",
                                                             isActive
-                                                                ? "bg-emerald-500 border-emerald-600 text-white"
-                                                                : "bg-muted/30 border-transparent hover:border-border"
+                                                                ? "bg-emerald-500 border-emerald-500 text-white shadow-md scale-105 z-10"
+                                                                : "bg-muted/30 border-transparent hover:border-primary/20 hover:bg-muted"
                                                         )}
                                                     >
-                                                        {isActive && <Check size={14} weight="bold" />}
+                                                        {isActive && <Check size={18} weight="bold" />}
                                                     </button>
                                                 )
                                             })}
-                                        </>
+                                        </div>
                                     ))}
                                 </div>
-                                <p className="text-xs text-muted-foreground text-center mt-6">
-                                    Il menu verrà attivato automaticamente negli orari selezionati.
-                                </p>
+
+                                <div className="mt-8 flex items-center gap-3 p-4 bg-blue-50 dark:bg-blue-950/20 text-blue-700 dark:text-blue-300 rounded-xl text-sm border border-blue-100 dark:border-blue-900/50">
+                                    <Info size={24} weight="fill" className="shrink-0" />
+                                    <p>
+                                        Il sistema attiverà automaticamente questo menu all'inizio del servizio selezionato (es. 12:00 per Pranzo) e ripristinerà il menu completo alla fine.
+                                    </p>
+                                </div>
                             </div>
                         </div>
                     )}
