@@ -245,7 +245,7 @@ const CustomerMenu = () => {
         try {
           const { data: tableData, error } = await supabase
             .from('tables')
-            .select('restaurant_id')
+            .select('restaurant_id, restaurants(name, is_active)')
             .eq('id', tableId)
             .single()
 
@@ -262,8 +262,9 @@ const CustomerMenu = () => {
           }
 
           if (tableData) {
-            // Check if restaurant is active
-            const restaurant = tableData.restaurants as { name: string, is_active: boolean } | null
+            // Check if restaurant is active - Supabase join returns object or array
+            const restaurantsData = tableData.restaurants as unknown
+            const restaurant = Array.isArray(restaurantsData) ? restaurantsData[0] : restaurantsData as { name: string, is_active: boolean } | null
 
             if (restaurant) {
               setRestaurantName(restaurant.name)
@@ -453,7 +454,6 @@ const CustomerMenu = () => {
 
             <div className="flex justify-center gap-3">
               {[0, 1, 2, 3].map((index) => {
-                const isActive = index === 0 || (pin[index - 1] !== '')
                 return (
                   <input
                     key={index}
@@ -464,9 +464,7 @@ const CustomerMenu = () => {
                     value={pin[index]}
                     onChange={(e) => handlePinDigitChange(index, e.target.value)}
                     onKeyDown={(e) => handlePinKeyDown(index, e)}
-                    // disabled attribute removed to allow focus transition
                     className={`w-12 h-16 text-center text-2xl font-light bg-transparent border-b-2 outline-none transition-all duration-300 rounded-none
-                      ${!isActive ? 'opacity-30 cursor-not-allowed' : 'opacity-100'}
                       ${pinError
                         ? 'border-red-500 text-red-500 animate-shake'
                         : pin[index]
@@ -475,13 +473,6 @@ const CustomerMenu = () => {
                       }`}
                     style={{ fontFamily: 'Georgia, serif' }}
                     autoFocus={index === 0}
-                    onFocus={(e) => {
-                      // Ensure focus always goes to the first empty slot if clicked out of order
-                      const firstEmpty = pin.findIndex(p => p === '')
-                      if (firstEmpty !== -1 && index > firstEmpty) {
-                        document.getElementById(`pin-${firstEmpty}`)?.focus()
-                      }
-                    }}
                   />
                 )
               })}
