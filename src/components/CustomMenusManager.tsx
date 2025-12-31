@@ -550,16 +550,15 @@ export default function CustomMenusManager({ restaurantId, dishes, categories, o
                             </div>
                         </>
                     ) : (
-                        <div className="flex-1 p-8 flex flex-col items-center justify-center bg-muted/5">
-                            <div className="max-w-xl w-full bg-card p-8 rounded-2xl border shadow-sm">
-                                <div className="text-center mb-8">
-                                    <div className="w-12 h-12 bg-primary/10 text-primary rounded-full flex items-center justify-center mx-auto mb-4">
-                                        <Clock weight="duotone" size={32} />
+                        <div className="flex-1 overflow-y-auto p-4 sm:p-8 flex flex-col items-center bg-muted/5">
+                            <div className="w-full max-w-xl bg-card p-6 rounded-2xl border shadow-sm">
+                                <div className="text-center mb-6">
+                                    <div className="w-10 h-10 bg-primary/10 text-primary rounded-full flex items-center justify-center mx-auto mb-3">
+                                        <Clock weight="duotone" size={24} />
                                     </div>
-                                    <h3 className="text-xl font-bold">Programmazione Automatica</h3>
-                                    <p className="text-muted-foreground text-sm mt-2">
+                                    <h3 className="text-lg font-bold">Programmazione Automatica</h3>
+                                    <p className="text-muted-foreground text-xs mt-1.5 max-w-[300px] mx-auto">
                                         Seleziona gli orari in cui questo menu deve attivarsi automaticamente.
-                                        <br />Consigliato per Menu Pranzo/Cena o Eventi ricorrenti.
                                     </p>
                                 </div>
 
