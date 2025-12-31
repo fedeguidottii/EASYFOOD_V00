@@ -389,26 +389,27 @@ export default function CustomMenusManager({ restaurantId, dishes, categories, o
 
     // --- VIEW: EDITOR (Minimal refinement) ---
     return (
-        <div className="flex flex-col h-[650px] -m-6 bg-background">
+        <div className="flex flex-col h-[650px] bg-background">
             {/* Header */}
-            <div className="flex items-center justify-between px-6 py-4 border-b bg-muted/5">
+            <div className="flex items-center justify-between px-6 py-4 border-b bg-muted/5 pr-12">
+                {/* Added pr-12 to avoid Dialog Close X overlap */}
                 <div className="flex items-center gap-4">
                     <Button
                         variant="ghost"
                         size="icon"
                         onClick={closeEditor}
-                        className="h-9 w-9 rounded-full hover:bg-muted"
+                        className="h-8 w-8 rounded-full hover:bg-muted"
                     >
-                        <X size={20} />
+                        <X size={18} />
                     </Button>
-                    <div className="h-8 w-px bg-border/50 mx-2 hidden sm:block" />
+                    <div className="h-6 w-px bg-border/50 mx-2 hidden sm:block" />
                     <div>
-                        <h2 className="font-bold text-xl leading-none tracking-tight">{selectedMenu?.name}</h2>
-                        <div className="flex items-center gap-2 mt-1">
-                            <span className="text-xs font-medium text-muted-foreground bg-muted px-2 py-0.5 rounded-full">
+                        <h2 className="font-bold text-lg leading-none tracking-tight">{selectedMenu?.name}</h2>
+                        <div className="flex items-center gap-2 mt-1.5">
+                            <span className="text-[10px] font-semibold text-muted-foreground bg-muted px-2 py-0.5 rounded-full border border-border/50">
                                 {menuDishes.length} Piatti
                             </span>
-                            <span className="text-xs font-medium text-muted-foreground bg-muted px-2 py-0.5 rounded-full">
+                            <span className="text-[10px] font-semibold text-muted-foreground bg-muted px-2 py-0.5 rounded-full border border-border/50">
                                 {schedules.length} Orari
                             </span>
                         </div>
@@ -416,10 +417,11 @@ export default function CustomMenusManager({ restaurantId, dishes, categories, o
                 </div>
                 {!selectedMenu?.is_active && (
                     <Button
+                        size="sm"
                         onClick={() => selectedMenu && handleApplyMenu(selectedMenu.id)}
-                        className="bg-emerald-600 hover:bg-emerald-700 text-white shadow-lg shadow-emerald-500/20"
+                        className="h-8 text-xs font-semibold bg-emerald-600 hover:bg-emerald-700 text-white shadow-md shadow-emerald-500/20"
                     >
-                        <CheckCircle weight="fill" className="mr-2" />
+                        <CheckCircle weight="fill" className="mr-1.5" size={14} />
                         Attiva Ora
                     </Button>
                 )}
@@ -427,33 +429,33 @@ export default function CustomMenusManager({ restaurantId, dishes, categories, o
 
             <div className="flex flex-1 overflow-hidden">
                 {/* Sidebar Navigation */}
-                <div className="w-[80px] sm:w-[220px] flex-shrink-0 border-r bg-muted/10 flex flex-col gap-2 p-3">
+                <div className="w-[70px] sm:w-[200px] flex-shrink-0 border-r bg-muted/10 flex flex-col gap-2 p-3">
                     <Button
                         variant={editorTab === 'dishes' ? 'secondary' : 'ghost'}
+                        size="sm"
                         className={cn(
-                            "justify-start h-12 px-3 sm:px-4 rounded-xl transition-all",
+                            "justify-start h-10 px-3 rounded-lg transition-all",
                             editorTab === 'dishes' && "bg-white dark:bg-slate-800 shadow-sm border border-border/50 text-primary font-semibold"
                         )}
                         onClick={() => setEditorTab('dishes')}
                     >
-                        <ForkKnife className="sm:mr-3 shrink-0" size={20} weight={editorTab === 'dishes' ? 'fill' : 'regular'} />
+                        <ForkKnife className="sm:mr-2 shrink-0" size={18} weight={editorTab === 'dishes' ? 'fill' : 'regular'} />
                         <div className="hidden sm:flex flex-col items-start">
-                            <span className="text-sm">Selezione Piatti</span>
-                            <span className="text-[10px] text-muted-foreground font-normal opacity-80">Scegli cosa mostrare</span>
+                            <span className="text-xs">Piatti</span>
                         </div>
                     </Button>
                     <Button
                         variant={editorTab === 'schedule' ? 'secondary' : 'ghost'}
+                        size="sm"
                         className={cn(
-                            "justify-start h-12 px-3 sm:px-4 rounded-xl transition-all",
+                            "justify-start h-10 px-3 rounded-lg transition-all",
                             editorTab === 'schedule' && "bg-white dark:bg-slate-800 shadow-sm border border-border/50 text-primary font-semibold"
                         )}
                         onClick={() => setEditorTab('schedule')}
                     >
-                        <CalendarCheck className="sm:mr-3 shrink-0" size={20} weight={editorTab === 'schedule' ? 'fill' : 'regular'} />
+                        <CalendarCheck className="sm:mr-2 shrink-0" size={18} weight={editorTab === 'schedule' ? 'fill' : 'regular'} />
                         <div className="hidden sm:flex flex-col items-start">
-                            <span className="text-sm">Programmazione</span>
-                            <span className="text-[10px] text-muted-foreground font-normal opacity-80">Automazione oraria</span>
+                            <span className="text-xs">Orari</span>
                         </div>
                     </Button>
                 </div>
