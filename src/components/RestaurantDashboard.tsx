@@ -1698,7 +1698,7 @@ const RestaurantDashboard = ({ user, onLogout }: RestaurantDashboardProps) => {
                       Menu Personalizzati
                     </Button>
                   </DialogTrigger>
-                  <DialogContent className="max-w-4xl p-0 overflow-hidden">
+                  <DialogContent className="max-w-6xl p-0 overflow-hidden">
                     <CustomMenusManager
                       restaurantId={restaurantId || ''}
                       dishes={dishes || []}

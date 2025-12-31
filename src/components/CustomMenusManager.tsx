@@ -403,7 +403,7 @@ export default function CustomMenusManager({ restaurantId, dishes, categories, o
 
     // --- VIEW: EDITOR (Minimal refinement) ---
     return (
-        <div className="flex flex-col h-[650px] bg-background">
+        <div className="flex flex-col h-[750px] bg-background">
             {/* Header */}
             <div className="flex items-center justify-between px-6 py-4 border-b bg-muted/5 pr-12">
                 {/* Added pr-12 to avoid Dialog Close X overlap */}
@@ -550,27 +550,27 @@ export default function CustomMenusManager({ restaurantId, dishes, categories, o
                             </div>
                         </>
                     ) : (
-                        <div className="flex-1 overflow-y-auto p-4 sm:p-8 flex flex-col items-center bg-muted/5">
-                            <div className="w-full max-w-xl bg-card p-6 rounded-2xl border shadow-sm">
+                        <div className="flex-1 p-6 flex flex-col items-center justify-center bg-muted/5">
+                            <div className="w-full max-w-2xl bg-card p-6 rounded-2xl border shadow-sm">
                                 <div className="text-center mb-6">
-                                    <div className="w-10 h-10 bg-primary/10 text-primary rounded-full flex items-center justify-center mx-auto mb-3">
-                                        <Clock weight="duotone" size={24} />
-                                    </div>
-                                    <h3 className="text-lg font-bold">Programmazione Automatica</h3>
-                                    <p className="text-muted-foreground text-xs mt-1.5 max-w-[300px] mx-auto">
-                                        Seleziona gli orari in cui questo menu deve attivarsi automaticamente.
+                                    <h3 className="text-lg font-bold flex items-center justify-center gap-2">
+                                        <Clock weight="duotone" size={24} className="text-primary" />
+                                        Programmazione Automatica
+                                    </h3>
+                                    <p className="text-muted-foreground text-xs mt-1">
+                                        Attiva automaticamente il menu negli orari selezionati.
                                     </p>
                                 </div>
 
-                                <div className="grid grid-cols-[auto_repeat(7,1fr)] gap-2">
-                                    <div className="h-10"></div>
+                                <div className="grid grid-cols-[auto_repeat(7,1fr)] gap-1">
+                                    <div className="h-8"></div>
                                     {DAYS_OF_WEEK.map(day => (
-                                        <div key={day.value} className="text-center text-xs font-bold text-muted-foreground uppercase">{day.label}</div>
+                                        <div key={day.value} className="text-center text-[10px] font-bold text-muted-foreground uppercase">{day.label}</div>
                                     ))}
 
                                     {MEAL_TYPES.map(meal => (
                                         <div key={meal.value} className="contents">
-                                            <div className="h-12 flex items-center justify-end pr-4 text-sm font-semibold">
+                                            <div className="h-10 flex items-center justify-end pr-3 text-xs font-semibold uppercase tracking-wider text-muted-foreground">
                                                 {meal.label}
                                             </div>
                                             {DAYS_OF_WEEK.map(day => {
@@ -580,13 +580,13 @@ export default function CustomMenusManager({ restaurantId, dishes, categories, o
                                                         key={`${day.value}-${meal.value}`}
                                                         onClick={() => handleToggleSchedule(day.value, meal.value)}
                                                         className={cn(
-                                                            "h-12 rounded-lg transition-all flex items-center justify-center border-2",
+                                                            "h-10 rounded-md transition-all flex items-center justify-center border",
                                                             isActive
-                                                                ? "bg-emerald-500 border-emerald-500 text-white shadow-md scale-105 z-10"
+                                                                ? "bg-emerald-500 border-emerald-500 text-white shadow-sm scale-100"
                                                                 : "bg-muted/30 border-transparent hover:border-primary/20 hover:bg-muted"
                                                         )}
                                                     >
-                                                        {isActive && <Check size={18} weight="bold" />}
+                                                        {isActive && <Check size={16} weight="bold" />}
                                                     </button>
                                                 )
                                             })}
