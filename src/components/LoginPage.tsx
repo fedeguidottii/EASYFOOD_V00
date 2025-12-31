@@ -69,10 +69,8 @@ export default function LoginPage({ onLogin }: Props) {
               restaurant_id: targetRestaurant.id
             }
 
-            // Remember Me: Store in localStorage
-            if (rememberMe) {
-              localStorage.setItem('easyfood_user', JSON.stringify(waiterUser))
-            }
+            // Always persist session to localStorage
+            localStorage.setItem('easyfood_user', JSON.stringify(waiterUser))
 
             onLogin(waiterUser)
             toast.success(`Benvenuto Staff - ${targetRestaurant.name}`)
@@ -103,20 +101,16 @@ export default function LoginPage({ onLogin }: Props) {
           // Attach restaurant_id to the user object
           const userWithRestaurant = { ...user, restaurant_id: userRestaurant.id }
 
-          // Remember Me: Store in localStorage
-          if (rememberMe) {
-            localStorage.setItem('easyfood_user', JSON.stringify(userWithRestaurant))
-          }
+          // Always persist session to localStorage
+          localStorage.setItem('easyfood_user', JSON.stringify(userWithRestaurant))
 
           onLogin(userWithRestaurant)
           toast.success(`Benvenuto, ${userRestaurant.name}`)
           return
         }
 
-        // Remember Me for non-OWNER users
-        if (rememberMe) {
-          localStorage.setItem('easyfood_user', JSON.stringify(user))
-        }
+        // Always persist session to localStorage
+        localStorage.setItem('easyfood_user', JSON.stringify(user))
 
         onLogin(user)
         toast.success(`Benvenuto ${user.name || 'Utente'}`)
