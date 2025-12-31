@@ -7,7 +7,7 @@ import { Input } from '../ui/input'
 import { Label } from '../ui/label'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../ui/select'
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '../ui/card'
-import { Calendar, Users, Clock, CaretRight, CheckCircle, Storefront, MapPin, Warning, Utensils, Info } from '@phosphor-icons/react'
+import { Calendar, Users, Clock, CaretRight, CheckCircle, Storefront, MapPin, Warning, ForkKnife, Info } from '@phosphor-icons/react'
 import { toast } from 'sonner'
 import type { Restaurant, Room, Table, Category, Dish } from '../../services/types'
 import { motion, AnimatePresence } from 'framer-motion'
@@ -520,7 +520,7 @@ const PublicReservationPage = () => {
                     <div className="sticky top-8 space-y-6">
                         <div className="flex items-center justify-between text-slate-400 mb-2">
                             <h3 className="font-semibold text-white uppercase tracking-wider text-sm flex items-center gap-2">
-                                <Utensils size={16} />
+                                <ForkKnife size={16} />
                                 Menu Anteprima
                             </h3>
                         </div>
@@ -528,7 +528,7 @@ const PublicReservationPage = () => {
                         <div className="bg-slate-900/50 border border-slate-800 rounded-xl overflow-hidden backdrop-blur-sm max-h-[80vh] overflow-y-auto custom-scrollbar">
                             {categories.length === 0 ? (
                                 <div className="p-8 text-center text-slate-500">
-                                    <Utensils size={32} className="mx-auto mb-2 opacity-50" />
+                                    <ForkKnife size={32} className="mx-auto mb-2 opacity-50" />
                                     <p>Menu non disponibile online al momento.</p>
                                 </div>
                             ) : (

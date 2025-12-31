@@ -23,6 +23,7 @@ export interface Restaurant {
     logo_url?: string
     owner_id: string
     created_at?: string
+    cover_image_url?: string
     // Frontend helpers
     isActive?: boolean
     hours?: string

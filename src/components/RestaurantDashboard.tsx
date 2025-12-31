@@ -531,14 +531,11 @@ const RestaurantDashboard = ({ user, onLogout }: RestaurantDashboardProps) => {
     }).filter(order => order.items && order.items.length > 0)
   }, [orders, dishes, selectedKitchenCategories])
 
-  // Load AYCE and Coperto settings from restaurant
+  // Load additional settings from restaurant (Coperto, etc - AYCE is handled in the main sync effect above)
   useEffect(() => {
     if (currentRestaurant) {
-      const ayce = currentRestaurant.all_you_can_eat || false // Correctly access boolean
-      setAyceEnabled(ayce)
-      // If we had specific price/max fields on restaurant:
-      // setAycePrice(currentRestaurant.ayce_price || 0)
-      // setAyceMaxOrders(currentRestaurant.ayce_max_orders || 0)
+      // AYCE is already handled in the main sync effect at line 400+
+      // This effect handles additional settings that might not be in the main effect
 
       const coverCharge = currentRestaurant.cover_charge_per_person
       if (coverCharge !== undefined) {
@@ -546,12 +543,6 @@ const RestaurantDashboard = ({ user, onLogout }: RestaurantDashboardProps) => {
         setCopertoEnabled(coverCharge > 0)
       }
       setSettingsInitialized(true)
-
-      setWaiterModeEnabled(currentRestaurant.waiter_mode_enabled || false)
-      setAllowWaiterPayments(currentRestaurant.allow_waiter_payments || false)
-      setWaiterPassword(currentRestaurant.waiter_password || '')
-      setRestaurantName(currentRestaurant.name || '')
-      setCourseSplittingEnabled(currentRestaurant.enable_course_splitting !== false)
 
       // Schedule Times
       if (currentRestaurant.lunch_time_start) setLunchTimeStart(currentRestaurant.lunch_time_start)
