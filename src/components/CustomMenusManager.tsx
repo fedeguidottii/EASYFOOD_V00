@@ -309,7 +309,13 @@ export default function CustomMenusManager({ restaurantId, dishes, categories, o
                                 <motion.div
                                     key={menu.id}
                                     whileHover={{ y: -2 }}
-                                    onClick={() => openEditor(menu)}
+                                    onClick={(e) => {
+                                        if (menu.is_active) {
+                                            handleResetToFullMenu()
+                                        } else {
+                                            handleApplyMenu(menu.id, e)
+                                        }
+                                    }}
                                     className={cn(
                                         "group relative flex flex-col justify-between h-[160px] p-5 rounded-xl border bg-card hover:shadow-lg transition-all cursor-pointer overflow-hidden backdrop-blur-sm",
                                         menu.is_active
@@ -318,54 +324,62 @@ export default function CustomMenusManager({ restaurantId, dishes, categories, o
                                     )}
                                 >
                                     {/* Action Header */}
-                                    <div className="flex justify-between items-start">
+                                    <div className="flex justify-between items-start z-10">
                                         <div className="p-2.5 rounded-lg bg-primary/10 text-primary mb-3 group-hover:bg-primary group-hover:text-primary-foreground transition-colors duration-300">
                                             <ForkKnife size={20} weight={menu.is_active ? "fill" : "regular"} />
                                         </div>
-                                        {menu.is_active && (
-                                            <div className="absolute top-0 right-0 p-1.5 bg-emerald-500 rounded-bl-xl text-white shadow-sm">
-                                                <Check size={14} weight="bold" />
-                                            </div>
+
+                                        <div className="flex items-center gap-1">
+                                            {/* Edit Button */}
+                                            <Button
+                                                variant="ghost"
+                                                size="icon"
+                                                className="h-8 w-8 text-muted-foreground hover:text-primary hover:bg-primary/10 rounded-full"
+                                                onClick={(e) => {
+                                                    e.stopPropagation()
+                                                    openEditor(menu)
+                                                }}
+                                                title="Modifica Menu"
+                                            >
+                                                <Pencil size={18} />
+                                            </Button>
+
+                                            {menu.is_active && (
+                                                <div className="p-1.5 bg-emerald-500 rounded-full text-white shadow-sm ml-1">
+                                                    <Check size={12} weight="bold" />
+                                                </div>
+                                            )}
+                                        </div>
+                                    </div>
+
+                                    <div className="mt-1">
+                                        <h3 className="font-bold text-base truncate mb-1 pr-4">{menu.name}</h3>
+                                        {menu.is_active ? (
+                                            <p className="text-xs font-bold text-emerald-600 dark:text-emerald-400 flex items-center gap-1.5">
+                                                <span className="relative flex h-2 w-2">
+                                                    <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
+                                                    <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500"></span>
+                                                </span>
+                                                ATTIVO ORA
+                                            </p>
+                                        ) : (
+                                            <p className="text-xs text-muted-foreground group-hover:text-primary transition-colors flex items-center gap-1">
+                                                Clicca per attivare
+                                            </p>
                                         )}
                                     </div>
 
-                                    <div>
-                                        <h3 className="font-bold text-base truncate mb-1 pr-4">{menu.name}</h3>
-                                        <p className="text-xs text-muted-foreground flex items-center gap-1">
-                                            <span className="inline-block w-1.5 h-1.5 rounded-full bg-slate-300 dark:bg-slate-600 group-hover:bg-primary/50 transition-colors" />
-                                            Clicca per modificare
-                                        </p>
-                                    </div>
-
-                                    {/* Footer Actions Overlay (visible on hover) */}
-                                    <div className="absolute inset-x-0 bottom-0 h-14 bg-gradient-to-t from-background to-transparent opacity-0 group-hover:opacity-100 transition-opacity flex items-end justify-between px-5 pb-4">
-                                        <div className="flex gap-2 w-full justify-between items-center">
-                                            {!menu.is_active ? (
-                                                <Button
-                                                    size="sm"
-                                                    variant="secondary"
-                                                    className="h-8 text-xs bg-emerald-100 hover:bg-emerald-200 text-emerald-700 dark:bg-emerald-900/50 dark:hover:bg-emerald-800 dark:text-emerald-300 border-none"
-                                                    onClick={(e) => handleApplyMenu(menu.id, e)}
-                                                >
-                                                    <CheckCircle size={14} className="mr-1.5" weight="fill" />
-                                                    Attiva
-                                                </Button>
-                                            ) : (
-                                                <span className="text-[10px] font-bold text-emerald-600 dark:text-emerald-400 bg-emerald-100 dark:bg-emerald-900/30 px-2 py-1 rounded-full">
-                                                    ATTUALMENTE ATTIVO
-                                                </span>
-                                            )}
-
-                                            <Button
-                                                size="icon"
-                                                variant="ghost"
-                                                className="h-8 w-8 text-muted-foreground hover:text-destructive hover:bg-destructive/10 rounded-full"
-                                                onClick={(e) => handleDeleteMenu(menu.id, e)}
-                                                title="Elimina"
-                                            >
-                                                <Trash size={16} />
-                                            </Button>
-                                        </div>
+                                    {/* Delete - Bottom Right */}
+                                    <div className="absolute bottom-3 right-3 z-10 opacity-0 group-hover:opacity-100 transition-opacity">
+                                        <Button
+                                            size="icon"
+                                            variant="ghost"
+                                            className="h-8 w-8 text-muted-foreground hover:text-destructive hover:bg-destructive/10 rounded-full"
+                                            onClick={(e) => handleDeleteMenu(menu.id, e)}
+                                            title="Elimina"
+                                        >
+                                            <Trash size={16} />
+                                        </Button>
                                     </div>
                                 </motion.div>
                             ))}
