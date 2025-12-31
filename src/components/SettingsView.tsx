@@ -8,6 +8,7 @@ import { Button } from '@/components/ui/button'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { Separator } from '@/components/ui/separator'
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog'
 import {
     Storefront,
     Users,
@@ -18,9 +19,13 @@ import {
     Clock,
     ForkKnife,
     Info,
-    CheckCircle
+    CheckCircle,
+    Gear
 } from '@phosphor-icons/react'
 import { SoundType } from '../utils/SoundManager'
+import WeeklyScheduleEditor from './WeeklyScheduleEditor'
+import type { WeeklyCopertoSchedule, WeeklyAyceSchedule } from '@/services/types'
+import { createDefaultCopertoSchedule, createDefaultAyceSchedule } from '@/utils/pricingUtils'
 
 interface SettingsViewProps {
     restaurantName: string
@@ -70,6 +75,11 @@ interface SettingsViewProps {
     courseSplittingEnabled: boolean
     setCourseSplittingEnabled: (enabled: boolean) => void
     updateCourseSplitting: (enabled: boolean) => void
+    // Weekly schedules
+    weeklyCoperto: WeeklyCopertoSchedule | undefined
+    setWeeklyCoperto: (schedule: WeeklyCopertoSchedule) => void
+    weeklyAyce: WeeklyAyceSchedule | undefined
+    setWeeklyAyce: (schedule: WeeklyAyceSchedule) => void
 }
 
 export function SettingsView({
@@ -109,7 +119,11 @@ export function SettingsView({
     dinnerTimeStart, setDinnerTimeStart,
     courseSplittingEnabled,
     setCourseSplittingEnabled,
-    updateCourseSplitting
+    updateCourseSplitting,
+    weeklyCoperto,
+    setWeeklyCoperto,
+    weeklyAyce,
+    setWeeklyAyce
 }: SettingsViewProps) {
 
     const containerVariants = {

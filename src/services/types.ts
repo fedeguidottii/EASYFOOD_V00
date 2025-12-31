@@ -51,6 +51,50 @@ export interface Restaurant {
     dinner_time_end?: string
     enable_course_splitting?: boolean
     reservation_duration?: number
+    // Weekly scheduling for Coperto and AYCE
+    weekly_coperto?: WeeklyCopertoSchedule
+    weekly_ayce?: WeeklyAyceSchedule
+}
+
+export interface DayMealConfig {
+    enabled: boolean
+    price: number
+}
+
+export interface DaySchedule {
+    lunch?: DayMealConfig
+    dinner?: DayMealConfig
+}
+
+export interface WeeklyCopertoSchedule {
+    enabled: boolean
+    defaultPrice: number
+    useWeeklySchedule: boolean // If false, use defaultPrice always
+    schedule: {
+        monday?: DaySchedule
+        tuesday?: DaySchedule
+        wednesday?: DaySchedule
+        thursday?: DaySchedule
+        friday?: DaySchedule
+        saturday?: DaySchedule
+        sunday?: DaySchedule
+    }
+}
+
+export interface WeeklyAyceSchedule {
+    enabled: boolean
+    defaultPrice: number
+    defaultMaxOrders: number
+    useWeeklySchedule: boolean
+    schedule: {
+        monday?: DaySchedule & { maxOrders?: number }
+        tuesday?: DaySchedule & { maxOrders?: number }
+        wednesday?: DaySchedule & { maxOrders?: number }
+        thursday?: DaySchedule & { maxOrders?: number }
+        friday?: DaySchedule & { maxOrders?: number }
+        saturday?: DaySchedule & { maxOrders?: number }
+        sunday?: DaySchedule & { maxOrders?: number }
+    }
 }
 
 export interface Category {

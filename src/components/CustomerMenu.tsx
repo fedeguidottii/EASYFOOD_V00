@@ -230,17 +230,15 @@ const CustomerMenu = () => {
   const [isAuthenticated, setIsAuthenticated] = useState(false)
 
   // Data hooks
-  // Removed setRestaurantId call since it is passed as prop
   const [activeSession, setActiveSession] = useState<TableSession | null>(null)
-  const [restaurantId, setRestaurantId] = useState<string | null>(null) // State to hold restaurantId fetched from table
+  const [restaurantId, setRestaurantId] = useState<string | null>(() => localStorage.getItem('restaurantId')) // Init from localStorage
   const [restaurantName, setRestaurantName] = useState<string>('') // Restaurant name for PIN screen
   const [restaurantSuspended, setRestaurantSuspended] = useState(false)
 
-  // Attempt joining session on mount if tableId exists
+  // Attempt joining session on mount if tableId exists and no sessionId
   useEffect(() => {
     if (tableId && !sessionId) {
       // Need restaurantId to join session via RPC properly or fetch tables first
-      // To simplify, let's fetch the table details first to get restaurant_id
       const init = async () => {
         try {
           const { data: tableData, error } = await supabase
@@ -292,8 +290,31 @@ const CustomerMenu = () => {
         }
       }
       init()
+    } else if (tableId && sessionId && !restaurantId) {
+      // Session exists but restaurantId not in state - fetch it
+      const fetchRestaurantId = async () => {
+        const { data: tableData } = await supabase
+          .from('tables')
+          .select('restaurant_id, restaurants(name, is_active)')
+          .eq('id', tableId)
+          .single()
+        if (tableData) {
+          const restaurantsData = tableData.restaurants as unknown
+          const restaurant = Array.isArray(restaurantsData) ? restaurantsData[0] : restaurantsData as { name: string, is_active: boolean } | null
+          if (restaurant) {
+            setRestaurantName(restaurant.name)
+            if (restaurant.is_active === false) {
+              setRestaurantSuspended(true)
+              setIsAuthenticated(false)
+              return
+            }
+          }
+          setRestaurantId(tableData.restaurant_id)
+        }
+      }
+      fetchRestaurantId()
     }
-  }, [tableId, sessionId, joinSession])
+  }, [tableId, sessionId, joinSession, restaurantId])
 
   // Auto-authenticate from localStorage if session matches
   useEffect(() => {
