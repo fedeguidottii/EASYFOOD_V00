@@ -355,6 +355,8 @@ const RestaurantDashboard = ({ user, onLogout }: RestaurantDashboardProps) => {
   })
   const [showQrDialog, setShowQrDialog] = useState(false)
   const [customerCount, setCustomerCount] = useState('')
+  const [tableAyceOverride, setTableAyceOverride] = useState(true) // true = use restaurant setting, false = disabled for this table
+  const [tableCopertoOverride, setTableCopertoOverride] = useState(true) // true = use restaurant setting, false = disabled for this table
   const [showOrderHistory, setShowOrderHistory] = useState(false)
   const [orderSortMode, setOrderSortMode] = useState<'oldest' | 'newest'>('oldest')
   const [tableHistorySearch, setTableHistorySearch] = useState('')
@@ -2288,7 +2290,15 @@ const RestaurantDashboard = ({ user, onLogout }: RestaurantDashboardProps) => {
             </TabsContent >
           </Tabs >
           <div className="mt-8"></div> {/* Spacer or container for dialogs if needed */}
-          < Dialog open={showTableDialog && !!selectedTable} onOpenChange={(open) => { if (!open) { setSelectedTable(null); setShowTableDialog(false) } }}>
+          < Dialog open={showTableDialog && !!selectedTable} onOpenChange={(open) => {
+            if (!open) {
+              setSelectedTable(null);
+              setShowTableDialog(false);
+              // Reset overrides for next time
+              setTableAyceOverride(true);
+              setTableCopertoOverride(true);
+            }
+          }}>
             <DialogContent className="bg-zinc-950 border-zinc-800 text-zinc-100">
               <DialogHeader>
                 <DialogTitle>Attiva {selectedTable?.number}</DialogTitle>
@@ -2307,6 +2317,39 @@ const RestaurantDashboard = ({ user, onLogout }: RestaurantDashboardProps) => {
                     autoFocus
                   />
                 </div>
+
+                {/* AYCE and Coperto overrides - only show if enabled in settings */}
+                {(ayceEnabled || copertoEnabled) && (
+                  <div className="space-y-3 pt-3 border-t border-zinc-800">
+                    <p className="text-xs text-zinc-500 uppercase tracking-wider">Opzioni per questo tavolo</p>
+
+                    {ayceEnabled && (
+                      <div className="flex items-center justify-between p-3 bg-zinc-900/50 rounded-lg border border-zinc-800">
+                        <div className="flex items-center gap-2">
+                          <span className="text-sm text-zinc-300">All You Can Eat</span>
+                          <span className="text-xs text-zinc-500">(€{aycePrice})</span>
+                        </div>
+                        <Switch
+                          checked={tableAyceOverride}
+                          onCheckedChange={setTableAyceOverride}
+                        />
+                      </div>
+                    )}
+
+                    {copertoEnabled && (
+                      <div className="flex items-center justify-between p-3 bg-zinc-900/50 rounded-lg border border-zinc-800">
+                        <div className="flex items-center gap-2">
+                          <span className="text-sm text-zinc-300">Coperto</span>
+                          <span className="text-xs text-zinc-500">(€{copertoPrice})</span>
+                        </div>
+                        <Switch
+                          checked={tableCopertoOverride}
+                          onCheckedChange={setTableCopertoOverride}
+                        />
+                      </div>
+                    )}
+                  </div>
+                )}
 
                 <Button
                   className="w-full bg-amber-600 hover:bg-amber-700 text-white"
