@@ -9,7 +9,7 @@ import { toast } from 'sonner'
 import {
     Plus, Trash, Calendar, Clock, CheckCircle, ForkKnife,
     Pencil, X, MagnifyingGlass, Sparkle, CopySimple,
-    CalendarCheck, Check, Info
+    CalendarCheck, Check, Info, ArrowLeft
 } from '@phosphor-icons/react'
 import type { CustomMenu, CustomMenuSchedule, Dish, MealType, Category } from '../services/types'
 import { cn } from '@/lib/utils'
@@ -399,8 +399,9 @@ export default function CustomMenusManager({ restaurantId, dishes, categories, o
                         size="icon"
                         onClick={closeEditor}
                         className="h-8 w-8 rounded-full hover:bg-muted"
+                        title="Torna indietro"
                     >
-                        <X size={18} />
+                        <ArrowLeft size={18} />
                     </Button>
                     <div className="h-6 w-px bg-border/50 mx-2 hidden sm:block" />
                     <div>
@@ -475,7 +476,7 @@ export default function CustomMenusManager({ restaurantId, dishes, categories, o
                                     />
                                 </div>
                             </div>
-                            <ScrollArea className="flex-1 p-6">
+                            <div className="flex-1 overflow-y-auto p-6">
                                 <div className="max-w-4xl mx-auto pb-10">
                                     {filteredCategories.map(cat => {
                                         const catDishes = dishes.filter(d => d.category_id === cat.id)
@@ -532,7 +533,7 @@ export default function CustomMenusManager({ restaurantId, dishes, categories, o
                                         )
                                     })}
                                 </div>
-                            </ScrollArea>
+                            </div>
                         </>
                     ) : (
                         <div className="flex-1 p-8 flex flex-col items-center justify-center bg-muted/5">
