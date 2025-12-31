@@ -129,7 +129,7 @@ export default function WeeklyScheduleEditor({
                             />
                         </div>
 
-                        <div className="flex items-center gap-2 ml-auto">
+                        <div className="flex items-center gap-2 ml-auto relative z-10">
                             <Label className="text-zinc-400 text-sm">Varia per giorno:</Label>
                             <Switch
                                 checked={showAdvanced}

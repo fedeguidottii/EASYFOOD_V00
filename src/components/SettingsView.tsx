@@ -285,51 +285,55 @@ export function SettingsView({
                         <div className="grid gap-6">
                             {/* All You Can Eat - Weekly Schedule */}
                             <div className="relative p-6 rounded-2xl bg-gradient-to-br from-zinc-900/80 to-zinc-900/40 border border-white/5 overflow-hidden">
-                                <div className="absolute top-0 right-0 p-8 opacity-5">
+                                <div className="absolute top-0 right-0 p-8 opacity-5 pointer-events-none">
                                     <ForkKnife size={120} weight="fill" />
                                 </div>
-                                <WeeklyScheduleEditor
-                                    type="ayce"
-                                    schedule={weeklyAyce || {
-                                        enabled: ayceEnabled,
-                                        defaultPrice: Number(aycePrice) || 0,
-                                        defaultMaxOrders: Number(ayceMaxOrders) || 0,
-                                        useWeeklySchedule: false,
-                                        schedule: {}
-                                    }}
-                                    onChange={(schedule) => {
-                                        setWeeklyAyce(schedule as any)
-                                        // Also sync legacy state for backwards compatibility
-                                        setAyceEnabled(schedule.enabled)
-                                        setAycePrice(schedule.defaultPrice)
-                                    }}
-                                    lunchStart={lunchTimeStart}
-                                    dinnerStart={dinnerTimeStart}
-                                />
+                                <div className="relative z-10">
+                                    <WeeklyScheduleEditor
+                                        type="ayce"
+                                        schedule={weeklyAyce || {
+                                            enabled: ayceEnabled,
+                                            defaultPrice: Number(aycePrice) || 0,
+                                            defaultMaxOrders: Number(ayceMaxOrders) || 0,
+                                            useWeeklySchedule: false,
+                                            schedule: {}
+                                        }}
+                                        onChange={(schedule) => {
+                                            setWeeklyAyce(schedule as any)
+                                            // Also sync legacy state for backwards compatibility
+                                            setAyceEnabled(schedule.enabled)
+                                            setAycePrice(schedule.defaultPrice)
+                                        }}
+                                        lunchStart={lunchTimeStart}
+                                        dinnerStart={dinnerTimeStart}
+                                    />
+                                </div>
                             </div>
 
                             {/* Coperto - Weekly Schedule */}
                             <div className="relative p-6 rounded-2xl bg-gradient-to-br from-zinc-900/80 to-zinc-900/40 border border-white/5 overflow-hidden">
-                                <div className="absolute top-0 right-0 p-8 opacity-5">
+                                <div className="absolute top-0 right-0 p-8 opacity-5 pointer-events-none">
                                     <Coins size={120} weight="fill" />
                                 </div>
-                                <WeeklyScheduleEditor
-                                    type="coperto"
-                                    schedule={weeklyCoperto || {
-                                        enabled: copertoEnabled,
-                                        defaultPrice: Number(copertoPrice) || 0,
-                                        useWeeklySchedule: false,
-                                        schedule: {}
-                                    }}
-                                    onChange={(schedule) => {
-                                        setWeeklyCoperto(schedule)
-                                        // Also sync legacy state for backwards compatibility
-                                        setCopertoEnabled(schedule.enabled)
-                                        setCopertoPrice(schedule.defaultPrice)
-                                    }}
-                                    lunchStart={lunchTimeStart}
-                                    dinnerStart={dinnerTimeStart}
-                                />
+                                <div className="relative z-10">
+                                    <WeeklyScheduleEditor
+                                        type="coperto"
+                                        schedule={weeklyCoperto || {
+                                            enabled: copertoEnabled,
+                                            defaultPrice: Number(copertoPrice) || 0,
+                                            useWeeklySchedule: false,
+                                            schedule: {}
+                                        }}
+                                        onChange={(schedule) => {
+                                            setWeeklyCoperto(schedule)
+                                            // Also sync legacy state for backwards compatibility
+                                            setCopertoEnabled(schedule.enabled)
+                                            setCopertoPrice(schedule.defaultPrice)
+                                        }}
+                                        lunchStart={lunchTimeStart}
+                                        dinnerStart={dinnerTimeStart}
+                                    />
+                                </div>
                             </div>
 
                             {/* Configurazione Portate */}
