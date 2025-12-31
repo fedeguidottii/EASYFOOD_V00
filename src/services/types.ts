@@ -48,6 +48,7 @@ export interface Restaurant {
     lunch_time_end?: string
     dinner_time_start?: string
     dinner_time_end?: string
+    enable_course_splitting?: boolean
 }
 
 export interface Category {

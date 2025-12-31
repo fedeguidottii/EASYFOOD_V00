@@ -156,7 +156,7 @@ const RestaurantDashboard = ({ user, onLogout }: RestaurantDashboardProps) => {
         let scheduleDay = dayOfWeek
         // If it's early morning (before lunch) and we're in dinner time, use previous day
         if (currentMealType === 'dinner' && lunchStart > 0 && dinnerStart > 0 &&
-            lunchStart < dinnerStart && currentTime < lunchStart) {
+          lunchStart < dinnerStart && currentTime < lunchStart) {
           scheduleDay = (dayOfWeek + 6) % 7 // Previous day
         }
 
@@ -1094,10 +1094,13 @@ const RestaurantDashboard = ({ user, onLogout }: RestaurantDashboardProps) => {
 
   if (!restaurantId) {
     return (
-      <div className="flex flex-col items-center justify-center h-screen gap-4 bg-background">
-        <div className="w-16 h-16 border-4 border-primary border-t-transparent rounded-full animate-spin" />
-        <p className="text-muted-foreground">Caricamento ristorante...</p>
-        <Button variant="outline" onClick={onLogout} className="mt-4">
+      <div className="flex flex-col items-center justify-center h-screen gap-6 bg-zinc-950 text-zinc-100">
+        <div className="w-12 h-12 border-4 border-emerald-500/30 border-t-emerald-500 rounded-full animate-spin" />
+        <div className="flex flex-col items-center gap-2">
+          <p className="text-lg font-medium tracking-wide">EASYFOOD</p>
+          <p className="text-sm text-zinc-500">Caricamento ristorante...</p>
+        </div>
+        <Button variant="ghost" onClick={onLogout} className="mt-8 text-zinc-500 hover:text-zinc-300 hover:bg-white/5">
           Torna al login
         </Button>
       </div>
@@ -1105,1500 +1108,1509 @@ const RestaurantDashboard = ({ user, onLogout }: RestaurantDashboardProps) => {
   }
 
   return (
-    <div className="min-h-screen bg-slate-50 dark:bg-slate-950 text-foreground flex overflow-hidden">
-      {/* Sidebar - Minimal & Professional */}
-      <div
-        id="sidebar"
-        onMouseEnter={() => setSidebarExpanded(true)}
-        onMouseLeave={() => setSidebarExpanded(false)}
-        className={`${sidebarExpanded ? 'w-64' : 'w-[72px]'
-          } border-r border-slate-200 dark:border-slate-800 flex flex-col fixed h-full z-50 transition-all duration-300 ease-in-out bg-white dark:bg-slate-900/95 backdrop-blur-sm`}
-      >
-        <div className="p-5 border-b border-slate-200 dark:border-slate-800 flex items-center justify-center h-16">
-          {sidebarExpanded ? (
-            <div className="text-center w-full">
-              <h1 className="font-semibold text-lg text-slate-900 dark:text-slate-100 truncate px-2">{currentRestaurant?.name || 'EASYFOOD'}</h1>
-            </div>
-          ) : (
-            <ChefHat size={22} className="text-emerald-600 dark:text-emerald-500" weight="duotone" />
-          )}
+    <div className="flex h-screen w-full bg-zinc-950 text-zinc-100 font-sans overflow-hidden selection:bg-emerald-500/30">
+      {/* Sidebar - Fixed & Professional */}
+      <aside className="w-64 bg-zinc-900 border-r border-white/5 flex flex-col flex-shrink-0 z-20 shadow-2xl relative">
+        <div className="p-6 border-b border-white/5 flex items-center gap-3">
+          <div className="p-2 bg-emerald-500/10 rounded-xl text-emerald-500">
+            <ChefHat size={28} weight="duotone" />
+          </div>
+          <div>
+            <h1 className="font-bold text-lg text-zinc-100 tracking-tight leading-none">{currentRestaurant?.name || 'EASYFOOD'}</h1>
+            <p className="text-[10px] uppercase tracking-widest text-zinc-500 font-semibold mt-1">Dashboard</p>
+          </div>
         </div>
 
-        <nav className="flex-1 p-3 space-y-1">
-          {['orders', 'tables', 'menu', 'reservations', 'analytics', 'settings'].map((section) => (
+        <nav className="flex-1 px-3 py-6 space-y-1 overflow-y-auto">
+          {[
+            { id: 'orders', label: 'Ordini', icon: Clock },
+            { id: 'tables', label: 'Tavoli', icon: MapPin },
+            { id: 'menu', label: 'Menu', icon: BookOpen },
+            { id: 'reservations', label: 'Prenotazioni', icon: Calendar },
+            { id: 'analytics', label: 'Analitiche', icon: ChartBar },
+            { id: 'settings', label: 'Impostazioni', icon: Gear },
+          ].map((item) => (
             <Button
-              key={section}
+              key={item.id}
               variant="ghost"
-              className={`w-full h-11 justify-start ${!sidebarExpanded && 'justify-center px-0'} transition-all duration-200 rounded-lg ${activeSection === section ? 'bg-emerald-50 dark:bg-emerald-950/30 text-emerald-700 dark:text-emerald-400 font-medium shadow-sm' : 'text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800/50 hover:text-slate-900 dark:hover:text-slate-200'}`}
+              className={`w-full justify-start h-12 px-4 rounded-xl transition-all duration-200 group relative overflow-hidden ${activeTab === item.id
+                ? 'bg-gradient-to-r from-emerald-500/20 to-transparent text-emerald-400 font-medium'
+                : 'text-zinc-400 hover:text-zinc-100 hover:bg-white/5'
+                }`}
               onClick={() => {
+                const section = item.id
+                setActiveTab(section)
                 setActiveSection(section)
-                if (sidebarExpanded) setSidebarExpanded(false)
               }}
             >
-              {section === 'orders' && <Clock size={20} weight={activeSection === section ? 'fill' : 'regular'} />}
-              {section === 'tables' && <MapPin size={20} weight={activeSection === section ? 'fill' : 'regular'} />}
-              {section === 'menu' && <BookOpen size={20} weight={activeSection === section ? 'fill' : 'regular'} />}
-              {section === 'reservations' && <Calendar size={20} weight={activeSection === section ? 'fill' : 'regular'} />}
-              {section === 'analytics' && <ChartBar size={20} weight={activeSection === section ? 'fill' : 'regular'} />}
-              {section === 'settings' && <Gear size={20} weight={activeSection === section ? 'fill' : 'regular'} />}
-              {sidebarExpanded && <span className="ml-3 text-sm">{section === 'analytics' ? 'Analitiche' : section === 'settings' ? 'Impostazioni' : section === 'reservations' ? 'Prenotazioni' : section === 'tables' ? 'Tavoli' : section === 'orders' ? 'Ordini' : 'Menu'}</span>}
+              <item.icon
+                size={22}
+                weight={activeTab === item.id ? 'duotone' : 'regular'}
+                className={`mr-3 transition-colors ${activeTab === item.id ? 'text-emerald-500' : 'text-zinc-500 group-hover:text-zinc-300'}`}
+              />
+              <span className="relative z-10">{item.label}</span>
+              {activeTab === item.id && (
+                <div className="absolute left-0 top-0 bottom-0 w-1 bg-emerald-500 rounded-r-full" />
+              )}
             </Button>
           ))}
         </nav>
 
-        <div className="p-3 border-t border-slate-200 dark:border-slate-800">
+        <div className="p-4 border-t border-white/5 bg-zinc-900/50">
           <Button
             variant="ghost"
             onClick={onLogout}
-            className={`w-full h-11 justify-start ${!sidebarExpanded && 'justify-center px-0'} text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-950/30 transition-colors rounded-lg`}
+            className="w-full justify-start h-12 px-4 rounded-xl text-red-400 hover:text-red-300 hover:bg-red-500/10 transition-all border border-transparent hover:border-red-500/20"
           >
-            <SignOut size={20} />
-            {sidebarExpanded && <span className="ml-3 text-sm">Esci</span>}
+            <SignOut size={20} weight="duotone" className="mr-3" />
+            Esci
           </Button>
         </div>
-      </div>
+      </aside>
 
-      {/* Main Content */}
-      <div className={`flex-1 p-6 transition-all duration-300 ${sidebarExpanded ? 'ml-64' : 'ml-[72px]'}`}>
-        <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
-          {/* Orders Tab */}
-          <TabsContent value="orders" className="space-y-6">
-            <div className="flex flex-col md:flex-row items-start md:items-center justify-between mb-6 gap-4 pb-4 border-b border-slate-200 dark:border-slate-800">
-              <div>
-                <h2 className="text-2xl font-semibold text-slate-900 dark:text-slate-100">Gestione Ordini</h2>
-                <p className="text-sm text-slate-500 dark:text-slate-400 mt-1">Gestisci gli ordini in tempo reale</p>
-              </div>
-              <div className="flex items-center gap-2">
-                <div className="flex bg-muted p-1 rounded-lg mr-2">
-                  <Button
-                    variant={kitchenViewMode === 'table' ? 'default' : 'ghost'}
-                    size="sm"
-                    onClick={() => setKitchenViewMode('table')}
-                    className="h-7 text-xs font-bold"
-                  >
-                    Tavoli
-                  </Button>
-                  <Button
-                    variant={kitchenViewMode === 'dish' ? 'default' : 'ghost'}
-                    size="sm"
-                    onClick={() => setKitchenViewMode('dish')}
-                    className="h-7 text-xs font-bold"
-                  >
-                    Piatti
-                  </Button>
-                </div>
-
-                {/* Category Filter */}
-                <Popover>
-                  <PopoverTrigger asChild>
-                    <Button variant={selectedKitchenCategories.length > 0 ? "default" : "outline"} size="sm" className="mr-2 h-9 border-dashed">
-                      <Funnel size={16} className="mr-2" />
-                      Filtra Categorie
-                      {selectedKitchenCategories.length > 0 && (
-                        <span className="ml-1 rounded-full bg-primary-foreground text-primary w-4 h-4 text-[10px] flex items-center justify-center">
-                          {selectedKitchenCategories.length}
-                        </span>
-                      )}
-                    </Button>
-                  </PopoverTrigger>
-                  <PopoverContent className="w-56 p-0" align="start">
-                    <div className="p-2 border-b border-border/10">
-                      <h4 className="font-medium text-xs text-muted-foreground uppercase tracking-wider">Seleziona Categorie</h4>
-                    </div>
-                    <div className="p-2 max-h-64 overflow-y-auto space-y-1">
-                      {categories?.map(cat => (
-                        <div key={cat.id} className="flex items-center space-x-2 p-1 hover:bg-muted/50 rounded cursor-pointer"
-                          onClick={() => {
-                            setSelectedKitchenCategories(prev =>
-                              prev.includes(cat.id)
-                                ? prev.filter(id => id !== cat.id)
-                                : [...prev, cat.id]
-                            )
-                          }}
-                        >
-                          <div className={`w-4 h-4 rounded border flex items-center justify-center ${selectedKitchenCategories.includes(cat.id) ? 'bg-primary border-primary text-primary-foreground' : 'border-muted-foreground'}`}>
-                            {selectedKitchenCategories.includes(cat.id) && <Check size={10} weight="bold" />}
-                          </div>
-                          <span className="text-sm">{cat.name}</span>
-                        </div>
-                      ))}
-                    </div>
-                    {selectedKitchenCategories.length > 0 && (
-                      <div className="p-2 border-t border-border/10">
-                        <Button variant="ghost" size="sm" className="w-full h-7 text-xs" onClick={() => setSelectedKitchenCategories([])}>
-                          Resetta Filtri
-                        </Button>
-                      </div>
-                    )}
-                  </PopoverContent>
-                </Popover>
-
-                <div className="flex items-center gap-2 bg-muted p-1 rounded-lg mr-2">
-                  <span className="text-[10px] font-bold uppercase text-muted-foreground px-2">Zoom</span>
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    onClick={() => setKitchenZoom(prev => Math.max(0.2, Math.round((prev - 0.1) * 10) / 10))}
-                    className="h-7 w-7 p-0 hover:bg-slate-200 dark:hover:bg-slate-700 rounded-md"
-                  >
-                    <Minus size={14} />
-                  </Button>
-                  <span className="w-10 text-center text-xs font-bold font-mono">{Math.round(kitchenZoom * 100)}%</span>
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    onClick={() => setKitchenZoom(prev => Math.min(3.0, Math.round((prev + 0.1) * 10) / 10))}
-                    className="h-7 w-7 p-0 hover:bg-slate-200 dark:hover:bg-slate-700 rounded-md"
-                  >
-                    <Plus size={14} />
-                  </Button>
-                </div>
-
-
-
-                <Select value={orderSortMode} onValueChange={(value: 'oldest' | 'newest') => setOrderSortMode(value)}>
-                  <SelectTrigger className="w-[140px] h-9 shadow-sm">
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="oldest">Meno recenti</SelectItem>
-                    <SelectItem value="newest">Più recenti</SelectItem>
-                  </SelectContent>
-                </Select>
-
-                <Button
-                  variant={showOrderHistory ? "default" : "outline"}
-                  size="sm"
-                  onClick={() => setShowOrderHistory(!showOrderHistory)}
-                  className="ml-2"
-                >
-                  <ClockCounterClockwise size={16} className="mr-2" />
-                  Storico
-                </Button>
-              </div>
-            </div>
-
-            {showOrderHistory ? (
-              <div className="space-y-4">
-                <h3 className="text-lg font-semibold mb-4">Storico Ordini Completati</h3>
-                {restaurantCompletedOrders.length === 0 ? (
-                  <div className="text-center py-10 text-muted-foreground">
-                    Nessun ordine completato
-                  </div>
-                ) : (
-                  <div className="grid gap-4">
-                    {restaurantCompletedOrders.sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime()).map(order => (
-                      <Card key={order.id} className="bg-card border-border/50 shadow-sm">
-                        <CardHeader className="p-4 pb-2">
-                          <div className="flex justify-between items-center">
-                            <CardTitle className="text-base">Ordine #{order.id.slice(0, 8)}</CardTitle>
-                            <Badge variant="outline">{new Date(order.created_at).toLocaleString()}</Badge>
-                          </div>
-                          <CardDescription>{restaurantTables.find(t => t.id === getTableIdFromOrder(order))?.number || 'N/D'}</CardDescription>
-                        </CardHeader>
-                        <CardContent className="p-4 pt-2">
-                          <div className="space-y-2">
-                            {order.items?.map(item => (
-                              <div key={item.id} className="flex justify-between text-sm">
-                                <span>{item.quantity}x {restaurantDishes.find(d => d.id === item.dish_id)?.name}</span>
-                                <Badge variant="secondary" className="text-xs">Completato</Badge>
-                              </div>
-                            ))}
-                          </div>
-                        </CardContent>
-                      </Card>
-                    ))}
-                  </div>
-                )}
-              </div>
-            ) : filteredOrders.length === 0 ? (
-              <div className="col-span-full text-center py-16">
-                <div className="w-16 h-16 rounded-2xl bg-muted/20 flex items-center justify-center mx-auto mb-4">
-                  <Clock size={32} className="text-muted-foreground/40" weight="duotone" />
-                </div>
-                <p className="text-lg font-semibold text-muted-foreground">Nessun ordine attivo</p>
-                <p className="text-xs text-muted-foreground mt-1">Gli ordini appariranno qui non appena arrivano</p>
-              </div>
-            ) : (
-              <KitchenView
-                orders={filteredOrders}
-                tables={tables || []}
-                dishes={dishes || []}
-                selectedCategoryIds={selectedKitchenCategories}
-                viewMode={kitchenViewMode}
-                // columns={kitchenColumns} // Removed in favor of responsive grid
-                onCompleteDish={handleCompleteDish}
-                onCompleteOrder={handleCompleteOrder}
-                sessions={sessions || []}
-                zoom={kitchenZoom}
-              />
-            )}
-          </TabsContent >
-
-          {/* Tables Tab */}
-          < TabsContent value="tables" className="space-y-6" >
-            <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between pb-4 border-b border-slate-200 dark:border-slate-800">
-              <div>
-                <h2 className="text-2xl font-semibold text-slate-900 dark:text-slate-100">Gestione Tavoli</h2>
-                <p className="text-sm text-slate-500 dark:text-slate-400 mt-1">Gestisci la sala e i tavoli</p>
-              </div>
-              <div className="flex flex-wrap items-center gap-2">
-                <div className="relative">
-                  <MagnifyingGlass className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" size={16} />
-                  <Input
-                    placeholder="Cerca tavolo..."
-                    value={tableSearchTerm}
-                    onChange={(e) => setTableSearchTerm(e.target.value)}
-                    className="pl-9 h-10 w-[180px] lg:w-[230px] bg-background/50 backdrop-blur-sm"
-                  />
-                </div>
-                <Button onClick={() => setShowCreateTableDialog(true)} size="sm" className="h-10 shadow-sm hover:shadow-md transition-shadow">
-                  <Plus size={16} className="mr-2" />
-                  Nuovo Tavolo
-                </Button>
-
-                <div className="flex bg-muted p-1 rounded-lg">
-                  <Button
-                    variant={tableSortMode === 'number' ? 'default' : 'ghost'}
-                    size="sm"
-                    onClick={() => setTableSortMode('number')}
-                    className="h-8 text-xs font-bold px-3"
-                  >
-                    A-Z
-                  </Button>
-                  <Button
-                    variant={tableSortMode === 'seats' ? 'default' : 'ghost'}
-                    size="sm"
-                    onClick={() => setTableSortMode('seats')}
-                    className="h-8 text-xs font-bold px-3"
-                  >
-                    Posti
-                  </Button>
-                  <Button
-                    variant={tableSortMode === 'status' ? 'default' : 'ghost'}
-                    size="sm"
-                    onClick={() => setTableSortMode('status')}
-                    className="h-8 text-xs font-bold px-3"
-                  >
-                    Stato
-                  </Button>
-                </div>
-
-                <div className="flex items-center gap-2 bg-muted p-1 rounded-lg">
-                  <span className="text-[10px] font-bold uppercase text-muted-foreground px-2">Zoom</span>
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    onClick={() => setTableZoom(prev => Math.max(0.2, Math.round((prev - 0.1) * 10) / 10))}
-                    className="h-7 w-7 p-0 hover:bg-slate-200 dark:hover:bg-slate-700 rounded-md"
-                  >
-                    <Minus size={14} />
-                  </Button>
-                  <span className="w-10 text-center text-xs font-bold font-mono">{Math.round(tableZoom * 100)}%</span>
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    onClick={() => setTableZoom(prev => Math.min(3.0, Math.round((prev + 0.1) * 10) / 10))}
-                    className="h-7 w-7 p-0 hover:bg-slate-200 dark:hover:bg-slate-700 rounded-md"
-                  >
-                    <Plus size={14} />
-                  </Button>
-                </div>
-
-                <Dialog>
-                  <DialogTrigger asChild>
-                    <Button variant="outline" size="sm" className="h-10 shadow-sm hover:shadow-md transition-shadow">
-                      <ClockCounterClockwise size={16} className="mr-2" />
-                      Storico
-                    </Button>
-                  </DialogTrigger>
-                  <DialogContent className="max-w-4xl max-h-[85vh] overflow-hidden flex flex-col">
-                    <DialogHeader>
-                      <DialogTitle>Storico Tavoli Chiusi</DialogTitle>
-                      <DialogDescription>Visualizza le sessioni dei tavoli concluse con dettagli e incassi.</DialogDescription>
-                    </DialogHeader>
-                    <div className="flex flex-wrap gap-3 py-3 border-b">
-                      <div className="relative flex-1 min-w-[200px]">
-                        <MagnifyingGlass className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" size={16} />
-                        <Input
-                          placeholder="Cerca per tavolo, PIN..."
-                          value={tableHistorySearch}
-                          onChange={(e) => setTableHistorySearch(e.target.value)}
-                          className="pl-9 h-9"
-                        />
-                      </div>
-                      <Select value={tableHistoryDateFilter} onValueChange={(v: any) => setTableHistoryDateFilter(v)}>
-                        <SelectTrigger className="w-[150px] h-9">
-                          <SelectValue />
-                        </SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="today">Oggi</SelectItem>
-                          <SelectItem value="week">Ultima settimana</SelectItem>
-                          <SelectItem value="month">Ultimo mese</SelectItem>
-                          <SelectItem value="all">Tutto</SelectItem>
-                        </SelectContent>
-                      </Select>
-                      <Input
-                        type="number"
-                        placeholder="€ minimo"
-                        value={tableHistoryMinTotal}
-                        onChange={(e) => setTableHistoryMinTotal(e.target.value)}
-                        className="w-[120px] h-9"
-                      />
-                      <Input
-                        type="number"
-                        placeholder="Coperti min"
-                        value={tableHistoryMinCovers}
-                        onChange={(e) => setTableHistoryMinCovers(e.target.value)}
-                        className="w-[120px] h-9"
-                      />
-                      <Select value={tableHistorySort} onValueChange={(v: any) => setTableHistorySort(v)}>
-                        <SelectTrigger className="w-[170px] h-9">
-                          <SelectValue placeholder="Ordina per" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="recent">Più recenti</SelectItem>
-                          <SelectItem value="amount">Incasso</SelectItem>
-                          <SelectItem value="duration">Durata</SelectItem>
-                          <SelectItem value="covers">Coperti</SelectItem>
-                        </SelectContent>
-                      </Select>
-                    </div>
-                    <div className="flex-1 overflow-y-auto py-4 space-y-3">
-                      {(() => {
-                        const now = new Date()
-                        const closedSessions = sessions
-                          .filter(s => s.status === 'CLOSED' && s.restaurant_id === restaurantId)
-                          .filter(s => {
-                            const sessionDate = new Date(s.created_at)
-                            if (tableHistoryDateFilter === 'today') {
-                              return sessionDate.toDateString() === now.toDateString()
-                            } else if (tableHistoryDateFilter === 'week') {
-                              const weekAgo = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000)
-                              return sessionDate >= weekAgo
-                            } else if (tableHistoryDateFilter === 'month') {
-                              const monthAgo = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000)
-                              return sessionDate >= monthAgo
-                            }
-                            return true
-                          })
-                          .filter(s => {
-                            if (!tableHistorySearch) return true
-                            const table = restaurantTables.find(t => t.id === s.table_id)
-                            const searchLower = tableHistorySearch.toLowerCase()
-                            return (
-                              table?.number?.toLowerCase().includes(searchLower) ||
-                              s.session_pin?.toLowerCase().includes(searchLower)
-                            )
-                          })
-                          .map(session => {
-                            const table = restaurantTables.find(t => t.id === session.table_id)
-                            const sessionOrders = restaurantCompletedOrders.filter(o => o.table_session_id === session.id)
-                            const totalAmount = sessionOrders.reduce((sum, o) => sum + (o.total_amount || 0), 0)
-                            const totalItems = sessionOrders.reduce((sum, o) => sum + (o.items?.length || 0), 0)
-                            const openDate = new Date(session.created_at)
-                            const closeDate = session.closed_at ? new Date(session.closed_at) : null
-                            const duration = closeDate ? Math.round((closeDate.getTime() - openDate.getTime()) / (1000 * 60)) : 0
-
-                            return { session, table, sessionOrders, totalAmount, totalItems, openDate, closeDate, duration }
-                          })
-                          .filter(summary => {
-                            const minTotal = parseFloat(tableHistoryMinTotal || '0')
-                            const minCovers = parseInt(tableHistoryMinCovers || '0')
-                            const coversOk = minCovers ? (summary.session.customer_count || 0) >= minCovers : true
-                            const totalOk = minTotal ? summary.totalAmount >= minTotal : true
-                            return coversOk && totalOk
-                          })
-                          .sort((a, b) => {
-                            if (tableHistorySort === 'amount') return b.totalAmount - a.totalAmount
-                            if (tableHistorySort === 'duration') return (b.duration || 0) - (a.duration || 0)
-                            if (tableHistorySort === 'covers') return (b.session.customer_count || 0) - (a.session.customer_count || 0)
-                            return new Date(b.session.closed_at || b.session.created_at).getTime() - new Date(a.session.closed_at || a.session.created_at).getTime()
-                          })
-
-                        if (closedSessions.length === 0) {
-                          return (
-                            <div className="text-center py-12 text-muted-foreground">
-                              <ClockCounterClockwise size={48} className="mx-auto mb-4 opacity-30" />
-                              <p className="font-medium">Nessuna sessione trovata</p>
-                              <p className="text-sm">Prova a modificare i filtri di ricerca</p>
-                            </div>
-                          )
-                        }
-
-                        return closedSessions.map(({ session, table, sessionOrders, totalAmount, totalItems, openDate, closeDate, duration }) => {
-                          return (
-                            <div key={session.id} className="p-4 rounded-xl bg-muted/30 hover:bg-muted/50 transition-colors border border-border/50">
-                              <div className="flex items-start justify-between gap-4 flex-wrap">
-                                <div className="flex items-center gap-4">
-                                  <div className="w-14 h-14 rounded-xl bg-primary/10 flex items-center justify-center">
-                                    <span className="text-lg font-bold text-primary">{table?.number || '?'}</span>
-                                  </div>
-                                  <div>
-                                    <div className="flex items-center gap-2 mb-1">
-                                      <span className="font-bold text-foreground">Tavolo {table?.number}</span>
-                                      <Badge variant="outline" className="text-[10px] font-mono">{session.session_pin}</Badge>
-                                    </div>
-                                    <div className="flex items-center gap-3 text-xs text-muted-foreground">
-                                      <span className="flex items-center gap-1">
-                                        <Calendar size={12} />
-                                        {openDate.toLocaleDateString('it-IT', { day: '2-digit', month: 'short', year: 'numeric' })}
-                                      </span>
-                                      <span className="flex items-center gap-1">
-                                        <Clock size={12} />
-                                        {openDate.toLocaleTimeString('it-IT', { hour: '2-digit', minute: '2-digit' })}
-                                        {closeDate && ` - ${closeDate.toLocaleTimeString('it-IT', { hour: '2-digit', minute: '2-digit' })}`}
-                                      </span>
-                                      {duration > 0 && <span>({duration} min)</span>}
-                                    </div>
-                                  </div>
-                                </div>
-                                <div className="flex items-center gap-6">
-                                  <div className="text-center">
-                                    <p className="text-xs text-muted-foreground">Coperti</p>
-                                    <p className="font-bold text-lg">{session.customer_count || '-'}</p>
-                                  </div>
-                                  <div className="text-center">
-                                    <p className="text-xs text-muted-foreground">Ordini</p>
-                                    <p className="font-bold text-lg">{sessionOrders.length}</p>
-                                  </div>
-                                  <div className="text-center">
-                                    <p className="text-xs text-muted-foreground">Piatti</p>
-                                    <p className="font-bold text-lg">{totalItems}</p>
-                                  </div>
-                                  <div className="text-center min-w-[80px]">
-                                    <p className="text-xs text-muted-foreground">Totale</p>
-                                    <p className="font-bold text-lg text-emerald-600">€{totalAmount.toFixed(2)}</p>
-                                  </div>
-                                </div>
-                                <div className="flex flex-wrap gap-3 mt-2 text-xs text-muted-foreground">
-                                  <span className="px-2 py-1 bg-background/50 rounded-md border border-border/50">€{session.customer_count ? (totalAmount / session.customer_count).toFixed(2) : '0.00'} a coperto</span>
-                                  {duration > 0 && <span className="px-2 py-1 bg-background/50 rounded-md border border-border/50">Durata {duration} min</span>}
-                                  <span className="px-2 py-1 bg-background/50 rounded-md border border-border/50">{totalItems} piatti totali</span>
-                                  {sessionOrders.length > 0 && <span className="px-2 py-1 bg-background/50 rounded-md border border-border/50">~{Math.round(duration / sessionOrders.length || 0)} min/ordine</span>}
-                                </div>
-                              </div>
-                            </div>
-                          )
-                        })
-                      })()}
-                    </div>
-                  </DialogContent>
-                </Dialog>
-              </div>
-            </div>
-
-            {/* Room Filters & Management */}
-            <div className="flex items-center gap-2 mb-4 overflow-x-auto pb-2">
-              <Button
-                variant={selectedRoomFilter === 'all' ? "default" : "outline"}
-                size="sm"
-                onClick={() => setSelectedRoomFilter('all')}
-                className="rounded-full"
-              >
-                Tutte
-              </Button>
-              {rooms?.map(room => (
-                <Button
-                  key={room.id}
-                  variant={selectedRoomFilter === room.id ? "default" : "outline"}
-                  size="sm"
-                  onClick={() => setSelectedRoomFilter(room.id)}
-                  className="rounded-full whitespace-nowrap"
-                >
-                  {room.name}
-                </Button>
-              ))}
-
-              <Separator orientation="vertical" className="h-6 mx-2" />
-
-              <Dialog open={showRoomDialog} onOpenChange={setShowRoomDialog}>
-                <DialogTrigger asChild>
-                  <Button variant="ghost" size="sm" className="gap-2 text-muted-foreground hover:text-primary">
-                    <MapPin size={16} />
-                    Gestisci Sale
-                  </Button>
-                </DialogTrigger>
-                <DialogContent>
-                  <DialogHeader>
-                    <DialogTitle>Gestione Sale</DialogTitle>
-                    <DialogDescription>Crea e organizza le aree del tuo ristorante</DialogDescription>
-                  </DialogHeader>
-                  <div className="space-y-4 mt-4">
-                    <div className="flex gap-2">
-                      <Input
-                        placeholder="Nuova Sala (es. Dehor, Interna...)"
-                        value={newRoomName}
-                        onChange={(e) => setNewRoomName(e.target.value)}
-                      />
-                      <Button onClick={async () => {
-                        if (!newRoomName.trim() || !restaurantId) return;
-                        try {
-                          await DatabaseService.createRoom({
-                            restaurant_id: restaurantId,
-                            name: newRoomName.trim(),
-                            is_active: true,
-                            order: rooms?.length || 0
-                          })
-                          setNewRoomName('')
-                          toast.success('Sala creata')
-                          refreshRooms()
-                        } catch (e) {
-                          toast.error('Errore creazione sala')
-                        }
-                      }}>Aggiungi</Button>
-                    </div>
-
-                    <div className="space-y-2 mt-4">
-                      {rooms?.map(room => (
-                        <div key={room.id} className="flex items-center justify-between p-3 bg-muted/30 rounded-lg border">
-                          <span className="font-medium">{room.name}</span>
-                          <div className="flex items-center gap-2">
-                            <Button size="icon" variant="ghost" className="h-8 w-8 text-destructive" onClick={async () => {
-                              if (!confirm('Eliminare questa sala?')) return;
-                              try {
-                                await DatabaseService.deleteRoom(room.id)
-                                toast.success('Sala eliminata')
-                                refreshRooms()
-                              } catch (e) {
-                                toast.error('Impossibile eliminare')
-                              }
-                            }}>
-                              <Trash size={14} />
-                            </Button>
-                          </div>
-                        </div>
-                      ))}
-                      {rooms?.length === 0 && <p className="text-center text-sm text-muted-foreground py-4">Nessuna sala configurata</p>}
-                    </div>
-                  </div>
-                </DialogContent>
-              </Dialog>
-            </div>
-
-            <div
-              className="origin-top-left transition-all duration-200"
-              style={{
-                transform: `scale(${tableZoom})`,
-                transformOrigin: 'top left',
-                width: `${100 / tableZoom}%`
-              }}
-            >
-              <div className="grid gap-6 grid-cols-[repeat(auto-fill,minmax(240px,1fr))]">
-                {restaurantTables
-                  .filter(t => selectedRoomFilter === 'all' || t.room_id === selectedRoomFilter)
-                  .map(table => {
-                    const session = getOpenSessionForTable(table.id)
-                    const isActive = session?.status === 'OPEN'
-                    const activeOrder = restaurantOrders.find(o => getTableIdFromOrder(o) === table.id)
-
-                    return (
-                      <Card
-                        key={table.id}
-                        className={`relative overflow-hidden transition-all duration-300 group cursor-pointer ${isActive
-                          ? 'bg-gradient-to-br from-emerald-100 to-emerald-50 dark:from-emerald-950/30 dark:to-background shadow-lg shadow-emerald-500/20 ring-2 ring-emerald-400/50 dark:ring-emerald-800/50 border-emerald-200 dark:border-emerald-800'
-                          : 'bg-gradient-to-br from-slate-100 to-white dark:from-slate-900/50 dark:to-background shadow-md hover:shadow-lg border-slate-200 dark:border-slate-800'
-                          }`}
-                        onClick={() => {
-                          if (isActive) {
-                            navigate(`/waiter/table/${table.id}`)
-                          } else {
-                            setPendingAutoOrderTableId(table.id)
-                            handleToggleTable(table.id)
-                          }
-                        }}
-                      >
-                        <CardContent className="p-0 flex flex-col h-full">
-                          <div className="p-4 flex flex-wrap items-center justify-between gap-2 border-b border-border/5">
-                            <div className="flex items-center gap-3">
-                              <span className="text-2xl font-bold text-foreground tracking-tight whitespace-nowrap">
-                                {table.number}
-                              </span>
-                              <div className="flex items-center gap-1.5 text-foreground bg-muted px-3 py-1 rounded-full">
-                                <Users size={16} weight="bold" />
-                                <span className="text-sm font-bold">{table.seats || 4}</span>
-                              </div>
-                            </div>
-                            <Badge
-                              variant={isActive ? 'default' : 'outline'}
-                              className={isActive ? 'bg-red-600 hover:bg-red-700 border-none text-white shadow-sm font-semibold' : 'bg-green-600 text-white border-none font-semibold'}
-                            >
-                              {isActive ? 'Occupato' : 'Libero'}
-                            </Badge>
-                          </div>
-
-                          <div className="flex-1 p-5 flex flex-col items-center justify-center gap-3">
-                            {isActive ? (
-                              <>
-                                <div className="text-center">
-                                  <p className="text-[9px] text-muted-foreground mb-1 uppercase tracking-[0.2em] font-semibold">PIN</p>
-                                  <div className="bg-gradient-to-br from-slate-100 to-slate-50 dark:from-slate-800 dark:to-slate-900 px-6 py-3 rounded-xl border border-slate-200/50 dark:border-slate-700/50 shadow-inner min-w-[120px]">
-                                    <span className="text-4xl font-mono font-bold tracking-widest text-foreground whitespace-nowrap">
-                                      {session?.session_pin || '...'}
-                                    </span>
-                                  </div>
-                                </div>
-                                {activeOrder && (
-                                  <Badge variant="outline" className="text-[10px] bg-background/50 backdrop-blur-sm border-emerald-200 dark:border-emerald-800">
-                                    <CheckCircle size={10} className="mr-1" weight="fill" />
-                                    {activeOrder.items?.filter(i => i.status === 'SERVED').length || 0} completati
-                                  </Badge>
-                                )}
-                              </>
-                            ) : (
-                              <div className="text-center text-muted-foreground/30 group-hover:text-muted-foreground/50 transition-all duration-300">
-                                <ForkKnife size={32} className="mx-auto mb-1" weight="duotone" />
-                                <p className="text-xs font-medium">Clicca per Ordinare</p>
-                              </div>
-                            )}
-                          </div>
-
-                          <div className="p-3 bg-gradient-to-t from-muted/10 to-transparent border-t border-border/5 grid gap-2">
-                            {isActive ? (
-                              <div className="grid grid-cols-2 gap-2">
-                                <Button variant="outline" size="sm" onClick={(e) => { e.stopPropagation(); handleShowTableQr(table); }} className="shadow-sm hover:shadow transition-shadow h-8 text-xs">
-                                  <QrCode size={14} className="mr-1.5" />
-                                  QR
-                                </Button>
-                                <Button
-                                  className="bg-gradient-to-r from-primary to-primary/80 text-primary-foreground hover:from-primary/90 hover:to-primary/70 shadow-sm hover:shadow transition-all h-8 text-xs"
-                                  size="sm"
-                                  onClick={(e) => { e.stopPropagation(); setSelectedTableForActions(table); setShowTableBillDialog(true); }}
-                                >
-                                  <Receipt size={14} className="mr-1.5" />
-                                  Conto
-                                </Button>
-                              </div>
-                            ) : (
-                              <Button
-                                className="w-full shadow-sm hover:shadow transition-shadow h-8 text-xs"
-                                size="sm"
-                                onClick={(e) => { e.stopPropagation(); handleToggleTable(table.id); }}
-                              >
-                                <Plus size={14} className="mr-1.5" />
-                                Attiva
-                              </Button>
-                            )}
-                          </div>
-
-                          <div className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity flex gap-1 bg-background/90 backdrop-blur-md p-1 rounded-lg border border-border/30 shadow-lg">
-                            <Button variant="ghost" size="icon" className="h-6 w-6 hover:bg-muted" onClick={(e) => { e.stopPropagation(); handleEditTable(table); }}>
-                              <PencilSimple size={12} />
-                            </Button>
-                            <Button variant="ghost" size="icon" className="h-6 w-6 text-destructive hover:bg-destructive/10" onClick={(e) => { e.stopPropagation(); handleDeleteTable(table.id); }}>
-                              <Trash size={12} />
-                            </Button>
-                          </div>
-                        </CardContent>
-                      </Card>
-
-                    )
-                  })}
-              </div>
-            </div>
-          </TabsContent >
-
-          {/* Menu Tab */}
-          < TabsContent value="menu" className="space-y-6" >
-            <div className="flex items-center justify-between mb-6">
-              <div className="flex items-center gap-3">
-                <div className="w-11 h-11 rounded-xl bg-primary/10 flex items-center justify-center text-primary">
-                  <BookOpen size={20} weight="duotone" />
-                </div>
+      {/* Main Content Info */}
+      <main className="flex-1 flex flex-col min-w-0 overflow-hidden relative bg-zinc-950">
+        <div className="flex-1 overflow-y-auto p-4 sm:p-6 lg:p-8 scroll-smooth scrollbar-thin scrollbar-thumb-zinc-800 scrollbar-track-transparent">
+          <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-8 animate-in fade-in-30 duration-500">
+            {/* Orders Tab */}
+            <TabsContent value="orders" className="space-y-6">
+              <div className="flex flex-col md:flex-row items-start md:items-center justify-between mb-6 gap-4 pb-4 border-b border-slate-200 dark:border-slate-800">
                 <div>
-                  <h2 className="text-2xl font-bold text-foreground">Gestione Menu</h2>
-                  <p className="text-xs text-muted-foreground mt-0.5">Gestisci piatti e categorie</p>
+                  <h2 className="text-2xl font-semibold text-slate-900 dark:text-slate-100">Gestione Ordini</h2>
+                  <p className="text-sm text-slate-500 dark:text-slate-400 mt-1">Gestisci gli ordini in tempo reale</p>
                 </div>
-              </div>
-              <div className="flex gap-2">
-                <Dialog>
-                  <DialogTrigger asChild>
-                    <Button variant="outline" className="border-dashed">
-                      <Sparkle size={16} className="mr-2 text-emerald-600" />
-                      Menu Personalizzati
+                <div className="flex items-center gap-2">
+                  <div className="flex bg-muted p-1 rounded-lg mr-2">
+                    <Button
+                      variant={kitchenViewMode === 'table' ? 'default' : 'ghost'}
+                      size="sm"
+                      onClick={() => setKitchenViewMode('table')}
+                      className="h-7 text-xs font-bold"
+                    >
+                      Tavoli
                     </Button>
-                  </DialogTrigger>
-                  <DialogContent className="sm:max-w-[1100px] w-[1100px] max-w-[96vw] h-[90vh] p-0 overflow-hidden">
-                    <CustomMenusManager
-                      restaurantId={restaurantId || ''}
-                      dishes={dishes || []}
-                      categories={reservationDuration ? (categories || []) : (categories || [])} // Hack to keep Typescript happy if needed, but really just passing categories
-                      onDishesChange={refreshDishes}
-                    />
-                  </DialogContent>
-                </Dialog>
+                    <Button
+                      variant={kitchenViewMode === 'dish' ? 'default' : 'ghost'}
+                      size="sm"
+                      onClick={() => setKitchenViewMode('dish')}
+                      className="h-7 text-xs font-bold"
+                    >
+                      Piatti
+                    </Button>
+                  </div>
 
-                <Dialog open={isAddItemDialogOpen} onOpenChange={setIsAddItemDialogOpen}>
-                  <DialogTrigger asChild>
-                    <Button>
-                      <Plus size={16} className="mr-2" />
-                      Nuovo Piatto
-                    </Button>
-                  </DialogTrigger>
-                  <DialogContent>
-                    {/* Dish Form Content */}
-                    <DialogHeader>
-                      <DialogTitle>Aggiungi Piatto</DialogTitle>
-                      <DialogDescription>
-                        Compila i dettagli del piatto.
-                      </DialogDescription>
-                    </DialogHeader>
-                    <div className="space-y-4 mt-4">
-                      <div className="space-y-2">
-                        <Label>Nome Piatto</Label>
-                        <Input
-                          value={newDish.name}
-                          onChange={(e) => setNewDish({ ...newDish, name: e.target.value })}
-                        />
+                  {/* Category Filter */}
+                  <Popover>
+                    <PopoverTrigger asChild>
+                      <Button variant={selectedKitchenCategories.length > 0 ? "default" : "outline"} size="sm" className="mr-2 h-9 border-dashed">
+                        <Funnel size={16} className="mr-2" />
+                        Filtra Categorie
+                        {selectedKitchenCategories.length > 0 && (
+                          <span className="ml-1 rounded-full bg-primary-foreground text-primary w-4 h-4 text-[10px] flex items-center justify-center">
+                            {selectedKitchenCategories.length}
+                          </span>
+                        )}
+                      </Button>
+                    </PopoverTrigger>
+                    <PopoverContent className="w-56 p-0" align="start">
+                      <div className="p-2 border-b border-border/10">
+                        <h4 className="font-medium text-xs text-muted-foreground uppercase tracking-wider">Seleziona Categorie</h4>
                       </div>
-                      <div className="space-y-2">
-                        <Label>Descrizione</Label>
-                        <Textarea
-                          value={newDish.description}
-                          onChange={(e) => setNewDish({ ...newDish, description: e.target.value })}
-                        />
-                      </div>
-                      <div className="grid grid-cols-2 gap-4">
-                        <div className="space-y-2">
-                          <Label>Prezzo (€)</Label>
-                          <Input
-                            type="number"
-                            value={newDish.price}
-                            onChange={(e) => setNewDish({ ...newDish, price: e.target.value })}
-                          />
-                        </div>
-                        <div className="space-y-2">
-                          <Label>Categoria</Label>
-                          <Select
-                            value={newDish.categoryId}
-                            onValueChange={(value) => setNewDish({ ...newDish, categoryId: value })}
+                      <div className="p-2 max-h-64 overflow-y-auto space-y-1">
+                        {categories?.map(cat => (
+                          <div key={cat.id} className="flex items-center space-x-2 p-1 hover:bg-muted/50 rounded cursor-pointer"
+                            onClick={() => {
+                              setSelectedKitchenCategories(prev =>
+                                prev.includes(cat.id)
+                                  ? prev.filter(id => id !== cat.id)
+                                  : [...prev, cat.id]
+                              )
+                            }}
                           >
-                            <SelectTrigger>
-                              <SelectValue placeholder="Seleziona" />
-                            </SelectTrigger>
-                            <SelectContent>
-                              {restaurantCategories.map(cat => (
-                                <SelectItem key={cat.id} value={cat.id}>{cat.name}</SelectItem>
-                              ))}
-                            </SelectContent>
-                          </Select>
-                        </div>
-                      </div>
-                      <div className="space-y-2">
-                        <Label>Foto Piatto</Label>
-                        <Input
-                          type="file"
-                          accept="image/*"
-                          onChange={(e) => handleImageChange(e)}
-                        />
-                      </div>
-                      <div className="space-y-2">
-                        <Label>Allergeni (separati da virgola)</Label>
-                        <Input
-                          value={allergenInput}
-                          onChange={(e) => {
-                            setAllergenInput(e.target.value)
-                            setNewDish({ ...newDish, allergens: e.target.value.split(',').map(s => s.trim()).filter(Boolean) })
-                          }}
-                          placeholder="Glutine, Lattosio, etc."
-                        />
-                      </div>
-                      <div className="flex items-center space-x-2 pt-4">
-                        <Switch
-                          id="new_is_ayce"
-                          checked={newDish.is_ayce}
-                          onCheckedChange={(checked) => setNewDish({ ...newDish, is_ayce: checked })}
-                        />
-                        <Label htmlFor="new_is_ayce">Incluso in All You Can Eat</Label>
-                      </div>
-                      <Button onClick={handleCreateDish} className="w-full">Aggiungi Piatto</Button>
-                    </div>
-                  </DialogContent>
-                </Dialog>
-
-                <Dialog>
-                  <DialogTrigger asChild>
-                    <Button variant="outline">
-                      <List size={16} className="mr-2" />
-                      Categorie
-                    </Button>
-                  </DialogTrigger>
-                  <DialogContent>
-                    <DialogHeader>
-                      <DialogTitle>Gestione Categorie</DialogTitle>
-                      <DialogDescription>
-                        Trascina le categorie per riordinarle.
-                      </DialogDescription>
-                    </DialogHeader>
-                    <div className="space-y-4 mt-4">
-                      <div className="flex gap-2">
-                        <Input
-                          placeholder="Nuova categoria..."
-                          value={newCategory}
-                          onChange={(e) => setNewCategory(e.target.value)}
-                        />
-                        <Button onClick={handleCreateCategory}>Aggiungi</Button>
-                      </div>
-                      <div className="space-y-2 max-h-[300px] overflow-y-auto pr-2">
-                        {restaurantCategories.map((cat, index) => (
-                          <div
-                            key={cat.id}
-                            draggable
-                            onDragStart={() => handleDragStart(cat)}
-                            onDragOver={(e) => handleDragOver(e, cat)}
-                            onDrop={() => handleDrop(cat)}
-                            className={`flex items-center justify-between p-3 bg-card border border-border/50 rounded-xl shadow-sm hover:shadow-md transition-all group cursor-move ${draggedCategory?.id === cat.id ? 'opacity-50 border-primary' : ''}`}
-                          >
-                            <div className="flex items-center gap-3">
-                              <div className="w-8 h-8 rounded-lg bg-primary/10 flex items-center justify-center text-primary cursor-grab">
-                                <DotsSixVertical size={16} weight="bold" />
-                              </div>
-                              <span className="font-medium">{cat.name}</span>
+                            <div className={`w-4 h-4 rounded border flex items-center justify-center ${selectedKitchenCategories.includes(cat.id) ? 'bg-primary border-primary text-primary-foreground' : 'border-muted-foreground'}`}>
+                              {selectedKitchenCategories.includes(cat.id) && <Check size={10} weight="bold" />}
                             </div>
-                            <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-                              <Button
-                                variant="secondary"
-                                size="icon"
-                                className="h-8 w-8"
-                                onClick={() => handleEditCategory(cat)}
-                              >
-                                <PencilSimple size={16} />
-                              </Button>
-                              <Button
-                                variant="ghost"
-                                size="icon"
-                                className="h-8 w-8 text-destructive hover:bg-destructive/10"
-                                onClick={() => handleDeleteCategory(cat.id)}
-                              >
-                                <Trash size={16} />
-                              </Button>
-                            </div>
+                            <span className="text-sm">{cat.name}</span>
                           </div>
                         ))}
                       </div>
+                      {selectedKitchenCategories.length > 0 && (
+                        <div className="p-2 border-t border-border/10">
+                          <Button variant="ghost" size="sm" className="w-full h-7 text-xs" onClick={() => setSelectedKitchenCategories([])}>
+                            Resetta Filtri
+                          </Button>
+                        </div>
+                      )}
+                    </PopoverContent>
+                  </Popover>
+
+                  <div className="flex items-center gap-2 bg-muted p-1 rounded-lg mr-2">
+                    <span className="text-[10px] font-bold uppercase text-muted-foreground px-2">Zoom</span>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => setKitchenZoom(prev => Math.max(0.2, Math.round((prev - 0.1) * 10) / 10))}
+                      className="h-7 w-7 p-0 hover:bg-slate-200 dark:hover:bg-slate-700 rounded-md"
+                    >
+                      <Minus size={14} />
+                    </Button>
+                    <span className="w-10 text-center text-xs font-bold font-mono">{Math.round(kitchenZoom * 100)}%</span>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => setKitchenZoom(prev => Math.min(3.0, Math.round((prev + 0.1) * 10) / 10))}
+                      className="h-7 w-7 p-0 hover:bg-slate-200 dark:hover:bg-slate-700 rounded-md"
+                    >
+                      <Plus size={14} />
+                    </Button>
+                  </div>
+
+
+
+                  <Select value={orderSortMode} onValueChange={(value: 'oldest' | 'newest') => setOrderSortMode(value)}>
+                    <SelectTrigger className="w-[140px] h-9 shadow-sm">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="oldest">Meno recenti</SelectItem>
+                      <SelectItem value="newest">Più recenti</SelectItem>
+                    </SelectContent>
+                  </Select>
+
+                  <Button
+                    variant={showOrderHistory ? "default" : "outline"}
+                    size="sm"
+                    onClick={() => setShowOrderHistory(!showOrderHistory)}
+                    className="ml-2"
+                  >
+                    <ClockCounterClockwise size={16} className="mr-2" />
+                    Storico
+                  </Button>
+                </div>
+              </div>
+
+              {showOrderHistory ? (
+                <div className="space-y-4">
+                  <h3 className="text-lg font-semibold mb-4">Storico Ordini Completati</h3>
+                  {restaurantCompletedOrders.length === 0 ? (
+                    <div className="text-center py-10 text-muted-foreground">
+                      Nessun ordine completato
                     </div>
-                  </DialogContent>
-                </Dialog>
-              </div >
-            </div >
-
-            <div className="space-y-8">
-              {restaurantCategories.map(category => {
-                const categoryDishes = restaurantDishes.filter(d => d.id && d.category_id === category.id)
-                if (categoryDishes.length === 0) return null
-
-                return (
-                  <div key={category.id} className="space-y-4">
-                    <div className="flex items-center gap-3 pb-2 border-b border-border/10">
-                      <div className="w-10 h-10 rounded-xl bg-primary/10 flex items-center justify-center text-primary">
-                        <Tag size={20} weight="duotone" />
-                      </div>
-                      <h3 className="text-xl font-bold text-foreground">{category.name}</h3>
-                    </div>
-                    <div className="grid gap-3 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
-                      {categoryDishes.map(dish => (
-                        <Card key={dish.id} className={`group hover:shadow-lg transition-all border-border/50 bg-card shadow-sm overflow-hidden ${!dish.is_active ? 'opacity-60 grayscale' : ''}`}>
-                          <CardContent className="p-0">
-                            <div className="flex gap-4 p-4">
-                              {/* Larger Image */}
-                              {dish.image_url ? (
-                                <div className="relative w-24 h-24 shrink-0 overflow-hidden rounded-xl shadow-sm">
-                                  <img
-                                    src={dish.image_url}
-                                    alt={dish.name}
-                                    className="w-full h-full object-cover transition-transform duration-300 group-hover:scale-110"
-                                  />
+                  ) : (
+                    <div className="grid gap-4">
+                      {restaurantCompletedOrders.sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime()).map(order => (
+                        <Card key={order.id} className="bg-card border-border/50 shadow-sm">
+                          <CardHeader className="p-4 pb-2">
+                            <div className="flex justify-between items-center">
+                              <CardTitle className="text-base">Ordine #{order.id.slice(0, 8)}</CardTitle>
+                              <Badge variant="outline">{new Date(order.created_at).toLocaleString()}</Badge>
+                            </div>
+                            <CardDescription>{restaurantTables.find(t => t.id === getTableIdFromOrder(order))?.number || 'N/D'}</CardDescription>
+                          </CardHeader>
+                          <CardContent className="p-4 pt-2">
+                            <div className="space-y-2">
+                              {order.items?.map(item => (
+                                <div key={item.id} className="flex justify-between text-sm">
+                                  <span>{item.quantity}x {restaurantDishes.find(d => d.id === item.dish_id)?.name}</span>
+                                  <Badge variant="secondary" className="text-xs">Completato</Badge>
                                 </div>
-                              ) : (
-                                <div className="w-24 h-24 shrink-0 rounded-xl bg-muted/50 flex items-center justify-center">
-                                  <ForkKnife size={32} className="text-muted-foreground/50" />
-                                </div>
-                              )}
-
-                              {/* Content */}
-                              <div className="flex-1 min-w-0 flex flex-col justify-between">
-                                <div>
-                                  <div className="flex items-start justify-between gap-2">
-                                    <h4 className="font-bold text-lg leading-tight line-clamp-2">{dish.name}</h4>
-                                    <span className="font-bold text-primary text-lg whitespace-nowrap">€{dish.price.toFixed(2)}</span>
-                                  </div>
-                                  {dish.description && (
-                                    <p className="text-sm text-muted-foreground mt-1 line-clamp-2">{dish.description}</p>
-                                  )}
-                                </div>
-
-                                <div className="flex items-center justify-between mt-3">
-                                  <div className="flex items-center gap-2">
-                                    {dish.is_ayce && (
-                                      <Badge className="bg-amber-500 hover:bg-amber-600 text-white border-none px-2 py-0.5 shadow-sm">
-                                        AYCE
-                                      </Badge>
-                                    )}
-                                  </div>
-
-                                  {/* Clean Actions (No gray bar) */}
-                                  <div className="flex items-center gap-1 opacity-100 sm:opacity-0 sm:group-hover:opacity-100 transition-opacity">
-                                    <Button
-                                      variant="ghost"
-                                      size="icon"
-                                      className="h-8 w-8 hover:bg-primary/10 hover:text-primary rounded-full"
-                                      onClick={() => handleEditDish(dish)}
-                                    >
-                                      <PencilSimple size={18} />
-                                    </Button>
-                                    <Button
-                                      variant="ghost"
-                                      size="icon"
-                                      className={`h-8 w-8 rounded-full ${!dish.is_active ? 'text-muted-foreground hover:bg-muted' : 'text-green-600 hover:bg-green-100 dark:hover:bg-green-900/30'}`}
-                                      onClick={() => handleToggleDish(dish.id)}
-                                    >
-                                      {dish.is_active ? <Eye size={18} /> : <EyeSlash size={18} />}
-                                    </Button>
-                                    <Button
-                                      variant="ghost"
-                                      size="icon"
-                                      className="h-8 w-8 text-destructive hover:bg-destructive/10 rounded-full"
-                                      onClick={() => handleDeleteDish(dish.id)}
-                                    >
-                                      <Trash size={18} />
-                                    </Button>
-                                  </div>
-                                </div>
-                              </div>
+                              ))}
                             </div>
                           </CardContent>
                         </Card>
                       ))}
                     </div>
+                  )}
+                </div>
+              ) : filteredOrders.length === 0 ? (
+                <div className="col-span-full text-center py-16">
+                  <div className="w-16 h-16 rounded-2xl bg-muted/20 flex items-center justify-center mx-auto mb-4">
+                    <Clock size={32} className="text-muted-foreground/40" weight="duotone" />
                   </div>
-                )
-              })}
-            </div>
-          </TabsContent >
-
-          {/* Reservations Tab */}
-          < TabsContent value="reservations" className="space-y-6 p-6" >
-            {/* Date Quick Filters */}
-            <div className="flex items-center gap-2 flex-wrap">
-              <span className="text-sm font-medium text-muted-foreground mr-2">Seleziona data:</span>
-              <Button
-                variant={selectedReservationDate.toDateString() === new Date().toDateString() ? 'default' : 'outline'}
-                size="sm"
-                onClick={() => setSelectedReservationDate(new Date())}
-              >
-                Oggi
-              </Button>
-              <Button
-                variant={selectedReservationDate.toDateString() === new Date(Date.now() + 24 * 60 * 60 * 1000).toDateString() ? 'default' : 'outline'}
-                size="sm"
-                onClick={() => {
-                  const tomorrow = new Date()
-                  tomorrow.setDate(tomorrow.getDate() + 1)
-                  setSelectedReservationDate(tomorrow)
-                }}
-              >
-                Domani
-              </Button>
-              <Button
-                variant={selectedReservationDate.toDateString() === new Date(Date.now() + 2 * 24 * 60 * 60 * 1000).toDateString() ? 'default' : 'outline'}
-                size="sm"
-                onClick={() => {
-                  const dayAfterTomorrow = new Date()
-                  dayAfterTomorrow.setDate(dayAfterTomorrow.getDate() + 2)
-                  setSelectedReservationDate(dayAfterTomorrow)
-                }}
-              >
-                Dopodomani
-              </Button>
-              <div className="flex items-center gap-2">
-                <Input
-                  type="date"
-                  value={selectedReservationDate.toISOString().split('T')[0]}
-                  onChange={(e) => setSelectedReservationDate(new Date(e.target.value + 'T00:00:00'))}
-                  className="w-[180px] h-9"
-                />
-              </div>
-            </div>
-            <ReservationsManager
-              user={user}
-              restaurantId={restaurantId}
-              tables={restaurantTables}
-              rooms={rooms || []}
-              bookings={bookings || []}
-              selectedDate={selectedReservationDate}
-              onRefresh={() => {
-                refreshBookings()
-                refreshSessions()
-              }}
-            />
-          </TabsContent >
-
-          {/* Analytics Tab */}
-          < TabsContent value="analytics" className="space-y-6" >
-            <AnalyticsCharts
-              orders={restaurantOrders}
-              completedOrders={restaurantCompletedOrders}
-              dishes={restaurantDishes}
-              categories={restaurantCategories}
-            />
-          </TabsContent >
-
-          {/* Settings Tab */}
-          <TabsContent value="settings" className="space-y-6 animate-in fade-in-50 duration-300">
-            <SettingsView
-              restaurantName={restaurantName}
-              setRestaurantName={setRestaurantName}
-              restaurantNameDirty={restaurantNameDirty}
-              saveRestaurantName={saveRestaurantName}
-
-              soundEnabled={soundEnabled}
-              setSoundEnabled={setSoundEnabled}
-              selectedSound={selectedSound}
-              setSelectedSound={setSelectedSound}
-
-              waiterModeEnabled={waiterModeEnabled}
-              setWaiterModeEnabled={setWaiterModeEnabled}
-              allowWaiterPayments={allowWaiterPayments}
-              setAllowWaiterPayments={setAllowWaiterPayments}
-              waiterPassword={waiterPassword}
-              setWaiterPassword={setWaiterPassword}
-              saveWaiterCredentials={saveWaiterCredentials}
-              waiterCredentialsDirty={waiterCredentialsDirty}
-
-              ayceEnabled={ayceEnabled}
-              setAyceEnabled={(val) => { setAyceEnabled(val); setAyceDirty(true) }}
-              aycePrice={aycePrice}
-              setAycePrice={(val) => { setAycePrice(val); setAyceDirty(true) }}
-              ayceMaxOrders={ayceMaxOrders}
-              setAyceMaxOrders={(val) => { setAyceMaxOrders(val); setAyceDirty(true) }}
-
-              copertoEnabled={copertoEnabled}
-              setCopertoEnabled={(val) => { setCopertoEnabled(val); setCopertoDirty(true) }}
-              copertoPrice={copertoPrice}
-              setCopertoPrice={(val) => { setCopertoPrice(val); setCopertoDirty(true) }}
-
-              lunchTimeStart={lunchTimeStart} setLunchTimeStart={setLunchTimeStart}
-              dinnerTimeStart={dinnerTimeStart} setDinnerTimeStart={setDinnerTimeStart}
-
-              reservationDuration={reservationDuration}
-              setReservationDuration={(val) => {
-                setReservationDuration(val)
-                localStorage.setItem('reservationDuration', val.toString())
-              }}
-
-              openingTime={openingTime}
-              setOpeningTime={setOpeningTime}
-              closingTime={closingTime}
-              setClosingTime={setClosingTime}
-
-              courseSplittingEnabled={courseSplittingEnabled}
-              setCourseSplittingEnabled={setCourseSplittingEnabled}
-              updateCourseSplitting={updateCourseSplitting}
-            />
-          </TabsContent>
-        </Tabs>
-        <div className="mt-8"></div> {/* Spacer or container for dialogs if needed */}
-        < Dialog open={showTableDialog && !!selectedTable} onOpenChange={(open) => { if (!open) { setSelectedTable(null); setShowTableDialog(false) } }}>
-          <DialogContent>
-            <DialogHeader>
-              <DialogTitle>Attiva {selectedTable?.number}</DialogTitle>
-              <DialogDescription>
-                Inserisci il numero di clienti per attivare il tavolo
-              </DialogDescription>
-            </DialogHeader>
-            <div className="space-y-4 mt-4">
-              <div className="space-y-2">
-                <Label>Numero Clienti</Label>
-                <Input
-                  type="number"
-                  min="1"
-                  value={customerCount}
-                  onChange={(e) => setCustomerCount(e.target.value)}
-                  autoFocus
-                />
-              </div>
-              <Button
-                className="w-full"
-                onClick={() => selectedTable && handleActivateTable(selectedTable.id, parseInt(customerCount))}
-              >
-                Attiva Tavolo
-              </Button>
-            </div>
-          </DialogContent>
-        </Dialog >
-
-        < Dialog open={showCreateTableDialog} onOpenChange={setShowCreateTableDialog} >
-          <DialogContent>
-            <DialogHeader>
-              <DialogTitle>Nuovo Tavolo</DialogTitle>
-              <DialogDescription>
-                Inserisci i dettagli del nuovo tavolo.
-              </DialogDescription>
-            </DialogHeader>
-            <div className="space-y-4 mt-4">
-              <div className="space-y-2">
-                <Label>Nome/Numero Tavolo</Label>
-                <Input
-                  value={newTableName}
-                  onChange={(e) => setNewTableName(e.target.value)}
-                  placeholder="Es. 1, 2, Esterno 1..."
-                />
-              </div>
-              <div className="space-y-2">
-                <Label>Capacità massima (posti)</Label>
-                <Input
-                  type="number"
-                  min="1"
-                  max="20"
-                  value={newTableSeats}
-                  onChange={(e) => {
-                    const val = e.target.value
-                    setNewTableSeats(val === '' ? '' : parseInt(val))
-                  }}
-                  placeholder="4"
-                />
-              </div>
-              <div className="space-y-2">
-                <Label>Sala</Label>
-                <Select value={newTableRoomId} onValueChange={setNewTableRoomId}>
-                  <SelectTrigger>
-                    <SelectValue placeholder="Seleziona Sala" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="all">Nessuna Sala</SelectItem>
-                    {rooms?.map(r => (
-                      <SelectItem key={r.id} value={r.id}>{r.name}</SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-              <Button onClick={handleCreateTable} className="w-full">Crea Tavolo</Button>
-            </div>
-          </DialogContent>
-        </Dialog >
-
-        {/* Edit Table Dialog */}
-        <Dialog open={!!editingTable} onOpenChange={(open) => { if (!open) setEditingTable(null) }}>
-          <DialogContent>
-            <DialogHeader>
-              <DialogTitle>Modifica Tavolo</DialogTitle>
-              <DialogDescription>
-                Modifica i dettagli del tavolo.
-              </DialogDescription>
-            </DialogHeader>
-            <div className="space-y-4 mt-4">
-              <div className="space-y-2">
-                <Label>Nome/Numero Tavolo</Label>
-                <Input
-                  value={editTableName}
-                  onChange={(e) => setEditTableName(e.target.value)}
-                  placeholder="Es. 1, 2, Esterno 1..."
-                />
-              </div>
-              <div className="space-y-2">
-                <Label>Capacità massima (posti)</Label>
-                <Input
-                  type="number"
-                  min="1"
-                  max="20"
-                  value={editTableSeats}
-                  onChange={(e) => {
-                    const val = e.target.value
-                    setEditTableSeats(val === '' ? '' : parseInt(val))
-                  }}
-                  placeholder="4"
-                />
-              </div>
-              <div className="space-y-2">
-                <Label>Sala</Label>
-                <Select value={editTableRoomId} onValueChange={setEditTableRoomId}>
-                  <SelectTrigger>
-                    <SelectValue placeholder="Seleziona Sala" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="all">Nessuna Sala</SelectItem>
-                    {rooms?.map(r => (
-                      <SelectItem key={r.id} value={r.id}>{r.name}</SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-              <Button onClick={() => {
-                if (editingTable && editTableName.trim()) {
-                  const seats = typeof editTableSeats === 'string' ? parseInt(editTableSeats) || 4 : editTableSeats
-                  const room_id = editTableRoomId !== 'all' ? editTableRoomId : null
-                  // We use 'any' cast or explicit property if type is not fully updated in TS yet, but Room is added.
-                  // However updateTable takes Partial<Table>, and Table has room_id.
-                  DatabaseService.updateTable(editingTable.id, { number: editTableName, seats, room_id } as any)
-                    .then(() => {
-                      setTables(prev => prev.map(t => t.id === editingTable.id ? { ...t, number: editTableName, seats, room_id: room_id || undefined } : t))
-                      setEditingTable(null)
-                      toast.success('Tavolo aggiornato')
-                    })
-                    .catch(() => toast.error('Errore aggiornamento tavolo'))
-                }
-              }} className="w-full">Salva Modifiche</Button>
-            </div>
-          </DialogContent>
-        </Dialog>
-
-        < Dialog open={showQrDialog} onOpenChange={(open) => setShowQrDialog(open)}>
-          <DialogContent className="sm:max-w-md">
-            <DialogHeader>
-              <DialogTitle>Tavolo Attivato!</DialogTitle>
-              <DialogDescription>
-                Scansiona il QR code per accedere al menu
-              </DialogDescription>
-            </DialogHeader>
-            <div className="flex flex-col items-center justify-center p-6 space-y-4">
-              {selectedTable && (
-                <QRCodeGenerator
-                  value={generateQrCode(selectedTable.id)}
-                  size={200}
+                  <p className="text-lg font-semibold text-muted-foreground">Nessun ordine attivo</p>
+                  <p className="text-xs text-muted-foreground mt-1">Gli ordini appariranno qui non appena arrivano</p>
+                </div>
+              ) : (
+                <KitchenView
+                  orders={filteredOrders}
+                  tables={tables || []}
+                  dishes={dishes || []}
+                  selectedCategoryIds={selectedKitchenCategories}
+                  viewMode={kitchenViewMode}
+                  // columns={kitchenColumns} // Removed in favor of responsive grid
+                  onCompleteDish={handleCompleteDish}
+                  onCompleteOrder={handleCompleteOrder}
+                  sessions={sessions || []}
+                  zoom={kitchenZoom}
                 />
               )}
-              <div className="text-center">
-                <p className="text-sm font-medium">PIN Tavolo</p>
-                <p className="text-3xl font-bold tracking-widest font-mono mt-1">
-                  {currentSessionPin || '----'}
-                </p>
-              </div>
-            </div>
-            <Button onClick={() => setShowQrDialog(false)} className="w-full">
-              Chiudi
-            </Button>
-          </DialogContent>
-        </Dialog >
+            </TabsContent >
 
-        < Dialog open={!!editingCategory} onOpenChange={(open) => { if (!open) handleCancelEdit() }}>
-          <DialogContent>
-            <DialogHeader>
-              <DialogTitle>Modifica Categoria</DialogTitle>
-              <DialogDescription>
-                Modifica il nome della categoria selezionata.
-              </DialogDescription>
-            </DialogHeader>
-            <div className="space-y-4 mt-4">
-              <div className="space-y-2">
-                <Label>Nome Categoria</Label>
-                <Input
-                  value={editCategoryName}
-                  onChange={(e) => setEditCategoryName(e.target.value)}
-                />
-              </div>
-              <Button onClick={handleSaveCategory} className="w-full">Salva Modifiche</Button>
-            </div>
-          </DialogContent>
-        </Dialog >
+            {/* Tables Tab */}
+            < TabsContent value="tables" className="space-y-6" >
+              <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between pb-4 border-b border-slate-200 dark:border-slate-800">
+                <div>
+                  <h2 className="text-2xl font-semibold text-slate-900 dark:text-slate-100">Gestione Tavoli</h2>
+                  <p className="text-sm text-slate-500 dark:text-slate-400 mt-1">Gestisci la sala e i tavoli</p>
+                </div>
+                <div className="flex flex-wrap items-center gap-2">
+                  <div className="relative">
+                    <MagnifyingGlass className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" size={16} />
+                    <Input
+                      placeholder="Cerca tavolo..."
+                      value={tableSearchTerm}
+                      onChange={(e) => setTableSearchTerm(e.target.value)}
+                      className="pl-9 h-10 w-[180px] lg:w-[230px] bg-background/50 backdrop-blur-sm"
+                    />
+                  </div>
+                  <Button onClick={() => setShowCreateTableDialog(true)} size="sm" className="h-10 shadow-sm hover:shadow-md transition-shadow">
+                    <Plus size={16} className="mr-2" />
+                    Nuovo Tavolo
+                  </Button>
 
-        < Dialog open={!!editingDish} onOpenChange={(open) => { if (!open) handleCancelDishEdit() }}>
-          <DialogContent>
-            <DialogHeader>
-              <DialogTitle>Modifica Piatto</DialogTitle>
-              <DialogDescription>
-                Modifica i dettagli del piatto selezionato.
-              </DialogDescription>
-            </DialogHeader>
-            <div className="space-y-4 mt-4">
-              <div className="space-y-2">
-                <Label>Nome Piatto</Label>
-                <Input
-                  value={editDishData.name}
-                  onChange={(e) => setEditDishData({ ...editDishData, name: e.target.value })}
-                />
+                  <div className="flex bg-muted p-1 rounded-lg">
+                    <Button
+                      variant={tableSortMode === 'number' ? 'default' : 'ghost'}
+                      size="sm"
+                      onClick={() => setTableSortMode('number')}
+                      className="h-8 text-xs font-bold px-3"
+                    >
+                      A-Z
+                    </Button>
+                    <Button
+                      variant={tableSortMode === 'seats' ? 'default' : 'ghost'}
+                      size="sm"
+                      onClick={() => setTableSortMode('seats')}
+                      className="h-8 text-xs font-bold px-3"
+                    >
+                      Posti
+                    </Button>
+                    <Button
+                      variant={tableSortMode === 'status' ? 'default' : 'ghost'}
+                      size="sm"
+                      onClick={() => setTableSortMode('status')}
+                      className="h-8 text-xs font-bold px-3"
+                    >
+                      Stato
+                    </Button>
+                  </div>
+
+                  <div className="flex items-center gap-2 bg-muted p-1 rounded-lg">
+                    <span className="text-[10px] font-bold uppercase text-muted-foreground px-2">Zoom</span>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => setTableZoom(prev => Math.max(0.2, Math.round((prev - 0.1) * 10) / 10))}
+                      className="h-7 w-7 p-0 hover:bg-slate-200 dark:hover:bg-slate-700 rounded-md"
+                    >
+                      <Minus size={14} />
+                    </Button>
+                    <span className="w-10 text-center text-xs font-bold font-mono">{Math.round(tableZoom * 100)}%</span>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => setTableZoom(prev => Math.min(3.0, Math.round((prev + 0.1) * 10) / 10))}
+                      className="h-7 w-7 p-0 hover:bg-slate-200 dark:hover:bg-slate-700 rounded-md"
+                    >
+                      <Plus size={14} />
+                    </Button>
+                  </div>
+
+                  <Dialog>
+                    <DialogTrigger asChild>
+                      <Button variant="outline" size="sm" className="h-10 shadow-sm hover:shadow-md transition-shadow">
+                        <ClockCounterClockwise size={16} className="mr-2" />
+                        Storico
+                      </Button>
+                    </DialogTrigger>
+                    <DialogContent className="max-w-4xl max-h-[85vh] overflow-hidden flex flex-col">
+                      <DialogHeader>
+                        <DialogTitle>Storico Tavoli Chiusi</DialogTitle>
+                        <DialogDescription>Visualizza le sessioni dei tavoli concluse con dettagli e incassi.</DialogDescription>
+                      </DialogHeader>
+                      <div className="flex flex-wrap gap-3 py-3 border-b">
+                        <div className="relative flex-1 min-w-[200px]">
+                          <MagnifyingGlass className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" size={16} />
+                          <Input
+                            placeholder="Cerca per tavolo, PIN..."
+                            value={tableHistorySearch}
+                            onChange={(e) => setTableHistorySearch(e.target.value)}
+                            className="pl-9 h-9"
+                          />
+                        </div>
+                        <Select value={tableHistoryDateFilter} onValueChange={(v: any) => setTableHistoryDateFilter(v)}>
+                          <SelectTrigger className="w-[150px] h-9">
+                            <SelectValue />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="today">Oggi</SelectItem>
+                            <SelectItem value="week">Ultima settimana</SelectItem>
+                            <SelectItem value="month">Ultimo mese</SelectItem>
+                            <SelectItem value="all">Tutto</SelectItem>
+                          </SelectContent>
+                        </Select>
+                        <Input
+                          type="number"
+                          placeholder="€ minimo"
+                          value={tableHistoryMinTotal}
+                          onChange={(e) => setTableHistoryMinTotal(e.target.value)}
+                          className="w-[120px] h-9"
+                        />
+                        <Input
+                          type="number"
+                          placeholder="Coperti min"
+                          value={tableHistoryMinCovers}
+                          onChange={(e) => setTableHistoryMinCovers(e.target.value)}
+                          className="w-[120px] h-9"
+                        />
+                        <Select value={tableHistorySort} onValueChange={(v: any) => setTableHistorySort(v)}>
+                          <SelectTrigger className="w-[170px] h-9">
+                            <SelectValue placeholder="Ordina per" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="recent">Più recenti</SelectItem>
+                            <SelectItem value="amount">Incasso</SelectItem>
+                            <SelectItem value="duration">Durata</SelectItem>
+                            <SelectItem value="covers">Coperti</SelectItem>
+                          </SelectContent>
+                        </Select>
+                      </div>
+                      <div className="flex-1 overflow-y-auto py-4 space-y-3">
+                        {(() => {
+                          const now = new Date()
+                          const closedSessions = sessions
+                            .filter(s => s.status === 'CLOSED' && s.restaurant_id === restaurantId)
+                            .filter(s => {
+                              const sessionDate = new Date(s.created_at)
+                              if (tableHistoryDateFilter === 'today') {
+                                return sessionDate.toDateString() === now.toDateString()
+                              } else if (tableHistoryDateFilter === 'week') {
+                                const weekAgo = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000)
+                                return sessionDate >= weekAgo
+                              } else if (tableHistoryDateFilter === 'month') {
+                                const monthAgo = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000)
+                                return sessionDate >= monthAgo
+                              }
+                              return true
+                            })
+                            .filter(s => {
+                              if (!tableHistorySearch) return true
+                              const table = restaurantTables.find(t => t.id === s.table_id)
+                              const searchLower = tableHistorySearch.toLowerCase()
+                              return (
+                                table?.number?.toLowerCase().includes(searchLower) ||
+                                s.session_pin?.toLowerCase().includes(searchLower)
+                              )
+                            })
+                            .map(session => {
+                              const table = restaurantTables.find(t => t.id === session.table_id)
+                              const sessionOrders = restaurantCompletedOrders.filter(o => o.table_session_id === session.id)
+                              const totalAmount = sessionOrders.reduce((sum, o) => sum + (o.total_amount || 0), 0)
+                              const totalItems = sessionOrders.reduce((sum, o) => sum + (o.items?.length || 0), 0)
+                              const openDate = new Date(session.created_at)
+                              const closeDate = session.closed_at ? new Date(session.closed_at) : null
+                              const duration = closeDate ? Math.round((closeDate.getTime() - openDate.getTime()) / (1000 * 60)) : 0
+
+                              return { session, table, sessionOrders, totalAmount, totalItems, openDate, closeDate, duration }
+                            })
+                            .filter(summary => {
+                              const minTotal = parseFloat(tableHistoryMinTotal || '0')
+                              const minCovers = parseInt(tableHistoryMinCovers || '0')
+                              const coversOk = minCovers ? (summary.session.customer_count || 0) >= minCovers : true
+                              const totalOk = minTotal ? summary.totalAmount >= minTotal : true
+                              return coversOk && totalOk
+                            })
+                            .sort((a, b) => {
+                              if (tableHistorySort === 'amount') return b.totalAmount - a.totalAmount
+                              if (tableHistorySort === 'duration') return (b.duration || 0) - (a.duration || 0)
+                              if (tableHistorySort === 'covers') return (b.session.customer_count || 0) - (a.session.customer_count || 0)
+                              return new Date(b.session.closed_at || b.session.created_at).getTime() - new Date(a.session.closed_at || a.session.created_at).getTime()
+                            })
+
+                          if (closedSessions.length === 0) {
+                            return (
+                              <div className="text-center py-12 text-muted-foreground">
+                                <ClockCounterClockwise size={48} className="mx-auto mb-4 opacity-30" />
+                                <p className="font-medium">Nessuna sessione trovata</p>
+                                <p className="text-sm">Prova a modificare i filtri di ricerca</p>
+                              </div>
+                            )
+                          }
+
+                          return closedSessions.map(({ session, table, sessionOrders, totalAmount, totalItems, openDate, closeDate, duration }) => {
+                            return (
+                              <div key={session.id} className="p-4 rounded-xl bg-muted/30 hover:bg-muted/50 transition-colors border border-border/50">
+                                <div className="flex items-start justify-between gap-4 flex-wrap">
+                                  <div className="flex items-center gap-4">
+                                    <div className="w-14 h-14 rounded-xl bg-primary/10 flex items-center justify-center">
+                                      <span className="text-lg font-bold text-primary">{table?.number || '?'}</span>
+                                    </div>
+                                    <div>
+                                      <div className="flex items-center gap-2 mb-1">
+                                        <span className="font-bold text-foreground">Tavolo {table?.number}</span>
+                                        <Badge variant="outline" className="text-[10px] font-mono">{session.session_pin}</Badge>
+                                      </div>
+                                      <div className="flex items-center gap-3 text-xs text-muted-foreground">
+                                        <span className="flex items-center gap-1">
+                                          <Calendar size={12} />
+                                          {openDate.toLocaleDateString('it-IT', { day: '2-digit', month: 'short', year: 'numeric' })}
+                                        </span>
+                                        <span className="flex items-center gap-1">
+                                          <Clock size={12} />
+                                          {openDate.toLocaleTimeString('it-IT', { hour: '2-digit', minute: '2-digit' })}
+                                          {closeDate && ` - ${closeDate.toLocaleTimeString('it-IT', { hour: '2-digit', minute: '2-digit' })}`}
+                                        </span>
+                                        {duration > 0 && <span>({duration} min)</span>}
+                                      </div>
+                                    </div>
+                                  </div>
+                                  <div className="flex items-center gap-6">
+                                    <div className="text-center">
+                                      <p className="text-xs text-muted-foreground">Coperti</p>
+                                      <p className="font-bold text-lg">{session.customer_count || '-'}</p>
+                                    </div>
+                                    <div className="text-center">
+                                      <p className="text-xs text-muted-foreground">Ordini</p>
+                                      <p className="font-bold text-lg">{sessionOrders.length}</p>
+                                    </div>
+                                    <div className="text-center">
+                                      <p className="text-xs text-muted-foreground">Piatti</p>
+                                      <p className="font-bold text-lg">{totalItems}</p>
+                                    </div>
+                                    <div className="text-center min-w-[80px]">
+                                      <p className="text-xs text-muted-foreground">Totale</p>
+                                      <p className="font-bold text-lg text-emerald-600">€{totalAmount.toFixed(2)}</p>
+                                    </div>
+                                  </div>
+                                  <div className="flex flex-wrap gap-3 mt-2 text-xs text-muted-foreground">
+                                    <span className="px-2 py-1 bg-background/50 rounded-md border border-border/50">€{session.customer_count ? (totalAmount / session.customer_count).toFixed(2) : '0.00'} a coperto</span>
+                                    {duration > 0 && <span className="px-2 py-1 bg-background/50 rounded-md border border-border/50">Durata {duration} min</span>}
+                                    <span className="px-2 py-1 bg-background/50 rounded-md border border-border/50">{totalItems} piatti totali</span>
+                                    {sessionOrders.length > 0 && <span className="px-2 py-1 bg-background/50 rounded-md border border-border/50">~{Math.round(duration / sessionOrders.length || 0)} min/ordine</span>}
+                                  </div>
+                                </div>
+                              </div>
+                            )
+                          })
+                        })()}
+                      </div>
+                    </DialogContent>
+                  </Dialog>
+                </div>
               </div>
-              <div className="space-y-2">
-                <Label>Descrizione</Label>
-                <Textarea
-                  value={editDishData.description}
-                  onChange={(e) => setEditDishData({ ...editDishData, description: e.target.value })}
-                />
+
+              {/* Room Filters & Management */}
+              <div className="flex items-center gap-2 mb-4 overflow-x-auto pb-2">
+                <Button
+                  variant={selectedRoomFilter === 'all' ? "default" : "outline"}
+                  size="sm"
+                  onClick={() => setSelectedRoomFilter('all')}
+                  className="rounded-full"
+                >
+                  Tutte
+                </Button>
+                {rooms?.map(room => (
+                  <Button
+                    key={room.id}
+                    variant={selectedRoomFilter === room.id ? "default" : "outline"}
+                    size="sm"
+                    onClick={() => setSelectedRoomFilter(room.id)}
+                    className="rounded-full whitespace-nowrap"
+                  >
+                    {room.name}
+                  </Button>
+                ))}
+
+                <Separator orientation="vertical" className="h-6 mx-2" />
+
+                <Dialog open={showRoomDialog} onOpenChange={setShowRoomDialog}>
+                  <DialogTrigger asChild>
+                    <Button variant="ghost" size="sm" className="gap-2 text-muted-foreground hover:text-primary">
+                      <MapPin size={16} />
+                      Gestisci Sale
+                    </Button>
+                  </DialogTrigger>
+                  <DialogContent>
+                    <DialogHeader>
+                      <DialogTitle>Gestione Sale</DialogTitle>
+                      <DialogDescription>Crea e organizza le aree del tuo ristorante</DialogDescription>
+                    </DialogHeader>
+                    <div className="space-y-4 mt-4">
+                      <div className="flex gap-2">
+                        <Input
+                          placeholder="Nuova Sala (es. Dehor, Interna...)"
+                          value={newRoomName}
+                          onChange={(e) => setNewRoomName(e.target.value)}
+                        />
+                        <Button onClick={async () => {
+                          if (!newRoomName.trim() || !restaurantId) return;
+                          try {
+                            await DatabaseService.createRoom({
+                              restaurant_id: restaurantId,
+                              name: newRoomName.trim(),
+                              is_active: true,
+                              order: rooms?.length || 0
+                            })
+                            setNewRoomName('')
+                            toast.success('Sala creata')
+                            refreshRooms()
+                          } catch (e) {
+                            toast.error('Errore creazione sala')
+                          }
+                        }}>Aggiungi</Button>
+                      </div>
+
+                      <div className="space-y-2 mt-4">
+                        {rooms?.map(room => (
+                          <div key={room.id} className="flex items-center justify-between p-3 bg-muted/30 rounded-lg border">
+                            <span className="font-medium">{room.name}</span>
+                            <div className="flex items-center gap-2">
+                              <Button size="icon" variant="ghost" className="h-8 w-8 text-destructive" onClick={async () => {
+                                if (!confirm('Eliminare questa sala?')) return;
+                                try {
+                                  await DatabaseService.deleteRoom(room.id)
+                                  toast.success('Sala eliminata')
+                                  refreshRooms()
+                                } catch (e) {
+                                  toast.error('Impossibile eliminare')
+                                }
+                              }}>
+                                <Trash size={14} />
+                              </Button>
+                            </div>
+                          </div>
+                        ))}
+                        {rooms?.length === 0 && <p className="text-center text-sm text-muted-foreground py-4">Nessuna sala configurata</p>}
+                      </div>
+                    </div>
+                  </DialogContent>
+                </Dialog>
               </div>
-              <div className="grid grid-cols-2 gap-4">
+
+              <div
+                className="origin-top-left transition-all duration-200"
+                style={{
+                  transform: `scale(${tableZoom})`,
+                  transformOrigin: 'top left',
+                  width: `${100 / tableZoom}%`
+                }}
+              >
+                <div className="grid gap-6 grid-cols-[repeat(auto-fill,minmax(240px,1fr))]">
+                  {restaurantTables
+                    .filter(t => selectedRoomFilter === 'all' || t.room_id === selectedRoomFilter)
+                    .map(table => {
+                      const session = getOpenSessionForTable(table.id)
+                      const isActive = session?.status === 'OPEN'
+                      const activeOrder = restaurantOrders.find(o => getTableIdFromOrder(o) === table.id)
+
+                      return (
+                        <Card
+                          key={table.id}
+                          className={`relative overflow-hidden transition-all duration-300 group cursor-pointer ${isActive
+                            ? 'bg-gradient-to-br from-emerald-100 to-emerald-50 dark:from-emerald-950/30 dark:to-background shadow-lg shadow-emerald-500/20 ring-2 ring-emerald-400/50 dark:ring-emerald-800/50 border-emerald-200 dark:border-emerald-800'
+                            : 'bg-gradient-to-br from-slate-100 to-white dark:from-slate-900/50 dark:to-background shadow-md hover:shadow-lg border-slate-200 dark:border-slate-800'
+                            }`}
+                          onClick={() => {
+                            if (isActive) {
+                              navigate(`/waiter/table/${table.id}`)
+                            } else {
+                              setPendingAutoOrderTableId(table.id)
+                              handleToggleTable(table.id)
+                            }
+                          }}
+                        >
+                          <CardContent className="p-0 flex flex-col h-full">
+                            <div className="p-4 flex flex-wrap items-center justify-between gap-2 border-b border-border/5">
+                              <div className="flex items-center gap-3">
+                                <span className="text-2xl font-bold text-foreground tracking-tight whitespace-nowrap">
+                                  {table.number}
+                                </span>
+                                <div className="flex items-center gap-1.5 text-foreground bg-muted px-3 py-1 rounded-full">
+                                  <Users size={16} weight="bold" />
+                                  <span className="text-sm font-bold">{table.seats || 4}</span>
+                                </div>
+                              </div>
+                              <Badge
+                                variant={isActive ? 'default' : 'outline'}
+                                className={isActive ? 'bg-red-600 hover:bg-red-700 border-none text-white shadow-sm font-semibold' : 'bg-green-600 text-white border-none font-semibold'}
+                              >
+                                {isActive ? 'Occupato' : 'Libero'}
+                              </Badge>
+                            </div>
+
+                            <div className="flex-1 p-5 flex flex-col items-center justify-center gap-3">
+                              {isActive ? (
+                                <>
+                                  <div className="text-center">
+                                    <p className="text-[9px] text-muted-foreground mb-1 uppercase tracking-[0.2em] font-semibold">PIN</p>
+                                    <div className="bg-gradient-to-br from-slate-100 to-slate-50 dark:from-slate-800 dark:to-slate-900 px-6 py-3 rounded-xl border border-slate-200/50 dark:border-slate-700/50 shadow-inner min-w-[120px]">
+                                      <span className="text-4xl font-mono font-bold tracking-widest text-foreground whitespace-nowrap">
+                                        {session?.session_pin || '...'}
+                                      </span>
+                                    </div>
+                                  </div>
+                                  {activeOrder && (
+                                    <Badge variant="outline" className="text-[10px] bg-background/50 backdrop-blur-sm border-emerald-200 dark:border-emerald-800">
+                                      <CheckCircle size={10} className="mr-1" weight="fill" />
+                                      {activeOrder.items?.filter(i => i.status === 'SERVED').length || 0} completati
+                                    </Badge>
+                                  )}
+                                </>
+                              ) : (
+                                <div className="text-center text-muted-foreground/30 group-hover:text-muted-foreground/50 transition-all duration-300">
+                                  <ForkKnife size={32} className="mx-auto mb-1" weight="duotone" />
+                                  <p className="text-xs font-medium">Clicca per Ordinare</p>
+                                </div>
+                              )}
+                            </div>
+
+                            <div className="p-3 bg-gradient-to-t from-muted/10 to-transparent border-t border-border/5 grid gap-2">
+                              {isActive ? (
+                                <div className="grid grid-cols-2 gap-2">
+                                  <Button variant="outline" size="sm" onClick={(e) => { e.stopPropagation(); handleShowTableQr(table); }} className="shadow-sm hover:shadow transition-shadow h-8 text-xs">
+                                    <QrCode size={14} className="mr-1.5" />
+                                    QR
+                                  </Button>
+                                  <Button
+                                    className="bg-gradient-to-r from-primary to-primary/80 text-primary-foreground hover:from-primary/90 hover:to-primary/70 shadow-sm hover:shadow transition-all h-8 text-xs"
+                                    size="sm"
+                                    onClick={(e) => { e.stopPropagation(); setSelectedTableForActions(table); setShowTableBillDialog(true); }}
+                                  >
+                                    <Receipt size={14} className="mr-1.5" />
+                                    Conto
+                                  </Button>
+                                </div>
+                              ) : (
+                                <Button
+                                  className="w-full shadow-sm hover:shadow transition-shadow h-8 text-xs"
+                                  size="sm"
+                                  onClick={(e) => { e.stopPropagation(); handleToggleTable(table.id); }}
+                                >
+                                  <Plus size={14} className="mr-1.5" />
+                                  Attiva
+                                </Button>
+                              )}
+                            </div>
+
+                            <div className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity flex gap-1 bg-background/90 backdrop-blur-md p-1 rounded-lg border border-border/30 shadow-lg">
+                              <Button variant="ghost" size="icon" className="h-6 w-6 hover:bg-muted" onClick={(e) => { e.stopPropagation(); handleEditTable(table); }}>
+                                <PencilSimple size={12} />
+                              </Button>
+                              <Button variant="ghost" size="icon" className="h-6 w-6 text-destructive hover:bg-destructive/10" onClick={(e) => { e.stopPropagation(); handleDeleteTable(table.id); }}>
+                                <Trash size={12} />
+                              </Button>
+                            </div>
+                          </CardContent>
+                        </Card>
+
+                      )
+                    })}
+                </div>
+              </div>
+            </TabsContent >
+
+            {/* Menu Tab */}
+            < TabsContent value="menu" className="space-y-6" >
+              <div className="flex items-center justify-between mb-6">
+                <div className="flex items-center gap-3">
+                  <div className="w-11 h-11 rounded-xl bg-primary/10 flex items-center justify-center text-primary">
+                    <BookOpen size={20} weight="duotone" />
+                  </div>
+                  <div>
+                    <h2 className="text-2xl font-bold text-foreground">Gestione Menu</h2>
+                    <p className="text-xs text-muted-foreground mt-0.5">Gestisci piatti e categorie</p>
+                  </div>
+                </div>
+                <div className="flex gap-2">
+                  <Dialog>
+                    <DialogTrigger asChild>
+                      <Button variant="outline" className="border-dashed">
+                        <Sparkle size={16} className="mr-2 text-emerald-600" />
+                        Menu Personalizzati
+                      </Button>
+                    </DialogTrigger>
+                    <DialogContent className="sm:max-w-[1100px] w-[1100px] max-w-[96vw] h-[90vh] p-0 overflow-hidden">
+                      <CustomMenusManager
+                        restaurantId={restaurantId || ''}
+                        dishes={dishes || []}
+                        categories={reservationDuration ? (categories || []) : (categories || [])} // Hack to keep Typescript happy if needed, but really just passing categories
+                        onDishesChange={refreshDishes}
+                      />
+                    </DialogContent>
+                  </Dialog>
+
+                  <Dialog open={isAddItemDialogOpen} onOpenChange={setIsAddItemDialogOpen}>
+                    <DialogTrigger asChild>
+                      <Button>
+                        <Plus size={16} className="mr-2" />
+                        Nuovo Piatto
+                      </Button>
+                    </DialogTrigger>
+                    <DialogContent>
+                      {/* Dish Form Content */}
+                      <DialogHeader>
+                        <DialogTitle>Aggiungi Piatto</DialogTitle>
+                        <DialogDescription>
+                          Compila i dettagli del piatto.
+                        </DialogDescription>
+                      </DialogHeader>
+                      <div className="space-y-4 mt-4">
+                        <div className="space-y-2">
+                          <Label>Nome Piatto</Label>
+                          <Input
+                            value={newDish.name}
+                            onChange={(e) => setNewDish({ ...newDish, name: e.target.value })}
+                          />
+                        </div>
+                        <div className="space-y-2">
+                          <Label>Descrizione</Label>
+                          <Textarea
+                            value={newDish.description}
+                            onChange={(e) => setNewDish({ ...newDish, description: e.target.value })}
+                          />
+                        </div>
+                        <div className="grid grid-cols-2 gap-4">
+                          <div className="space-y-2">
+                            <Label>Prezzo (€)</Label>
+                            <Input
+                              type="number"
+                              value={newDish.price}
+                              onChange={(e) => setNewDish({ ...newDish, price: e.target.value })}
+                            />
+                          </div>
+                          <div className="space-y-2">
+                            <Label>Categoria</Label>
+                            <Select
+                              value={newDish.categoryId}
+                              onValueChange={(value) => setNewDish({ ...newDish, categoryId: value })}
+                            >
+                              <SelectTrigger>
+                                <SelectValue placeholder="Seleziona" />
+                              </SelectTrigger>
+                              <SelectContent>
+                                {restaurantCategories.map(cat => (
+                                  <SelectItem key={cat.id} value={cat.id}>{cat.name}</SelectItem>
+                                ))}
+                              </SelectContent>
+                            </Select>
+                          </div>
+                        </div>
+                        <div className="space-y-2">
+                          <Label>Foto Piatto</Label>
+                          <Input
+                            type="file"
+                            accept="image/*"
+                            onChange={(e) => handleImageChange(e)}
+                          />
+                        </div>
+                        <div className="space-y-2">
+                          <Label>Allergeni (separati da virgola)</Label>
+                          <Input
+                            value={allergenInput}
+                            onChange={(e) => {
+                              setAllergenInput(e.target.value)
+                              setNewDish({ ...newDish, allergens: e.target.value.split(',').map(s => s.trim()).filter(Boolean) })
+                            }}
+                            placeholder="Glutine, Lattosio, etc."
+                          />
+                        </div>
+                        <div className="flex items-center space-x-2 pt-4">
+                          <Switch
+                            id="new_is_ayce"
+                            checked={newDish.is_ayce}
+                            onCheckedChange={(checked) => setNewDish({ ...newDish, is_ayce: checked })}
+                          />
+                          <Label htmlFor="new_is_ayce">Incluso in All You Can Eat</Label>
+                        </div>
+                        <Button onClick={handleCreateDish} className="w-full">Aggiungi Piatto</Button>
+                      </div>
+                    </DialogContent>
+                  </Dialog>
+
+                  <Dialog>
+                    <DialogTrigger asChild>
+                      <Button variant="outline">
+                        <List size={16} className="mr-2" />
+                        Categorie
+                      </Button>
+                    </DialogTrigger>
+                    <DialogContent>
+                      <DialogHeader>
+                        <DialogTitle>Gestione Categorie</DialogTitle>
+                        <DialogDescription>
+                          Trascina le categorie per riordinarle.
+                        </DialogDescription>
+                      </DialogHeader>
+                      <div className="space-y-4 mt-4">
+                        <div className="flex gap-2">
+                          <Input
+                            placeholder="Nuova categoria..."
+                            value={newCategory}
+                            onChange={(e) => setNewCategory(e.target.value)}
+                          />
+                          <Button onClick={handleCreateCategory}>Aggiungi</Button>
+                        </div>
+                        <div className="space-y-2 max-h-[300px] overflow-y-auto pr-2">
+                          {restaurantCategories.map((cat, index) => (
+                            <div
+                              key={cat.id}
+                              draggable
+                              onDragStart={() => handleDragStart(cat)}
+                              onDragOver={(e) => handleDragOver(e, cat)}
+                              onDrop={() => handleDrop(cat)}
+                              className={`flex items-center justify-between p-3 bg-card border border-border/50 rounded-xl shadow-sm hover:shadow-md transition-all group cursor-move ${draggedCategory?.id === cat.id ? 'opacity-50 border-primary' : ''}`}
+                            >
+                              <div className="flex items-center gap-3">
+                                <div className="w-8 h-8 rounded-lg bg-primary/10 flex items-center justify-center text-primary cursor-grab">
+                                  <DotsSixVertical size={16} weight="bold" />
+                                </div>
+                                <span className="font-medium">{cat.name}</span>
+                              </div>
+                              <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                                <Button
+                                  variant="secondary"
+                                  size="icon"
+                                  className="h-8 w-8"
+                                  onClick={() => handleEditCategory(cat)}
+                                >
+                                  <PencilSimple size={16} />
+                                </Button>
+                                <Button
+                                  variant="ghost"
+                                  size="icon"
+                                  className="h-8 w-8 text-destructive hover:bg-destructive/10"
+                                  onClick={() => handleDeleteCategory(cat.id)}
+                                >
+                                  <Trash size={16} />
+                                </Button>
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    </DialogContent>
+                  </Dialog>
+                </div >
+              </div >
+
+              <div className="space-y-8">
+                {restaurantCategories.map(category => {
+                  const categoryDishes = restaurantDishes.filter(d => d.id && d.category_id === category.id)
+                  if (categoryDishes.length === 0) return null
+
+                  return (
+                    <div key={category.id} className="space-y-4">
+                      <div className="flex items-center gap-3 pb-2 border-b border-border/10">
+                        <div className="w-10 h-10 rounded-xl bg-primary/10 flex items-center justify-center text-primary">
+                          <Tag size={20} weight="duotone" />
+                        </div>
+                        <h3 className="text-xl font-bold text-foreground">{category.name}</h3>
+                      </div>
+                      <div className="grid gap-3 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+                        {categoryDishes.map(dish => (
+                          <Card key={dish.id} className={`group hover:shadow-lg transition-all border-border/50 bg-card shadow-sm overflow-hidden ${!dish.is_active ? 'opacity-60 grayscale' : ''}`}>
+                            <CardContent className="p-0">
+                              <div className="flex gap-4 p-4">
+                                {/* Larger Image */}
+                                {dish.image_url ? (
+                                  <div className="relative w-24 h-24 shrink-0 overflow-hidden rounded-xl shadow-sm">
+                                    <img
+                                      src={dish.image_url}
+                                      alt={dish.name}
+                                      className="w-full h-full object-cover transition-transform duration-300 group-hover:scale-110"
+                                    />
+                                  </div>
+                                ) : (
+                                  <div className="w-24 h-24 shrink-0 rounded-xl bg-muted/50 flex items-center justify-center">
+                                    <ForkKnife size={32} className="text-muted-foreground/50" />
+                                  </div>
+                                )}
+
+                                {/* Content */}
+                                <div className="flex-1 min-w-0 flex flex-col justify-between">
+                                  <div>
+                                    <div className="flex items-start justify-between gap-2">
+                                      <h4 className="font-bold text-lg leading-tight line-clamp-2">{dish.name}</h4>
+                                      <span className="font-bold text-primary text-lg whitespace-nowrap">€{dish.price.toFixed(2)}</span>
+                                    </div>
+                                    {dish.description && (
+                                      <p className="text-sm text-muted-foreground mt-1 line-clamp-2">{dish.description}</p>
+                                    )}
+                                  </div>
+
+                                  <div className="flex items-center justify-between mt-3">
+                                    <div className="flex items-center gap-2">
+                                      {dish.is_ayce && (
+                                        <Badge className="bg-amber-500 hover:bg-amber-600 text-white border-none px-2 py-0.5 shadow-sm">
+                                          AYCE
+                                        </Badge>
+                                      )}
+                                    </div>
+
+                                    {/* Clean Actions (No gray bar) */}
+                                    <div className="flex items-center gap-1 opacity-100 sm:opacity-0 sm:group-hover:opacity-100 transition-opacity">
+                                      <Button
+                                        variant="ghost"
+                                        size="icon"
+                                        className="h-8 w-8 hover:bg-primary/10 hover:text-primary rounded-full"
+                                        onClick={() => handleEditDish(dish)}
+                                      >
+                                        <PencilSimple size={18} />
+                                      </Button>
+                                      <Button
+                                        variant="ghost"
+                                        size="icon"
+                                        className={`h-8 w-8 rounded-full ${!dish.is_active ? 'text-muted-foreground hover:bg-muted' : 'text-green-600 hover:bg-green-100 dark:hover:bg-green-900/30'}`}
+                                        onClick={() => handleToggleDish(dish.id)}
+                                      >
+                                        {dish.is_active ? <Eye size={18} /> : <EyeSlash size={18} />}
+                                      </Button>
+                                      <Button
+                                        variant="ghost"
+                                        size="icon"
+                                        className="h-8 w-8 text-destructive hover:bg-destructive/10 rounded-full"
+                                        onClick={() => handleDeleteDish(dish.id)}
+                                      >
+                                        <Trash size={18} />
+                                      </Button>
+                                    </div>
+                                  </div>
+                                </div>
+                              </div>
+                            </CardContent>
+                          </Card>
+                        ))}
+                      </div>
+                    </div>
+                  )
+                })}
+              </div>
+            </TabsContent >
+
+            {/* Reservations Tab */}
+            < TabsContent value="reservations" className="space-y-6 p-6" >
+              {/* Date Quick Filters */}
+              <div className="flex items-center gap-2 flex-wrap">
+                <span className="text-sm font-medium text-muted-foreground mr-2">Seleziona data:</span>
+                <Button
+                  variant={selectedReservationDate.toDateString() === new Date().toDateString() ? 'default' : 'outline'}
+                  size="sm"
+                  onClick={() => setSelectedReservationDate(new Date())}
+                >
+                  Oggi
+                </Button>
+                <Button
+                  variant={selectedReservationDate.toDateString() === new Date(Date.now() + 24 * 60 * 60 * 1000).toDateString() ? 'default' : 'outline'}
+                  size="sm"
+                  onClick={() => {
+                    const tomorrow = new Date()
+                    tomorrow.setDate(tomorrow.getDate() + 1)
+                    setSelectedReservationDate(tomorrow)
+                  }}
+                >
+                  Domani
+                </Button>
+                <Button
+                  variant={selectedReservationDate.toDateString() === new Date(Date.now() + 2 * 24 * 60 * 60 * 1000).toDateString() ? 'default' : 'outline'}
+                  size="sm"
+                  onClick={() => {
+                    const dayAfterTomorrow = new Date()
+                    dayAfterTomorrow.setDate(dayAfterTomorrow.getDate() + 2)
+                    setSelectedReservationDate(dayAfterTomorrow)
+                  }}
+                >
+                  Dopodomani
+                </Button>
+                <div className="flex items-center gap-2">
+                  <Input
+                    type="date"
+                    value={selectedReservationDate.toISOString().split('T')[0]}
+                    onChange={(e) => setSelectedReservationDate(new Date(e.target.value + 'T00:00:00'))}
+                    className="w-[180px] h-9"
+                  />
+                </div>
+              </div>
+              <ReservationsManager
+                user={user}
+                restaurantId={restaurantId}
+                tables={restaurantTables}
+                rooms={rooms || []}
+                bookings={bookings || []}
+                selectedDate={selectedReservationDate}
+                onRefresh={() => {
+                  refreshBookings()
+                  refreshSessions()
+                }}
+              />
+            </TabsContent >
+
+            {/* Analytics Tab */}
+            < TabsContent value="analytics" className="space-y-6" >
+              <AnalyticsCharts
+                orders={restaurantOrders}
+                completedOrders={restaurantCompletedOrders}
+                dishes={restaurantDishes}
+                categories={restaurantCategories}
+              />
+            </TabsContent >
+
+            {/* Settings Tab */}
+            <TabsContent value="settings" className="space-y-6 animate-in fade-in-50 duration-300">
+              <SettingsView
+                restaurantName={restaurantName}
+                setRestaurantName={setRestaurantName}
+                restaurantNameDirty={restaurantNameDirty}
+                saveRestaurantName={saveRestaurantName}
+
+                soundEnabled={soundEnabled}
+                setSoundEnabled={setSoundEnabled}
+                selectedSound={selectedSound}
+                setSelectedSound={setSelectedSound}
+
+                waiterModeEnabled={waiterModeEnabled}
+                setWaiterModeEnabled={setWaiterModeEnabled}
+                allowWaiterPayments={allowWaiterPayments}
+                setAllowWaiterPayments={setAllowWaiterPayments}
+                waiterPassword={waiterPassword}
+                setWaiterPassword={setWaiterPassword}
+                saveWaiterCredentials={saveWaiterCredentials}
+                waiterCredentialsDirty={waiterCredentialsDirty}
+
+                ayceEnabled={ayceEnabled}
+                setAyceEnabled={(val) => { setAyceEnabled(val); setAyceDirty(true) }}
+                aycePrice={aycePrice}
+                setAycePrice={(val) => { setAycePrice(val); setAyceDirty(true) }}
+                ayceMaxOrders={ayceMaxOrders}
+                setAyceMaxOrders={(val) => { setAyceMaxOrders(val); setAyceDirty(true) }}
+
+                copertoEnabled={copertoEnabled}
+                setCopertoEnabled={(val) => { setCopertoEnabled(val); setCopertoDirty(true) }}
+                copertoPrice={copertoPrice}
+                setCopertoPrice={(val) => { setCopertoPrice(val); setCopertoDirty(true) }}
+
+                lunchTimeStart={lunchTimeStart} setLunchTimeStart={setLunchTimeStart}
+                dinnerTimeStart={dinnerTimeStart} setDinnerTimeStart={setDinnerTimeStart}
+
+                reservationDuration={reservationDuration}
+                setReservationDuration={(val) => {
+                  setReservationDuration(val)
+                  localStorage.setItem('reservationDuration', val.toString())
+                }}
+
+                openingTime={openingTime}
+                setOpeningTime={setOpeningTime}
+                closingTime={closingTime}
+                setClosingTime={setClosingTime}
+
+                courseSplittingEnabled={courseSplittingEnabled}
+                setCourseSplittingEnabled={setCourseSplittingEnabled}
+                updateCourseSplitting={updateCourseSplitting}
+              />
+            </TabsContent>
+          </Tabs>
+          <div className="mt-8"></div> {/* Spacer or container for dialogs if needed */}
+          < Dialog open={showTableDialog && !!selectedTable} onOpenChange={(open) => { if (!open) { setSelectedTable(null); setShowTableDialog(false) } }}>
+            <DialogContent>
+              <DialogHeader>
+                <DialogTitle>Attiva {selectedTable?.number}</DialogTitle>
+                <DialogDescription>
+                  Inserisci il numero di clienti per attivare il tavolo
+                </DialogDescription>
+              </DialogHeader>
+              <div className="space-y-4 mt-4">
                 <div className="space-y-2">
-                  <Label>Prezzo (€)</Label>
+                  <Label>Numero Clienti</Label>
                   <Input
                     type="number"
-                    value={editDishData.price}
-                    onChange={(e) => setEditDishData({ ...editDishData, price: e.target.value })}
+                    min="1"
+                    value={customerCount}
+                    onChange={(e) => setCustomerCount(e.target.value)}
+                    autoFocus
+                  />
+                </div>
+                <Button
+                  className="w-full"
+                  onClick={() => selectedTable && handleActivateTable(selectedTable.id, parseInt(customerCount))}
+                >
+                  Attiva Tavolo
+                </Button>
+              </div>
+            </DialogContent>
+          </Dialog >
+
+          < Dialog open={showCreateTableDialog} onOpenChange={setShowCreateTableDialog} >
+            <DialogContent>
+              <DialogHeader>
+                <DialogTitle>Nuovo Tavolo</DialogTitle>
+                <DialogDescription>
+                  Inserisci i dettagli del nuovo tavolo.
+                </DialogDescription>
+              </DialogHeader>
+              <div className="space-y-4 mt-4">
+                <div className="space-y-2">
+                  <Label>Nome/Numero Tavolo</Label>
+                  <Input
+                    value={newTableName}
+                    onChange={(e) => setNewTableName(e.target.value)}
+                    placeholder="Es. 1, 2, Esterno 1..."
                   />
                 </div>
                 <div className="space-y-2">
-                  <Label>Categoria</Label>
-                  <Select
-                    value={editDishData.categoryId}
-                    onValueChange={(value) => setEditDishData({ ...editDishData, categoryId: value })}
-                  >
+                  <Label>Capacità massima (posti)</Label>
+                  <Input
+                    type="number"
+                    min="1"
+                    max="20"
+                    value={newTableSeats}
+                    onChange={(e) => {
+                      const val = e.target.value
+                      setNewTableSeats(val === '' ? '' : parseInt(val))
+                    }}
+                    placeholder="4"
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label>Sala</Label>
+                  <Select value={newTableRoomId} onValueChange={setNewTableRoomId}>
                     <SelectTrigger>
-                      <SelectValue placeholder="Seleziona" />
+                      <SelectValue placeholder="Seleziona Sala" />
                     </SelectTrigger>
                     <SelectContent>
-                      {restaurantCategories.map(cat => (
-                        <SelectItem key={cat.id} value={cat.id}>{cat.name}</SelectItem>
+                      <SelectItem value="all">Nessuna Sala</SelectItem>
+                      {rooms?.map(r => (
+                        <SelectItem key={r.id} value={r.id}>{r.name}</SelectItem>
                       ))}
                     </SelectContent>
                   </Select>
                 </div>
+                <Button onClick={handleCreateTable} className="w-full">Crea Tavolo</Button>
               </div>
-              <div className="space-y-2">
-                <Label>Foto Piatto</Label>
+            </DialogContent>
+          </Dialog >
+
+          {/* Edit Table Dialog */}
+          <Dialog open={!!editingTable} onOpenChange={(open) => { if (!open) setEditingTable(null) }}>
+            <DialogContent>
+              <DialogHeader>
+                <DialogTitle>Modifica Tavolo</DialogTitle>
+                <DialogDescription>
+                  Modifica i dettagli del tavolo.
+                </DialogDescription>
+              </DialogHeader>
+              <div className="space-y-4 mt-4">
                 <div className="space-y-2">
+                  <Label>Nome/Numero Tavolo</Label>
                   <Input
-                    type="file"
-                    accept="image/*"
-                    onChange={(e) => handleImageChange(e, true)}
+                    value={editTableName}
+                    onChange={(e) => setEditTableName(e.target.value)}
+                    placeholder="Es. 1, 2, Esterno 1..."
                   />
                 </div>
+                <div className="space-y-2">
+                  <Label>Capacità massima (posti)</Label>
+                  <Input
+                    type="number"
+                    min="1"
+                    max="20"
+                    value={editTableSeats}
+                    onChange={(e) => {
+                      const val = e.target.value
+                      setEditTableSeats(val === '' ? '' : parseInt(val))
+                    }}
+                    placeholder="4"
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label>Sala</Label>
+                  <Select value={editTableRoomId} onValueChange={setEditTableRoomId}>
+                    <SelectTrigger>
+                      <SelectValue placeholder="Seleziona Sala" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="all">Nessuna Sala</SelectItem>
+                      {rooms?.map(r => (
+                        <SelectItem key={r.id} value={r.id}>{r.name}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+                <Button onClick={() => {
+                  if (editingTable && editTableName.trim()) {
+                    const seats = typeof editTableSeats === 'string' ? parseInt(editTableSeats) || 4 : editTableSeats
+                    const room_id = editTableRoomId !== 'all' ? editTableRoomId : null
+                    // We use 'any' cast or explicit property if type is not fully updated in TS yet, but Room is added.
+                    // However updateTable takes Partial<Table>, and Table has room_id.
+                    DatabaseService.updateTable(editingTable.id, { number: editTableName, seats, room_id } as any)
+                      .then(() => {
+                        setTables(prev => prev.map(t => t.id === editingTable.id ? { ...t, number: editTableName, seats, room_id: room_id || undefined } : t))
+                        setEditingTable(null)
+                        toast.success('Tavolo aggiornato')
+                      })
+                      .catch(() => toast.error('Errore aggiornamento tavolo'))
+                  }
+                }} className="w-full">Salva Modifiche</Button>
               </div>
-              <div className="space-y-2">
-                <Label>Allergeni (separati da virgola)</Label>
-                <Input
-                  value={editDishData.allergens?.join(', ') || ''}
-                  onChange={(e) => setEditDishData({ ...editDishData, allergens: e.target.value.split(',').map(s => s.trim()).filter(Boolean) })}
-                  placeholder="Glutine, Lattosio, etc."
-                />
-              </div>
-              <div className="flex items-center space-x-2 pt-4">
-                <Switch
-                  id="edit_is_ayce"
-                  checked={editDishData.is_ayce}
-                  onCheckedChange={(checked) => setEditDishData({ ...editDishData, is_ayce: checked })}
-                />
-                <Label htmlFor="edit_is_ayce">Incluso in All You Can Eat</Label>
-              </div>
-              <Button onClick={handleSaveDish} className="w-full">Salva Modifiche</Button>
-            </div>
-          </DialogContent>
-        </Dialog >
+            </DialogContent>
+          </Dialog>
 
-        < Dialog open={showTableQrDialog} onOpenChange={(open) => setShowTableQrDialog(open)}>
-          <DialogContent className="sm:max-w-md">
-            <DialogHeader>
-              <DialogTitle>QR Code & PIN - {selectedTableForActions?.number}</DialogTitle>
-              <DialogDescription>
-                Mostra questo QR al cliente oppure comunica il PIN
-              </DialogDescription>
-            </DialogHeader>
-            <div className="flex flex-col items-center justify-center p-6 space-y-4">
-              {selectedTableForActions && (
-                <>
+          < Dialog open={showQrDialog} onOpenChange={(open) => setShowQrDialog(open)}>
+            <DialogContent className="sm:max-w-md">
+              <DialogHeader>
+                <DialogTitle>Tavolo Attivato!</DialogTitle>
+                <DialogDescription>
+                  Scansiona il QR code per accedere al menu
+                </DialogDescription>
+              </DialogHeader>
+              <div className="flex flex-col items-center justify-center p-6 space-y-4">
+                {selectedTable && (
                   <QRCodeGenerator
-                    value={generateQrCode(selectedTableForActions.id)}
+                    value={generateQrCode(selectedTable.id)}
                     size={200}
                   />
-                  <div className="text-center">
-                    <p className="text-sm font-medium">PIN Tavolo</p>
-                    <p className="text-4xl font-bold tracking-widest font-mono mt-1 text-primary">
-                      {currentSessionPin}
-                    </p>
+                )}
+                <div className="text-center">
+                  <p className="text-sm font-medium">PIN Tavolo</p>
+                  <p className="text-3xl font-bold tracking-widest font-mono mt-1">
+                    {currentSessionPin || '----'}
+                  </p>
+                </div>
+              </div>
+              <Button onClick={() => setShowQrDialog(false)} className="w-full">
+                Chiudi
+              </Button>
+            </DialogContent>
+          </Dialog >
+
+          < Dialog open={!!editingCategory} onOpenChange={(open) => { if (!open) handleCancelEdit() }}>
+            <DialogContent>
+              <DialogHeader>
+                <DialogTitle>Modifica Categoria</DialogTitle>
+                <DialogDescription>
+                  Modifica il nome della categoria selezionata.
+                </DialogDescription>
+              </DialogHeader>
+              <div className="space-y-4 mt-4">
+                <div className="space-y-2">
+                  <Label>Nome Categoria</Label>
+                  <Input
+                    value={editCategoryName}
+                    onChange={(e) => setEditCategoryName(e.target.value)}
+                  />
+                </div>
+                <Button onClick={handleSaveCategory} className="w-full">Salva Modifiche</Button>
+              </div>
+            </DialogContent>
+          </Dialog >
+
+          < Dialog open={!!editingDish} onOpenChange={(open) => { if (!open) handleCancelDishEdit() }}>
+            <DialogContent>
+              <DialogHeader>
+                <DialogTitle>Modifica Piatto</DialogTitle>
+                <DialogDescription>
+                  Modifica i dettagli del piatto selezionato.
+                </DialogDescription>
+              </DialogHeader>
+              <div className="space-y-4 mt-4">
+                <div className="space-y-2">
+                  <Label>Nome Piatto</Label>
+                  <Input
+                    value={editDishData.name}
+                    onChange={(e) => setEditDishData({ ...editDishData, name: e.target.value })}
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label>Descrizione</Label>
+                  <Textarea
+                    value={editDishData.description}
+                    onChange={(e) => setEditDishData({ ...editDishData, description: e.target.value })}
+                  />
+                </div>
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="space-y-2">
+                    <Label>Prezzo (€)</Label>
+                    <Input
+                      type="number"
+                      value={editDishData.price}
+                      onChange={(e) => setEditDishData({ ...editDishData, price: e.target.value })}
+                    />
                   </div>
-                </>
-              )}
-            </div>
-            <Button onClick={() => setShowTableQrDialog(false)} className="w-full">
-              Chiudi
-            </Button>
-          </DialogContent>
-        </Dialog >
+                  <div className="space-y-2">
+                    <Label>Categoria</Label>
+                    <Select
+                      value={editDishData.categoryId}
+                      onValueChange={(value) => setEditDishData({ ...editDishData, categoryId: value })}
+                    >
+                      <SelectTrigger>
+                        <SelectValue placeholder="Seleziona" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {restaurantCategories.map(cat => (
+                          <SelectItem key={cat.id} value={cat.id}>{cat.name}</SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                </div>
+                <div className="space-y-2">
+                  <Label>Foto Piatto</Label>
+                  <div className="space-y-2">
+                    <Input
+                      type="file"
+                      accept="image/*"
+                      onChange={(e) => handleImageChange(e, true)}
+                    />
+                  </div>
+                </div>
+                <div className="space-y-2">
+                  <Label>Allergeni (separati da virgola)</Label>
+                  <Input
+                    value={editDishData.allergens?.join(', ') || ''}
+                    onChange={(e) => setEditDishData({ ...editDishData, allergens: e.target.value.split(',').map(s => s.trim()).filter(Boolean) })}
+                    placeholder="Glutine, Lattosio, etc."
+                  />
+                </div>
+                <div className="flex items-center space-x-2 pt-4">
+                  <Switch
+                    id="edit_is_ayce"
+                    checked={editDishData.is_ayce}
+                    onCheckedChange={(checked) => setEditDishData({ ...editDishData, is_ayce: checked })}
+                  />
+                  <Label htmlFor="edit_is_ayce">Incluso in All You Can Eat</Label>
+                </div>
+                <Button onClick={handleSaveDish} className="w-full">Salva Modifiche</Button>
+              </div>
+            </DialogContent>
+          </Dialog >
 
-        < Dialog open={showTableBillDialog} onOpenChange={(open) => setShowTableBillDialog(open)}>
-          <DialogContent className="sm:max-w-lg">
-            <DialogHeader>
-              <DialogTitle>Conto - Tavolo {selectedTableForActions?.number}</DialogTitle>
-              <DialogDescription>
-                Riepilogo ordini e totale
-              </DialogDescription>
-            </DialogHeader>
-            <div className="space-y-4">
-              {selectedTableForActions && (() => {
-                const session = sessions?.find(s => s.table_id === selectedTableForActions.id && s.status === 'OPEN')
-                const customerCount = session?.customer_count || 1
-
-                const tableOrders = restaurantOrders.filter(o => o.table_session_id === session?.id)
-                const completedOrders = restaurantCompletedOrders.filter(o => o.table_session_id === session?.id)
-                const allOrders = [...tableOrders, ...completedOrders]
-
-                let subtotal = 0
-                const isAyceActive = ayceEnabled
-                const isCoverActive = copertoEnabled
-
-                const parsedCoperto = typeof copertoPrice === 'string' ? parseFloat(copertoPrice) : copertoPrice
-                const parsedAyce = typeof aycePrice === 'string' ? parseFloat(aycePrice) : aycePrice
-
-                const coverCharge = (isCoverActive ? (parsedCoperto || 0) : 0) * customerCount
-                const ayceCharge = (isAyceActive ? (parsedAyce || 0) : 0) * customerCount
-
-                return (
+          < Dialog open={showTableQrDialog} onOpenChange={(open) => setShowTableQrDialog(open)}>
+            <DialogContent className="sm:max-w-md">
+              <DialogHeader>
+                <DialogTitle>QR Code & PIN - {selectedTableForActions?.number}</DialogTitle>
+                <DialogDescription>
+                  Mostra questo QR al cliente oppure comunica il PIN
+                </DialogDescription>
+              </DialogHeader>
+              <div className="flex flex-col items-center justify-center p-6 space-y-4">
+                {selectedTableForActions && (
                   <>
-                    <div className="max-h-[300px] overflow-y-auto space-y-2">
-                      {allOrders.length === 0 ? (
-                        <p className="text-center text-muted-foreground py-4">Nessun ordine per questo tavolo</p>
-                      ) : (
-                        allOrders.map(order => {
-                          const orderItems = order.items || []
-                          return orderItems.map((item: any) => {
-                            const dish = restaurantDishes.find(d => d.id === item.dish_id)
-                            if (!dish) return null
-
-                            const itemTotal = dish.is_ayce && currentRestaurant?.all_you_can_eat?.enabled ? 0 : dish.price * item.quantity
-                            subtotal += itemTotal
-
-                            return (
-                              <div key={item.id} className="flex justify-between text-sm">
-                                <span>{item.quantity}x {dish?.name}</span>
-                                <span>€{itemTotal.toFixed(2)}</span>
-                              </div>
-                            )
-                          })
-                        })
-                      )}
-                    </div>
-                    <Separator />
-                    <div className="space-y-2">
-                      <div className="flex justify-between text-sm">
-                        <span>Subtotale:</span>
-                        <span>€{subtotal.toFixed(2)}</span>
-                      </div>
-                      {coverCharge > 0 && (
-                        <div className="flex justify-between text-sm">
-                          <span>Coperto ({customerCount} pers.):</span>
-                          <span>€{coverCharge.toFixed(2)}</span>
-                        </div>
-                      )}
-                      {ayceCharge > 0 && (
-                        <div className="flex justify-between text-sm">
-                          <span>All You Can Eat ({customerCount} pers.):</span>
-                          <span>€{ayceCharge.toFixed(2)}</span>
-                        </div>
-                      )}
-                      <Separator />
-                      <div className="flex justify-between font-bold text-lg">
-                        <span>Totale:</span>
-                        <span>€{(subtotal + coverCharge + ayceCharge).toFixed(2)}</span>
-                      </div>
-                    </div>
-                    <div className="grid grid-cols-2 gap-2 pt-4">
-                      <Button
-                        variant="destructive"
-                        onClick={() => selectedTableForActions && handleCloseTable(selectedTableForActions.id, false)}
-                      >
-                        Svuota Tavolo
-                      </Button>
-                      <Button
-                        className="bg-green-600 hover:bg-green-700 text-white"
-                        onClick={() => selectedTableForActions && handleCloseTable(selectedTableForActions.id, true)}
-                      >
-                        Segna Pagato
-                      </Button>
+                    <QRCodeGenerator
+                      value={generateQrCode(selectedTableForActions.id)}
+                      size={200}
+                    />
+                    <div className="text-center">
+                      <p className="text-sm font-medium">PIN Tavolo</p>
+                      <p className="text-4xl font-bold tracking-widest font-mono mt-1 text-primary">
+                        {currentSessionPin}
+                      </p>
                     </div>
                   </>
-                )
-              })()}
-            </div>
-          </DialogContent>
-        </Dialog >
+                )}
+              </div>
+              <Button onClick={() => setShowTableQrDialog(false)} className="w-full">
+                Chiudi
+              </Button>
+            </DialogContent>
+          </Dialog >
 
-      </div>
+          < Dialog open={showTableBillDialog} onOpenChange={(open) => setShowTableBillDialog(open)}>
+            <DialogContent className="sm:max-w-lg">
+              <DialogHeader>
+                <DialogTitle>Conto - Tavolo {selectedTableForActions?.number}</DialogTitle>
+                <DialogDescription>
+                  Riepilogo ordini e totale
+                </DialogDescription>
+              </DialogHeader>
+              <div className="space-y-4">
+                {selectedTableForActions && (() => {
+                  const session = sessions?.find(s => s.table_id === selectedTableForActions.id && s.status === 'OPEN')
+                  const customerCount = session?.customer_count || 1
+
+                  const tableOrders = restaurantOrders.filter(o => o.table_session_id === session?.id)
+                  const completedOrders = restaurantCompletedOrders.filter(o => o.table_session_id === session?.id)
+                  const allOrders = [...tableOrders, ...completedOrders]
+
+                  let subtotal = 0
+                  const isAyceActive = ayceEnabled
+                  const isCoverActive = copertoEnabled
+
+                  const parsedCoperto = typeof copertoPrice === 'string' ? parseFloat(copertoPrice) : copertoPrice
+                  const parsedAyce = typeof aycePrice === 'string' ? parseFloat(aycePrice) : aycePrice
+
+                  const coverCharge = (isCoverActive ? (parsedCoperto || 0) : 0) * customerCount
+                  const ayceCharge = (isAyceActive ? (parsedAyce || 0) : 0) * customerCount
+
+                  return (
+                    <>
+                      <div className="max-h-[300px] overflow-y-auto space-y-2">
+                        {allOrders.length === 0 ? (
+                          <p className="text-center text-muted-foreground py-4">Nessun ordine per questo tavolo</p>
+                        ) : (
+                          allOrders.map(order => {
+                            const orderItems = order.items || []
+                            return orderItems.map((item: any) => {
+                              const dish = restaurantDishes.find(d => d.id === item.dish_id)
+                              if (!dish) return null
+
+                              const itemTotal = dish.is_ayce && currentRestaurant?.all_you_can_eat?.enabled ? 0 : dish.price * item.quantity
+                              subtotal += itemTotal
+
+                              return (
+                                <div key={item.id} className="flex justify-between text-sm">
+                                  <span>{item.quantity}x {dish?.name}</span>
+                                  <span>€{itemTotal.toFixed(2)}</span>
+                                </div>
+                              )
+                            })
+                          })
+                        )}
+                      </div>
+                      <Separator />
+                      <div className="space-y-2">
+                        <div className="flex justify-between text-sm">
+                          <span>Subtotale:</span>
+                          <span>€{subtotal.toFixed(2)}</span>
+                        </div>
+                        {coverCharge > 0 && (
+                          <div className="flex justify-between text-sm">
+                            <span>Coperto ({customerCount} pers.):</span>
+                            <span>€{coverCharge.toFixed(2)}</span>
+                          </div>
+                        )}
+                        {ayceCharge > 0 && (
+                          <div className="flex justify-between text-sm">
+                            <span>All You Can Eat ({customerCount} pers.):</span>
+                            <span>€{ayceCharge.toFixed(2)}</span>
+                          </div>
+                        )}
+                        <Separator />
+                        <div className="flex justify-between font-bold text-lg">
+                          <span>Totale:</span>
+                          <span>€{(subtotal + coverCharge + ayceCharge).toFixed(2)}</span>
+                        </div>
+                      </div>
+                      <div className="grid grid-cols-2 gap-2 pt-4">
+                        <Button
+                          variant="destructive"
+                          onClick={() => selectedTableForActions && handleCloseTable(selectedTableForActions.id, false)}
+                        >
+                          Svuota Tavolo
+                        </Button>
+                        <Button
+                          className="bg-green-600 hover:bg-green-700 text-white"
+                          onClick={() => selectedTableForActions && handleCloseTable(selectedTableForActions.id, true)}
+                        >
+                          Segna Pagato
+                        </Button>
+                      </div>
+                    </>
+                  )
+                })()}
+              </div>
+            </DialogContent>
+          </Dialog >
+
+        </div>
+      </main>
     </div>
   )
 }

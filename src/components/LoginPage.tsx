@@ -123,77 +123,82 @@ export default function LoginPage({ onLogin }: Props) {
   }
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-subtle-gradient p-4">
-      <div className="w-full max-w-md space-y-8">
-        <div className="text-center mb-8">
-          <div className="w-16 h-16 glass rounded-2xl flex items-center justify-center mx-auto mb-4 shadow-professional border border-primary/20">
-            <Users weight="bold" size={32} className="text-primary" />
+    <div className="min-h-screen flex flex-col items-center justify-center bg-zinc-950 text-zinc-50 p-4 font-sans selection:bg-emerald-500/30">
+      <div className="w-full max-w-[400px] animate-in fade-in-50 zoom-in-95 duration-500">
+        <div className="text-center mb-10 space-y-2">
+          <div className="inline-flex items-center justify-center w-16 h-16 rounded-2xl bg-zinc-900 border border-white/5 text-emerald-500 mb-6 shadow-2xl">
+            <Users weight="duotone" size={32} />
           </div>
-          <h1 className="text-3xl font-bold text-foreground mb-2">Ristorante</h1>
-          <p className="text-muted-foreground">Portale di gestione</p>
+          <h1 className="text-2xl font-bold tracking-tight text-white">Bentornato</h1>
+          <p className="text-sm text-zinc-400">Inserisci le tue credenziali per accedere</p>
         </div>
 
-        <Card className="glass-card border-0 shadow-professional-lg">
-          <CardHeader>
-            <CardTitle className="text-xl text-center">Accesso Staff</CardTitle>
-            <CardDescription className="text-center">
-              Area riservata al personale
-            </CardDescription>
-          </CardHeader>
-          <CardContent className="space-y-4">
+        <div className="bg-zinc-900/50 border border-white/5 rounded-2xl p-8 backdrop-blur-sm shadow-xl space-y-6">
+          <div className="space-y-4">
             <div className="space-y-2">
-              <Label htmlFor="username">Nome Utente</Label>
+              <Label htmlFor="username" className="text-xs font-medium text-zinc-400 uppercase tracking-wider">Nome Utente</Label>
               <Input
                 id="username"
                 value={username}
                 onChange={(e) => setUsername(e.target.value)}
-                placeholder="Nome utente"
-                className="bg-black/20 border-white/10 focus:border-primary/50 focus:ring-primary/20"
+                placeholder="es. nomeristorante"
+                className="bg-zinc-950/50 border-white/5 focus:border-emerald-500/50 focus:ring-emerald-500/20 text-zinc-100 placeholder:text-zinc-600 h-11"
               />
             </div>
             <div className="space-y-2">
-              <Label htmlFor="password">Password</Label>
+              <Label htmlFor="password" showPassword={showPassword} className="text-xs font-medium text-zinc-400 uppercase tracking-wider flex justify-between">
+                <span>Password</span>
+              </Label>
               <div className="relative">
                 <Input
                   id="password"
                   type={showPassword ? "text" : "password"}
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
-                  placeholder="Password"
-                  className="bg-black/20 border-white/10 focus:border-primary/50 focus:ring-primary/20 pr-10"
+                  placeholder="••••••••"
+                  className="bg-zinc-950/50 border-white/5 focus:border-emerald-500/50 focus:ring-emerald-500/20 text-zinc-100 placeholder:text-zinc-600 h-11 pr-10"
                 />
                 <button
                   type="button"
                   onClick={() => setShowPassword(!showPassword)}
-                  className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors"
+                  className="absolute right-3 top-1/2 -translate-y-1/2 text-zinc-500 hover:text-zinc-300 transition-colors"
                   tabIndex={-1}
                 >
-                  {showPassword ? <EyeSlash size={20} /> : <Eye size={20} />}
+                  {showPassword ? <EyeSlash size={18} /> : <Eye size={18} />}
                 </button>
               </div>
             </div>
 
-            {/* Remember Me Checkbox */}
-            <div className="flex items-center space-x-2">
+            <div className="flex items-center space-x-2 pt-2">
               <Checkbox
                 id="remember-me"
                 checked={rememberMe}
                 onCheckedChange={(checked) => setRememberMe(checked === true)}
+                className="border-white/10 data-[state=checked]:bg-emerald-500 data-[state=checked]:border-emerald-500"
               />
-              <Label htmlFor="remember-me" className="text-sm text-muted-foreground cursor-pointer">
-                Ricordami su questo dispositivo
+              <Label htmlFor="remember-me" className="text-sm text-zinc-400 cursor-pointer font-normal hover:text-zinc-300 transition-colors">
+                Ricordami
               </Label>
             </div>
+          </div>
 
-            <Button
-              onClick={handleAdminLogin}
-              disabled={isLoading || !username || !password}
-              className="w-full bg-primary text-primary-foreground hover:bg-primary/90 h-11 font-bold shadow-gold mt-2"
-            >
-              {isLoading ? 'Accesso in corso...' : 'Accedi'}
-            </Button>
-          </CardContent>
-        </Card>
+          <Button
+            onClick={handleAdminLogin}
+            disabled={isLoading || !username || !password}
+            className="w-full bg-emerald-600 hover:bg-emerald-500 text-white h-11 font-medium rounded-lg transition-all shadow-lg shadow-emerald-900/20 disabled:opacity-50 disabled:cursor-not-allowed"
+          >
+            {isLoading ? (
+              <div className="flex items-center gap-2">
+                <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                <span>Accesso...</span>
+              </div>
+            ) : 'Accedi'}
+          </Button>
+        </div>
+
+        <p className="text-center text-xs text-zinc-600 mt-8">
+          &copy; {new Date().getFullYear()} EASYFOOD. Tutti i diritti riservati.
+        </p>
       </div>
     </div>
   )
