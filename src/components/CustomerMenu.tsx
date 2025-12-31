@@ -295,7 +295,7 @@ const CustomerMenu = () => {
     }
   }, [tableId, sessionId, joinSession])
 
-  // Verify PIN against active session
+  // Auto-authenticate from localStorage if session matches
   useEffect(() => {
     if (sessionId && restaurantId) {
       const checkSession = async () => {
@@ -303,14 +303,19 @@ const CustomerMenu = () => {
         const session = await DatabaseService.getSessionById(sessionId)
         if (session) {
           setActiveSession(session)
-          // Check if PIN matches what user entered (or if we auto-authenticated via localStorage logic in Context)
-          // Actually Context handles session persistence. Authentication (PIN check) is a UI guard.
-          // If we have a sessionId, it means we "joined". Now we need to prove identity with PIN.
 
-          // Optimization: If local storage has 'sessionPin' matching data, auto-auth
+          // Check if saved session matches current session AND PIN is correct
+          const savedSessionId = localStorage.getItem('customerSessionId')
           const savedPin = localStorage.getItem('sessionPin')
-          if (savedPin === session.session_pin) {
+
+          if (savedSessionId === sessionId && savedPin === session.session_pin) {
+            // Session is still the same and PIN matches - auto authenticate
             setIsAuthenticated(true)
+          } else if (savedSessionId !== sessionId) {
+            // Session changed (table was reset) - clear old credentials
+            localStorage.removeItem('customerSessionId')
+            localStorage.removeItem('sessionPin')
+            setIsAuthenticated(false)
           }
         }
       }
@@ -342,6 +347,7 @@ const CustomerMenu = () => {
           setActiveSession(session)
           setIsAuthenticated(true)
           localStorage.setItem('sessionPin', enteredPin)
+          localStorage.setItem('customerSessionId', session.id)
           toast.success("Accesso effettuato!")
           return
         }
@@ -354,6 +360,7 @@ const CustomerMenu = () => {
     if (activeSession && enteredPin === activeSession.session_pin) {
       setIsAuthenticated(true)
       localStorage.setItem('sessionPin', enteredPin)
+      localStorage.setItem('customerSessionId', activeSession.id)
       toast.success("Accesso effettuato!")
     } else if (activeSession) {
       setPinError(true)
