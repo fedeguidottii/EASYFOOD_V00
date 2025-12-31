@@ -469,7 +469,7 @@ const RestaurantDashboard = ({ user, onLogout }: RestaurantDashboardProps) => {
         maxOrders: maxOrders || 0
       }
     })
-    refreshRestaurants()
+    // Don't refresh immediately - it causes a race condition that resets the toggle
   }
 
   const updateCopertoEnabled = async (enabled: boolean) => {
@@ -483,7 +483,7 @@ const RestaurantDashboard = ({ user, onLogout }: RestaurantDashboardProps) => {
     } else {
       await DatabaseService.updateRestaurant({ id: restaurantId, cover_charge_per_person: 0 })
     }
-    refreshRestaurants()
+    // Don't refresh immediately - it causes a race condition
   }
 
   const updateCopertoPrice = async (price: number | string) => {
