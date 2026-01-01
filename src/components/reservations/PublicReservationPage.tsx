@@ -101,8 +101,17 @@ const PublicReservationPage = () => {
                         .select('*')
                         .eq('restaurant_id', restaurantId)
                     if (r) setRooms(r)
-                }
+                    // 4. Fetch Tables to calculate capacity
+                    const { data: t } = await supabase
+                        .from('tables')
+                        .select('*')
+                        .eq('restaurant_id', restaurantId)
 
+                    if (t) {
+                        // We don't need to store tables in state here as they are fetched in the slots effect
+                    }
+
+                } // End if room selection
             } catch (err: any) {
                 console.error("Error fetching reservation page:", err)
                 setError("Impossibile caricare la pagina del ristorante.")
@@ -116,32 +125,86 @@ const PublicReservationPage = () => {
 
     // --- LOGIC: GENERATE SLOTS ---
     useEffect(() => {
-        if (!restaurant || !formData.date) return
+        const fetchOccupancyAndGenerateSlots = async () => {
+            if (!restaurant || !formData.date || !restaurantId) return
 
-        // Mock logic for slots based on opening hours
-        // In real app, check existing bookings cap
-        const generateSlots = () => {
-            const slots: TimeSlot[] = []
-            const startLunch = 12
-            const endLunch = 15
-            const startDinner = 19
-            const endDinner = 23
+            try {
+                const dateStr = format(formData.date, 'yyyy-MM-dd')
 
-            // Lunch
-            for (let h = startLunch; h < endLunch; h++) {
-                slots.push({ time: `${h}:00`, available: true })
-                slots.push({ time: `${h}:30`, available: true })
+                // 1. Fetch all bookings for this day
+                const { data: dayBookings } = await supabase
+                    .from('bookings')
+                    .select('date_time, guests, status')
+                    .eq('restaurant_id', restaurantId)
+                    .neq('status', 'CANCELLED')
+                    .gte('date_time', `${dateStr}T00:00:00`)
+                    .lte('date_time', `${dateStr}T23:59:59`)
+
+                // 2. Calculate Total Capacity
+                // If the user has tables, sum of seats. Otherwise use a fallback.
+                const { data: tables } = await supabase
+                    .from('tables')
+                    .select('seats')
+                    .eq('restaurant_id', restaurantId)
+
+                const totalCapacity = tables && tables.length > 0
+                    ? tables.reduce((sum, t) => sum + (t.seats || 4), 0)
+                    : 50 // Fallback capacity if no tables defined
+
+                const reservationDuration = restaurant.reservation_duration || 120
+
+                const generateSlots = () => {
+                    const slots: TimeSlot[] = []
+                    const startLunch = 12
+                    const endLunch = 15
+                    const startDinner = 19
+                    const endDinner = 23
+
+                    const checkAvailable = (slotTime: string) => {
+                        const [sH, sM] = slotTime.split(':').map(Number)
+                        const slotMinutes = sH * 60 + sM
+
+                        let occupiedSeats = 0
+                        if (dayBookings) {
+                            dayBookings.forEach(b => {
+                                const bTime = new Date(b.date_time)
+                                const bStartMinutes = bTime.getHours() * 60 + bTime.getMinutes()
+                                const bEndMinutes = bStartMinutes + reservationDuration
+
+                                if (slotMinutes >= bStartMinutes && slotMinutes < bEndMinutes) {
+                                    occupiedSeats += b.guests
+                                }
+                            })
+                        }
+
+                        return (occupiedSeats + formData.guests) <= totalCapacity
+                    }
+
+                    // Lunch
+                    for (let h = startLunch; h < endLunch; h++) {
+                        const t1 = `${h}:00`
+                        const t2 = `${h}:30`
+                        slots.push({ time: t1, available: checkAvailable(t1) })
+                        slots.push({ time: t2, available: checkAvailable(t2) })
+                    }
+                    // Dinner
+                    for (let h = startDinner; h < endDinner; h++) {
+                        const t1 = `${h}:00`
+                        const t2 = `${h}:30`
+                        slots.push({ time: t1, available: checkAvailable(t1) })
+                        slots.push({ time: t2, available: checkAvailable(t2) })
+                    }
+                    setAvailableSlots(slots)
+                }
+
+                generateSlots()
+            } catch (err) {
+                console.error("Error generating slots:", err)
             }
-            // Dinner
-            for (let h = startDinner; h < endDinner; h++) {
-                slots.push({ time: `${h}:00`, available: true })
-                slots.push({ time: `${h}:30`, available: true })
-            }
-            setAvailableSlots(slots)
         }
 
-        generateSlots()
-    }, [restaurant, formData.date])
+        fetchOccupancyAndGenerateSlots()
+    }, [restaurant, formData.date, formData.guests, restaurantId])
 
 
     // --- HANDLERS ---

@@ -309,65 +309,72 @@ export default function AdminDashboard({ user, onLogout }: Props) {
   }
 
   return (
-    <div className="min-h-screen bg-background">
+    <div className="min-h-screen bg-black text-zinc-100 font-sans selection:bg-amber-500/30">
+      {/* Background Ambience */}
+      <div className="fixed inset-0 bg-[radial-gradient(ellipse_at_top,_var(--tw-gradient-stops))] from-amber-900/10 via-black to-black pointer-events-none" />
+
       {/* Header */}
-      <header className="border-b bg-card/50 backdrop-blur-sm sticky top-0 z-50">
+      <header className="border-b border-white/5 bg-black/40 backdrop-blur-xl sticky top-0 z-50">
         <div className="container mx-auto px-4 py-4">
           <div className="flex items-center justify-between">
             <div className="flex items-center space-x-3">
-              <div className="w-10 h-10 bg-primary rounded-lg flex items-center justify-center">
-                <Crown weight="bold" size={20} className="text-primary-foreground" />
+              <div className="w-10 h-10 bg-amber-500 rounded-lg flex items-center justify-center shadow-[0_0_15px_rgba(245,158,11,0.3)]">
+                <Crown weight="bold" size={20} className="text-black" />
               </div>
               <div>
-                <h1 className="text-xl font-bold text-foreground">Amministrazione</h1>
-                <p className="text-sm text-muted-foreground">Ciao, {user.name}</p>
+                <h1 className="text-xl font-bold text-white">Amministrazione</h1>
+                <p className="text-xs font-bold text-amber-500/70 tracking-[0.2em] uppercase">Control Panel</p>
               </div>
             </div>
-            <div className="flex items-center gap-3">
+            <div className="flex items-center gap-2">
               <Button
-                variant={activeView === 'restaurants' ? 'default' : 'ghost'}
+                variant="ghost"
                 onClick={() => setActiveView('restaurants')}
-                className="gap-2"
+                className={`gap-2 h-10 px-4 rounded-xl transition-all ${activeView === 'restaurants' ? 'bg-amber-500/10 text-amber-500' : 'text-zinc-500 hover:text-zinc-200'}`}
               >
-                <Buildings size={16} />
-                Ristoranti
+                <Buildings size={18} />
+                <span className="font-medium">Ristoranti</span>
               </Button>
               <Button
-                variant={activeView === 'statistics' ? 'default' : 'ghost'}
+                variant="ghost"
                 onClick={() => setActiveView('statistics')}
-                className="gap-2"
+                className={`gap-2 h-10 px-4 rounded-xl transition-all ${activeView === 'statistics' ? 'bg-amber-500/10 text-amber-500' : 'text-zinc-500 hover:text-zinc-200'}`}
               >
-                <ChartBar size={16} />
-                Statistiche
+                <ChartBar size={18} />
+                <span className="font-medium">Statistiche</span>
               </Button>
-              <div className="h-6 w-px bg-border mx-2" />
+              <div className="h-6 w-px bg-white/5 mx-2" />
               <Button
-                variant="destructive"
+                variant="ghost"
                 onClick={handleResetDatabase}
-                className="flex items-center gap-2 bg-red-600 hover:bg-red-700"
+                className="h-10 px-4 bg-red-500/10 text-red-500 hover:bg-red-500/20 rounded-xl"
                 title="CANCELLA TUTTO IL DATABASE"
               >
-                <Trash size={16} />
-                Reset DB
+                <Trash size={18} />
+                <span className="ml-2 font-medium">Reset DB</span>
               </Button>
-              <Button variant="outline" onClick={onLogout} className="flex items-center gap-2">
-                <SignOut size={16} />
-                Esci
+              <Button
+                variant="ghost"
+                onClick={onLogout}
+                className="h-10 px-4 text-zinc-400 hover:text-white hover:bg-white/5 rounded-xl border border-white/5"
+              >
+                <SignOut size={18} />
+                <span className="ml-2 font-medium">Esci</span>
               </Button>
             </div>
           </div>
         </div>
       </header>
 
-      <div className="container mx-auto px-4 py-8">
+      <div className="container mx-auto px-4 py-8 relative z-10">
         {activeView === 'statistics' ? (
           <AdminStatistics />
         ) : (
           <div className="space-y-6">
             <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
               <div>
-                <h2 className="text-2xl font-bold">Gestione Ristoranti</h2>
-                <p className="text-muted-foreground">Gestisci i ristoranti partner della piattaforma</p>
+                <h2 className="text-3xl font-bold text-white">Gestione <span className="text-amber-500">Ristoranti</span></h2>
+                <p className="text-zinc-500 mt-1 uppercase tracking-widest text-[10px] font-bold">Amministrazione Piattaforma</p>
               </div>
 
               <div className="flex items-center gap-2">
@@ -397,12 +404,12 @@ export default function AdminDashboard({ user, onLogout }: Props) {
 
                 <Dialog open={showRestaurantDialog} onOpenChange={setShowRestaurantDialog}>
                   <DialogTrigger asChild>
-                    <Button className="flex items-center gap-2">
-                      <Plus size={16} />
-                      Nuovo
+                    <Button className="h-11 px-6 bg-amber-500 hover:bg-amber-600 text-black font-bold rounded-xl shadow-lg shadow-amber-500/10 active:scale-95 transition-all">
+                      <Plus size={18} weight="bold" className="mr-2" />
+                      Nuovo Partner
                     </Button>
                   </DialogTrigger>
-                  <DialogContent className="max-w-md">
+                  <DialogContent className="max-w-md bg-black/95 border-amber-500/20 text-white backdrop-blur-2xl">
                     <DialogHeader>
                       <DialogTitle>Nuovo Ristorante Partner</DialogTitle>
                       <DialogDescription>
@@ -471,9 +478,9 @@ export default function AdminDashboard({ user, onLogout }: Props) {
                 const isPasswordVisible = visiblePasswords[restaurant.id]
 
                 return (
-                  <Card key={restaurant.id} className="overflow-hidden">
+                  <Card key={restaurant.id} className="bg-black/40 backdrop-blur-xl border border-white/5 rounded-2xl overflow-hidden hover:border-amber-500/30 transition-all group">
                     <CardContent className="p-0">
-                      <div className={`flex flex-col md:flex-row items-center p-4 gap-4 transition-all duration-300 ${!restaurant.isActive ? 'opacity-50 grayscale bg-muted/30' : ''}`}>
+                      <div className={`flex flex-col md:flex-row items-center p-5 gap-6 transition-all duration-300 ${!restaurant.isActive ? 'opacity-40 grayscale' : ''}`}>
 
                         {/* Left: Logo */}
                         <div className="flex-shrink-0">
@@ -506,69 +513,72 @@ export default function AdminDashboard({ user, onLogout }: Props) {
 
                           {/* Credentials (Compact) */}
                           {restaurantUser && (
-                            <div className="text-xs text-muted-foreground bg-muted/50 p-2 rounded border flex items-center justify-between gap-2">
-                              <div className="truncate">
-                                <span className="font-medium text-foreground">{restaurantUser.name}</span>
+                            <div className="bg-black/40 p-3 rounded-xl border border-white/5 flex items-center justify-between gap-4 group-hover:border-amber-500/10 transition-colors">
+                              <div className="flex flex-col">
+                                <span className="text-[10px] text-zinc-500 uppercase tracking-widest font-bold">Owner</span>
+                                <span className="text-sm font-medium text-white">{restaurantUser.name}</span>
                               </div>
-                              <div className="flex items-center gap-2 flex-shrink-0">
-                                <span className="font-mono bg-background px-1 rounded border">
+                              <div className="flex items-center gap-3">
+                                <div className="font-mono text-xs bg-zinc-900 px-2 py-1.5 rounded-lg border border-white/5 text-amber-500/90 tracking-wider">
                                   {isPasswordVisible ? restaurantUser.password_hash : '••••••••'}
-                                </span>
-                                <button
+                                </div>
+                                <Button
+                                  variant="ghost"
+                                  size="icon"
                                   onClick={() => togglePasswordVisibility(restaurant.id)}
-                                  className="text-muted-foreground hover:text-foreground p-1 hover:bg-background rounded"
+                                  className="h-8 w-8 text-zinc-500 hover:text-amber-500 hover:bg-amber-500/10 rounded-lg"
                                 >
-                                  {isPasswordVisible ? <EyeSlash size={12} /> : <Eye size={12} />}
-                                </button>
+                                  {isPasswordVisible ? <EyeSlash size={16} /> : <Eye size={16} />}
+                                </Button>
                               </div>
                             </div>
                           )}
                         </div>
 
                         {/* Right: Actions */}
-                        <div className="flex items-center gap-1 flex-shrink-0 border-l pl-4 ml-2">
+                        <div className="flex items-center gap-1.5 flex-shrink-0 border-l border-white/5 pl-6 ml-2">
                           <Button
                             variant="ghost"
                             size="icon"
-                            className="h-8 w-8 text-muted-foreground hover:text-primary"
+                            className="h-10 w-10 text-zinc-500 hover:text-amber-500 hover:bg-amber-500/10 rounded-xl"
                             onClick={() => handlePopulateData(restaurant.id)}
                             title="Popola Dati Demo"
                           >
-                            <Database size={16} />
+                            <Database size={20} />
                           </Button>
 
                           <Button
                             variant="ghost"
                             size="icon"
-                            className={`h-8 w-8 ${restaurant.isActive ? 'text-muted-foreground hover:text-destructive' : 'text-muted-foreground hover:text-green-600'}`}
+                            className={`h-10 w-10 rounded-xl ${restaurant.isActive ? 'text-zinc-500 hover:text-red-500 hover:bg-red-500/10' : 'text-zinc-500 hover:text-emerald-500 hover:bg-emerald-500/10'}`}
                             onClick={() => handleToggleActive(restaurant)}
                             title={restaurant.isActive ? "Disattiva" : "Attiva"}
                           >
                             {restaurant.isActive ? (
-                              <Eye size={18} />
+                              <Eye size={20} />
                             ) : (
-                              <EyeSlash size={18} />
+                              <EyeSlash size={20} />
                             )}
                           </Button>
 
                           <Button
                             variant="ghost"
                             size="icon"
-                            className="h-8 w-8 text-muted-foreground hover:text-foreground"
+                            className="h-10 w-10 text-zinc-500 hover:text-white hover:bg-white/5 rounded-xl"
                             onClick={() => handleEditRestaurant(restaurant)}
                             title="Modifica"
                           >
-                            <PencilSimple size={16} />
+                            <PencilSimple size={20} />
                           </Button>
 
                           <Button
                             variant="ghost"
                             size="icon"
-                            className="h-8 w-8 text-muted-foreground hover:text-destructive hover:bg-destructive/10"
+                            className="h-10 w-10 text-red-500/50 hover:text-red-500 hover:bg-red-500/10 rounded-xl"
                             onClick={() => handleDeleteRestaurant(restaurant.id)}
                             title="Elimina"
                           >
-                            <Trash size={16} />
+                            <Trash size={20} />
                           </Button>
                         </div>
 
@@ -656,7 +666,11 @@ export default function AdminDashboard({ user, onLogout }: Props) {
                 </div>
               )}
 
-              <Button onClick={handleSaveEdit} className="w-full" disabled={isUploading}>
+              <Button
+                onClick={handleSaveEdit}
+                className="w-full h-12 bg-amber-500 hover:bg-amber-600 text-black font-bold rounded-xl mt-4"
+                disabled={isUploading}
+              >
                 {isUploading ? 'Salvataggio...' : 'Salva Modifiche'}
               </Button>
             </div>
