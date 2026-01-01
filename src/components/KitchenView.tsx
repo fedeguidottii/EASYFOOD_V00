@@ -150,18 +150,18 @@ export function KitchenView({ orders, tables, dishes, selectedCategoryIds = [], 
                             return (
                                 <Card
                                     key={`table-${tableName}`}
-                                    className="flex flex-col rounded-2xl border-0 bg-gradient-to-br from-slate-900/95 via-slate-800/90 to-slate-900/95 backdrop-blur-xl shadow-lg transition-all duration-300 hover:scale-[1.01] h-fit"
+                                    className="flex flex-col rounded-xl border border-white/5 bg-zinc-900/60 backdrop-blur-md shadow-xl transition-all duration-300 hover:border-amber-500/30 h-fit"
                                 >
-                                    <CardHeader className="pb-3 pt-4 px-4 bg-gradient-to-r from-emerald-500/10 via-transparent to-cyan-500/10 border-b border-white/5 shrink-0">
+                                    <CardHeader className="pb-3 pt-4 px-4 border-b border-white/5 shrink-0 bg-white/5">
                                         <div className="flex justify-between items-center w-full">
-                                            <span className="text-4xl font-black bg-gradient-to-r from-white to-slate-300 bg-clip-text text-transparent drop-shadow-sm whitespace-nowrap overflow-hidden text-ellipsis max-w-[60%]">
+                                            <span className="text-3xl font-light text-zinc-100 whitespace-nowrap overflow-hidden text-ellipsis max-w-[60%] tracking-tight">
                                                 {tableName}
                                             </span>
 
                                             <div className="flex items-center gap-3 shrink-0">
-                                                <div className="flex items-center gap-2 px-3 py-1.5 rounded-xl font-bold text-2xl bg-slate-800/80 border border-white/10 shadow-inner">
-                                                    <Clock weight="fill" className="h-7 w-7 text-amber-400" />
-                                                    <span className="text-white">{formatTime(timeDiff)}</span>
+                                                <div className="flex items-center gap-2 px-3 py-1.5 rounded-lg font-bold text-xl bg-black/40 border border-white/5 shadow-inner">
+                                                    <Clock weight="fill" className="h-5 w-5 text-amber-500" />
+                                                    <span className="text-zinc-300">{formatTime(timeDiff)}</span>
                                                 </div>
                                             </div>
                                         </div>
@@ -179,10 +179,10 @@ export function KitchenView({ orders, tables, dishes, selectedCategoryIds = [], 
                                                         <div
                                                             key={`${item.id}-${idx}`}
                                                             className={cn(
-                                                                "flex items-center justify-between p-3 rounded-xl border transition-all duration-300 mb-2 group relative",
+                                                                "flex items-center justify-between p-3 rounded-lg border transition-all duration-300 mb-2 group relative",
                                                                 isItemDone
-                                                                    ? "opacity-40 bg-slate-800/30 border-transparent scale-[0.98]"
-                                                                    : "bg-gradient-to-r from-slate-800/60 to-slate-700/40 border-white/5 hover:from-slate-700/70 hover:to-slate-600/50 hover:border-white/10 hover:shadow-lg hover:shadow-emerald-500/5"
+                                                                    ? "opacity-30 bg-zinc-950/30 border-transparent scale-[0.99]"
+                                                                    : "bg-black/40 border-white/5 hover:border-amber-500/20 hover:bg-black/60"
                                                             )}
                                                         >
                                                             <div
@@ -191,23 +191,23 @@ export function KitchenView({ orders, tables, dishes, selectedCategoryIds = [], 
                                                             >
                                                                 <div className="flex items-baseline gap-3">
                                                                     <span className={cn(
-                                                                        "text-4xl font-black transition-colors duration-300 shrink-0",
-                                                                        isItemDone ? "text-slate-500" : "text-emerald-400 group-hover:text-emerald-300"
+                                                                        "text-3xl font-light transition-colors duration-300 shrink-0",
+                                                                        isItemDone ? "text-zinc-600" : "text-amber-500"
                                                                     )}>
                                                                         {item.quantity}
                                                                     </span>
                                                                     <div className="flex flex-col">
                                                                         <span className={cn(
-                                                                            "text-3xl font-bold leading-tight transition-colors duration-300 line-clamp-2",
-                                                                            isItemDone ? "text-slate-500" : "text-white group-hover:text-slate-100"
+                                                                            "text-lg font-medium leading-tight transition-colors duration-300 line-clamp-2",
+                                                                            isItemDone ? "text-zinc-600" : "text-zinc-200 group-hover:text-pure-white"
                                                                         )}>
                                                                             {dishName}
                                                                         </span>
-                                                                        {!dish && <span className="text-xs text-red-400">ID: {item.dish_id.slice(0, 8)}...</span>}
+                                                                        {!dish && <span className="text-xs text-red-500">ID: {item.dish_id.slice(0, 8)}</span>}
                                                                     </div>
                                                                 </div>
                                                                 {item.note && (
-                                                                    <div className="mt-2 text-red-400 font-bold text-lg bg-red-950/50 inline-block px-3 py-1 rounded-lg border border-red-500/30 shadow-lg shadow-red-500/10">
+                                                                    <div className="mt-2 text-amber-500 font-bold text-sm bg-amber-950/30 inline-block px-2 py-0.5 rounded border border-amber-900/50">
                                                                         ⚠️ {item.note}
                                                                     </div>
                                                                 )}
@@ -217,15 +217,15 @@ export function KitchenView({ orders, tables, dishes, selectedCategoryIds = [], 
                                                                 size="icon"
                                                                 variant={isItemDone ? "ghost" : "default"}
                                                                 className={cn(
-                                                                    "h-14 w-14 rounded-full flex-shrink-0 ml-3 transition-all duration-300",
+                                                                    "h-12 w-12 rounded-lg flex-shrink-0 ml-3 transition-all duration-300",
                                                                     isItemDone
-                                                                        ? "text-slate-600 bg-transparent"
-                                                                        : "bg-gradient-to-br from-emerald-500 to-emerald-600 hover:from-emerald-400 hover:to-emerald-500 text-white shadow-lg shadow-emerald-500/30 hover:shadow-emerald-500/50 hover:scale-110 active:scale-95"
+                                                                        ? "text-zinc-700 bg-transparent"
+                                                                        : "bg-amber-500 hover:bg-amber-400 text-black shadow-[0_0_15px_-5px_rgba(245,158,11,0.4)]"
                                                                 )}
                                                                 onClick={() => !isItemDone && onCompleteDish(item.orderId, item.id)}
                                                                 disabled={isItemDone}
                                                             >
-                                                                <Check weight="bold" className="h-8 w-8" />
+                                                                <Check weight="bold" className="h-6 w-6" />
                                                             </Button>
                                                         </div>
                                                     )
@@ -233,10 +233,10 @@ export function KitchenView({ orders, tables, dishes, selectedCategoryIds = [], 
 
                                                 {hasMultipleCourses && courseIdx < courseNumbers.length - 1 && (
                                                     // Divider
-                                                    <div className="my-4 flex items-center gap-3 opacity-60">
-                                                        <div className="flex-1 h-px bg-slate-500/50" />
-                                                        <span className="text-xs font-bold uppercase text-slate-500">Portata Succ.</span>
-                                                        <div className="flex-1 h-px bg-slate-500/50" />
+                                                    <div className="my-4 flex items-center gap-3 opacity-30">
+                                                        <div className="flex-1 h-px bg-zinc-500" />
+                                                        <span className="text-[10px] font-bold uppercase text-zinc-500 tracking-widest">Portata Succ.</span>
+                                                        <div className="flex-1 h-px bg-zinc-500" />
                                                     </div>
                                                 )}
                                             </div>
@@ -244,9 +244,9 @@ export function KitchenView({ orders, tables, dishes, selectedCategoryIds = [], 
 
                                         {/* Sticky Complete Button */}
                                         {!allItemsDone && (
-                                            <div className="sticky bottom-0 mt-auto pt-2 pb-1 bg-slate-900/0 backdrop-blur-none z-10">
+                                            <div className="sticky bottom-0 mt-auto pt-4 pb-1 bg-transparent z-10">
                                                 <Button
-                                                    className="w-full h-14 text-xl font-bold rounded-xl bg-gradient-to-r from-emerald-600 via-emerald-500 to-teal-500 hover:from-emerald-500 hover:via-emerald-400 hover:to-teal-400 text-white shadow-lg shadow-emerald-500/30 hover:shadow-emerald-500/50 transition-all duration-300 hover:scale-[1.02] active:scale-[0.98]"
+                                                    className="w-full h-12 text-lg font-bold rounded-xl bg-zinc-800 hover:bg-zinc-700 text-zinc-300 border border-white/5 hover:text-white hover:border-white/10 transition-all duration-300 active:scale-[0.98]"
                                                     onClick={(e) => {
                                                         e.preventDefault()
                                                         e.stopPropagation()
@@ -257,7 +257,7 @@ export function KitchenView({ orders, tables, dishes, selectedCategoryIds = [], 
                                                         })
                                                     }}
                                                 >
-                                                    <Check weight="bold" className="h-7 w-7 mr-2" />
+                                                    <Check weight="bold" className="h-5 w-5 mr-2" />
                                                     Completa Tutto
                                                 </Button>
                                             </div>
@@ -274,17 +274,17 @@ export function KitchenView({ orders, tables, dishes, selectedCategoryIds = [], 
                             return (
                                 <Card
                                     key={`dish-view-${idx}`}
-                                    className="flex flex-col shadow-lg border border-cyan-500/30 bg-slate-900/90 overflow-hidden h-fit"
+                                    className="flex flex-col shadow-lg border border-white/5 bg-zinc-900/60 backdrop-blur-md overflow-hidden h-fi hover:border-amber-500/20 transition-all"
                                 >
-                                    <CardHeader className="pb-2 border-b border-cyan-500/30 bg-cyan-500/5 p-3 shrink-0">
+                                    <CardHeader className="pb-2 border-b border-white/5 bg-white/5 p-3 shrink-0">
                                         <div
                                             className="flex justify-between items-center w-full cursor-pointer hover:opacity-80"
                                             onClick={() => setSelectedDishInfo({ dish: data.dish })}
                                         >
-                                            <span className="text-3xl font-black text-foreground leading-tight line-clamp-2">
+                                            <span className="text-xl font-medium text-zinc-100 leading-tight line-clamp-2">
                                                 {data.dish?.name || 'Piatto Sconosciuto'}
                                             </span>
-                                            {!data.dish && <Info className="text-red-400" />}
+                                            {!data.dish && <Info className="text-red-500" />}
                                         </div>
                                     </CardHeader>
 
@@ -298,36 +298,36 @@ export function KitchenView({ orders, tables, dishes, selectedCategoryIds = [], 
                                                 <div
                                                     key={`dv-${item.id}-${itemIdx}`}
                                                     className={cn(
-                                                        "flex items-center justify-between p-2 rounded-md border transition-all",
+                                                        "flex items-center justify-between p-2 rounded-lg border transition-all",
                                                         isItemDone
-                                                            ? "opacity-30 bg-muted border-transparent"
-                                                            : "bg-card border-transparent hover:bg-accent hover:border-border"
+                                                            ? "opacity-30 bg-black/20 border-transparent"
+                                                            : "bg-black/40 border-white/5 hover:border-amber-500/20"
                                                     )}
                                                 >
                                                     <div className="flex items-center gap-3">
-                                                        <span className="text-4xl font-black text-primary">
+                                                        <span className="text-3xl font-light text-amber-500">
                                                             {item.quantity}
                                                         </span>
-                                                        <span className="text-3xl font-bold text-foreground">
+                                                        <span className="text-2xl font-bold text-zinc-300">
                                                             {tableName}
                                                         </span>
                                                     </div>
 
                                                     <div className="flex items-center gap-4">
-                                                        <div className="font-bold text-2xl text-muted-foreground whitespace-nowrap">
+                                                        <div className="font-bold text-xl text-zinc-500 whitespace-nowrap">
                                                             {formatTime(timeDiff)}
                                                         </div>
                                                         <Button
                                                             size="icon"
                                                             variant={isItemDone ? "ghost" : "default"}
                                                             className={cn(
-                                                                "h-14 w-14 rounded-full flex-shrink-0",
-                                                                isItemDone ? "text-muted-foreground" : "bg-green-600 hover:bg-green-700 text-white shadow-md"
+                                                                "h-12 w-12 rounded-lg flex-shrink-0",
+                                                                isItemDone ? "text-zinc-600" : "bg-zinc-800 hover:bg-zinc-700 text-white border border-white/5"
                                                             )}
                                                             onClick={() => !isItemDone && onCompleteDish(order.id, item.id)}
                                                             disabled={isItemDone}
                                                         >
-                                                            <Check weight="bold" className="h-8 w-8" />
+                                                            <Check weight="bold" className="h-6 w-6" />
                                                         </Button>
                                                     </div>
                                                 </div>

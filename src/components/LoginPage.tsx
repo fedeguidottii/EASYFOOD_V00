@@ -134,43 +134,42 @@ export default function LoginPage({ onLogin }: Props) {
   }
 
   return (
-    <div className="min-h-screen flex flex-col items-center justify-center bg-zinc-950 text-zinc-50 p-4 font-sans selection:bg-amber-500/30 overflow-hidden relative">
-      {/* Ambient Background */}
+    <div className="min-h-screen flex flex-col items-center justify-center bg-black text-amber-50 p-4 font-sans selection:bg-amber-500/30 overflow-hidden relative">
+      {/* Subtle Gold Ambient Background */}
       <div className="absolute inset-0 overflow-hidden pointer-events-none">
-        <div className="absolute top-[-10%] left-[-10%] w-[50%] h-[50%] bg-amber-500/5 rounded-full blur-[150px]" />
-        <div className="absolute bottom-[-10%] right-[-10%] w-[40%] h-[40%] bg-amber-500/5 rounded-full blur-[120px]" />
+        <div className="absolute top-[-20%] left-[-20%] w-[60%] h-[60%] bg-amber-500/5 rounded-full blur-[150px] opacity-40" />
       </div>
 
       <motion.div
         initial={{ opacity: 0, scale: 0.95, y: 20 }}
         animate={{ opacity: 1, scale: 1, y: 0 }}
         transition={{ duration: 0.5, ease: "easeOut" }}
-        className="w-full max-w-[400px] relative z-10"
+        className="w-full max-w-[380px] relative z-10"
       >
-        <div className="text-center mb-10 space-y-2">
+        <div className="text-center mb-10 space-y-4">
           <motion.div
             initial={{ scale: 0, rotate: -20 }}
             animate={{ scale: 1, rotate: 0 }}
             transition={{ type: "spring", stiffness: 260, damping: 20, delay: 0.1 }}
-            className="inline-flex items-center justify-center w-16 h-16 rounded-2xl bg-zinc-900 border border-zinc-800 text-amber-500 mb-6 shadow-2xl shadow-amber-900/10"
+            className="inline-flex items-center justify-center w-20 h-20 rounded-full bg-zinc-900/50 border border-amber-500/20 text-amber-500 mb-6 shadow-[0_0_30px_-10px_rgba(245,158,11,0.3)] backdrop-blur-md"
           >
-            <Users weight="duotone" size={32} />
+            <Users weight="fill" size={32} />
           </motion.div>
           <motion.h1
             initial={{ opacity: 0, y: 10 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: 0.2 }}
-            className="text-2xl font-bold tracking-tight text-white"
+            className="text-3xl font-light tracking-tight text-white"
           >
-            Bentornato
+            Benvenuto in <span className="font-bold text-amber-500">EASYFOOD</span>
           </motion.h1>
           <motion.p
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             transition={{ delay: 0.3 }}
-            className="text-sm text-zinc-400"
+            className="text-sm text-zinc-500 uppercase tracking-widest font-medium"
           >
-            Inserisci le tue credenziali per accedere
+            Area Riservata Staff
           </motion.p>
         </div>
 
@@ -178,68 +177,73 @@ export default function LoginPage({ onLogin }: Props) {
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 0.4 }}
-          className="bg-zinc-900/50 border border-zinc-800 rounded-2xl p-8 backdrop-blur-sm shadow-xl space-y-6"
+          className="bg-zinc-900/30 border border-white/5 rounded-2xl p-8 backdrop-blur-md shadow-2xl relative overflow-hidden"
         >
-          <div className="space-y-4">
+          {/* Decorative top shimmer line */}
+          <div className="absolute top-0 left-0 right-0 h-[1px] bg-gradient-to-r from-transparent via-amber-500/50 to-transparent opacity-50" />
+
+          <div className="space-y-6">
             <div className="space-y-2">
-              <Label htmlFor="username" className="text-xs font-medium text-zinc-400 uppercase tracking-wider">Nome Utente</Label>
-              <Input
-                id="username"
-                value={username}
-                onChange={(e) => setUsername(e.target.value)}
-                placeholder="es. nomeristorante"
-                className="bg-zinc-950/50 border-zinc-800 focus:border-amber-500/50 focus:ring-amber-500/20 text-zinc-100 placeholder:text-zinc-600 h-11 transition-all"
-              />
+              <Label htmlFor="username" className="text-[10px] font-bold text-zinc-500 uppercase tracking-wider pl-1">ID Ristorante / Utente</Label>
+              <div className="group relative">
+                <Input
+                  id="username"
+                  value={username}
+                  onChange={(e) => setUsername(e.target.value)}
+                  placeholder="Inserisci ID..."
+                  className="bg-black/50 border-white/10 focus:border-amber-500/50 focus:ring-1 focus:ring-amber-500/20 text-indigo-50 placeholder:text-zinc-700 h-12 transition-all pl-4 rounded-xl"
+                />
+              </div>
             </div>
             <div className="space-y-2">
-              <Label htmlFor="password" className="text-xs font-medium text-zinc-400 uppercase tracking-wider flex justify-between">
+              <Label htmlFor="password" className="text-[10px] font-bold text-zinc-500 uppercase tracking-wider pl-1 flex justify-between">
                 <span>Password</span>
               </Label>
-              <div className="relative">
+              <div className="relative group">
                 <Input
                   id="password"
                   type={showPassword ? "text" : "password"}
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
                   placeholder="••••••••"
-                  className="bg-zinc-950/50 border-zinc-800 focus:border-amber-500/50 focus:ring-amber-500/20 text-zinc-100 placeholder:text-zinc-600 h-11 pr-10 transition-all"
+                  className="bg-black/50 border-white/10 focus:border-amber-500/50 focus:ring-1 focus:ring-amber-500/20 text-indigo-50 placeholder:text-zinc-700 h-12 pr-10 transition-all pl-4 rounded-xl"
                 />
                 <button
                   type="button"
                   onClick={() => setShowPassword(!showPassword)}
-                  className="absolute right-3 top-1/2 -translate-y-1/2 text-zinc-500 hover:text-zinc-300 transition-colors"
+                  className="absolute right-4 top-1/2 -translate-y-1/2 text-zinc-600 hover:text-amber-500 transition-colors"
                   tabIndex={-1}
                 >
-                  {showPassword ? <EyeSlash size={18} /> : <Eye size={18} />}
+                  {showPassword ? <EyeSlash size={20} /> : <Eye size={20} />}
                 </button>
               </div>
             </div>
 
-            <div className="flex items-center space-x-2 pt-2">
+            <div className="flex items-center space-x-3 pt-2 pl-1">
               <Checkbox
                 id="remember-me"
                 checked={rememberMe}
                 onCheckedChange={(checked) => setRememberMe(checked === true)}
-                className="border-white/10 data-[state=checked]:bg-amber-500 data-[state=checked]:border-amber-500 text-black"
+                className="border-white/20 data-[state=checked]:bg-amber-500 data-[state=checked]:border-amber-500 data-[state=checked]:text-black rounded-[4px] w-5 h-5"
               />
-              <Label htmlFor="remember-me" className="text-sm text-zinc-400 cursor-pointer font-normal hover:text-zinc-300 transition-colors">
-                Ricordami
+              <Label htmlFor="remember-me" className="text-sm text-zinc-400 cursor-pointer font-normal hover:text-white transition-colors select-none">
+                Resta collegato
               </Label>
             </div>
           </div>
 
-          <motion.div whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.98 }}>
+          <motion.div whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.98 }} className="mt-8">
             <Button
               onClick={handleAdminLogin}
               disabled={isLoading || !username || !password}
-              className="w-full bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-400 hover:to-amber-500 text-black h-11 font-bold rounded-lg transition-all shadow-lg shadow-amber-900/20 disabled:opacity-50 disabled:cursor-not-allowed border-none"
+              className="w-full bg-amber-500 hover:bg-amber-400 text-black h-12 font-bold rounded-xl transition-all shadow-[0_0_20px_-5px_rgba(245,158,11,0.3)] hover:shadow-[0_0_25px_-5px_rgba(245,158,11,0.5)] disabled:opacity-50 disabled:cursor-not-allowed border-none text-base tracking-wide"
             >
               {isLoading ? (
                 <div className="flex items-center gap-2">
-                  <div className="w-4 h-4 border-2 border-black/30 border-t-black rounded-full animate-spin" />
-                  <span>Accesso...</span>
+                  <div className="w-5 h-5 border-2 border-black/30 border-t-black rounded-full animate-spin" />
+                  <span>Verifica...</span>
                 </div>
-              ) : 'Accedi'}
+              ) : 'ACCEDI'}
             </Button>
           </motion.div>
         </motion.div>
@@ -248,9 +252,9 @@ export default function LoginPage({ onLogin }: Props) {
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
           transition={{ delay: 0.6 }}
-          className="text-center text-xs text-zinc-600 mt-8"
+          className="text-center text-[10px] text-zinc-700 mt-12 uppercase tracking-widest"
         >
-          &copy; {new Date().getFullYear()} EASYFOOD. Tutti i diritti riservati.
+          Secured by EASYFOOD Systems
         </motion.p>
       </motion.div>
     </div>

@@ -38,7 +38,7 @@ import type { Table, Order, Dish, Category, TableSession, Booking, Restaurant, R
 import { soundManager, type SoundType } from '../utils/SoundManager'
 import { ModeToggle } from './ModeToggle'
 import { motion, AnimatePresence } from 'framer-motion'
-import { OnboardingTour, useOnboardingTour, DASHBOARD_TOUR_STEPS } from './OnboardingTour'
+
 
 interface RestaurantDashboardProps {
   user: any
@@ -78,9 +78,6 @@ const RestaurantDashboard = ({ user, onLogout }: RestaurantDashboardProps) => {
   const restaurantTables = tables || []
   const restaurantOrders = orders || []
   const restaurantCompletedOrders = useMemo(() => orders?.filter(o => o.status === 'completed') || [], [orders])
-
-  // Onboarding Tour
-  const { isOpen: isTourOpen, completeTour, startTour } = useOnboardingTour()
 
   // Sound Settings State
   const [selectedReservationDate, setSelectedReservationDate] = useState(new Date())
@@ -1132,13 +1129,13 @@ const RestaurantDashboard = ({ user, onLogout }: RestaurantDashboardProps) => {
 
   if (!restaurantId) {
     return (
-      <div className="flex flex-col items-center justify-center h-screen gap-6 bg-zinc-950 text-zinc-100">
-        <div className="w-12 h-12 border-4 border-emerald-500/30 border-t-emerald-500 rounded-full animate-spin" />
+      <div className="flex flex-col items-center justify-center h-screen gap-6 bg-black text-amber-50">
+        <div className="w-12 h-12 border-4 border-amber-500/20 border-t-amber-500 rounded-full animate-spin shadow-[0_0_30px_-5px_rgba(245,158,11,0.3)]" />
         <div className="flex flex-col items-center gap-2">
-          <p className="text-lg font-medium tracking-wide">EASYFOOD</p>
-          <p className="text-sm text-zinc-500">Caricamento ristorante...</p>
+          <p className="text-lg font-light tracking-[0.2em] upercase">EASYFOOD</p>
+          <p className="text-xs text-zinc-600 uppercase tracking-widest">Caricamento sistema...</p>
         </div>
-        <Button variant="ghost" onClick={onLogout} className="mt-8 text-zinc-500 hover:text-zinc-300 hover:bg-white/5">
+        <Button variant="ghost" onClick={onLogout} className="mt-8 text-zinc-600 hover:text-amber-500 hover:bg-white/5 uppercase text-xs tracking-widest">
           Torna al login
         </Button>
       </div>
@@ -1146,32 +1143,39 @@ const RestaurantDashboard = ({ user, onLogout }: RestaurantDashboardProps) => {
   }
 
   return (
-    <div className="flex h-screen w-full bg-zinc-950 text-zinc-100 font-sans overflow-hidden selection:bg-amber-500/30">
-      {/* Sidebar - Fixed & Professional - Gold/Black Theme */}
-      <aside className="w-64 bg-zinc-950 border-r border-zinc-900 flex flex-col flex-shrink-0 z-20 shadow-2xl relative">
-        <div className="p-6 border-b border-zinc-900 flex items-center gap-3">
-          <div className="p-2 bg-amber-500/10 rounded-xl text-amber-500">
-            <ChefHat size={28} weight="duotone" />
+    <div className="flex h-screen w-full bg-black text-zinc-200 font-sans overflow-hidden selection:bg-amber-500/30">
+      {/* Background Ambience */}
+      <div className="absolute inset-0 overflow-hidden pointer-events-none z-0">
+        <div className="absolute top-[-20%] left-[-10%] w-[50%] h-[50%] bg-amber-500/5 rounded-full blur-[150px] opacity-30" />
+      </div>
+
+      {/* Sidebar - Pure Black & Gold */}
+      <aside className="w-64 bg-black/80 backdrop-blur-xl border-r border-white/5 flex flex-col flex-shrink-0 z-20 relative">
+        <div className="p-6 border-b border-white/5 flex items-center gap-4">
+          <div className="p-2.5 bg-zinc-900/80 border border-amber-500/20 rounded-xl text-amber-500 shadow-[0_0_15px_-5px_rgba(245,158,11,0.3)]">
+            <ChefHat size={24} weight="fill" />
           </div>
-          <div>
-            <h1 className="font-bold text-lg text-zinc-100 tracking-tight leading-none">{currentRestaurant?.name || 'EASYFOOD'}</h1>
-            <p className="text-[10px] uppercase tracking-widest text-zinc-500 font-semibold mt-1">Dashboard</p>
+          <div className="overflow-hidden">
+            <h1 className="font-medium text-base text-zinc-100 tracking-tight leading-none truncate">{currentRestaurant?.name || 'EASYFOOD'}</h1>
+            <p className="text-[9px] uppercase tracking-[0.2em] text-zinc-600 font-bold mt-1.5 flex items-center gap-1">
+              <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 shadow-[0_0_8px_rgba(16,185,129,0.5)]"></span>
+              Online
+            </p>
           </div>
         </div>
 
         <nav className="flex-1 px-3 py-6 space-y-1 overflow-y-auto">
           {[
-            { id: 'orders', label: 'Ordini', icon: Clock, tour: 'welcome' },
-            { id: 'tables', label: 'Tavoli', icon: MapPin, tour: 'tables' },
-            { id: 'menu', label: 'Menu', icon: BookOpen, tour: 'menu' },
-            { id: 'reservations', label: 'Prenotazioni', icon: Calendar, tour: 'reservations' },
-            { id: 'analytics', label: 'Analitiche', icon: ChartBar, tour: 'analytics' },
-            { id: 'settings', label: 'Impostazioni', icon: Gear, tour: 'settings' },
+            { id: 'orders', label: 'Ordini', icon: Clock },
+            { id: 'tables', label: 'Tavoli', icon: MapPin },
+            { id: 'menu', label: 'Menu', icon: BookOpen },
+            { id: 'reservations', label: 'Prenotazioni', icon: Calendar },
+            { id: 'analytics', label: 'Analitiche', icon: ChartBar },
+            { id: 'settings', label: 'Impostazioni', icon: Gear },
           ].map((item) => (
             <Button
               key={item.id}
               variant="ghost"
-              data-tour={item.tour}
               className={`w-full justify-start h-12 px-4 rounded-xl transition-all duration-200 group relative overflow-hidden ${activeTab === item.id
                 ? 'bg-amber-500/10 text-amber-500 font-medium'
                 : 'text-zinc-500 hover:text-zinc-200 hover:bg-zinc-900'
@@ -1184,31 +1188,31 @@ const RestaurantDashboard = ({ user, onLogout }: RestaurantDashboardProps) => {
             >
               <item.icon
                 size={22}
-                weight={activeTab === item.id ? 'duotone' : 'regular'}
-                className={`mr-3 transition-colors ${activeTab === item.id ? 'text-amber-500' : 'text-zinc-500 group-hover:text-zinc-300'}`}
+                weight={activeTab === item.id ? 'fill' : 'regular'}
+                className={`mr-3 transition-colors ${activeTab === item.id ? 'text-amber-500' : 'text-zinc-600 group-hover:text-zinc-300'}`}
               />
-              <span className="relative z-10">{item.label}</span>
+              <span className={`relative z-10 text-sm tracking-wide ${activeTab === item.id ? 'font-semibold' : 'font-normal'}`}>{item.label}</span>
               {activeTab === item.id && (
-                <div className="absolute left-0 top-0 bottom-0 w-1 bg-amber-500 rounded-r-full" />
+                <div className="absolute inset-0 bg-amber-500/5 rounded-xl border border-amber-500/10 shadow-[inner_0_0_10px_rgba(245,158,11,0.05)]" />
               )}
             </Button>
           ))}
         </nav>
 
-        <div className="p-4 border-t border-zinc-900 bg-zinc-950/50">
+        <div className="p-4 border-t border-white/5 bg-black/20">
           <Button
             variant="ghost"
             onClick={onLogout}
-            className="w-full justify-start h-12 px-4 rounded-xl text-red-400 hover:text-red-300 hover:bg-red-500/10 transition-all border border-transparent hover:border-red-500/20"
+            className="w-full justify-start h-12 px-4 rounded-xl text-zinc-500 hover:text-red-400 hover:bg-red-500/5 transition-all border border-transparent hover:border-red-500/10 group"
           >
-            <SignOut size={20} weight="duotone" className="mr-3" />
-            Esci
+            <SignOut size={20} weight="regular" className="mr-3 group-hover:text-red-400 transition-colors" />
+            <span className="text-sm tracking-wide">Esci</span>
           </Button>
         </div>
       </aside>
 
-      {/* Main Content Info */}
-      <main className="flex-1 flex flex-col min-w-0 overflow-hidden relative bg-zinc-950">
+      {/* Main Content Area */}
+      <main className="flex-1 flex flex-col min-w-0 overflow-hidden relative z-10">
         <div className="flex-1 overflow-y-auto p-4 sm:p-6 lg:p-8 scroll-smooth scrollbar-thin scrollbar-thumb-zinc-800 scrollbar-track-transparent">
           <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-8 animate-in fade-in-30 duration-500">
             {/* Orders Tab */}
@@ -1779,8 +1783,8 @@ const RestaurantDashboard = ({ user, onLogout }: RestaurantDashboardProps) => {
                         <Card
                           key={table.id}
                           className={`relative overflow-hidden transition-all duration-300 group cursor-pointer ${isActive
-                            ? 'bg-amber-950/20 border-amber-900/50 ring-1 ring-amber-500/20 shadow-lg shadow-amber-900/10'
-                            : 'bg-zinc-900 border-zinc-800 hover:border-zinc-700 hover:bg-zinc-800/80 shadow-none'
+                            ? 'bg-amber-500/5 border-amber-500/30 shadow-[0_0_20px_-5px_rgba(245,158,11,0.2)]'
+                            : 'bg-black/40 border-white/5 hover:border-amber-500/20 hover:bg-black/60 shadow-none'
                             }`}
                           onClick={() => {
                             if (isActive) {
@@ -2365,8 +2369,6 @@ const RestaurantDashboard = ({ user, onLogout }: RestaurantDashboardProps) => {
                     DatabaseService.updateRestaurant({ id: restaurantId, weekly_ayce: schedule })
                   }
                 }}
-
-                onRestartTour={startTour}
               />
             </TabsContent >
           </Tabs >
@@ -2948,13 +2950,6 @@ const RestaurantDashboard = ({ user, onLogout }: RestaurantDashboardProps) => {
 
         </div >
       </main >
-
-      {/* Onboarding Tour for new users */}
-      <OnboardingTour
-        steps={DASHBOARD_TOUR_STEPS}
-        isOpen={isTourOpen}
-        onComplete={completeTour}
-      />
     </div >
   )
 }

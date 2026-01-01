@@ -29,6 +29,7 @@ const PublicReservationPage = () => {
     // Form Data
     const [name, setName] = useState('')
     const [phone, setPhone] = useState('')
+    const [email, setEmail] = useState('')
     const [pax, setPax] = useState('2')
     const [date, setDate] = useState(new Date().toISOString().split('T')[0])
     const [time, setTime] = useState('19:30')
@@ -173,28 +174,93 @@ const PublicReservationPage = () => {
         setLoading(false)
     }
 
-    const handleConfirmBooking = async () => {
-        if (!assignedTable || !restaurantId) return
-
+    const sendConfirmationEmail = async (bookingDetails: { name: string, restaurantName: string, date: string, time: string, guests: string, room: string, email: string }) => {
         try {
-            setSubmitting(true)
-            const bookingDate = new Date(`${date}T${time}`).toISOString()
+            const { data, error } = await supabase.functions.invoke('send-email', {
+                body: {
+                    to: [bookingDetails.email],
+                    subject: `Conferma Prenotazione - ${bookingDetails.restaurantName}`,
+                    html: `
+            <div style="font-family: sans-serif; background-color: #000000; color: #fff; padding: 40px; border-radius: 10px; border: 1px solid #333;">
+              <h1 style="color: #f59e0b; margin-bottom: 20px;">Prenotazione Confermata! ✅</h1>
+              <p style="font-size: 16px; color: #e4e4e7;">Ciao <strong>${bookingDetails.name}</strong>,</p>
+              <p style="font-size: 16px; color: #a1a1aa;">La tua prenotazione presso <strong style="color: #fff;">${bookingDetails.restaurantName}</strong> è stata confermata.</p>
+              
+              <div style="background-color: #111111; padding: 20px; border-radius: 8px; margin: 30px 0; border: 1px solid #f59e0b;">
+                <p style="margin: 5px 0;">📅 Data: <strong>${new Date(bookingDetails.date).toLocaleDateString('it-IT')}</strong></p>
+                <p style="margin: 5px 0;">🕒 Ora: <strong>${bookingDetails.time}</strong></p>
+                <p style="margin: 5px 0;">👥 Persone: <strong>${bookingDetails.guests}</strong></p>
+                <p style="margin: 5px 0;">📍 Sala: <strong>${bookingDetails.room}</strong></p>
+              </div>
 
-            await DatabaseService.createBooking({
-                restaurant_id: restaurantId,
-                table_id: assignedTable.id,
-                name: name.trim(),
-                phone: phone.trim(),
-                guests: parseInt(pax),
-                date_time: bookingDate,
-                status: 'CONFIRMED',
-                notes: notes ? `[Self-Service] ${notes}` : `[Self-Service]`
+              <p style="font-size: 14px; color: #71717a;">Se devi cancellare o modificare, contattaci telefonicamente.</p>
+              <p style="font-size: 14px; color: #71717a; margin-top: 40px;">Powered by EASYFOOD</p>
+            </div>
+                    `
+                }
             })
 
+            if (error) {
+                console.error("Error invoking send-email function:", error)
+                toast.error("Errore invio email conferma")
+            } else {
+                console.log("Email sent successfully:", data)
+            }
+
+        } catch (error) {
+            console.error("Failed to call Edge Function:", error)
+        }
+    }
+
+    const handleConfirmBooking = async () => {
+        if (submitting) return
+        setSubmitting(true)
+
+        try {
+            // 1. Create User/Guest if not exists (simplified logic here)
+            // For now we store user info directly in booking or assume anonymous
+
+            // 2. Create Booking
+            const bookingData = {
+                restaurant_id: restaurantId,
+                table_id: null, // Will be assigned by staff or auto-assigned logic later
+                user_id: null, // Anonymous for now
+                booking_date: date,
+                booking_time: time,
+                guests: parseInt(pax),
+                status: 'pending',
+                notes: `Nome: ${name}, Tel: ${phone}. ${notes || ''}`,
+                room_id: selectedRoomId === 'any' ? null : selectedRoomId,
+                customer_name: name,
+                customer_phone: phone,
+                customer_email: email
+            }
+
+            const { data, error } = await supabase
+                .from('bookings')
+                .insert(bookingData)
+                .select()
+
+            if (error) throw error
+
+            // 3. Send Email (Fire and forget, don't block UI)
+            const roomName = selectedRoomId === 'any' ? 'Qualsiasi' : rooms.find(r => r.id === selectedRoomId)?.name || 'Sala richiesta'
+            sendConfirmationEmail({
+                email: email,
+                name: name,
+                restaurantName: restaurant?.name || 'Ristorante',
+                date: date,
+                time: time,
+                guests: pax,
+                room: roomName
+            })
+
+            toast.success("Prenotazione inviata con successo!")
             setStep('success')
-        } catch (err) {
-            console.error(err)
-            toast.error("Impossibile completare la prenotazione")
+
+        } catch (err: any) {
+            console.error('Booking error:', err)
+            toast.error("Errore durante la prenotazione. Riprova.")
         } finally {
             setSubmitting(false)
         }
@@ -372,6 +438,17 @@ const PublicReservationPage = () => {
                                                 placeholder="+39 333 ..."
                                                 value={phone}
                                                 onChange={(e) => setPhone(e.target.value)}
+                                                className="h-11 bg-zinc-950 border-zinc-800 focus:border-amber-500/50 text-zinc-100 placeholder:text-zinc-600"
+                                            />
+                                        </div>
+                                        {/* Email */}
+                                        <div className="space-y-2">
+                                            <Label className="text-zinc-400 text-xs uppercase tracking-wide font-semibold">Email *</Label>
+                                            <Input
+                                                type="email"
+                                                placeholder="mario.rossi@email.com"
+                                                value={email}
+                                                onChange={(e) => setEmail(e.target.value)}
                                                 className="h-11 bg-zinc-950 border-zinc-800 focus:border-amber-500/50 text-zinc-100 placeholder:text-zinc-600"
                                             />
                                         </div>
@@ -575,7 +652,7 @@ const PublicReservationPage = () => {
             <footer className="py-6 text-center text-zinc-600 text-xs border-t border-zinc-800/30">
                 Powered by EASYFOOD
             </footer>
-        </div>
+        </div >
     )
 }
 

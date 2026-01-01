@@ -80,8 +80,6 @@ interface SettingsViewProps {
     setWeeklyCoperto: (schedule: WeeklyCopertoSchedule) => void
     weeklyAyce: WeeklyAyceSchedule | undefined
     setWeeklyAyce: (schedule: WeeklyAyceSchedule) => void
-    // Optional: Tour restart
-    onRestartTour?: () => void
 }
 
 export function SettingsView({
@@ -125,8 +123,7 @@ export function SettingsView({
     weeklyCoperto,
     setWeeklyCoperto,
     weeklyAyce,
-    setWeeklyAyce,
-    onRestartTour
+    setWeeklyAyce
 }: SettingsViewProps) {
 
     const containerVariants = {
@@ -222,29 +219,7 @@ export function SettingsView({
                             </div>
                         </div>
 
-                        {/* Tutorial */}
-                        {onRestartTour && (
-                            <div className="p-6 rounded-2xl bg-zinc-900/50 border border-white/5 backdrop-blur-sm">
-                                <h3 className="text-xl font-bold mb-4 flex items-center gap-2">
-                                    <Info className="text-amber-500" />
-                                    Aiuto
-                                </h3>
-                                <div className="flex items-center justify-between">
-                                    <div className="space-y-1">
-                                        <p className="text-zinc-300">Non ricordi come funziona qualcosa?</p>
-                                        <p className="text-sm text-zinc-500">Rivedi il tutorial interattivo per scoprire tutte le funzionalità.</p>
-                                    </div>
-                                    <Button
-                                        variant="outline"
-                                        onClick={onRestartTour}
-                                        className="border-amber-500/30 text-amber-400 hover:bg-amber-500/10 hover:border-amber-500/50"
-                                    >
-                                        <Gear className="mr-2" size={16} />
-                                        Rivedi Tutorial
-                                    </Button>
-                                </div>
-                            </div>
-                        )}
+
 
                         {/* Suoni */}
                         <div className="p-6 rounded-2xl bg-zinc-900/50 border border-white/5 backdrop-blur-sm">
