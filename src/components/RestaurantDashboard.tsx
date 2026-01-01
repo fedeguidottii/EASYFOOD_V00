@@ -2968,13 +2968,14 @@ const RestaurantDashboard = ({ user, onLogout }: RestaurantDashboardProps) => {
                   const isAyceActive = session?.ayce_enabled ?? ayceEnabled
                   const isCoverActive = session?.coperto_enabled ?? copertoEnabled
 
-                  // Calculate effective prices based on schedule
+                  // Calculate effective prices based on schedule - use local state first for immediate updates
+                  // This mirrors the logic in the activation dialog to ensure what you see in settings is what you get here
                   const effectiveCoperto = currentRestaurant
-                    ? getCurrentCopertoPrice(currentRestaurant, lunchTimeStart, dinnerTimeStart).price
+                    ? getCurrentCopertoPrice({ ...currentRestaurant, weekly_coperto: weeklyCoperto } as any, lunchTimeStart, dinnerTimeStart).price
                     : (typeof copertoPrice === 'string' ? parseFloat(copertoPrice) : copertoPrice)
 
                   const effectiveAyce = currentRestaurant
-                    ? getCurrentAyceSettings(currentRestaurant, lunchTimeStart, dinnerTimeStart).price
+                    ? getCurrentAyceSettings({ ...currentRestaurant, weekly_ayce: weeklyAyce } as any, lunchTimeStart, dinnerTimeStart).price
                     : (typeof aycePrice === 'string' ? parseFloat(aycePrice) : aycePrice)
 
                   const coverCharge = (isCoverActive ? (effectiveCoperto || 0) : 0) * customerCount
