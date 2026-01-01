@@ -138,6 +138,7 @@ export interface Table {
     // Frontend helper properties
     status?: 'available' | 'occupied'
     current_session_id?: string
+    is_active?: boolean
     isActive?: boolean // For frontend compatibility
     name?: string // Alias for number
     remainingOrders?: number

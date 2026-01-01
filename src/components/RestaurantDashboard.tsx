@@ -483,6 +483,7 @@ const RestaurantDashboard = ({ user, onLogout }: RestaurantDashboardProps) => {
   // Duplicate editTableSeats removed in previous step (kept here as comment or cleaned up later)
   const [newTableRoomId, setNewTableRoomId] = useState<string>('all')
   const [editTableRoomId, setEditTableRoomId] = useState<string>('all')
+  const [editTableIsActive, setEditTableIsActive] = useState<boolean>(true)
 
   // Room State
   const [selectedRoomFilter, setSelectedRoomFilter] = useState<string>('all')
@@ -1041,6 +1042,7 @@ const RestaurantDashboard = ({ user, onLogout }: RestaurantDashboardProps) => {
     setEditTableName(table.number)
     setEditTableSeats(table.seats || 4)
     setEditTableRoomId(table.room_id || 'all')
+    setEditTableIsActive(table.is_active !== false)
   }
 
   const handleCreateDish = async () => {
@@ -2047,6 +2049,7 @@ const RestaurantDashboard = ({ user, onLogout }: RestaurantDashboardProps) => {
                       return 0
                     })
                     .map(table => {
+                      const isTableMarkedInactive = table.is_active === false
                       const session = getOpenSessionForTable(table.id)
                       const isActive = session?.status === 'OPEN'
                       const activeOrder = restaurantOrders.find(o => getTableIdFromOrder(o) === table.id)
@@ -2054,20 +2057,28 @@ const RestaurantDashboard = ({ user, onLogout }: RestaurantDashboardProps) => {
                       return (
                         <Card
                           key={table.id}
-                          className={`relative overflow-hidden transition-all duration-300 group cursor-pointer ${isActive
-                            ? 'bg-amber-950/20 border-amber-500/50 shadow-[0_0_15px_-5px_rgba(245,158,11,0.3)]'
-                            : 'bg-black/40 border-emerald-500/20 shadow-[0_0_15px_-5px_rgba(16,185,129,0.1)] hover:border-emerald-500/40'
+                          className={`relative overflow-hidden transition-all duration-300 group cursor-pointer ${isTableMarkedInactive
+                            ? 'opacity-30 grayscale pointer-events-none'
+                            : isActive
+                              ? 'bg-amber-950/20 border-amber-500/50 shadow-[0_0_15px_-5px_rgba(245,158,11,0.3)]'
+                              : 'bg-black/40 border-emerald-500/20 shadow-[0_0_15px_-5px_rgba(16,185,129,0.1)] hover:border-emerald-500/40'
                             }`}
                           onClick={() => {
+                            if (isTableMarkedInactive) return
                             if (isActive) {
                               setPendingAutoOrderTableId(table.id)
-                              handleToggleTable(table.id) // Or handle opening table details
+                              handleToggleTable(table.id)
                             } else {
                               setPendingAutoOrderTableId(table.id)
                               handleToggleTable(table.id)
                             }
                           }}
                         >
+                          {isTableMarkedInactive && (
+                            <div className="absolute inset-0 z-10 flex items-center justify-center bg-black/40">
+                              <span className="text-[10px] font-black uppercase tracking-[0.3em] text-white/40 -rotate-12 border-2 border-white/20 px-3 py-1 rounded">Disattivato</span>
+                            </div>
+                          )}
                           {isActive && (
                             <div className="absolute top-0 right-0 w-16 h-16 bg-amber-500/10 blur-xl rounded-full -mr-8 -mt-8 pointer-events-none"></div>
                           )}
@@ -2840,15 +2851,26 @@ const RestaurantDashboard = ({ user, onLogout }: RestaurantDashboardProps) => {
                     </SelectContent>
                   </Select>
                 </div>
+
+                <div className="flex items-center justify-between p-3 bg-white/5 rounded-xl border border-white/10">
+                  <div className="space-y-0.5">
+                    <Label className="text-zinc-100 font-bold mb-0">Tavolo Attivo</Label>
+                    <p className="text-[10px] text-zinc-500 uppercase tracking-wider font-bold">Escludi questo tavolo dalle prenotazioni</p>
+                  </div>
+                  <Switch
+                    checked={editTableIsActive}
+                    onCheckedChange={setEditTableIsActive}
+                  />
+                </div>
                 <Button onClick={() => {
                   if (editingTable && editTableName.trim()) {
                     const seats = typeof editTableSeats === 'string' ? parseInt(editTableSeats) || 4 : editTableSeats
                     const room_id = editTableRoomId !== 'all' ? editTableRoomId : null
                     // We use 'any' cast or explicit property if type is not fully updated in TS yet, but Room is added.
                     // However updateTable takes Partial<Table>, and Table has room_id.
-                    DatabaseService.updateTable(editingTable.id, { number: editTableName, seats, room_id } as any)
+                    DatabaseService.updateTable(editingTable.id, { number: editTableName, seats, room_id, is_active: editTableIsActive } as any)
                       .then(() => {
-                        setTables(prev => prev.map(t => t.id === editingTable.id ? { ...t, number: editTableName, seats, room_id: room_id || undefined } : t))
+                        setTables(prev => prev.map(t => t.id === editingTable.id ? { ...t, number: editTableName, seats, room_id: room_id || undefined, is_active: editTableIsActive } : t))
                         setEditingTable(null)
                         toast.success('Tavolo aggiornato')
                       })

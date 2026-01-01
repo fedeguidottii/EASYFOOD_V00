@@ -144,12 +144,13 @@ const PublicReservationPage = () => {
                 // If the user has tables, sum of seats. Otherwise use a fallback.
                 const { data: tables } = await supabase
                     .from('tables')
-                    .select('seats')
+                    .select('id, seats, is_active')
                     .eq('restaurant_id', restaurantId)
 
-                const totalCapacity = tables && tables.length > 0
-                    ? tables.reduce((sum, t) => sum + (t.seats || 4), 0)
-                    : 50 // Fallback capacity if no tables defined
+                const activeTables = tables?.filter(t => t.is_active !== false) || []
+                const totalCapacity = activeTables.length > 0
+                    ? activeTables.reduce((sum, t) => sum + (t.seats || 4), 0)
+                    : 50
 
                 const reservationDuration = restaurant.reservation_duration || 120
 
@@ -234,24 +235,52 @@ const PublicReservationPage = () => {
         try {
             setLoading(true)
 
-            // 1. Create Booking in DB
             // Combine date and time
             const [hours, minutes] = formData.time.split(":").map(Number)
             const bookingDate = new Date(formData.date)
             bookingDate.setHours(hours, minutes, 0, 0)
 
+            // 1. Find a suitable table automatically
+            // Need to fetch fresh tables and bookings for reliability
+            const [{ data: allTables }, { data: dayBookings }] = await Promise.all([
+                supabase.from('tables').select('*').eq('restaurant_id', restaurant.id),
+                supabase.from('bookings').select('*').eq('restaurant_id', restaurant.id)
+                    .gte('date_time', new Date(bookingDate).setHours(0, 0, 0, 0))
+                    .lt('date_time', new Date(bookingDate).setHours(23, 59, 59, 999))
+            ])
+
+            const activeTables = allTables?.filter((t: any) => t.is_active !== false) || []
+            const bookingStart = bookingDate.getTime()
+            const bookingEnd = bookingStart + (restaurant.reservation_duration || 120) * 60 * 1000
+
+            // Filter tables by capacity and availability
+            const suitableTables = activeTables
+                .filter((t: any) => (t.seats || 4) >= formData.guests)
+                .filter((t: any) => {
+                    // Check if table has any conflicting bookings
+                    const conflicts = dayBookings?.filter((b: any) => b.table_id === t.id).some((b: any) => {
+                        const bStart = new Date(b.date_time).getTime()
+                        const bEnd = bStart + (restaurant.reservation_duration || 120) * 60 * 1000
+                        return (bookingStart < bEnd && bookingEnd > bStart)
+                    })
+                    return !conflicts
+                })
+                .sort((a: any, b: any) => (a.seats || 4) - (b.seats || 4)) // Pick smallest fitting table
+
+            const assignedTableId = suitableTables[0]?.id || null
+
             const { error: insertError } = await supabase
                 .from("bookings")
                 .insert({
                     restaurant_id: restaurant.id,
+                    table_id: assignedTableId,
                     name: formData.name,
                     phone: formData.phone,
-                    email: "", // No email provided
+                    email: "",
                     guests: formData.guests,
                     date_time: bookingDate.toISOString(),
-
                     notes: (formData.roomId ? `[Sala: ${rooms.find(r => r.id === formData.roomId)?.name}] ` : "") + formData.notes,
-                    status: "PENDING"
+                    status: "CONFIRMED"
                 })
 
             if (insertError) throw insertError
@@ -554,10 +583,10 @@ const PublicReservationPage = () => {
                                             <CheckCircle size={48} weight="fill" className="text-green-500" />
                                         </div>
                                         <div>
-                                            <h2 className="text-2xl font-bold text-white mb-2">Prenotazione Inviata!</h2>
+                                            <h2 className="text-2xl font-bold text-white mb-2">Prenotazione Confermata!</h2>
                                             <p className="text-zinc-400 max-w-[280px] mx-auto text-sm leading-relaxed">
-                                                Grazie {formData.name}, la tua richiesta è stata ricevuta.
-                                                Riceverai una conferma via SMS o Whatsapp.
+                                                Grazie {formData.name}, la tua prenotazione è stata confermata automaticamente.
+                                                Ti aspettiamo il {formData.date && format(formData.date, "d MMMM", { locale: it })} alle {formData.time}.
                                             </p>
                                         </div>
 
