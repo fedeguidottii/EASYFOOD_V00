@@ -8,7 +8,7 @@ import { Label } from './ui/label'
 import { Switch } from './ui/switch'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from './ui/select'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from './ui/card'
-import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from './ui/dialog'
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger, VisuallyHidden } from './ui/dialog'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from './ui/tabs'
 import { Badge } from './ui/badge'
 import { Separator } from './ui/separator'
@@ -490,23 +490,54 @@ const RestaurantDashboard = ({ user, onLogout }: RestaurantDashboardProps) => {
   const updateCopertoEnabled = async (enabled: boolean) => {
     if (!restaurantId) return
     setCopertoEnabled(enabled)
+
+    // Create update object
+    const updateData: Partial<Restaurant> = {}
+    let newSchedule = weeklyCoperto ? { ...weeklyCoperto } : null
+
     if (enabled) {
       // If enabling and price is 0, set a default or keep 0 but ensure DB knows
       const price = Number(copertoPrice) || 2.0
       setCopertoPrice(price)
-      await DatabaseService.updateRestaurant({ id: restaurantId, cover_charge_per_person: price })
+      updateData.cover_charge_per_person = price
+
+      if (newSchedule) {
+        newSchedule.enabled = true
+        newSchedule.defaultPrice = price
+        updateData.weekly_coperto = newSchedule
+        setWeeklyCoperto(newSchedule)
+      }
     } else {
-      await DatabaseService.updateRestaurant({ id: restaurantId, cover_charge_per_person: 0 })
+      updateData.cover_charge_per_person = 0
+
+      if (newSchedule) {
+        newSchedule.enabled = false
+        updateData.weekly_coperto = newSchedule
+        setWeeklyCoperto(newSchedule)
+      }
     }
-    // Don't refresh immediately - it causes a race condition
+
+    await DatabaseService.updateRestaurant({ id: restaurantId, ...updateData })
   }
 
   const updateCopertoPrice = async (price: number | string) => {
     const val = parseFloat(price.toString()) || 0
     setCopertoPrice(val)
     if (!restaurantId) return
+
     if (copertoEnabled) {
-      await DatabaseService.updateRestaurant({ id: restaurantId, cover_charge_per_person: val })
+      const updateData: Partial<Restaurant> = {
+        cover_charge_per_person: val
+      }
+
+      // Also update default price in weekly schedule if it exists, to keep them in sync
+      if (weeklyCoperto) {
+        const newSchedule = { ...weeklyCoperto, defaultPrice: val }
+        updateData.weekly_coperto = newSchedule
+        setWeeklyCoperto(newSchedule)
+      }
+
+      await DatabaseService.updateRestaurant({ id: restaurantId, ...updateData })
     }
   }
 
@@ -1129,13 +1160,17 @@ const RestaurantDashboard = ({ user, onLogout }: RestaurantDashboardProps) => {
 
   if (!restaurantId) {
     return (
-      <div className="flex flex-col items-center justify-center h-screen gap-6 bg-black text-amber-50">
-        <div className="w-12 h-12 border-4 border-amber-500/20 border-t-amber-500 rounded-full animate-spin shadow-[0_0_30px_-5px_rgba(245,158,11,0.3)]" />
-        <div className="flex flex-col items-center gap-2">
-          <p className="text-lg font-light tracking-[0.2em] upercase">EASYFOOD</p>
-          <p className="text-xs text-zinc-600 uppercase tracking-widest">Caricamento sistema...</p>
+      <div className="flex flex-col items-center justify-center h-screen gap-6 bg-black text-amber-50 px-4">
+        {/* Ambient Background for loading screen too */}
+        <div className="absolute inset-0 overflow-hidden pointer-events-none">
+          <div className="absolute top-[20%] left-[50%] -translate-x-1/2 w-[60%] h-[60%] bg-amber-500/5 rounded-full blur-[150px] opacity-40" />
         </div>
-        <Button variant="ghost" onClick={onLogout} className="mt-8 text-zinc-600 hover:text-amber-500 hover:bg-white/5 uppercase text-xs tracking-widest">
+        <div className="relative z-10 w-12 h-12 border-4 border-amber-500/20 border-t-amber-500 rounded-full animate-spin shadow-[0_0_30px_-5px_rgba(245,158,11,0.3)]" />
+        <div className="relative z-10 flex flex-col items-center gap-2">
+          <p className="text-lg font-light tracking-[0.2em] uppercase text-white">EASYFOOD</p>
+          <p className="text-xs text-zinc-500 uppercase tracking-widest">Caricamento sistema...</p>
+        </div>
+        <Button variant="ghost" onClick={onLogout} className="relative z-10 mt-8 text-zinc-600 hover:text-amber-500 hover:bg-white/5 uppercase text-xs tracking-widest">
           Torna al login
         </Button>
       </div>
@@ -1143,21 +1178,22 @@ const RestaurantDashboard = ({ user, onLogout }: RestaurantDashboardProps) => {
   }
 
   return (
-    <div className="flex h-screen w-full bg-black text-zinc-200 font-sans overflow-hidden selection:bg-amber-500/30">
-      {/* Background Ambience */}
+    <div className="flex h-screen w-full bg-black text-amber-50 font-sans overflow-hidden selection:bg-amber-500/30 relative">
+      {/* Background Ambience (Login Page Style) */}
       <div className="absolute inset-0 overflow-hidden pointer-events-none z-0">
-        <div className="absolute top-[-20%] left-[-10%] w-[50%] h-[50%] bg-amber-500/5 rounded-full blur-[150px] opacity-30" />
+        <div className="absolute top-[-20%] left-[-20%] w-[60%] h-[60%] bg-amber-500/5 rounded-full blur-[150px] opacity-40" />
+        <div className="absolute bottom-[-20%] right-[-20%] w-[60%] h-[60%] bg-amber-500/5 rounded-full blur-[150px] opacity-30" />
       </div>
 
-      {/* Sidebar - Pure Black & Gold */}
-      <aside className="w-64 bg-black/80 backdrop-blur-xl border-r border-white/5 flex flex-col flex-shrink-0 z-20 relative">
+      {/* Sidebar - Refined & Nuanced */}
+      <aside className="w-64 bg-black/40 backdrop-blur-xl border-r border-white/5 flex flex-col flex-shrink-0 z-20 relative">
         <div className="p-6 border-b border-white/5 flex items-center gap-4">
-          <div className="p-2.5 bg-zinc-900/80 border border-amber-500/20 rounded-xl text-amber-500 shadow-[0_0_15px_-5px_rgba(245,158,11,0.3)]">
+          <div className="p-2.5 bg-zinc-900/50 border border-amber-500/20 rounded-xl text-amber-500 shadow-[0_0_15px_-5px_rgba(245,158,11,0.2)]">
             <ChefHat size={24} weight="fill" />
           </div>
           <div className="overflow-hidden">
             <h1 className="font-medium text-base text-zinc-100 tracking-tight leading-none truncate">{currentRestaurant?.name || 'EASYFOOD'}</h1>
-            <p className="text-[9px] uppercase tracking-[0.2em] text-zinc-600 font-bold mt-1.5 flex items-center gap-1">
+            <p className="text-[9px] uppercase tracking-[0.2em] text-zinc-500 font-bold mt-1.5 flex items-center gap-1">
               <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 shadow-[0_0_8px_rgba(16,185,129,0.5)]"></span>
               Online
             </p>
@@ -1176,9 +1212,11 @@ const RestaurantDashboard = ({ user, onLogout }: RestaurantDashboardProps) => {
             <Button
               key={item.id}
               variant="ghost"
-              className={`w-full justify-start h-12 px-4 rounded-xl transition-all duration-200 group relative overflow-hidden ${activeTab === item.id
-                ? 'bg-amber-500/10 text-amber-500 font-medium'
-                : 'text-zinc-500 hover:text-zinc-200 hover:bg-zinc-900'
+              className={`w-full justify-start h-12 px-4 rounded-xl transition-all duration-300 group relative overflow-hidden ${activeTab === item.id
+                // Active State: More subtle, gradient-like, not solid block
+                ? 'bg-gradient-to-r from-amber-500/10 to-transparent text-amber-400 border-l border-amber-500/50'
+                // Inactive State
+                : 'text-zinc-500 hover:text-zinc-200 hover:bg-zinc-900/40'
                 }`}
               onClick={() => {
                 const section = item.id
@@ -1189,11 +1227,13 @@ const RestaurantDashboard = ({ user, onLogout }: RestaurantDashboardProps) => {
               <item.icon
                 size={22}
                 weight={activeTab === item.id ? 'fill' : 'regular'}
-                className={`mr-3 transition-colors ${activeTab === item.id ? 'text-amber-500' : 'text-zinc-600 group-hover:text-zinc-300'}`}
+                className={`mr-3 transition-colors duration-300 ${activeTab === item.id ? 'text-amber-500 shadow-[0_0_10px_rgba(245,158,11,0.3)]' : 'text-zinc-600 group-hover:text-zinc-400'}`}
               />
-              <span className={`relative z-10 text-sm tracking-wide ${activeTab === item.id ? 'font-semibold' : 'font-normal'}`}>{item.label}</span>
+              <span className={`relative z-10 text-sm tracking-wide ${activeTab === item.id ? 'font-medium' : 'font-normal'}`}>{item.label}</span>
+
+              {/* Subtle shimmer for active item */}
               {activeTab === item.id && (
-                <div className="absolute inset-0 bg-amber-500/5 rounded-xl border border-amber-500/10 shadow-[inner_0_0_10px_rgba(245,158,11,0.05)]" />
+                <div className="absolute inset-0 bg-gradient-to-r from-amber-500/5 to-transparent opacity-50" />
               )}
             </Button>
           ))}
@@ -1219,16 +1259,16 @@ const RestaurantDashboard = ({ user, onLogout }: RestaurantDashboardProps) => {
             <TabsContent value="orders" className="space-y-6">
               <div className="flex flex-col md:flex-row items-start md:items-center justify-between mb-6 gap-4 pb-4 border-b border-white/10">
                 <div>
-                  <h2 className="text-2xl font-bold bg-gradient-to-r from-amber-200 to-amber-500 bg-clip-text text-transparent">Gestione Ordini</h2>
-                  <p className="text-sm text-zinc-400 mt-1">Gestisci gli ordini in tempo reale</p>
+                  <h2 className="text-2xl font-light text-white tracking-tight">Gestione <span className="font-bold text-amber-500">Ordini</span></h2>
+                  <p className="text-sm text-zinc-400 mt-1 uppercase tracking-wider font-medium">Gestisci gli ordini in tempo reale</p>
                 </div>
                 <div className="flex items-center gap-2">
-                  <div className="flex bg-zinc-900 p-1 rounded-lg mr-2 border border-zinc-800">
+                  <div className="flex bg-black/50 p-1 rounded-xl mr-2 border border-white/10 backdrop-blur-sm">
                     <Button
                       variant={kitchenViewMode === 'table' ? 'default' : 'ghost'}
                       size="sm"
                       onClick={() => setKitchenViewMode('table')}
-                      className={`h-7 text-xs font-bold ${kitchenViewMode === 'table' ? 'bg-zinc-800 text-amber-500' : 'text-zinc-400'}`}
+                      className={`h-8 text-xs font-bold rounded-lg transition-all ${kitchenViewMode === 'table' ? 'bg-zinc-800 text-amber-500 shadow-lg' : 'text-zinc-400 hover:text-zinc-200'}`}
                     >
                       Tavoli
                     </Button>
@@ -1236,7 +1276,7 @@ const RestaurantDashboard = ({ user, onLogout }: RestaurantDashboardProps) => {
                       variant={kitchenViewMode === 'dish' ? 'default' : 'ghost'}
                       size="sm"
                       onClick={() => setKitchenViewMode('dish')}
-                      className="h-7 text-xs font-bold"
+                      className={`h-8 text-xs font-bold rounded-lg transition-all ${kitchenViewMode === 'dish' ? 'bg-zinc-800 text-amber-500 shadow-lg' : 'text-zinc-400 hover:text-zinc-200'}`}
                     >
                       Piatti
                     </Button>
@@ -1245,23 +1285,23 @@ const RestaurantDashboard = ({ user, onLogout }: RestaurantDashboardProps) => {
                   {/* Category Filter */}
                   <Popover>
                     <PopoverTrigger asChild>
-                      <Button variant={selectedKitchenCategories.length > 0 ? "default" : "outline"} size="sm" className="mr-2 h-9 border-dashed">
-                        <Funnel size={16} className="mr-2" />
-                        Filtra Categorie
+                      <Button variant={selectedKitchenCategories.length > 0 ? "default" : "outline"} size="sm" className="mr-2 h-10 border-white/10 bg-black/40 hover:bg-zinc-900/60 backdrop-blur-sm text-zinc-300">
+                        <Funnel size={16} className={`mr-2 ${selectedKitchenCategories.length > 0 ? 'text-amber-500' : ''}`} />
+                        Filtra
                         {selectedKitchenCategories.length > 0 && (
-                          <span className="ml-1 rounded-full bg-primary-foreground text-primary w-4 h-4 text-[10px] flex items-center justify-center">
+                          <span className="ml-1.5 rounded-full bg-amber-500 text-black font-bold w-4 h-4 text-[10px] flex items-center justify-center">
                             {selectedKitchenCategories.length}
                           </span>
                         )}
                       </Button>
                     </PopoverTrigger>
-                    <PopoverContent className="w-56 p-0" align="start">
-                      <div className="p-2 border-b border-border/10">
-                        <h4 className="font-medium text-xs text-muted-foreground uppercase tracking-wider">Seleziona Categorie</h4>
+                    <PopoverContent className="w-56 p-0 bg-zinc-950 border-zinc-800 text-zinc-100 shadow-xl" align="start">
+                      <div className="p-2 border-b border-white/10">
+                        <h4 className="font-medium text-xs text-zinc-500 uppercase tracking-wider">Seleziona Categorie</h4>
                       </div>
                       <div className="p-2 max-h-64 overflow-y-auto space-y-1">
                         {categories?.map(cat => (
-                          <div key={cat.id} className="flex items-center space-x-2 p-1 hover:bg-muted/50 rounded cursor-pointer"
+                          <div key={cat.id} className="flex items-center space-x-2 p-2 hover:bg-white/5 rounded-lg cursor-pointer transition-colors"
                             onClick={() => {
                               setSelectedKitchenCategories(prev =>
                                 prev.includes(cat.id)
@@ -1270,16 +1310,16 @@ const RestaurantDashboard = ({ user, onLogout }: RestaurantDashboardProps) => {
                               )
                             }}
                           >
-                            <div className={`w-4 h-4 rounded border flex items-center justify-center ${selectedKitchenCategories.includes(cat.id) ? 'bg-primary border-primary text-primary-foreground' : 'border-muted-foreground'}`}>
+                            <div className={`w-4 h-4 rounded-sm border flex items-center justify-center transition-colors ${selectedKitchenCategories.includes(cat.id) ? 'bg-amber-500 border-amber-500 text-black' : 'border-zinc-700 bg-black/40'}`}>
                               {selectedKitchenCategories.includes(cat.id) && <Check size={10} weight="bold" />}
                             </div>
-                            <span className="text-sm">{cat.name}</span>
+                            <span className="text-sm text-zinc-300">{cat.name}</span>
                           </div>
                         ))}
                       </div>
                       {selectedKitchenCategories.length > 0 && (
-                        <div className="p-2 border-t border-border/10">
-                          <Button variant="ghost" size="sm" className="w-full h-7 text-xs" onClick={() => setSelectedKitchenCategories([])}>
+                        <div className="p-2 border-t border-white/10">
+                          <Button variant="ghost" size="sm" className="w-full h-8 text-xs text-zinc-400 hover:text-white" onClick={() => setSelectedKitchenCategories([])}>
                             Resetta Filtri
                           </Button>
                         </div>
@@ -1287,22 +1327,21 @@ const RestaurantDashboard = ({ user, onLogout }: RestaurantDashboardProps) => {
                     </PopoverContent>
                   </Popover>
 
-                  <div className="flex items-center gap-2 bg-muted p-1 rounded-lg mr-2">
-                    <span className="text-[10px] font-bold uppercase text-muted-foreground px-2">Zoom</span>
+                  <div className="flex items-center gap-1 bg-black/50 p-1 rounded-xl mr-2 border border-white/10 backdrop-blur-sm">
                     <Button
                       variant="ghost"
                       size="sm"
                       onClick={() => setKitchenZoom(prev => Math.max(0.2, Math.round((prev - 0.1) * 10) / 10))}
-                      className="h-7 w-7 p-0 hover:bg-slate-200 dark:hover:bg-slate-700 rounded-md"
+                      className="h-8 w-8 p-0 text-zinc-400 hover:text-white hover:bg-white/5 rounded-lg"
                     >
                       <Minus size={14} />
                     </Button>
-                    <span className="w-10 text-center text-xs font-bold font-mono">{Math.round(kitchenZoom * 100)}%</span>
+                    <span className="w-10 text-center text-xs font-bold font-mono text-zinc-500">{Math.round(kitchenZoom * 100)}%</span>
                     <Button
                       variant="ghost"
                       size="sm"
                       onClick={() => setKitchenZoom(prev => Math.min(3.0, Math.round((prev + 0.1) * 10) / 10))}
-                      className="h-7 w-7 p-0 hover:bg-slate-200 dark:hover:bg-slate-700 rounded-md"
+                      className="h-8 w-8 p-0 text-zinc-400 hover:text-white hover:bg-white/5 rounded-lg"
                     >
                       <Plus size={14} />
                     </Button>
@@ -1311,10 +1350,10 @@ const RestaurantDashboard = ({ user, onLogout }: RestaurantDashboardProps) => {
 
 
                   <Select value={orderSortMode} onValueChange={(value: 'oldest' | 'newest') => setOrderSortMode(value)}>
-                    <SelectTrigger className="w-[140px] h-9 shadow-sm">
+                    <SelectTrigger className="w-[140px] h-10 bg-black/40 border-white/10 text-zinc-300 shadow-sm backdrop-blur-sm">
                       <SelectValue />
                     </SelectTrigger>
-                    <SelectContent>
+                    <SelectContent className="bg-zinc-950 border-zinc-800 text-zinc-100">
                       <SelectItem value="oldest">Meno recenti</SelectItem>
                       <SelectItem value="newest">Più recenti</SelectItem>
                     </SelectContent>
@@ -1324,7 +1363,7 @@ const RestaurantDashboard = ({ user, onLogout }: RestaurantDashboardProps) => {
                     variant={showOrderHistory ? "default" : "outline"}
                     size="sm"
                     onClick={() => setShowOrderHistory(!showOrderHistory)}
-                    className="ml-2"
+                    className={`ml-2 h-10 border-white/10 bg-black/40 hover:bg-zinc-900/60 transition-all ${showOrderHistory ? 'border-amber-500/50 text-amber-500' : 'text-zinc-300'}`}
                   >
                     <ClockCounterClockwise size={16} className="mr-2" />
                     Storico
@@ -1335,28 +1374,28 @@ const RestaurantDashboard = ({ user, onLogout }: RestaurantDashboardProps) => {
               {
                 showOrderHistory ? (
                   <div className="space-y-4" >
-                    <h3 className="text-lg font-semibold mb-4">Storico Ordini Completati</h3>
+                    <h3 className="text-lg font-light text-zinc-400 mb-4">Storico Ordini Completati</h3>
                     {restaurantCompletedOrders.length === 0 ? (
-                      <div className="text-center py-10 text-muted-foreground">
+                      <div className="text-center py-10 text-zinc-600 bg-zinc-900/20 rounded-2xl border border-white/5 border-dashed">
                         Nessun ordine completato
                       </div>
                     ) : (
                       <div className="grid gap-4">
                         {restaurantCompletedOrders.sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime()).map(order => (
-                          <Card key={order.id} className="bg-card border-border/50 shadow-sm">
+                          <Card key={order.id} className="bg-zinc-900/50 border-white/5 shadow-none hover:border-amber-500/20 transition-colors">
                             <CardHeader className="p-4 pb-2">
                               <div className="flex justify-between items-center">
-                                <CardTitle className="text-base">Ordine #{order.id.slice(0, 8)}</CardTitle>
-                                <Badge variant="outline">{new Date(order.created_at).toLocaleString()}</Badge>
+                                <CardTitle className="text-base text-zinc-200">Ordine #{order.id.slice(0, 8)}</CardTitle>
+                                <Badge variant="outline" className="border-white/10 text-zinc-500">{new Date(order.created_at).toLocaleString()}</Badge>
                               </div>
-                              <CardDescription>{restaurantTables.find(t => t.id === getTableIdFromOrder(order))?.number || 'N/D'}</CardDescription>
+                              <CardDescription className="text-zinc-500">{restaurantTables.find(t => t.id === getTableIdFromOrder(order))?.number || 'N/D'}</CardDescription>
                             </CardHeader>
                             <CardContent className="p-4 pt-2">
                               <div className="space-y-2">
                                 {order.items?.map(item => (
-                                  <div key={item.id} className="flex justify-between text-sm">
+                                  <div key={item.id} className="flex justify-between text-sm text-zinc-400">
                                     <span>{item.quantity}x {restaurantDishes.find(d => d.id === item.dish_id)?.name}</span>
-                                    <Badge variant="secondary" className="text-xs">Completato</Badge>
+                                    <Badge variant="secondary" className="text-xs bg-emerald-500/10 text-emerald-500 hover:bg-emerald-500/20 border-0">Completato</Badge>
                                   </div>
                                 ))}
                               </div>
@@ -1368,12 +1407,12 @@ const RestaurantDashboard = ({ user, onLogout }: RestaurantDashboardProps) => {
                     }
                   </div >
                 ) : filteredOrders.length === 0 ? (
-                  <div className="col-span-full text-center py-16">
-                    <div className="w-16 h-16 rounded-2xl bg-muted/20 flex items-center justify-center mx-auto mb-4">
-                      <Clock size={32} className="text-muted-foreground/40" weight="duotone" />
+                  <div className="col-span-full text-center py-24 flex flex-col items-center justify-center">
+                    <div className="w-20 h-20 rounded-full bg-zinc-900/50 border border-white/5 flex items-center justify-center mb-6 shadow-inner">
+                      <Clock size={40} className="text-zinc-700" weight="duotone" />
                     </div>
-                    <p className="text-lg font-semibold text-muted-foreground">Nessun ordine attivo</p>
-                    <p className="text-xs text-muted-foreground mt-1">Gli ordini appariranno qui non appena arrivano</p>
+                    <p className="text-xl font-light text-zinc-500">Nessun ordine attivo</p>
+                    <p className="text-xs text-zinc-700 mt-2 uppercase tracking-wide">In attesa di nuovi ordini dalla sala...</p>
                   </div>
                 ) : (
                   <KitchenView
@@ -1783,8 +1822,8 @@ const RestaurantDashboard = ({ user, onLogout }: RestaurantDashboardProps) => {
                         <Card
                           key={table.id}
                           className={`relative overflow-hidden transition-all duration-300 group cursor-pointer ${isActive
-                            ? 'bg-amber-500/5 border-amber-500/30 shadow-[0_0_20px_-5px_rgba(245,158,11,0.2)]'
-                            : 'bg-black/40 border-white/5 hover:border-amber-500/20 hover:bg-black/60 shadow-none'
+                            ? 'bg-amber-950/20 border-amber-500/50 shadow-[0_0_15px_-5px_rgba(245,158,11,0.3)]'
+                            : 'bg-black/40 border-emerald-500/20 shadow-[0_0_15px_-5px_rgba(16,185,129,0.1)] hover:border-emerald-500/40'
                             }`}
                           onClick={() => {
                             if (isActive) {
@@ -1796,6 +1835,12 @@ const RestaurantDashboard = ({ user, onLogout }: RestaurantDashboardProps) => {
                             }
                           }}
                         >
+                          {isActive && (
+                            <div className="absolute top-0 right-0 w-16 h-16 bg-amber-500/10 blur-xl rounded-full -mr-8 -mt-8 pointer-events-none"></div>
+                          )}
+                          {!isActive && (
+                            <div className="absolute top-0 right-0 w-16 h-16 bg-emerald-500/5 blur-xl rounded-full -mr-8 -mt-8 pointer-events-none"></div>
+                          )}
                           <CardContent className="p-0 flex flex-col h-full">
                             <div className="p-4 flex flex-wrap items-center justify-between gap-2 border-b border-white/5">
                               <div className="flex items-center gap-3">
@@ -1907,6 +1952,10 @@ const RestaurantDashboard = ({ user, onLogout }: RestaurantDashboardProps) => {
                       </Button>
                     </DialogTrigger>
                     <DialogContent className="max-w-[96vw] w-full md:max-w-[1100px] h-[90vh] max-h-[90vh] p-0 overflow-hidden bg-zinc-950 border-zinc-800 text-zinc-100 flex flex-col">
+                      <VisuallyHidden>
+                        <DialogTitle>Gestione Menu Personalizzati</DialogTitle>
+                        <DialogDescription>Gestisci i menu personalizzati</DialogDescription>
+                      </VisuallyHidden>
                       <CustomMenusManager
                         restaurantId={restaurantId || ''}
                         dishes={dishes || []}

@@ -90,13 +90,14 @@
 ### Color Strategy
 **Color Scheme Type**: Analogous con accent complementare
 
-**Primary Color**: Oro raffinato (oklch(0.75 0.12 85)) - comunica qualità, prestigio e calore professionale
+**Primary Color**: Oro raffinato (#C5A059) - comunica qualità, prestigio e calore professionale
 
 **Secondary Colors**: 
-- Bianco caldo (oklch(0.99 0.005 85)) per pulizia e spazio
-- Grigio neutro (oklch(0.95 0.01 270)) per elementi secondari
+- Nero profondo (#09090b) per sfondi e contrasto
+- Bianco caldo (#fafaf9) per pulizia e spazio
+- Grigio neutro (#27272a) per elementi secondari
 
-**Accent Color**: Oro vibrante (oklch(0.68 0.15 80)) per call-to-action e highlights importanti
+**Accent Color**: Oro vibrante (#d97706) per call-to-action e highlights importanti
 
 **Color Psychology**: L'oro evoca qualità e professionalità ristorativa, mentre i neutri creano calma e focus
 

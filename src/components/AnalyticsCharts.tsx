@@ -283,9 +283,8 @@ export default function AnalyticsCharts({ orders, completedOrders, dishes, categ
       ? Math.max(1, Math.ceil((invStart - Math.max(twoYearsAgo, new Date(Math.min(...historicalOrders.map(o => new Date(o.created_at).getTime()))).getTime())) / (24 * 60 * 60 * 1000)))
       : 1
 
-    // Calculate per-dish inventory stats - filter by active status and selected categories
+    // Calculate per-dish inventory stats - include ALL dishes (removed is_active filter)
     const dishInventory = dishes
-      .filter(dish => dish.is_active !== false) // Include all active dishes
       .filter(dish => inventoryCategories.length === 0 || inventoryCategories.includes(dish.category_id)) // Filter by selected categories
       .map(dish => {
         // Current period
@@ -321,7 +320,8 @@ export default function AnalyticsCharts({ orders, completedOrders, dishes, categ
           periodAvgPerDay: Math.round(periodAvgPerDay * 100) / 100,
           allTimeAvgPerDay: Math.round(historicalAvgPerDay * 100) / 100,
           percentageChange: Math.round(percentageChange * 10) / 10,
-          price: dish.price
+          price: dish.price,
+          isActive: dish.is_active !== false // Track status for display
         }
       })
       .sort((a, b) => {
@@ -362,33 +362,33 @@ export default function AnalyticsCharts({ orders, completedOrders, dishes, categ
     <>
       {/* All analytics content in a single view */}
       <div className="space-y-8">
-        {/* Filter Controls */}
-        <div className="flex items-center justify-between flex-wrap gap-4 bg-card/50 p-4 rounded-xl shadow-sm backdrop-blur-sm">
-          <h2 className="text-2xl font-bold text-foreground">Analitiche</h2>
+        {/* Filter Controls - Enhanced Glassmorphism */}
+        <div className="flex items-center justify-between flex-wrap gap-4 bg-zinc-900/60 p-4 rounded-xl border border-white/5 shadow-lg backdrop-blur-xl">
+          <h2 className="text-2xl font-bold bg-gradient-to-r from-white to-zinc-400 bg-clip-text text-transparent">Analitiche</h2>
           <div className="flex items-center gap-3">
             <Popover>
               <PopoverTrigger asChild>
-                <Button variant="outline" className="gap-2 h-9 border-dashed">
+                <Button variant="outline" className="gap-2 h-9 border-zinc-700 bg-zinc-900/50 text-zinc-300 hover:text-amber-500 hover:border-amber-500/50 hover:bg-amber-500/10 transition-all">
                   <List size={16} />
                   Categorie
-                  <Badge variant="secondary" className="ml-1 h-5 px-1.5 min-w-5">
+                  <Badge variant="secondary" className="ml-1 h-5 px-1.5 min-w-5 bg-amber-500/20 text-amber-500 border border-amber-500/20">
                     {activeCategoryIds.length}
                   </Badge>
                 </Button>
               </PopoverTrigger>
-              <PopoverContent className="w-64 p-3" align="end">
-                <div className="flex items-center justify-between mb-3 pb-2 border-b">
-                  <span className="text-xs font-medium text-muted-foreground">Filtra per categoria</span>
+              <PopoverContent className="w-64 p-3 bg-zinc-950 border-zinc-800" align="end">
+                <div className="flex items-center justify-between mb-3 pb-2 border-b border-zinc-800">
+                  <span className="text-xs font-medium text-zinc-400">Filtra per categoria</span>
                   <div className="flex gap-1">
-                    <Button size="sm" variant="ghost" className="h-6 px-2 text-xs" onClick={() => setSelectedCategories(categories.map(c => c.id))}>Tutte</Button>
-                    <Button size="sm" variant="ghost" className="h-6 px-2 text-xs" onClick={() => setSelectedCategories([])}>Nessuna</Button>
+                    <Button size="sm" variant="ghost" className="h-6 px-2 text-xs text-zinc-500 hover:text-white" onClick={() => setSelectedCategories(categories.map(c => c.id))}>Tutte</Button>
+                    <Button size="sm" variant="ghost" className="h-6 px-2 text-xs text-zinc-500 hover:text-white" onClick={() => setSelectedCategories([])}>Nessuna</Button>
                   </div>
                 </div>
                 <div className="space-y-1 max-h-64 overflow-y-auto">
                   {categories.map(category => {
                     const checked = activeCategoryIds.includes(category.id)
                     return (
-                      <label key={category.id} className="flex items-center gap-2 text-sm px-2 py-1.5 rounded-md hover:bg-muted cursor-pointer transition-colors">
+                      <label key={category.id} className={`flex items-center gap-2 text-sm px-2 py-1.5 rounded-md cursor-pointer transition-colors ${checked ? 'bg-amber-500/10 text-amber-500' : 'text-zinc-400 hover:bg-zinc-900'}`}>
                         <input
                           type="checkbox"
                           checked={checked}
@@ -399,7 +399,7 @@ export default function AnalyticsCharts({ orders, completedOrders, dishes, categ
                               setSelectedCategories(prev => prev.filter(id => id !== category.id))
                             }
                           }}
-                          className="h-4 w-4 rounded border-primary text-primary focus:ring-primary"
+                          className="h-4 w-4 rounded border-zinc-700 bg-zinc-900 text-amber-500 focus:ring-amber-500/20"
                         />
                         <span className="truncate">{category.name}</span>
                       </label>
@@ -410,13 +410,13 @@ export default function AnalyticsCharts({ orders, completedOrders, dishes, categ
             </Popover>
 
             <Select value={dateFilter} onValueChange={(v: DateFilter) => setDateFilter(v)}>
-              <SelectTrigger className="w-44 h-9">
-                <CalendarBlank size={16} className="mr-2 text-muted-foreground" />
+              <SelectTrigger className="w-44 h-9 border-zinc-700 bg-zinc-900/50 text-zinc-300 hover:border-amber-500/30 transition-all focus:ring-amber-500/20">
+                <CalendarBlank size={16} className="mr-2 text-amber-500/70" />
                 <SelectValue />
               </SelectTrigger>
-              <SelectContent>
+              <SelectContent className="bg-zinc-950 border-zinc-800 text-zinc-300">
                 {dateFilters.map(filter => (
-                  <SelectItem key={filter.value} value={filter.value}>{filter.label}</SelectItem>
+                  <SelectItem key={filter.value} value={filter.value} className="focus:bg-amber-500/10 focus:text-amber-500">{filter.label}</SelectItem>
                 ))}
               </SelectContent>
             </Select>
@@ -427,87 +427,91 @@ export default function AnalyticsCharts({ orders, completedOrders, dishes, categ
                   type="date"
                   value={customStartDate}
                   onChange={(e) => setCustomStartDate(e.target.value)}
-                  className="w-36 h-9"
+                  className="w-36 h-9 bg-zinc-900 border-zinc-700 focus:border-amber-500/50 text-zinc-300"
                 />
-                <span className="text-muted-foreground">-</span>
+                <span className="text-zinc-600">-</span>
                 <Input
                   type="date"
                   value={customEndDate}
                   onChange={(e) => setCustomEndDate(e.target.value)}
-                  className="w-36 h-9"
+                  className="w-36 h-9 bg-zinc-900 border-zinc-700 focus:border-amber-500/50 text-zinc-300"
                 />
               </div>
             )}
           </div>
         </div>
 
-        {/* Summary Cards - Unified Dark Minimal Design */}
+        {/* Summary Cards - Enhanced Vibrant Design */}
         <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-          <Card className="border-zinc-800/50 bg-zinc-900/80 shadow-xl">
-            <CardContent className="p-5">
+          <Card className="border-zinc-800/60 bg-gradient-to-br from-zinc-900/90 to-zinc-950/90 shadow-lg relative overflow-hidden group hover:border-amber-500/30 transition-all duration-300">
+            <div className="absolute top-0 right-0 w-24 h-24 bg-amber-500/5 blur-2xl rounded-full -mr-10 -mt-10 pointer-events-none group-hover:bg-amber-500/10 transition-all"></div>
+            <CardContent className="p-5 relative z-10">
               <div className="flex items-center gap-4">
-                <div className="p-3 bg-zinc-800 rounded-xl border border-zinc-700/50">
-                  <ShoppingBag size={22} className="text-zinc-400" weight="duotone" />
+                <div className="p-3 bg-zinc-800/50 rounded-xl border border-zinc-700/50 text-zinc-400 group-hover:text-amber-500 group-hover:border-amber-500/30 transition-colors">
+                  <ShoppingBag size={22} weight="duotone" />
                 </div>
                 <div>
-                  <p className="text-xs text-zinc-500 font-medium uppercase tracking-wide">Ordini</p>
-                  <p className="text-2xl font-bold text-zinc-100 mt-0.5">{analytics.totalOrders}</p>
+                  <p className="text-[10px] text-zinc-500 font-bold uppercase tracking-widest mb-1">Ordini</p>
+                  <p className="text-2xl font-bold text-white tracking-tight">{analytics.totalOrders}</p>
                 </div>
               </div>
             </CardContent>
           </Card>
 
-          <Card className="border-zinc-800/50 bg-zinc-900/80 shadow-xl">
-            <CardContent className="p-5">
+          <Card className="border-zinc-800/60 bg-gradient-to-br from-zinc-900/90 to-zinc-950/90 shadow-lg relative overflow-hidden group hover:border-amber-500/30 transition-all duration-300">
+            <div className="absolute top-0 right-0 w-24 h-24 bg-amber-500/5 blur-2xl rounded-full -mr-10 -mt-10 pointer-events-none group-hover:bg-amber-500/10 transition-all"></div>
+            <CardContent className="p-5 relative z-10">
               <div className="flex items-center gap-4">
-                <div className="p-3 bg-zinc-800 rounded-xl border border-zinc-700/50">
-                  <CurrencyEur size={22} className="text-amber-500" weight="duotone" />
+                <div className="p-3 bg-zinc-800/50 rounded-xl border border-zinc-700/50 text-amber-500 group-hover:text-amber-400 group-hover:border-amber-500/50 transition-colors shadow-[0_0_10px_-3px_rgba(245,158,11,0.1)]">
+                  <CurrencyEur size={22} weight="duotone" />
                 </div>
                 <div>
-                  <p className="text-xs text-zinc-500 font-medium uppercase tracking-wide">Ricavi</p>
-                  <p className="text-2xl font-bold text-zinc-100 mt-0.5">€{analytics.totalRevenue.toFixed(0)}</p>
+                  <p className="text-[10px] text-zinc-500 font-bold uppercase tracking-widest mb-1">Ricavi</p>
+                  <p className="text-2xl font-bold text-amber-400 tracking-tight">€{analytics.totalRevenue.toFixed(0)}</p>
                 </div>
               </div>
             </CardContent>
           </Card>
 
-          <Card className="border-zinc-800/50 bg-zinc-900/80 shadow-xl">
-            <CardContent className="p-5">
+          <Card className="border-zinc-800/60 bg-gradient-to-br from-zinc-900/90 to-zinc-950/90 shadow-lg relative overflow-hidden group hover:border-amber-500/30 transition-all duration-300">
+            <div className="absolute top-0 right-0 w-24 h-24 bg-amber-500/5 blur-2xl rounded-full -mr-10 -mt-10 pointer-events-none group-hover:bg-amber-500/10 transition-all"></div>
+            <CardContent className="p-5 relative z-10">
               <div className="flex items-center gap-4">
-                <div className="p-3 bg-zinc-800 rounded-xl border border-zinc-700/50">
-                  <TrendUp size={22} className="text-zinc-400" weight="duotone" />
+                <div className="p-3 bg-zinc-800/50 rounded-xl border border-zinc-700/50 text-zinc-400 group-hover:text-amber-500 transition-colors">
+                  <TrendUp size={22} weight="duotone" />
                 </div>
                 <div>
-                  <p className="text-xs text-zinc-500 font-medium uppercase tracking-wide">Scontrino Medio</p>
-                  <p className="text-2xl font-bold text-zinc-100 mt-0.5">€{analytics.averageOrderValue.toFixed(2)}</p>
+                  <p className="text-[10px] text-zinc-500 font-bold uppercase tracking-widest mb-1">Scontrino Medio</p>
+                  <p className="text-2xl font-bold text-white tracking-tight">€{analytics.averageOrderValue.toFixed(2)}</p>
                 </div>
               </div>
             </CardContent>
           </Card>
 
-          <Card className="border-zinc-800/50 bg-zinc-900/80 shadow-xl">
-            <CardContent className="p-5">
+          <Card className="border-zinc-800/60 bg-gradient-to-br from-zinc-900/90 to-zinc-950/90 shadow-lg relative overflow-hidden group hover:border-amber-500/30 transition-all duration-300">
+            <div className="absolute top-0 right-0 w-24 h-24 bg-amber-500/5 blur-2xl rounded-full -mr-10 -mt-10 pointer-events-none group-hover:bg-amber-500/10 transition-all"></div>
+            <CardContent className="p-5 relative z-10">
               <div className="flex items-center gap-4">
-                <div className={`p-3 rounded-xl border ${inventoryData.trendAlerts?.[0]?.change > 0 ? 'bg-emerald-950/50 border-emerald-800/50' : inventoryData.trendAlerts?.[0]?.change < 0 ? 'bg-red-950/50 border-red-800/50' : 'bg-zinc-800 border-zinc-700/50'}`}>
+                <div className={`p-3 rounded-xl border transition-colors ${inventoryData.trendAlerts?.[0]?.change > 0 ? 'bg-emerald-950/30 border-emerald-500/30 text-emerald-400' : inventoryData.trendAlerts?.[0]?.change < 0 ? 'bg-red-950/30 border-red-500/30 text-red-400' : 'bg-zinc-800/50 border-zinc-700/50 text-zinc-400'}`}>
                   {inventoryData.trendAlerts?.[0]?.change > 0 ? (
-                    <TrendUp size={22} className="text-emerald-400" weight="duotone" />
+                    <TrendUp size={22} weight="duotone" />
                   ) : inventoryData.trendAlerts?.[0]?.change < 0 ? (
-                    <TrendDown size={22} className="text-red-400" weight="duotone" />
+                    <TrendDown size={22} weight="duotone" />
                   ) : (
-                    <Minus size={22} className="text-zinc-400" weight="bold" />
+                    <Minus size={22} weight="bold" />
                   )}
                 </div>
                 <div className="min-w-0 flex-1">
-                  <p className="text-xs text-zinc-500 font-medium uppercase tracking-wide">Trend Periodo</p>
+                  <p className="text-[10px] text-zinc-500 font-bold uppercase tracking-widest mb-1">Top Trend</p>
                   {inventoryData.trendAlerts && inventoryData.trendAlerts.length > 0 ? (
-                    <div className="flex items-center gap-2 mt-0.5">
-                      <p className="text-base font-bold text-zinc-100 truncate">{inventoryData.trendAlerts[0].name}</p>
-                      <span className={`text-sm font-bold ${inventoryData.trendAlerts[0].change > 0 ? 'text-emerald-400' : 'text-red-400'}`}>
+                    <div className="flex flex-col">
+                      <p className="text-sm font-bold text-white truncate">{inventoryData.trendAlerts[0].name}</p>
+                      <span className={`text-xs font-bold ${inventoryData.trendAlerts[0].change > 0 ? 'text-emerald-400' : 'text-red-400'}`}>
                         {inventoryData.trendAlerts[0].change > 0 ? '+' : ''}{inventoryData.trendAlerts[0].change}%
                       </span>
                     </div>
                   ) : (
-                    <p className="text-base font-medium text-zinc-600 mt-0.5">Nessun trend</p>
+                    <p className="text-lg font-bold text-zinc-600 mt-0.5">-</p>
                   )}
                 </div>
               </div>
@@ -518,42 +522,47 @@ export default function AnalyticsCharts({ orders, completedOrders, dishes, categ
         {/* Charts Grid */}
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
           {/* Time Series Chart */}
-          <Card className="border-zinc-800/50 bg-zinc-900/80 shadow-xl overflow-hidden">
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-4 border-b border-zinc-800/50">
-              <CardTitle className="flex items-center gap-2 text-base font-semibold text-zinc-200">
-                <ChartLine size={18} className="text-amber-500" weight="duotone" />
+          <Card className="border-zinc-800/50 bg-zinc-900/40 shadow-xl overflow-hidden backdrop-blur-sm">
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-6 border-b border-white/5">
+              <CardTitle className="flex items-center gap-2 text-base font-semibold text-zinc-100">
+                <div className="w-1 h-5 bg-amber-500 rounded-full"></div>
                 Andamento nel Tempo
               </CardTitle>
               <Select value={timeSeriesMetric} onValueChange={(v: any) => setTimeSeriesMetric(v)}>
-                <SelectTrigger className="w-36 h-8 text-xs border-zinc-700 bg-zinc-800/50 text-zinc-300">
+                <SelectTrigger className="w-36 h-8 text-xs border-zinc-700 bg-zinc-800/50 text-zinc-300 hover:border-amber-500/30">
                   <SelectValue />
                 </SelectTrigger>
-                <SelectContent className="bg-zinc-900 border-zinc-800">
+                <SelectContent className="bg-zinc-900 border-zinc-800 text-zinc-300">
                   <SelectItem value="orders">Num. Ordini</SelectItem>
                   <SelectItem value="revenue">Ricavi (€)</SelectItem>
                   <SelectItem value="average">Scontrino Medio</SelectItem>
                 </SelectContent>
               </Select>
             </CardHeader>
-            <CardContent className="pt-6">
+            <CardContent className="pt-6 pl-0">
               <ResponsiveContainer width="100%" height={300}>
                 {analytics.isSingleDay ? (
-                  <BarChart data={analytics.dailyData} margin={{ top: 10, right: 10, left: 0, bottom: 0 }}>
-                    <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="var(--border)" />
+                  <BarChart data={analytics.dailyData} margin={{ top: 10, right: 30, left: 10, bottom: 0 }}>
+                    <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="rgba(255,255,255,0.05)" />
                     <XAxis
                       dataKey="date"
                       axisLine={false}
                       tickLine={false}
-                      tick={{ fontSize: 12, fill: 'var(--muted-foreground)' }}
+                      tick={{ fontSize: 12, fill: '#71717a' }}
+                      dy={10}
                     />
                     <YAxis
                       axisLine={false}
                       tickLine={false}
-                      tick={{ fontSize: 12, fill: 'var(--muted-foreground)' }}
+                      tick={{ fontSize: 12, fill: '#71717a' }}
                       tickFormatter={(value) => timeSeriesMetric === 'orders' ? value : `€${value}`}
+                      dx={-10}
                     />
                     <Tooltip
-                      contentStyle={{ borderRadius: '8px', border: 'none', boxShadow: '0 4px 12px rgba(0,0,0,0.1)' }}
+                      cursor={{ fill: 'rgba(245, 158, 11, 0.05)' }}
+                      contentStyle={{ backgroundColor: '#09090b', borderRadius: '12px', border: '1px solid rgba(255,255,255,0.1)', boxShadow: '0 8px 30px rgba(0,0,0,0.5)' }}
+                      itemStyle={{ color: '#fbbf24', fontWeight: 'bold' }}
+                      labelStyle={{ color: '#a1a1aa', marginBottom: '8px' }}
                       formatter={(value: number) => [
                         timeSeriesMetric === 'orders' ? value : `€${value.toFixed(2)}`,
                         timeSeriesMetric === 'orders' ? 'Ordini' : timeSeriesMetric === 'revenue' ? 'Ricavi' : 'Valore Medio'
@@ -561,35 +570,38 @@ export default function AnalyticsCharts({ orders, completedOrders, dishes, categ
                     />
                     <Bar
                       dataKey={timeSeriesMetric === 'orders' ? 'orders' : timeSeriesMetric === 'revenue' ? 'revenue' : 'averageValue'}
-                      fill="#C9A152"
-                      radius={[8, 8, 0, 0]}
-                      barSize={100}
+                      fill="#f59e0b"
+                      radius={[6, 6, 0, 0]}
+                      barSize={60}
                     />
                   </BarChart>
                 ) : (
-                  <AreaChart data={analytics.dailyData} margin={{ top: 10, right: 10, left: 0, bottom: 0 }}>
+                  <AreaChart data={analytics.dailyData} margin={{ top: 10, right: 30, left: 10, bottom: 0 }}>
                     <defs>
                       <linearGradient id="colorMetric" x1="0" y1="0" x2="0" y2="1">
-                        <stop offset="5%" stopColor="#C9A152" stopOpacity={0.3} />
-                        <stop offset="95%" stopColor="#C9A152" stopOpacity={0} />
+                        <stop offset="5%" stopColor="#f59e0b" stopOpacity={0.4} />
+                        <stop offset="95%" stopColor="#f59e0b" stopOpacity={0} />
                       </linearGradient>
                     </defs>
-                    <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="var(--border)" />
+                    <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="rgba(255,255,255,0.05)" />
                     <XAxis
                       dataKey="date"
                       axisLine={false}
                       tickLine={false}
-                      tick={{ fontSize: 12, fill: 'var(--muted-foreground)' }}
+                      tick={{ fontSize: 12, fill: '#71717a' }}
                       dy={10}
                     />
                     <YAxis
                       axisLine={false}
                       tickLine={false}
-                      tick={{ fontSize: 12, fill: 'var(--muted-foreground)' }}
+                      tick={{ fontSize: 12, fill: '#71717a' }}
                       tickFormatter={(value) => timeSeriesMetric === 'orders' ? value : `€${value}`}
+                      dx={-10}
                     />
                     <Tooltip
-                      contentStyle={{ borderRadius: '8px', border: 'none', boxShadow: '0 4px 12px rgba(0,0,0,0.1)' }}
+                      contentStyle={{ backgroundColor: '#09090b', borderRadius: '12px', border: '1px solid rgba(255,255,255,0.1)', boxShadow: '0 8px 30px rgba(0,0,0,0.5)' }}
+                      itemStyle={{ color: '#fbbf24', fontWeight: 'bold' }}
+                      labelStyle={{ color: '#a1a1aa', marginBottom: '8px' }}
                       formatter={(value: number) => [
                         timeSeriesMetric === 'orders' ? value : `€${value.toFixed(2)}`,
                         timeSeriesMetric === 'orders' ? 'Ordini' : timeSeriesMetric === 'revenue' ? 'Ricavi' : 'Valore Medio'
@@ -598,10 +610,11 @@ export default function AnalyticsCharts({ orders, completedOrders, dishes, categ
                     <Area
                       type="monotone"
                       dataKey={timeSeriesMetric === 'orders' ? 'orders' : timeSeriesMetric === 'revenue' ? 'revenue' : 'averageValue'}
-                      stroke="#C9A152"
+                      stroke="#fbbf24"
                       strokeWidth={3}
                       fillOpacity={1}
                       fill="url(#colorMetric)"
+                      activeDot={{ r: 6, strokeWidth: 0, fill: '#fff' }}
                     />
                   </AreaChart>
                 )}
@@ -610,17 +623,17 @@ export default function AnalyticsCharts({ orders, completedOrders, dishes, categ
           </Card>
 
           {/* Category Chart */}
-          <Card className="border-zinc-800/50 bg-zinc-900/80 shadow-xl overflow-hidden">
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-4 border-b border-zinc-800/50">
-              <CardTitle className="flex items-center gap-2 text-base font-semibold text-zinc-200">
-                <List size={18} className="text-amber-500" weight="duotone" />
+          <Card className="border-zinc-800/50 bg-zinc-900/40 shadow-xl overflow-hidden backdrop-blur-sm">
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-6 border-b border-white/5">
+              <CardTitle className="flex items-center gap-2 text-base font-semibold text-zinc-100">
+                <div className="w-1 h-5 bg-amber-500 rounded-full"></div>
                 Performance Categorie
               </CardTitle>
               <Select value={categoryMetric} onValueChange={(v: any) => setCategoryMetric(v)}>
-                <SelectTrigger className="w-36 h-8 text-xs border-zinc-700 bg-zinc-800/50 text-zinc-300">
+                <SelectTrigger className="w-36 h-8 text-xs border-zinc-700 bg-zinc-800/50 text-zinc-300 hover:border-amber-500/30">
                   <SelectValue />
                 </SelectTrigger>
-                <SelectContent className="bg-zinc-900 border-zinc-800">
+                <SelectContent className="bg-zinc-900 border-zinc-800 text-zinc-300">
                   <SelectItem value="revenue">Per Ricavi (€)</SelectItem>
                   <SelectItem value="quantity">Per Quantità</SelectItem>
                 </SelectContent>
@@ -633,7 +646,7 @@ export default function AnalyticsCharts({ orders, completedOrders, dishes, categ
                   layout="vertical"
                   margin={{ top: 0, right: 30, left: 40, bottom: 0 }}
                 >
-                  <CartesianGrid strokeDasharray="3 3" horizontal={false} stroke="#27272a" />
+                  <CartesianGrid strokeDasharray="3 3" horizontal={false} stroke="rgba(255,255,255,0.05)" />
                   <XAxis type="number" hide />
                   <YAxis
                     dataKey="name"
@@ -641,13 +654,13 @@ export default function AnalyticsCharts({ orders, completedOrders, dishes, categ
                     width={100}
                     axisLine={false}
                     tickLine={false}
-                    tick={{ fontSize: 12, fill: '#a1a1aa', fontWeight: 500 }}
+                    tick={{ fontSize: 13, fill: '#a1a1aa', fontWeight: 500 }}
                   />
                   <Tooltip
-                    cursor={{ fill: '#27272a', opacity: 0.5 }}
-                    contentStyle={{ backgroundColor: '#18181b', borderRadius: '8px', border: '1px solid #27272a', boxShadow: '0 4px 12px rgba(0,0,0,0.3)' }}
-                    labelStyle={{ color: '#f4f4f5' }}
-                    itemStyle={{ color: '#f4f4f5' }}
+                    cursor={{ fill: 'rgba(255,255,255,0.02)' }}
+                    contentStyle={{ backgroundColor: '#09090b', borderRadius: '12px', border: '1px solid rgba(255,255,255,0.1)', boxShadow: '0 8px 30px rgba(0,0,0,0.5)' }}
+                    itemStyle={{ color: '#fbbf24', fontWeight: 'bold' }}
+                    labelStyle={{ color: '#fff', fontWeight: 'bold', marginBottom: '5px' }}
                     formatter={(value: number) => [
                       categoryMetric === 'revenue' ? `€${value.toFixed(2)}` : value,
                       categoryMetric === 'revenue' ? 'Ricavi' : 'Quantità'
@@ -655,9 +668,10 @@ export default function AnalyticsCharts({ orders, completedOrders, dishes, categ
                   />
                   <Bar
                     dataKey={categoryMetric}
-                    fill="#f59e0b"
-                    radius={[0, 6, 6, 0]}
-                    barSize={28}
+                    fill="#fbbf24"
+                    radius={[0, 4, 4, 0]}
+                    barSize={24}
+                    background={{ fill: 'rgba(255,255,255,0.02)' }}
                   />
                 </BarChart>
               </ResponsiveContainer>

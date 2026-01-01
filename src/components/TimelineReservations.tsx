@@ -530,18 +530,19 @@ export default function TimelineReservations({ user, restaurantId, tables, booki
               const isAvailable = availableTables.some(t => t.id === table.id)
 
               // UPDATED COLORS: RED for Occupied, GREEN for Free (approx)
-              let borderClass = 'border-l-4 border-l-slate-300 dark:border-l-slate-700'
-              let bgClass = 'bg-card'
+              let borderClass = 'border-l-2 border-l-zinc-800'
+              let bgClass = 'bg-black/40' // Pure black/glass default
 
               if (isCurrentlyOccupied) {
-                borderClass = 'border-l-4 border-l-amber-500'
-                bgClass = 'bg-amber-500/10'
+                borderClass = 'border-l-2 border-l-amber-500'
+                bgClass = 'bg-amber-950/20' // Subtle gold tint for occupied
               } else if (isAvailable && searchTime) {
-                borderClass = 'border-l-4 border-l-emerald-500' // Available
-                bgClass = 'bg-emerald-500/10'
+                borderClass = 'border-l-2 border-l-emerald-500' // Available
+                bgClass = 'bg-emerald-950/20'
               } else {
                 // Default Free
-                borderClass = 'border-l-4 border-l-zinc-700/50'
+                borderClass = 'border-l-2 border-l-zinc-800'
+                bgClass = 'bg-black' // Deep black for free
               }
 
               // Collision check for ghost block
@@ -577,13 +578,13 @@ export default function TimelineReservations({ user, restaurantId, tables, booki
                     {/* GHOST BLOCK ON HOVER - Only if no collision */}
                     {hoveredSlot && hoveredSlot.tableId === table.id && !draggedBookingId && !isHoverColliding && (
                       <div
-                        className="absolute top-2 bottom-2 rounded-md bg-primary/20 border-2 border-primary/50 border-dashed z-0 pointer-events-none transition-all duration-75 ease-out"
+                        className="absolute top-2 bottom-2 rounded-md bg-amber-500/20 border-2 border-amber-500/50 border-dashed z-0 pointer-events-none transition-all duration-75 ease-out"
                         style={{
                           left: `${getBlockStyle(hoveredSlot.startMinutes, reservationDuration).left}`,
                           width: `${getBlockStyle(hoveredSlot.startMinutes, reservationDuration).width}`
                         }}
                       >
-                        <div className="absolute -top-6 left-0 bg-primary text-primary-foreground text-xs px-1.5 py-0.5 rounded shadow-sm font-bold whitespace-nowrap">
+                        <div className="absolute -top-6 left-0 bg-amber-500 text-black text-xs px-1.5 py-0.5 rounded shadow-sm font-bold whitespace-nowrap">
                           {hoveredSlot.time}
                         </div>
                       </div>
@@ -599,7 +600,7 @@ export default function TimelineReservations({ user, restaurantId, tables, booki
                         return (
                           <div
                             key={i}
-                            className="absolute top-0 bottom-0 w-px bg-border/20 dashed"
+                            className="absolute top-0 bottom-0 w-px bg-white/5 dashed border-r border-dashed border-white/5"
                             style={{ left: `${left}%` }}
                           ></div>
                         )
@@ -609,7 +610,7 @@ export default function TimelineReservations({ user, restaurantId, tables, booki
                     {/* CURRENT TIME INDICATOR */}
                     {currentTimePos >= 0 && (
                       <div
-                        className="absolute top-0 bottom-0 w-0.5 bg-red-500 z-10 pointer-events-none"
+                        className="absolute top-0 bottom-0 w-0.5 bg-amber-500 z-10 pointer-events-none shadow-[0_0_8px_rgba(245,158,11,0.8)]"
                         style={{ left: `${currentTimePos}%` }}
                       ></div>
                     )}
@@ -629,12 +630,13 @@ export default function TimelineReservations({ user, restaurantId, tables, booki
                             draggable={!isCompleted}
                             onDragStart={(e) => handleDragStart(e, block.booking.id, block.duration)}
                             // INCREASED SCALE: hover:scale-105 for more pop
-                            className={`absolute top-2 bottom-2 rounded-md border border-white/20 shadow-sm px-2 flex flex-col justify-center overflow-hidden transition-all duration-200 hover:z-50 hover:scale-105 hover:shadow-xl ${isCompleted ? 'opacity-70 grayscale' : 'shadow-md'}`}
+                            className={`absolute top-2 bottom-2 rounded-md border border-white/10 shadow-lg px-2 flex flex-col justify-center overflow-hidden transition-all duration-200 hover:z-50 hover:scale-105 hover:shadow-black/50 ${isCompleted ? 'opacity-60 grayscale' : 'shadow-md'}`}
                             style={{
                               left: `${getBlockStyle(block.startMinutes, block.duration).left}`,
                               width: `${getBlockStyle(block.startMinutes, block.duration).width}`,
                               backgroundColor: bgColor,
-                              color: ['#F4E6D1', '#F0D86F'].includes(bgColor) ? '#000' : '#fff'
+                              color: '#000', // Force black text for contrast on gold
+                              fontWeight: 600
                             }}
                             onClick={(e) => {
                               e.stopPropagation()
@@ -642,19 +644,19 @@ export default function TimelineReservations({ user, restaurantId, tables, booki
                             }}
                             onMouseEnter={() => setHoveredSlot(null)} // Hide ghost block explicitly when entering a block
                           >
-                            <div className="font-bold text-base truncate leading-tight">
+                            <div className="font-bold text-sm truncate leading-tight">
                               {block.booking.name}
                             </div>
-                            <div className="text-sm truncate opacity-90 mt-1 font-medium">
+                            <div className="text-[10px] truncate opacity-80 mt-0.5 font-bold uppercase tracking-wide">
                               {minutesToTime(block.startMinutes)} - {minutesToTime(block.startMinutes + block.duration)} • {block.booking.guests}p
                             </div>
 
                             {!isCompleted && (
-                              <div className="absolute top-1 right-1 flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity"> {/* Hide buttons by default */}
+                              <div className="absolute top-1 right-1 flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity bg-black/20 rounded-full p-0.5 backdrop-blur-sm"> {/* Hide buttons by default */}
                                 <Button
                                   variant="ghost"
                                   size="icon"
-                                  className="w-5 h-5 rounded-full bg-white/20 hover:bg-white/40 text-current p-0 mb-1"
+                                  className="w-5 h-5 rounded-full hover:bg-black/20 text-black p-0"
                                   onClick={(e) => {
                                     e.stopPropagation()
                                     handleDeleteReservation(block.booking)
@@ -666,7 +668,7 @@ export default function TimelineReservations({ user, restaurantId, tables, booki
                                 <Button
                                   variant="ghost"
                                   size="icon"
-                                  className="w-5 h-5 rounded-full bg-white/20 hover:bg-white/40 text-current p-0"
+                                  className="w-5 h-5 rounded-full hover:bg-black/20 text-black p-0"
                                   onClick={(e) => {
                                     e.stopPropagation()
                                     handleCompleteBooking(block.booking)

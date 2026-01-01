@@ -336,12 +336,21 @@ const CustomerMenu = () => {
       const checkSession = async () => {
         // Fetch session details to get the correct PIN
         const session = await DatabaseService.getSessionById(sessionId)
+
         if (session) {
           setActiveSession(session)
 
           // Check if saved session matches current session AND PIN is correct
           const savedSessionId = localStorage.getItem('customerSessionId')
           const savedPin = localStorage.getItem('sessionPin')
+
+          // Verify session status - if CLOSED, force logout/re-auth
+          if (session.status === 'CLOSED') {
+            localStorage.removeItem('customerSessionId')
+            localStorage.removeItem('sessionPin')
+            setIsAuthenticated(false)
+            return
+          }
 
           if (savedSessionId === sessionId && savedPin === session.session_pin) {
             // Session is still the same and PIN matches - auto authenticate
@@ -351,7 +360,13 @@ const CustomerMenu = () => {
             localStorage.removeItem('customerSessionId')
             localStorage.removeItem('sessionPin')
             setIsAuthenticated(false)
+            // CRITICAL: Do NOT navigate away. Just show PIN screen by setting auth to false.
           }
+        } else {
+          // Session invalid or closed/deleted
+          localStorage.removeItem('customerSessionId')
+          localStorage.removeItem('sessionPin')
+          setIsAuthenticated(false)
         }
       }
       checkSession()

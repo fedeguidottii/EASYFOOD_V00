@@ -1,8 +1,18 @@
+
+import * as React from "react"
 import { ComponentProps } from "react"
 import * as DialogPrimitive from "@radix-ui/react-dialog"
 import XIcon from "lucide-react/dist/esm/icons/x"
 
 import { cn } from "@/lib/utils"
+
+function VisuallyHidden({ children }: { children: React.ReactNode }) {
+  return (
+    <span className="sr-only">
+      {children}
+    </span>
+  )
+}
 
 function Dialog({
   ...props
@@ -130,4 +140,5 @@ export {
   DialogPortal,
   DialogTitle,
   DialogTrigger,
+  VisuallyHidden,
 }
