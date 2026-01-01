@@ -552,6 +552,10 @@ const RestaurantDashboard = ({ user, onLogout }: RestaurantDashboardProps) => {
   const [weeklyCoperto, setWeeklyCoperto] = useState<any>(currentRestaurant?.weekly_coperto || null)
   const [weeklyAyce, setWeeklyAyce] = useState<any>(currentRestaurant?.weekly_ayce || null)
 
+  // Reservation Settings
+  const [enableReservationRoomSelection, setEnableReservationRoomSelection] = useState(false)
+  const [enablePublicReservations, setEnablePublicReservations] = useState(true)
+
   // Dirty state tracking
   const [restaurantNameDirty, setRestaurantNameDirty] = useState(false)
   const [waiterCredentialsDirty, setWaiterCredentialsDirty] = useState(false)
@@ -593,9 +597,33 @@ const RestaurantDashboard = ({ user, onLogout }: RestaurantDashboardProps) => {
 
       // Weekly schedules
       if (currentRestaurant.weekly_coperto) setWeeklyCoperto(currentRestaurant.weekly_coperto)
+      if (currentRestaurant.weekly_coperto) setWeeklyCoperto(currentRestaurant.weekly_coperto)
       if (currentRestaurant.weekly_ayce) setWeeklyAyce(currentRestaurant.weekly_ayce)
+
+      setEnableReservationRoomSelection(currentRestaurant.enable_reservation_room_selection || false)
+      setEnablePublicReservations(currentRestaurant.enable_public_reservations !== false) // Default true
     }
   }, [currentRestaurant])
+
+  const updateEnableReservationRoomSelection = async (enabled: boolean) => {
+    setEnableReservationRoomSelection(enabled)
+    if (restaurantId) {
+      await DatabaseService.updateRestaurant({
+        id: restaurantId,
+        enable_reservation_room_selection: enabled
+      })
+    }
+  }
+
+  const updateEnablePublicReservations = async (enabled: boolean) => {
+    setEnablePublicReservations(enabled)
+    if (restaurantId) {
+      await DatabaseService.updateRestaurant({
+        id: restaurantId,
+        enable_public_reservations: enabled
+      })
+    }
+  }
 
   // Handlers for updating settings
   const saveRestaurantName = async () => {
@@ -2555,6 +2583,11 @@ const RestaurantDashboard = ({ user, onLogout }: RestaurantDashboardProps) => {
                 setWaiterPassword={setWaiterPassword}
                 saveWaiterCredentials={saveWaiterCredentials}
                 waiterCredentialsDirty={waiterCredentialsDirty}
+
+                enableReservationRoomSelection={enableReservationRoomSelection}
+                setEnableReservationRoomSelection={updateEnableReservationRoomSelection}
+                enablePublicReservations={enablePublicReservations}
+                setEnablePublicReservations={updateEnablePublicReservations}
 
                 ayceEnabled={ayceEnabled}
                 setAyceEnabled={updateAyceEnabled}

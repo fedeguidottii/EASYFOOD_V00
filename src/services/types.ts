@@ -42,6 +42,8 @@ export interface Restaurant {
     cover_charge_per_person?: number
     waiter_mode_enabled?: boolean
     allow_waiter_payments?: boolean
+    enable_reservation_room_selection?: boolean
+    enable_public_reservations?: boolean
 
     waiter_password?: string
     // Schedule Configuration

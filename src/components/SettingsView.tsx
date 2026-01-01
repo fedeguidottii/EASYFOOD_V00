@@ -80,6 +80,12 @@ interface SettingsViewProps {
     setWeeklyCoperto: (schedule: WeeklyCopertoSchedule) => void
     weeklyAyce: WeeklyAyceSchedule | undefined
     setWeeklyAyce: (schedule: WeeklyAyceSchedule) => void
+
+    // Reservation Settings
+    enableReservationRoomSelection: boolean
+    setEnableReservationRoomSelection: (enabled: boolean) => void
+    enablePublicReservations: boolean
+    setEnablePublicReservations: (enabled: boolean) => void
 }
 
 export function SettingsView({
@@ -98,6 +104,10 @@ export function SettingsView({
     waiterPassword,
     setWaiterPassword,
     saveWaiterCredentials,
+    enableReservationRoomSelection,
+    setEnableReservationRoomSelection,
+    enablePublicReservations,
+    setEnablePublicReservations,
     waiterCredentialsDirty,
     ayceEnabled,
     setAyceEnabled,
@@ -498,10 +508,45 @@ export function SettingsView({
                                     </div>
                                 </div>
                             </div>
+
+                            {/* QR Code & Prenotazioni Pubbliche */}
+                            <div className="p-6 rounded-2xl bg-zinc-900/50 border border-white/5 backdrop-blur-sm md:col-span-2">
+                                <h3 className="text-lg font-bold mb-4 flex items-center gap-2">
+                                    <Storefront className="text-amber-500" />
+                                    Prenotazioni Pubbliche (QR Code)
+                                </h3>
+                                <div className="space-y-6">
+                                    <div className="flex items-center justify-between">
+                                        <div className="space-y-0.5">
+                                            <Label className="text-base text-zinc-200">Abilita Prenotazioni da QR</Label>
+                                            <p className="text-sm text-zinc-400">Se disattivato, il QR Code mostrerà un avviso di servizio non disponibile ma rimarrà valido.</p>
+                                        </div>
+                                        <Switch
+                                            checked={enablePublicReservations}
+                                            onCheckedChange={setEnablePublicReservations}
+                                            className="data-[state=checked]:bg-amber-500"
+                                        />
+                                    </div>
+                                    <Separator className="bg-white/5" />
+                                    <div className="flex items-center justify-between">
+                                        <div className="space-y-0.5">
+                                            <Label className="text-base text-zinc-200">Consenti Scelta Sala</Label>
+                                            <p className="text-sm text-zinc-400">Permetti ai clienti di indicare una preferenza per la sala/zona.</p>
+                                        </div>
+                                        {enablePublicReservations && (
+                                            <Switch
+                                                checked={enableReservationRoomSelection}
+                                                onCheckedChange={setEnableReservationRoomSelection}
+                                                className="data-[state=checked]:bg-amber-500"
+                                            />
+                                        )}
+                                    </div>
+                                </div>
+                            </div>
                         </div>
                     </motion.div>
                 </TabsContent>
-            </Tabs>
-        </div>
+            </Tabs >
+        </div >
     )
 }

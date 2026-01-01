@@ -16,7 +16,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter, DialogClose } from "@/components/ui/dialog"
 import { supabase } from "@/lib/supabase"
 import { toast } from "sonner"
-import type { Restaurant, Dish, Category } from "@/services/types"
+import type { Restaurant, Dish, Category, Room } from "@/services/types"
 
 // --- TYPES ---
 interface TimeSlot {
@@ -31,6 +31,7 @@ interface BookingFormData {
     guests: number
     date: Date | null
     time: string | null
+    roomId: string | null
 }
 
 const PublicReservationPage = () => {
@@ -47,14 +48,17 @@ const PublicReservationPage = () => {
         notes: "",
         guests: 2,
         date: new Date(),
-        time: null
+        time: null,
+        roomId: null
     })
 
     // Data State
     const [availableSlots, setAvailableSlots] = useState<TimeSlot[]>([])
     const [menuPreviewOpen, setMenuPreviewOpen] = useState(false)
     const [categories, setCategories] = useState<Category[]>([])
+
     const [dishes, setDishes] = useState<Dish[]>([])
+    const [rooms, setRooms] = useState<Room[]>([])
 
     // --- INIT ---
     useEffect(() => {
@@ -87,7 +91,17 @@ const PublicReservationPage = () => {
                     .eq("is_active", true)
 
                 if (cats) setCategories(cats)
+
                 if (d) setDishes(d)
+
+                // 3. Fetch Rooms if enabled
+                if (rest.enable_reservation_room_selection) {
+                    const { data: r } = await supabase
+                        .from('rooms')
+                        .select('*')
+                        .eq('restaurant_id', restaurantId)
+                    if (r) setRooms(r)
+                }
 
             } catch (err: any) {
                 console.error("Error fetching reservation page:", err)
@@ -167,12 +181,13 @@ const PublicReservationPage = () => {
                 .from("bookings")
                 .insert({
                     restaurant_id: restaurant.id,
-                    customer_name: formData.name,
-                    customer_phone: formData.phone,
-                    customer_email: "", // No email provided
+                    name: formData.name,
+                    phone: formData.phone,
+                    email: "", // No email provided
                     guests: formData.guests,
-                    booking_date: bookingDate.toISOString(),
-                    notes: formData.notes,
+                    date_time: bookingDate.toISOString(),
+
+                    notes: (formData.roomId ? `[Sala: ${rooms.find(r => r.id === formData.roomId)?.name}] ` : "") + formData.notes,
                     status: "PENDING"
                 })
 
@@ -211,6 +226,30 @@ const PublicReservationPage = () => {
         </div>
     )
 
+
+    // Check if Public Reservations are Disabled
+    if (restaurant.enable_public_reservations === false) {
+        return (
+            <div className="min-h-screen bg-zinc-950 flex items-center justify-center p-6 text-center">
+                <div className="max-w-md space-y-4">
+                    <div className="w-20 h-20 bg-zinc-900 rounded-full flex items-center justify-center mx-auto mb-6">
+                        <Storefront size={32} className="text-zinc-500" />
+                    </div>
+                    <h1 className="text-2xl text-white font-bold">Prenotazioni non disponibili</h1>
+                    <p className="text-zinc-400">
+                        Al momento non è possibile effettuare prenotazioni online per questo ristorante.
+                        Contattaci telefonicamente.
+                    </p>
+                    {restaurant.phone && (
+                        <Button variant="outline" className="mt-4 gap-2 border-zinc-700" onClick={() => window.open(`tel:${restaurant.phone}`)}>
+                            <Phone size={18} />
+                            Chiama Ristorante
+                        </Button>
+                    )}
+                </div>
+            </div>
+        )
+    }
     return (
         <div className="min-h-screen bg-zinc-950 text-zinc-100 font-sans selection:bg-amber-500/30 pb-20 md:pb-0"> {/* Added pb-20 for mobile */}
             {/* Background Ambience */}
@@ -344,6 +383,28 @@ const PublicReservationPage = () => {
                                                 ))}
                                             </div>
                                         </div>
+
+                                        {/* Room Selection */}
+                                        {restaurant.enable_reservation_room_selection && rooms.length > 0 && (
+                                            <div className="space-y-3">
+                                                <label className="text-xs font-medium text-zinc-500 uppercase tracking-wider">Preferenza Sala</label>
+                                                <div className="grid grid-cols-2 gap-2">
+                                                    {rooms.map((room) => (
+                                                        <button
+                                                            key={room.id}
+                                                            onClick={() => setFormData(d => ({ ...d, roomId: d.roomId === room.id ? null : room.id }))}
+                                                            className={`py-3 px-4 rounded-xl text-sm font-medium transition-all text-left flex items-center justify-between ${formData.roomId === room.id
+                                                                ? "bg-amber-500 text-black shadow-lg shadow-amber-500/20"
+                                                                : "bg-zinc-800/50 text-zinc-300 hover:bg-zinc-800 border border-zinc-800"
+                                                                }`}
+                                                        >
+                                                            <span>{room.name}</span>
+                                                            {formData.roomId === room.id && <CheckCircle weight="fill" />}
+                                                        </button>
+                                                    ))}
+                                                </div>
+                                            </div>
+                                        )}
 
                                         <div className="pt-4">
                                             <Button
