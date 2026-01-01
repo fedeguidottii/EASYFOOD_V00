@@ -211,35 +211,31 @@ export const DatabaseService = {
     },
 
     async nukeDatabase() {
-        // ATTENZIONE: Ordine inverso di dipendenza
-        // 1. Order Items (dipende da Orders e Dishes)
+        // ATTENZIONE: Ordine inverso di dipendenza per evitare errori di Foreign Key
+
+        // 1. Dati volatili di sessione
+        await supabase.from('cart_items').delete().neq('id', '00000000-0000-0000-0000-000000000000')
         await supabase.from('order_items').delete().neq('id', '00000000-0000-0000-0000-000000000000')
-
-        // 2. Orders (dipende da Restaurants e Table Sessions)
         await supabase.from('orders').delete().neq('id', '00000000-0000-0000-0000-000000000000')
-
-        // 3. Sessions (dipende da Tables)
         await supabase.from('table_sessions').delete().neq('id', '00000000-0000-0000-0000-000000000000')
-
-        // 4. Bookings
         await supabase.from('bookings').delete().neq('id', '00000000-0000-0000-0000-000000000000')
 
-        // 5. Dishes (dipende da Categories e Restaurants)
+        // 2. Sistema Menu Personalizzati
+        await supabase.from('custom_menu_schedules').delete().neq('id', '00000000-0000-0000-0000-000000000000')
+        await supabase.from('custom_menu_dishes').delete().neq('id', '00000000-0000-0000-0000-000000000000')
+        await supabase.from('custom_menus').delete().neq('id', '00000000-0000-0000-0000-000000000000')
+
+        // 3. Struttura Menu e Locale
         await supabase.from('dishes').delete().neq('id', '00000000-0000-0000-0000-000000000000')
-
-        // 6. Categories
         await supabase.from('categories').delete().neq('id', '00000000-0000-0000-0000-000000000000')
-
-        // 7. Tables
         await supabase.from('tables').delete().neq('id', '00000000-0000-0000-0000-000000000000')
+        await supabase.from('rooms').delete().neq('id', '00000000-0000-0000-0000-000000000000')
 
-        // 8. Staff
+        // 4. Staff e Ristoranti
         await supabase.from('restaurant_staff').delete().neq('restaurant_id', '00000000-0000-0000-0000-000000000000')
-
-        // 9. Restaurants
         await supabase.from('restaurants').delete().neq('id', '00000000-0000-0000-0000-000000000000')
 
-        // 10. Users (tranne ADMIN)
+        // 5. Utenti (tranne ADMIN)
         await supabase.from('users').delete().neq('role', 'ADMIN')
     },
 

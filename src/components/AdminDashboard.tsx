@@ -12,6 +12,7 @@ import { toast } from 'sonner'
 import { User, Restaurant, Order } from '../services/types'
 import { Crown, Plus, Buildings, SignOut, Trash, ChartBar, PencilSimple, Eye, EyeSlash, Database, MagnifyingGlass, SortAscending, UploadSimple } from '@phosphor-icons/react'
 import AdminStatistics from './AdminStatistics'
+import RestaurantDashboard from './RestaurantDashboard'
 import { v4 as uuidv4 } from 'uuid'
 import { populateRestaurantData } from '../services/populateData'
 
@@ -33,6 +34,7 @@ export default function AdminDashboard({ user, onLogout }: Props) {
   const [users] = useSupabaseData<User>('users', [])
   const [orders] = useSupabaseData<Order>('orders', [])
   const [activeView, setActiveView] = useState<'restaurants' | 'statistics'>('restaurants')
+  const [impersonatedRestaurantId, setImpersonatedRestaurantId] = useState<string | null>(null)
 
   // Search & Sort State
   const [searchQuery, setSearchQuery] = useState('')
@@ -308,6 +310,32 @@ export default function AdminDashboard({ user, onLogout }: Props) {
     }
   }
 
+  if (impersonatedRestaurantId) {
+    const impersonatedUser = {
+      ...user,
+      restaurant_id: impersonatedRestaurantId,
+      role: 'OWNER'
+    }
+
+    return (
+      <div className="relative">
+        <div className="fixed top-24 right-8 z-[100]">
+          <Button
+            onClick={() => setImpersonatedRestaurantId(null)}
+            className="bg-red-500 hover:bg-red-600 text-white font-bold shadow-2xl shadow-red-500/40 px-6 h-12 rounded-2xl flex items-center gap-2 border-2 border-white/20 scale-105 transition-transform"
+          >
+            <EyeSlash weight="bold" size={20} />
+            Termina Sessione
+          </Button>
+        </div>
+        <RestaurantDashboard
+          user={impersonatedUser}
+          onLogout={() => setImpersonatedRestaurantId(null)}
+        />
+      </div>
+    )
+  }
+
   return (
     <div className="min-h-screen bg-black text-zinc-100 font-sans selection:bg-amber-500/30">
       {/* Background Ambience */}
@@ -368,7 +396,7 @@ export default function AdminDashboard({ user, onLogout }: Props) {
 
       <div className="container mx-auto px-4 py-8 relative z-10">
         {activeView === 'statistics' ? (
-          <AdminStatistics />
+          <AdminStatistics onImpersonate={(id) => setImpersonatedRestaurantId(id)} />
         ) : (
           <div className="space-y-6">
             <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
@@ -478,7 +506,7 @@ export default function AdminDashboard({ user, onLogout }: Props) {
                 const isPasswordVisible = visiblePasswords[restaurant.id]
 
                 return (
-                  <Card key={restaurant.id} className="bg-black/40 backdrop-blur-xl border border-white/5 rounded-2xl overflow-hidden hover:border-amber-500/30 transition-all group">
+                  <Card key={restaurant.id} className="bg-black/40 backdrop-blur-xl border border-white/5 rounded-2xl overflow-hidden hover:border-amber-500/30 transition-all group shadow-2xl shadow-black/80">
                     <CardContent className="p-0">
                       <div className={`flex flex-col md:flex-row items-center p-5 gap-6 transition-all duration-300 ${!restaurant.isActive ? 'opacity-40 grayscale' : ''}`}>
 
@@ -537,6 +565,16 @@ export default function AdminDashboard({ user, onLogout }: Props) {
 
                         {/* Right: Actions */}
                         <div className="flex items-center gap-1.5 flex-shrink-0 border-l border-white/5 pl-6 ml-2">
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            className="h-10 w-10 text-zinc-500 hover:text-amber-500 hover:bg-amber-500/10 rounded-xl"
+                            onClick={() => setImpersonatedRestaurantId(restaurant.id)}
+                            title="Vedi Dashboard Ristorante"
+                          >
+                            <Eye size={20} weight="fill" />
+                          </Button>
+
                           <Button
                             variant="ghost"
                             size="icon"
