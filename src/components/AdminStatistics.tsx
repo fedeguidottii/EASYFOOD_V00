@@ -193,7 +193,7 @@ export default function AdminStatistics({ onImpersonate }: AdminStatisticsProps)
             {/* Charts Section */}
             <div className="grid gap-6 md:grid-cols-2">
                 {/* Growth Chart */}
-                <Card className="bg-zinc-900/40 backdrop-blur-3xl border border-white/5 rounded-3xl shadow-[0_30px_60px_-15px_rgba(0,0,0,0.9)] overflow-hidden">
+                <Card className="bg-zinc-900/40 backdrop-blur-3xl border border-white/5 rounded-3xl shadow-[0_30px_60px_-15px_rgba(0,0,0,1)] overflow-hidden">
                     <CardHeader className="pb-2">
                         <CardTitle className="text-lg font-bold text-white flex items-center justify-between">
                             <div className="flex items-center gap-2">
@@ -226,7 +226,7 @@ export default function AdminStatistics({ onImpersonate }: AdminStatisticsProps)
                 </Card>
 
                 {/* Order Volume Chart */}
-                <Card className="bg-zinc-900/40 backdrop-blur-3xl border border-white/5 rounded-3xl shadow-[0_30px_60px_-15px_rgba(0,0,0,0.9)] overflow-hidden">
+                <Card className="bg-zinc-900/40 backdrop-blur-3xl border border-white/5 rounded-3xl shadow-[0_30px_60px_-15px_rgba(0,0,0,1)] overflow-hidden">
                     <CardHeader className="pb-2">
                         <CardTitle className="text-lg font-bold text-white flex items-center justify-between">
                             <div className="flex items-center gap-2">

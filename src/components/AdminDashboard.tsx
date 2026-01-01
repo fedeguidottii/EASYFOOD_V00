@@ -509,94 +509,90 @@ export default function AdminDashboard({ user, onLogout }: Props) {
                 const isPasswordVisible = visiblePasswords[restaurant.id]
 
                 return (
-                  <Card key={restaurant.id} className="bg-zinc-900/40 backdrop-blur-xl border border-white/5 rounded-2xl overflow-hidden hover:border-amber-500/30 transition-all group shadow-[0_25px_50px_-12px_rgba(0,0,0,0.9)] mb-6">
+                  <Card key={restaurant.id} className="bg-zinc-900 border border-white/5 rounded-xl overflow-hidden hover:border-amber-500/20 transition-all group shadow-lg mb-4 ring-1 ring-white/5">
                     <CardContent className="p-0">
-                      <div className={`flex flex-col md:flex-row items-center p-5 gap-6 transition-all duration-300 ${!restaurant.isActive ? 'opacity-40 grayscale' : ''}`}>
+                      <div className={`flex flex-col md:flex-row items-center p-6 gap-6 transition-all duration-300 ${!restaurant.isActive ? 'opacity-50 grayscale' : ''}`}>
 
                         {/* Left: Logo */}
                         <div className="flex-shrink-0">
                           {restaurant.logo_url ? (
-                            <img src={restaurant.logo_url} alt={restaurant.name} className="w-12 h-12 rounded-full object-cover border bg-background" />
+                            <img src={restaurant.logo_url} alt={restaurant.name} className="w-16 h-16 rounded-xl object-cover border border-white/10 bg-black shadow-inner" />
                           ) : (
-                            <div className="w-12 h-12 rounded-full bg-muted flex items-center justify-center border">
-                              <Buildings size={20} className="text-muted-foreground" />
+                            <div className="w-16 h-16 rounded-xl bg-zinc-950 flex items-center justify-center border border-white/5 shadow-inner">
+                              <Buildings size={24} className="text-zinc-600" />
                             </div>
                           )}
                         </div>
 
                         {/* Center: Info */}
-                        <div className="flex-1 min-w-0 grid grid-cols-1 md:grid-cols-2 gap-4 items-center">
-                          <div className="space-y-1">
-                            <div className="flex items-center gap-2">
-                              <h3 className="text-base font-bold truncate">{restaurant.name}</h3>
+                        <div className="flex-1 min-w-0 grid grid-cols-1 md:grid-cols-2 gap-6 items-center">
+                          <div className="space-y-1.5 leadin-tight">
+                            <div className="flex items-center gap-2.5">
+                              <h3 className="text-lg font-semibold tracking-tight text-white">{restaurant.name}</h3>
                               {restaurant.isActive && (
-                                <Badge variant="default" className="text-xs px-2 py-0 h-5">
-                                  Attivo
-                                </Badge>
+                                <div className="h-2 w-2 rounded-full bg-emerald-500 shadow-[0_0_8px_rgba(16,185,129,0.6)]" />
                               )}
                             </div>
-                            <div className="text-xs text-muted-foreground flex items-center gap-3 truncate">
+                            <div className="text-sm font-medium text-zinc-400 flex flex-col gap-0.5">
                               <span>{restaurant.email}</span>
-                              <span className="w-1 h-1 rounded-full bg-border" />
-                              <span>{restaurant.phone}</span>
+                              <span className="text-zinc-500 text-xs">{restaurant.phone || 'N/D'}</span>
                             </div>
                           </div>
 
-                          {/* Credentials (Compact) */}
+                          {/* Credentials (Compact & Clean) */}
                           {restaurantUser && (
-                            <div className="bg-black/40 p-3 rounded-xl border border-white/5 flex items-center justify-between gap-4 group-hover:border-amber-500/10 transition-colors">
+                            <div className="flex items-center gap-4 bg-black/20 px-4 py-3 rounded-lg border border-white/5">
                               <div className="flex flex-col">
-                                <span className="text-[10px] text-zinc-500 uppercase tracking-widest font-bold">Owner</span>
-                                <span className="text-sm font-medium text-white">{restaurantUser.name}</span>
+                                <span className="text-[10px] uppercase font-bold text-zinc-500 tracking-wider">Proprietario</span>
+                                <span className="text-sm font-medium text-zinc-200">{restaurantUser.name}</span>
                               </div>
-                              <div className="flex items-center gap-3">
-                                <div className="font-mono text-xs bg-zinc-900 px-2 py-1.5 rounded-lg border border-white/5 text-amber-500/90 tracking-wider">
+                              <div className="h-8 w-px bg-white/5" />
+                              <div className="flex items-center gap-3 flex-1 justify-end">
+                                <div className="font-mono text-xs text-amber-500 tracking-wider">
                                   {isPasswordVisible ? restaurantUser.password_hash : '••••••••'}
                                 </div>
-                                <Button
-                                  variant="ghost"
-                                  size="icon"
+                                <button
                                   onClick={() => togglePasswordVisibility(restaurant.id)}
-                                  className="h-8 w-8 text-zinc-500 hover:text-amber-500 hover:bg-amber-500/10 rounded-lg"
+                                  className="text-zinc-500 hover:text-white transition-colors"
                                 >
-                                  {isPasswordVisible ? <EyeSlash size={16} /> : <Eye size={16} />}
-                                </Button>
+                                  {isPasswordVisible ? <EyeSlash size={14} /> : <Eye size={14} />}
+                                </button>
                               </div>
                             </div>
                           )}
                         </div>
 
                         {/* Right: Actions */}
-                        <div className="flex items-center gap-1.5 flex-shrink-0 border-l border-white/5 pl-6 ml-2">
+                        <div className="flex items-center gap-2 flex-shrink-0 border-l border-white/5 pl-6 ml-2">
                           <Button
                             variant="ghost"
                             size="icon"
-                            className="h-10 w-10 text-zinc-500 hover:text-amber-500 hover:bg-amber-500/10 rounded-xl"
+                            className="h-9 w-9 text-zinc-400 hover:text-white hover:bg-white/5 rounded-lg border border-transparent hover:border-white/10"
                             onClick={() => setImpersonatedRestaurantId(restaurant.id)}
-                            title="Vedi Dashboard Ristorante"
+                            title="Dashboard"
                           >
-                            <Eye size={20} weight="fill" />
+                            <Eye size={18} />
                           </Button>
 
                           <Button
                             variant="ghost"
                             size="icon"
-                            className="h-10 w-10 text-zinc-500 hover:text-amber-500 hover:bg-amber-500/10 rounded-xl"
+                            className="h-9 w-9 text-zinc-400 hover:text-white hover:bg-white/5 rounded-lg border border-transparent hover:border-white/10"
                             onClick={() => handlePopulateData(restaurant.id)}
-                            title="Popola Dati Demo"
+                            title="Popola Dati"
                           >
-                            <Database size={20} />
+                            <Database size={18} />
                           </Button>
 
                           <Button
                             variant="ghost"
                             size="icon"
-                            className={`h-10 w-10 rounded-xl ${restaurant.isActive ? 'text-zinc-500 hover:text-red-500 hover:bg-red-500/10' : 'text-zinc-500 hover:text-emerald-500 hover:bg-emerald-500/10'}`}
+                            className={`h-9 w-9 rounded-lg border border-transparent ${restaurant.isActive ? 'text-zinc-400 hover:text-red-400 hover:bg-red-500/10 hover:border-red-500/20' : 'text-zinc-400 hover:text-emerald-400 hover:bg-emerald-500/10 hover:border-emerald-500/20'}`}
                             onClick={() => handleToggleActive(restaurant)}
                             title={restaurant.isActive ? "Disattiva" : "Attiva"}
                           >
                             {restaurant.isActive ? (
-                              <Eye size={20} />
+                              <Eye size={18} />
                             ) : (
                               <EyeSlash size={20} />
                             )}

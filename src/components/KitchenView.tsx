@@ -150,9 +150,9 @@ export function KitchenView({ orders, tables, dishes, selectedCategoryIds = [], 
                             return (
                                 <Card
                                     key={`table-${tableName}`}
-                                    className="flex flex-col rounded-[2.5rem] border border-white/[0.03] bg-black/40 backdrop-blur-3xl shadow-[0_40px_80px_-15px_rgba(0,0,0,0.9)] transition-all duration-500 hover:border-amber-500/20 h-fit group/card overflow-hidden"
+                                    className="flex flex-col rounded-[2rem] border border-white/10 bg-zinc-900 shadow-[0_20px_50px_-12px_rgba(0,0,0,1)] transition-all duration-300 hover:border-amber-500/30 h-fit group/card overflow-hidden ring-1 ring-white/5"
                                 >
-                                    <CardHeader className="pb-4 pt-6 px-6 border-b border-white/[0.03] shrink-0 bg-gradient-to-b from-white/[0.02] to-transparent">
+                                    <CardHeader className="pb-4 pt-6 px-6 border-b border-white/10 shrink-0 bg-zinc-900">
                                         <div className="flex justify-between items-center w-full">
                                             <span className="text-3xl font-light text-zinc-100 whitespace-nowrap overflow-hidden text-ellipsis max-w-[60%] tracking-tight">
                                                 {tableName}
@@ -179,10 +179,10 @@ export function KitchenView({ orders, tables, dishes, selectedCategoryIds = [], 
                                                         <div
                                                             key={`${item.id}-${idx}`}
                                                             className={cn(
-                                                                "flex items-center justify-between p-4 rounded-2xl border transition-all duration-300 mb-2 group/item relative",
+                                                                "flex items-center justify-between p-4 rounded-xl border transition-all duration-300 mb-3 group/item relative",
                                                                 isItemDone
-                                                                    ? "opacity-20 bg-transparent border-transparent scale-95 grayscale transition-all duration-500"
-                                                                    : "bg-white/[0.02] border-white/[0.03] hover:border-amber-500/20 hover:bg-white/[0.04] shadow-2xl shadow-black/50"
+                                                                    ? "opacity-30 bg-zinc-950/50 border-transparent scale-[0.98] grayscale"
+                                                                    : "bg-zinc-800/50 border-white/10 hover:border-amber-500/40 hover:bg-zinc-800 hover:shadow-lg shadow-sm"
                                                             )}
                                                         >
                                                             <div

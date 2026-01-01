@@ -1394,8 +1394,8 @@ const RestaurantDashboard = ({ user, onLogout }: RestaurantDashboardProps) => {
               key={item.id}
               variant="ghost"
               className={`w-full justify-start h-12 px-4 rounded-xl transition-all duration-300 group relative overflow-hidden ${activeTab === item.id
-                // Active State: Enhanced with shadow and gold glow
-                ? 'bg-amber-500/10 text-amber-500 border-l-2 border-amber-500 shadow-[inset_10px_0_20px_-10px_rgba(245,158,11,0.2)]'
+                // Active State: Minimal & Elegant
+                ? 'bg-gradient-to-r from-amber-500/10 to-transparent text-amber-500 font-medium'
                 // Inactive State
                 : 'text-zinc-500 hover:text-zinc-200 hover:bg-white/[0.03]'
                 }`}
@@ -1405,6 +1405,9 @@ const RestaurantDashboard = ({ user, onLogout }: RestaurantDashboardProps) => {
                 setActiveSection(section)
               }}
             >
+              {activeTab === item.id && (
+                <div className="absolute left-0 top-1/2 -translate-y-1/2 h-6 w-1 rounded-r-full bg-amber-500 shadow-[0_0_12px_rgba(245,158,11,0.8)]" />
+              )}
               <item.icon
                 size={22}
                 weight={activeTab === item.id ? 'fill' : 'regular'}
