@@ -328,6 +328,7 @@ export function SettingsView({
                                             setWeeklyCoperto(schedule as any)
                                             // Sync global coperto status as fallback/legacy support
                                             if (setCopertoEnabled) setCopertoEnabled(schedule.enabled)
+                                            if (setCopertoPrice) setCopertoPrice(schedule.defaultPrice)
                                         }}
                                     />
                                 </div>

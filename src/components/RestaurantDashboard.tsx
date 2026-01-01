@@ -1754,21 +1754,74 @@ const RestaurantDashboard = ({ user, onLogout }: RestaurantDashboardProps) => {
                       <div className="space-y-2 mt-4">
                         {rooms?.map(room => (
                           <div key={room.id} className="flex items-center justify-between p-3 bg-zinc-900/50 rounded-lg border border-zinc-800">
-                            <span className="font-medium">{room.name}</span>
-                            <div className="flex items-center gap-2">
-                              <Button size="icon" variant="ghost" className="h-8 w-8 text-zinc-500 hover:text-red-500 hover:bg-red-500/10" onClick={async () => {
-                                if (!confirm('Eliminare questa sala?')) return;
-                                try {
-                                  await DatabaseService.deleteRoom(room.id)
-                                  toast.success('Sala eliminata')
-                                  refreshRooms()
-                                } catch (e) {
-                                  toast.error('Impossibile eliminare')
-                                }
-                              }}>
-                                <Trash size={14} />
-                              </Button>
-                            </div>
+                            {editingRoom?.id === room.id ? (
+                              <div className="flex items-center gap-2 flex-1 mr-2">
+                                <Input
+                                  value={editingRoom.name}
+                                  onChange={(e) => setEditingRoom({ ...editingRoom, name: e.target.value })}
+                                  className="h-8 bg-black/50 border-zinc-700"
+                                  autoFocus
+                                />
+                                <Button
+                                  size="icon"
+                                  variant="ghost"
+                                  className="h-8 w-8 text-emerald-500 hover:text-emerald-400 hover:bg-emerald-500/10"
+                                  onClick={async () => {
+                                    if (!editingRoom.name.trim()) return
+                                    try {
+                                      await DatabaseService.updateRoom(room.id, { name: editingRoom.name.trim() })
+                                      toast.success('Sala aggiornata')
+                                      setEditingRoom(null)
+                                      refreshRooms()
+                                    } catch (e) {
+                                      console.error(e)
+                                      toast.error('Errore aggiornamento')
+                                    }
+                                  }}
+                                >
+                                  <Check size={16} weight="bold" />
+                                </Button>
+                                <Button
+                                  size="icon"
+                                  variant="ghost"
+                                  className="h-8 w-8 text-zinc-500 hover:text-zinc-300"
+                                  onClick={() => setEditingRoom(null)}
+                                >
+                                  <X size={16} />
+                                </Button>
+                              </div>
+                            ) : (
+                              <>
+                                <span className="font-medium">{room.name}</span>
+                                <div className="flex items-center gap-1">
+                                  <Button
+                                    size="icon"
+                                    variant="ghost"
+                                    className="h-8 w-8 text-zinc-500 hover:text-amber-500 hover:bg-amber-500/10"
+                                    onClick={() => setEditingRoom(room)}
+                                  >
+                                    <PencilSimple size={16} />
+                                  </Button>
+                                  <Button
+                                    size="icon"
+                                    variant="ghost"
+                                    className="h-8 w-8 text-zinc-500 hover:text-red-500 hover:bg-red-500/10"
+                                    onClick={async () => {
+                                      if (!confirm('Eliminare questa sala?')) return;
+                                      try {
+                                        await DatabaseService.deleteRoom(room.id)
+                                        toast.success('Sala eliminata')
+                                        refreshRooms()
+                                      } catch (e) {
+                                        toast.error('Impossibile eliminare')
+                                      }
+                                    }}
+                                  >
+                                    <Trash size={16} />
+                                  </Button>
+                                </div>
+                              </>
+                            )}
                           </div>
                         ))}
                         {rooms?.length === 0 && <p className="text-center text-sm text-zinc-500 py-4">Nessuna sala configurata</p>}
