@@ -8,7 +8,9 @@ import { Label } from '@/components/ui/label'
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, BarChart, Bar, Area, AreaChart } from 'recharts'
-import { TrendUp, CurrencyEur, Users, ShoppingBag, Clock, ChartLine, CalendarBlank, List, CaretDown, Star, Package, TrendDown, Minus, Check } from '@phosphor-icons/react'
+import { TrendUp, CurrencyEur, Users, ShoppingBag, Clock, ChartLine, CalendarBlank, List, CaretDown, Star, Package, TrendDown, Minus, Check, DownloadSimple } from '@phosphor-icons/react'
+import jsPDF from 'jspdf'
+import autoTable from 'jspdf-autotable'
 import type { Order, Dish, Category, OrderItem } from '../services/types'
 import AIAnalyticsSection from './AIAnalyticsSection'
 
@@ -260,6 +262,94 @@ export default function AnalyticsCharts({ orders, completedOrders, dishes, categ
     }
   }, [categoryFilteredOrders, orders, categories, dishes, dateFilter, start, end, activeCategoryIds, categoryMetric])
 
+  // EXPORT ANALYTICS FUNCTION (B&W OPTIMIZED)
+  const handleExportAnalytics = () => {
+    const doc = new jsPDF({
+      orientation: 'portrait',
+      unit: 'mm',
+      format: 'a4'
+    })
+
+    // Title
+    doc.setFontSize(18)
+    doc.setFont('helvetica', 'bold')
+    doc.text('REPORT ANALITICO', 14, 20)
+
+    const dateText = dateFilter === 'custom' && customStartDate && customEndDate
+      ? `Periodo: ${new Date(customStartDate).toLocaleDateString()} - ${new Date(customEndDate).toLocaleDateString()}`
+      : `Periodo: ${dateFilters.find(f => f.value === dateFilter)?.label || 'Settimana Corrente'}`
+
+    doc.setFontSize(10)
+    doc.setFont('helvetica', 'normal')
+    doc.text(dateText, 14, 28)
+    doc.text(`Generato il: ${new Date().toLocaleString('it-IT')}`, 14, 33)
+
+    // Summary Data
+    const summaryData = [
+      ['Totale Ordini', analytics.totalOrders.toString()],
+      ['Totale Ricavi', `€ ${analytics.totalRevenue.toFixed(2)}`],
+      ['Scontrino Medio', `€ ${analytics.averageOrderValue.toFixed(2)}`],
+      ['Ordini Attivi', analytics.activeOrders.toString()]
+    ];
+
+    autoTable(doc, {
+      startY: 40,
+      head: [['Metrica', 'Valore']],
+      body: summaryData,
+      theme: 'grid', // Grid theme provides borders
+      headStyles: {
+        fillColor: [255, 255, 255],
+        textColor: [0, 0, 0],
+        lineWidth: 0.1,
+        lineColor: [0, 0, 0],
+        fontStyle: 'bold'
+      },
+      styles: {
+        textColor: [0, 0, 0],
+        lineColor: [0, 0, 0],
+        lineWidth: 0.1
+      },
+      columnStyles: {
+        0: { fontStyle: 'bold', cellWidth: 80 },
+        1: { cellWidth: 40 }
+      }
+    });
+
+    // Category Performance
+    const catY = (doc as any).lastAutoTable.finalY + 15;
+    doc.setFontSize(14)
+    doc.setFont('helvetica', 'bold')
+    doc.text('Performance per Categoria', 14, catY)
+
+    const categoryData = analytics.categoryStats.map(c => [
+      c.name,
+      c.quantity.toString(),
+      `€ ${c.revenue.toFixed(2)}`,
+      `${c.percentage.toFixed(1)}%`
+    ]);
+
+    autoTable(doc, {
+      startY: catY + 5,
+      head: [['Categoria', 'Quantità', 'Ricavi', '% Ordini']],
+      body: categoryData,
+      theme: 'grid',
+      headStyles: {
+        fillColor: [255, 255, 255],
+        textColor: [0, 0, 0],
+        lineWidth: 0.1,
+        lineColor: [0, 0, 0],
+        fontStyle: 'bold'
+      },
+      styles: {
+        textColor: [0, 0, 0],
+        lineColor: [0, 0, 0],
+        lineWidth: 0.1
+      },
+    });
+
+    doc.save(`Analisi_Vendite_${new Date().toISOString().split('T')[0]}.pdf`)
+  }
+
   // Inventory (Magazzino) calculations
   const inventoryData = useMemo(() => {
     const { start: invStart, end: invEnd } = getInventoryDateRange(inventoryPeriod)
@@ -438,6 +528,15 @@ export default function AnalyticsCharts({ orders, completedOrders, dishes, categ
                 />
               </div>
             )}
+
+            <Button
+              variant="outline"
+              className="gap-2 h-9 border-zinc-700 bg-zinc-900/50 text-zinc-300 hover:text-white hover:bg-zinc-800"
+              onClick={handleExportAnalytics}
+            >
+              <DownloadSimple size={16} />
+              Esporta Report
+            </Button>
           </div>
         </div>
 

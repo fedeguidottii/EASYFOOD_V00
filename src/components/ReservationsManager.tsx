@@ -18,6 +18,7 @@ import QRCodeGenerator from './QRCodeGenerator'
 
 // PDF Generation
 import jsPDF from 'jspdf'
+import autoTable from 'jspdf-autotable'
 import html2canvas from 'html2canvas'
 
 interface ReservationsManagerProps {
@@ -380,148 +381,98 @@ export default function ReservationsManager({ user, restaurantId, tables, rooms,
         return
       }
 
-      const pdf = new jsPDF({
+      const doc = new jsPDF({
         orientation: 'portrait',
         unit: 'mm',
         format: 'a4'
       })
 
-      const pageWidth = pdf.internal.pageSize.getWidth()
-      const pageHeight = pdf.internal.pageSize.getHeight()
-      const margin = 15
-      let yPosition = margin
+      // Header
+      doc.setFillColor(251, 146, 60) // amber-400
+      doc.rect(0, 0, 210, 40, 'F')
 
-      // Header section
-      pdf.setFillColor(251, 146, 60) // amber-400
-      pdf.rect(0, 0, pageWidth, 45, 'F')
+      doc.setTextColor(0, 0, 0)
+      doc.setFontSize(22)
+      doc.setFont('helvetica', 'bold')
+      doc.text(restaurantName, 14, 18)
 
-      // EASYFOOD branding
-      pdf.setTextColor(0, 0, 0)
-      pdf.setFontSize(10)
-      pdf.setFont('helvetica', 'normal')
-      pdf.text('EASYFOOD', margin, 12)
+      doc.setFontSize(12)
+      doc.setFont('helvetica', 'normal')
+      doc.text('TABELLA PRENOTAZIONI', 14, 28)
 
-      // Restaurant name
-      pdf.setFontSize(22)
-      pdf.setFont('helvetica', 'bold')
-      pdf.text(restaurantName, margin, 28)
-
-      // Title
-      pdf.setFontSize(14)
-      pdf.setFont('helvetica', 'normal')
-      pdf.text('TABELLA PRENOTAZIONI', margin, 38)
-
-      // Date info on right
+      // Date info
       const dateText = exportStartDate === exportEndDate || !exportEndDate
         ? formatDate(exportStartDate || new Date().toISOString().split('T')[0])
         : `Dal ${formatDate(exportStartDate)} al ${formatDate(exportEndDate)}`
-      pdf.setFontSize(10)
-      pdf.text(dateText, pageWidth - margin, 28, { align: 'right' })
+      doc.setFontSize(10)
+      doc.text(dateText, 196, 18, { align: 'right' })
 
-      // Generated date
-      pdf.setFontSize(8)
-      pdf.setTextColor(80, 80, 80)
-      pdf.text(`Generato il: ${new Date().toLocaleString('it-IT')}`, pageWidth - margin, 38, { align: 'right' })
+      doc.setFontSize(8)
+      doc.text(`Generato il: ${new Date().toLocaleString('it-IT')}`, 196, 28, { align: 'right' })
 
-      yPosition = 55
-
-      // Table header
-      pdf.setFillColor(39, 39, 42) // zinc-800
-      pdf.rect(margin, yPosition, pageWidth - margin * 2, 10, 'F')
-      pdf.setTextColor(255, 255, 255)
-      pdf.setFontSize(9)
-      pdf.setFont('helvetica', 'bold')
-
-      const colWidths = [35, 25, 40, 35, 25, 20]
-      const colStarts = [margin + 2]
-      for (let i = 1; i < colWidths.length; i++) {
-        colStarts.push(colStarts[i - 1] + colWidths[i - 1])
-      }
-
-      pdf.text('Data', colStarts[0], yPosition + 7)
-      pdf.text('Ora', colStarts[1], yPosition + 7)
-      pdf.text('Nome', colStarts[2], yPosition + 7)
-      pdf.text('Telefono', colStarts[3], yPosition + 7)
-      pdf.text('Tavolo', colStarts[4], yPosition + 7)
-      pdf.text('Ospiti', colStarts[5], yPosition + 7)
-
-      yPosition += 12
-
-      // Table rows
-      pdf.setTextColor(50, 50, 50)
-      pdf.setFont('helvetica', 'normal')
-
-      let rowCount = 0
-      for (const booking of bookingsToExport) {
-        // Check if we need a new page
-        if (yPosition > pageHeight - 25) {
-          pdf.addPage()
-          yPosition = margin
-
-          // Repeat header on new page
-          pdf.setFillColor(39, 39, 42)
-          pdf.rect(margin, yPosition, pageWidth - margin * 2, 10, 'F')
-          pdf.setTextColor(255, 255, 255)
-          pdf.setFontSize(9)
-          pdf.setFont('helvetica', 'bold')
-          pdf.text('Data', colStarts[0], yPosition + 7)
-          pdf.text('Ora', colStarts[1], yPosition + 7)
-          pdf.text('Nome', colStarts[2], yPosition + 7)
-          pdf.text('Telefono', colStarts[3], yPosition + 7)
-          pdf.text('Tavolo', colStarts[4], yPosition + 7)
-          pdf.text('Ospiti', colStarts[5], yPosition + 7)
-          yPosition += 12
-          pdf.setTextColor(50, 50, 50)
-          pdf.setFont('helvetica', 'normal')
-        }
-
-        // Alternating row colors
-        if (rowCount % 2 === 0) {
-          pdf.setFillColor(250, 250, 250)
-        } else {
-          pdf.setFillColor(245, 245, 245)
-        }
-        pdf.rect(margin, yPosition - 3, pageWidth - margin * 2, 8, 'F')
-
+      // Prepare data for autoTable
+      const tableBody = bookingsToExport.map(booking => {
         const [date, time] = booking.date_time.split('T')
-        const formattedDate = new Date(date).toLocaleDateString('it-IT', { day: '2-digit', month: '2-digit', year: 'numeric' })
-        const formattedTime = time.substring(0, 5)
-        const tableName = getTableName(booking.table_id)
+        return [
+          new Date(date).toLocaleDateString('it-IT', { day: '2-digit', month: '2-digit' }),
+          time.substring(0, 5),
+          booking.name,
+          booking.phone || '-',
+          getTableName(booking.table_id),
+          booking.guests,
+          booking.notes || ''
+        ]
+      })
 
-        pdf.setFontSize(8)
-        pdf.text(formattedDate, colStarts[0], yPosition + 3)
-        pdf.text(formattedTime, colStarts[1], yPosition + 3)
-        pdf.text(booking.name.substring(0, 18), colStarts[2], yPosition + 3)
-        pdf.text((booking.phone || '-').substring(0, 15), colStarts[3], yPosition + 3)
-        pdf.text(tableName.substring(0, 12), colStarts[4], yPosition + 3)
-        pdf.text(String(booking.guests), colStarts[5], yPosition + 3)
+      autoTable(doc, {
+        head: [['Data', 'Ora', 'Nome', 'Telefono', 'Tavolo', 'Ospiti', 'Note']],
+        body: tableBody,
+        startY: 50,
+        theme: 'grid', // 'grid' theme gives the borders like a real table
+        styles: {
+          fontSize: 8,
+          cellPadding: 3,
+          textColor: [50, 50, 50],
+          lineColor: [200, 200, 200],
+          lineWidth: 0.1,
+        },
+        headStyles: {
+          fillColor: [39, 39, 42], // zinc-800
+          textColor: [255, 255, 255],
+          fontStyle: 'bold',
+          lineColor: [39, 39, 42],
+        },
+        alternateRowStyles: {
+          fillColor: [249, 250, 251], // gray-50
+        },
+        columnStyles: {
+          0: { cellWidth: 20 }, // Data
+          1: { cellWidth: 15 }, // Ora
+          2: { cellWidth: 40 }, // Nome
+          3: { cellWidth: 35 }, // Telefono
+          4: { cellWidth: 25 }, // Tavolo
+          5: { cellWidth: 15, halign: 'center' }, // Ospiti
+          6: { cellWidth: 'auto' } // Note
+        },
+        didDrawPage: (data) => {
+          // Footer
+          const pageHeight = doc.internal.pageSize.height || doc.internal.pageSize.getHeight()
+          doc.setFontSize(8)
+          doc.setTextColor(150, 150, 150)
+          doc.text('Powered by EASYFOOD', 105, pageHeight - 10, { align: 'center' })
+        }
+      })
 
-        yPosition += 8
-        rowCount++
-      }
+      // Summary
+      const finalY = (doc as any).lastAutoTable.finalY || 50
+      doc.setFontSize(10)
+      doc.setFont('helvetica', 'bold')
+      doc.setTextColor(245, 158, 11) // amber-500
+      doc.text(`Totale Prenotazioni: ${bookingsToExport.length}`, 14, finalY + 10)
+      doc.text(`Totale Ospiti: ${bookingsToExport.reduce((sum, b) => sum + b.guests, 0)}`, 80, finalY + 10)
 
-      // Summary at bottom
-      yPosition += 5
-      pdf.setDrawColor(200, 200, 200)
-      pdf.line(margin, yPosition, pageWidth - margin, yPosition)
-      yPosition += 8
-
-      pdf.setFontSize(10)
-      pdf.setFont('helvetica', 'bold')
-      pdf.setTextColor(251, 146, 60)
-      pdf.text(`Totale Prenotazioni: ${bookingsToExport.length}`, margin, yPosition)
-
-      const totalGuests = bookingsToExport.reduce((sum, b) => sum + b.guests, 0)
-      pdf.text(`Totale Ospiti: ${totalGuests}`, pageWidth / 2, yPosition)
-
-      // Footer
-      pdf.setFontSize(8)
-      pdf.setTextColor(150, 150, 150)
-      pdf.text('Powered by EASYFOOD', pageWidth / 2, pageHeight - 10, { align: 'center' })
-
-      // Save
       const filename = `Prenotazioni_${restaurantName.replace(/\s+/g, '_')}_${exportStartDate || 'all'}.pdf`
-      pdf.save(filename)
+      doc.save(filename)
       toast.success('Tabella prenotazioni scaricata con successo!')
       setShowExportDialog(false)
 

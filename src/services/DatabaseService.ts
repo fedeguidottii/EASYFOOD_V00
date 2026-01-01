@@ -480,6 +480,18 @@ export const DatabaseService = {
         return data as Order[]
     },
 
+    async getPastOrders(restaurantId: string) {
+        const { data, error } = await supabase
+            .from('orders')
+            .select('*, items:order_items(*, dish:dishes(*))')
+            .eq('restaurant_id', restaurantId)
+            .eq('status', 'PAID')
+            .order('created_at', { ascending: false })
+            .limit(2000) // Reasonable limit for analytics performance
+        if (error) throw error
+        return data as Order[]
+    },
+
     async getAllOrders() {
         const { data, error } = await supabase
             .from('orders')
