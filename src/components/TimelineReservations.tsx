@@ -7,7 +7,7 @@ import { Textarea } from '@/components/ui/textarea'
 import { Label } from '@/components/ui/label'
 import { Badge } from '@/components/ui/badge'
 import { toast } from 'sonner'
-import { Trash, MagnifyingGlass as Search, Check, Clock, ArrowRight } from '@phosphor-icons/react'
+import { Trash, MagnifyingGlass as Search, Check, Clock, ArrowRight, Users } from '@phosphor-icons/react'
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover'
 import type { Table, Booking, User } from '../services/types'
 import { DatabaseService } from '../services/DatabaseService'
@@ -145,10 +145,9 @@ export default function TimelineReservations({ user, restaurantId, tables, booki
         const table = restaurantTables.find(t => t.id === booking.table_id)
         if (!table) return null // Skip if table not found
 
-        // Parse the time correctly using local time to match the grid
-        const bTime = new Date(booking.date_time)
-        const hours = bTime.getHours()
-        const minutes = bTime.getMinutes()
+        // Use manual parsing to avoid timezone shifts between UTC/Local
+        const timePart = booking.date_time.split('T')[1] || ''
+        const [hours, minutes] = timePart.split(':').map(Number)
 
         // Calculate start minutes from the actual reservation time
         const startMinutes = hours * 60 + minutes
@@ -807,63 +806,76 @@ export default function TimelineReservations({ user, restaurantId, tables, booki
               Aggiungi una prenotazione per il {selectedDate} alle {newReservation.time}
             </DialogDescription>
           </DialogHeader>
-          <div className="space-y-4 py-4">
-            <div className="grid gap-4 md:grid-cols-2">
-              <div className="space-y-2">
-                <Label htmlFor="res-name">Nome Cliente</Label>
+          <div className="space-y-6 py-4">
+            <div className="grid gap-6 md:grid-cols-2">
+              <div className="space-y-2.5">
+                <Label htmlFor="res-name" className="text-zinc-400">Nome Cliente</Label>
                 <Input
                   id="res-name"
                   value={newReservation.name}
                   onChange={(e) => setNewReservation(prev => ({ ...prev, name: e.target.value }))}
-                  placeholder="Nome"
+                  placeholder="Nome del cliente"
+                  className="bg-zinc-900 border-zinc-800"
                 />
               </div>
-              <div className="space-y-2">
-                <Label htmlFor="res-phone">Telefono</Label>
+              <div className="space-y-2.5">
+                <Label htmlFor="res-phone" className="text-zinc-400">Telefono</Label>
                 <Input
                   id="res-phone"
                   value={newReservation.phone}
                   onChange={(e) => setNewReservation(prev => ({ ...prev, phone: e.target.value }))}
-                  placeholder="Telefono"
+                  placeholder="E.g. +39 333..."
+                  className="bg-zinc-900 border-zinc-800"
                 />
               </div>
             </div>
 
-            <div className="space-y-2">
-              <Label htmlFor="res-notes">Note / Richieste Speciali</Label>
+            <div className="space-y-2.5">
+              <Label htmlFor="res-notes" className="text-zinc-400">Note / Richieste Speciali</Label>
               <Textarea
                 id="res-notes"
                 value={newReservation.notes}
                 onChange={(e) => setNewReservation(prev => ({ ...prev, notes: e.target.value }))}
-                placeholder="Allergie, tavolo preferito..."
-                className="bg-zinc-950/50 border-zinc-800 min-h-[80px]"
+                placeholder="Allergie, tavolo preferito, compleanni..."
+                className="bg-zinc-900 border-zinc-800 min-h-[100px] resize-none"
               />
             </div>
-            <div className="grid gap-4 md:grid-cols-2">
-              <div className="space-y-2">
-                <Label htmlFor="res-guests">Ospiti</Label>
-                <Input
-                  id="res-guests"
-                  type="number"
-                  min="1"
-                  value={newReservation.guests}
-                  onChange={(e) => {
-                    const val = e.target.value
-                    setNewReservation(prev => ({ ...prev, guests: val === '' ? '' : parseInt(val) }))
-                  }}
-                />
+
+            <div className="grid gap-6 md:grid-cols-2">
+              <div className="space-y-2.5">
+                <Label htmlFor="res-guests" className="text-zinc-400">Ospiti</Label>
+                <div className="relative">
+                  <Input
+                    id="res-guests"
+                    type="number"
+                    min="1"
+                    value={newReservation.guests}
+                    onChange={(e) => {
+                      const val = e.target.value
+                      setNewReservation(prev => ({ ...prev, guests: val === '' ? '' : parseInt(val) }))
+                    }}
+                    className="bg-zinc-900 border-zinc-800 pl-9"
+                  />
+                  <Users className="absolute left-3 top-1/2 -translate-y-1/2 text-zinc-500" size={16} />
+                </div>
               </div>
-              <div className="space-y-2">
-                <Label htmlFor="res-time">Orario</Label>
-                <Input
-                  id="res-time"
-                  type="time"
-                  value={newReservation.time}
-                  onChange={(e) => setNewReservation(prev => ({ ...prev, time: e.target.value }))}
-                />
+              <div className="space-y-2.5">
+                <Label htmlFor="res-time" className="text-zinc-400">Orario</Label>
+                <div className="relative">
+                  <Input
+                    id="res-time"
+                    type="time"
+                    value={newReservation.time}
+                    onChange={(e) => setNewReservation(prev => ({ ...prev, time: e.target.value }))}
+                    className="bg-zinc-900 border-zinc-800 pl-9"
+                  />
+                  <Clock className="absolute left-3 top-1/2 -translate-y-1/2 text-zinc-500" size={16} />
+                </div>
               </div>
             </div>
-            <Button onClick={handleCreateReservation} className="w-full bg-amber-600 hover:bg-amber-700 text-white">Conferma Prenotazione</Button>
+            <Button onClick={handleCreateReservation} className="w-full h-12 bg-amber-500 hover:bg-amber-600 text-black font-bold shadow-lg shadow-amber-500/10">
+              Conferma Prenotazione
+            </Button>
           </div>
         </DialogContent>
       </Dialog>

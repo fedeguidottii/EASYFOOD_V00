@@ -621,100 +621,124 @@ export default function ReservationsManager({ user, restaurantId, tables, rooms,
               Modifica i dettagli della prenotazione
             </DialogDescription>
           </DialogHeader>
-          <div className="space-y-4">
-            <div className="grid gap-4 md:grid-cols-2">
-              <div>
-                <Label htmlFor="edit-customer-name">Nome Cliente *</Label>
-                <Input
-                  id="edit-customer-name"
-                  value={editForm.name}
-                  onChange={(e) => setEditForm(prev => ({ ...prev, name: e.target.value }))}
-                  placeholder="Nome e cognome"
-                />
+          <div className="space-y-6 py-4">
+            <div className="grid gap-6 md:grid-cols-2">
+              <div className="space-y-2.5">
+                <Label htmlFor="edit-customer-name" className="text-zinc-400">Nome Cliente *</Label>
+                <div className="relative">
+                  <Input
+                    id="edit-customer-name"
+                    value={editForm.name}
+                    onChange={(e) => setEditForm(prev => ({ ...prev, name: e.target.value }))}
+                    placeholder="Nome e cognome"
+                    className="bg-zinc-900 border-zinc-800 pl-9"
+                  />
+                  <UserIcon className="absolute left-3 top-1/2 -translate-y-1/2 text-zinc-500" size={16} />
+                </div>
               </div>
-              <div>
-                <Label htmlFor="edit-customer-phone">Telefono *</Label>
-                <Input
-                  id="edit-customer-phone"
-                  value={editForm.phone}
-                  onChange={(e) => setEditForm(prev => ({ ...prev, phone: e.target.value }))}
-                  placeholder="+39 333 123 4567"
-                />
-              </div>
-            </div>
-
-            <div className="grid gap-4 md:grid-cols-3">
-              <div>
-                <Label htmlFor="edit-date">Data *</Label>
-                <Input
-                  id="edit-date"
-                  type="date"
-                  value={editForm.date}
-                  onChange={(e) => setEditForm(prev => ({ ...prev, date: e.target.value }))}
-                />
-              </div>
-              <div>
-                <Label htmlFor="edit-time">Orario *</Label>
-                <Input
-                  id="edit-time"
-                  type="time"
-                  value={editForm.time}
-                  onChange={(e) => setEditForm(prev => ({ ...prev, time: e.target.value }))}
-                />
-              </div>
-              <div>
-                <Label htmlFor="edit-guests">Ospiti *</Label>
-                <Input
-                  id="edit-guests"
-                  type="number"
-                  min="1"
-                  max="20"
-                  value={editForm.guests}
-                  onChange={(e) => setEditForm(prev => ({ ...prev, guests: parseInt(e.target.value) || 1 }))}
-                />
+              <div className="space-y-2.5">
+                <Label htmlFor="edit-customer-phone" className="text-zinc-400">Telefono *</Label>
+                <div className="relative">
+                  <Input
+                    id="edit-customer-phone"
+                    value={editForm.phone}
+                    onChange={(e) => setEditForm(prev => ({ ...prev, phone: e.target.value }))}
+                    placeholder="+39 333 123 4567"
+                    className="bg-zinc-900 border-zinc-800 pl-9"
+                  />
+                  <Phone className="absolute left-3 top-1/2 -translate-y-1/2 text-zinc-500" size={16} />
+                </div>
               </div>
             </div>
 
-            <div>
-              <Label htmlFor="edit-table">Tavolo *</Label>
+            <div className="grid gap-6 md:grid-cols-3">
+              <div className="space-y-2.5">
+                <Label htmlFor="edit-date" className="text-zinc-400">Data *</Label>
+                <div className="relative">
+                  <Input
+                    id="edit-date"
+                    type="date"
+                    value={editForm.date}
+                    onChange={(e) => setEditForm(prev => ({ ...prev, date: e.target.value }))}
+                    className="bg-zinc-900 border-zinc-800 pl-9"
+                  />
+                  <Calendar className="absolute left-3 top-1/2 -translate-y-1/2 text-zinc-500" size={16} />
+                </div>
+              </div>
+              <div className="space-y-2.5">
+                <Label htmlFor="edit-time" className="text-zinc-400">Orario *</Label>
+                <div className="relative">
+                  <Input
+                    id="edit-time"
+                    type="time"
+                    value={editForm.time}
+                    onChange={(e) => setEditForm(prev => ({ ...prev, time: e.target.value }))}
+                    className="bg-zinc-900 border-zinc-800 pl-9"
+                  />
+                  <Clock className="absolute left-3 top-1/2 -translate-y-1/2 text-zinc-500" size={16} />
+                </div>
+              </div>
+              <div className="space-y-2.5">
+                <Label htmlFor="edit-guests" className="text-zinc-400">Ospiti *</Label>
+                <div className="relative">
+                  <Input
+                    id="edit-guests"
+                    type="number"
+                    min="1"
+                    max="20"
+                    value={editForm.guests}
+                    onChange={(e) => setEditForm(prev => ({ ...prev, guests: parseInt(e.target.value) || 1 }))}
+                    className="bg-zinc-900 border-zinc-800 pl-9"
+                  />
+                  <Users className="absolute left-3 top-1/2 -translate-y-1/2 text-zinc-500" size={16} />
+                </div>
+              </div>
+            </div>
+
+            <div className="space-y-2.5">
+              <Label htmlFor="edit-table" className="text-zinc-400">Tavolo *</Label>
               <Select
                 value={editForm.tableId}
                 onValueChange={(value) => setEditForm(prev => ({ ...prev, tableId: value }))}
               >
-                <SelectTrigger>
-                  <SelectValue placeholder="Seleziona tavolo" />
+                <SelectTrigger className="bg-zinc-900 border-zinc-800">
+                  <div className="flex items-center gap-2">
+                    <TableIcon size={16} className="text-zinc-500" />
+                    <SelectValue placeholder="Seleziona tavolo" />
+                  </div>
                 </SelectTrigger>
-                <SelectContent>
+                <SelectContent className="bg-zinc-950 border-zinc-800">
                   {restaurantTables.map(table => (
                     <SelectItem key={table.id} value={table.id}>
-                      {table.number}
+                      Tavolo {table.number}
                     </SelectItem>
                   ))}
                 </SelectContent>
               </Select>
             </div>
 
-            <div>
-              <Label htmlFor="edit-notes">Note / Richieste Speciali</Label>
+            <div className="space-y-2.5">
+              <Label htmlFor="edit-notes" className="text-zinc-400">Note / Richieste Speciali</Label>
               <Textarea
                 id="edit-notes"
                 value={editForm.notes}
                 onChange={(e) => setEditForm(prev => ({ ...prev, notes: e.target.value }))}
                 placeholder="Allergie, tavolo preferito, compleanni..."
-                className="min-h-[100px] bg-zinc-950/50 border-zinc-800"
+                className="min-h-[100px] bg-zinc-900 border-zinc-800 resize-none"
               />
             </div>
 
-            <div className="flex gap-3 justify-end pt-4">
+            <div className="flex gap-3 justify-end pt-6">
               <Button
                 variant="outline"
                 onClick={() => setShowEditDialog(false)}
+                className="border-zinc-800 hover:bg-zinc-800 text-zinc-400 hover:text-white"
               >
                 Annulla
               </Button>
               <Button
                 onClick={handleSaveEdit}
-                className="bg-amber-500 hover:bg-amber-600 text-black font-bold transition-all active:scale-95"
+                className="bg-amber-500 hover:bg-amber-600 text-black font-bold h-10 px-8 transition-all active:scale-95 shadow-lg shadow-amber-500/10"
               >
                 Salva Modifiche
               </Button>
