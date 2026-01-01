@@ -339,7 +339,8 @@ export default function AdminDashboard({ user, onLogout }: Props) {
   return (
     <div className="min-h-screen bg-black text-zinc-100 font-sans selection:bg-amber-500/30">
       {/* Background Ambience */}
-      <div className="fixed inset-0 bg-[radial-gradient(ellipse_at_top,_var(--tw-gradient-stops))] from-amber-900/10 via-black to-black pointer-events-none" />
+      <div className="fixed inset-0 bg-black pointer-events-none" />
+      <div className="fixed inset-0 bg-[radial-gradient(ellipse_at_top,_var(--tw-gradient-stops))] from-amber-900/10 via-transparent to-transparent pointer-events-none" />
 
       {/* Header */}
       <header className="border-b border-white/5 bg-black/40 backdrop-blur-xl sticky top-0 z-50">
@@ -355,22 +356,24 @@ export default function AdminDashboard({ user, onLogout }: Props) {
               </div>
             </div>
             <div className="flex items-center gap-2">
-              <Button
-                variant="ghost"
-                onClick={() => setActiveView('restaurants')}
-                className={`gap-2 h-10 px-4 rounded-xl transition-all ${activeView === 'restaurants' ? 'bg-amber-500/10 text-amber-500' : 'text-zinc-500 hover:text-zinc-200'}`}
-              >
-                <Buildings size={18} />
-                <span className="font-medium">Ristoranti</span>
-              </Button>
-              <Button
-                variant="ghost"
-                onClick={() => setActiveView('statistics')}
-                className={`gap-2 h-10 px-4 rounded-xl transition-all ${activeView === 'statistics' ? 'bg-amber-500/10 text-amber-500' : 'text-zinc-500 hover:text-zinc-200'}`}
-              >
-                <ChartBar size={18} />
-                <span className="font-medium">Statistiche</span>
-              </Button>
+              <div className="flex items-center gap-1.5 bg-black/40 p-1.5 rounded-2xl border border-white/5 shadow-2xl shadow-black/80">
+                <Button
+                  variant="ghost"
+                  onClick={() => setActiveView('restaurants')}
+                  className={`gap-3 h-10 px-6 rounded-xl transition-all duration-300 ${activeView === 'restaurants' ? 'bg-amber-500 text-black font-bold shadow-lg shadow-amber-500/20 scale-105' : 'text-zinc-500 hover:text-zinc-200 hover:bg-white/5'}`}
+                >
+                  <Buildings size={20} weight={activeView === 'restaurants' ? 'fill' : 'regular'} />
+                  <span className="text-sm">Ristoranti</span>
+                </Button>
+                <Button
+                  variant="ghost"
+                  onClick={() => setActiveView('statistics')}
+                  className={`gap-3 h-10 px-6 rounded-xl transition-all duration-300 ${activeView === 'statistics' ? 'bg-amber-500 text-black font-bold shadow-lg shadow-amber-500/20 scale-105' : 'text-zinc-500 hover:text-zinc-200 hover:bg-white/5'}`}
+                >
+                  <ChartBar size={20} weight={activeView === 'statistics' ? 'fill' : 'regular'} />
+                  <span className="text-sm">Statistiche</span>
+                </Button>
+              </div>
               <div className="h-6 w-px bg-white/5 mx-2" />
               <Button
                 variant="ghost"
@@ -491,7 +494,7 @@ export default function AdminDashboard({ user, onLogout }: Props) {
                         />
                       </div>
 
-                      <Button onClick={handleCreateRestaurant} className="w-full mt-4" disabled={isUploading}>
+                      <Button onClick={handleCreateRestaurant} className="w-full mt-4 shadow-xl shadow-amber-500/20 font-bold h-12 rounded-xl" disabled={isUploading}>
                         {isUploading ? 'Caricamento...' : 'Crea Ristorante e Account'}
                       </Button>
                     </div>
@@ -506,7 +509,7 @@ export default function AdminDashboard({ user, onLogout }: Props) {
                 const isPasswordVisible = visiblePasswords[restaurant.id]
 
                 return (
-                  <Card key={restaurant.id} className="bg-black/40 backdrop-blur-xl border border-white/5 rounded-2xl overflow-hidden hover:border-amber-500/30 transition-all group shadow-2xl shadow-black/80">
+                  <Card key={restaurant.id} className="bg-zinc-900/40 backdrop-blur-xl border border-white/5 rounded-2xl overflow-hidden hover:border-amber-500/30 transition-all group shadow-[0_25px_50px_-12px_rgba(0,0,0,0.9)] mb-6">
                     <CardContent className="p-0">
                       <div className={`flex flex-col md:flex-row items-center p-5 gap-6 transition-all duration-300 ${!restaurant.isActive ? 'opacity-40 grayscale' : ''}`}>
 

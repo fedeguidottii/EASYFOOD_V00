@@ -94,8 +94,8 @@ export default function TimelineReservations({ user, restaurantId, tables, booki
   }) || []
 
   // Timeline configuration
-  const startHour = parseInt(openingTime.split(':')[0])
-  const endHour = parseInt(closingTime.split(':')[0])
+  const startHour = openingTime ? parseInt(openingTime.split(':')[0]) || 0 : 0
+  const endHour = closingTime ? parseInt(closingTime.split(':')[0]) || 24 : 24
 
   const TIMELINE_START_MINUTES = startHour * 60
   const TIMELINE_END_MINUTES = endHour * 60
@@ -115,7 +115,10 @@ export default function TimelineReservations({ user, restaurantId, tables, booki
 
   // Helper to convert time string (HH:MM) to minutes from start of day
   const timeToMinutes = (time: string) => {
-    const [hours, minutes] = time.split(':').map(Number)
+    if (!time) return 0
+    const parts = time.split(':')
+    const hours = parseInt(parts[0]) || 0
+    const minutes = parseInt(parts[1]) || 0
     return hours * 60 + minutes
   }
 
@@ -145,11 +148,11 @@ export default function TimelineReservations({ user, restaurantId, tables, booki
         const table = restaurantTables.find(t => t.id === booking.table_id)
         if (!table) return null // Skip if table not found
 
-        // Use manual parsing to avoid timezone shifts between UTC/Local
+        if (!booking.date_time) return null
         const timePart = booking.date_time.split('T')[1] || ''
-        const [hours, minutes] = timePart.split(':').map(Number)
-
-        // Calculate start minutes from the actual reservation time
+        const parts = timePart.split(':')
+        const hours = parseInt(parts[0]) || 0
+        const minutes = parseInt(parts[1]) || 0
         const startMinutes = hours * 60 + minutes
 
         // Use configurable duration from settings
@@ -514,23 +517,28 @@ export default function TimelineReservations({ user, restaurantId, tables, booki
           <div className="relative">
 
             {/* HEADER: TIMES */}
-            <div className="flex ml-40 h-12 relative border-b border-border/20">
-              {timeSlots.map((slot, i) => {
-                const minutes = slot.hour * 60 + slot.minute
-                const relativeStart = minutes - TIMELINE_START_MINUTES
-                const left = (relativeStart / TIMELINE_DURATION) * 100
+            <div className="flex h-12 sticky top-0 z-40 bg-black/95 backdrop-blur-xl border-b border-white/5 shadow-lg shadow-black/50">
+              <div className="w-40 shrink-0 border-r border-white/10 flex items-center px-4">
+                <span className="text-[10px] font-bold text-zinc-500 uppercase tracking-widest">Tavoli</span>
+              </div>
+              <div className="flex-1 relative">
+                {timeSlots.map((slot, i) => {
+                  const minutes = slot.hour * 60 + slot.minute
+                  const relativeStart = minutes - TIMELINE_START_MINUTES
+                  const left = (relativeStart / TIMELINE_DURATION) * 100
 
-                return (
-                  <div
-                    key={i}
-                    className="absolute bottom-0 transform -translate-x-1/2 flex flex-col items-center"
-                    style={{ left: `${left}%` }}
-                  >
-                    <span className="text-xs font-bold text-muted-foreground mb-1 bg-background px-1">{slot.time}</span>
-                    <div className="h-2 w-px bg-border/20"></div>
-                  </div>
-                )
-              })}
+                  return (
+                    <div
+                      key={i}
+                      className="absolute bottom-0 transform -translate-x-1/2 flex flex-col items-center"
+                      style={{ left: `${left}%` }}
+                    >
+                      <span className="text-xs font-bold text-zinc-400 mb-1 px-1">{slot.time}</span>
+                      <div className="h-2 w-px bg-white/10"></div>
+                    </div>
+                  )
+                })}
+              </div>
             </div>
 
             {/* BODY: TABLES & GRID */}
@@ -648,7 +656,7 @@ export default function TimelineReservations({ user, restaurantId, tables, booki
                             draggable={!isCompleted}
                             onDragStart={(e) => handleDragStart(e, block.booking.id, block.duration)}
                             // INCREASED SCALE: hover:scale-105 for more pop
-                            className={`absolute top-2 bottom-2 rounded-md border border-white/10 shadow-lg px-2 flex flex-col justify-center overflow-hidden transition-all duration-200 hover:z-50 hover:scale-105 hover:shadow-black/50 ${isCompleted ? 'opacity-60 grayscale' : 'shadow-md'}`}
+                            className={`absolute top-2 bottom-2 rounded-md border border-white/20 px-2 flex flex-col justify-center overflow-hidden transition-all duration-300 hover:z-50 hover:scale-[1.03] hover:shadow-[0_20px_40px_rgba(0,0,0,0.8)] ${isCompleted ? 'opacity-40 grayscale scale-[0.98]' : 'shadow-[0_10px_20px_-5px_rgba(0,0,0,0.5)]'}`}
                             style={{
                               left: `${getBlockStyle(block.startMinutes, block.duration).left}`,
                               width: `${getBlockStyle(block.startMinutes, block.duration).width}`,

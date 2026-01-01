@@ -1361,14 +1361,13 @@ const RestaurantDashboard = ({ user, onLogout }: RestaurantDashboardProps) => {
 
   return (
     <div className="flex h-screen w-full bg-black text-amber-50 font-sans overflow-hidden selection:bg-amber-500/30 relative">
-      {/* Background Ambience (Login Page Style) */}
-      <div className="absolute inset-0 overflow-hidden pointer-events-none z-0">
-        <div className="absolute top-[-20%] left-[-20%] w-[60%] h-[60%] bg-amber-500/5 rounded-full blur-[150px] opacity-40" />
-        <div className="absolute bottom-[-20%] right-[-20%] w-[60%] h-[60%] bg-amber-500/5 rounded-full blur-[150px] opacity-30" />
+      <div className="absolute inset-0 overflow-hidden pointer-events-none z-0 bg-black">
+        <div className="absolute top-[-20%] left-[-20%] w-[60%] h-[60%] bg-amber-500/[0.02] rounded-full blur-[150px]" />
+        <div className="absolute bottom-[-20%] right-[-20%] w-[60%] h-[60%] bg-amber-500/[0.02] rounded-full blur-[150px]" />
       </div>
 
       {/* Sidebar - Refined & Nuanced */}
-      <aside className="w-64 bg-black/40 backdrop-blur-xl border-r border-white/5 flex flex-col flex-shrink-0 z-20 relative">
+      <aside className="w-68 bg-zinc-950/80 backdrop-blur-3xl border-r border-white/[0.03] flex flex-col flex-shrink-0 z-20 relative shadow-[20px_0_50px_rgba(0,0,0,0.5)]">
         <div className="p-6 border-b border-white/5 flex items-center gap-4">
           <div className="p-2.5 bg-zinc-900/50 border border-amber-500/20 rounded-xl text-amber-500 shadow-[0_0_15px_-5px_rgba(245,158,11,0.2)]">
             <ChefHat size={24} weight="fill" />
@@ -1395,10 +1394,10 @@ const RestaurantDashboard = ({ user, onLogout }: RestaurantDashboardProps) => {
               key={item.id}
               variant="ghost"
               className={`w-full justify-start h-12 px-4 rounded-xl transition-all duration-300 group relative overflow-hidden ${activeTab === item.id
-                // Active State: More subtle, gradient-like, not solid block
-                ? 'bg-gradient-to-r from-amber-500/10 to-transparent text-amber-400 border-l border-amber-500/50'
+                // Active State: Enhanced with shadow and gold glow
+                ? 'bg-amber-500/10 text-amber-500 border-l-2 border-amber-500 shadow-[inset_10px_0_20px_-10px_rgba(245,158,11,0.2)]'
                 // Inactive State
-                : 'text-zinc-500 hover:text-zinc-200 hover:bg-zinc-900/40'
+                : 'text-zinc-500 hover:text-zinc-200 hover:bg-white/[0.03]'
                 }`}
               onClick={() => {
                 const section = item.id
@@ -1445,12 +1444,12 @@ const RestaurantDashboard = ({ user, onLogout }: RestaurantDashboardProps) => {
                   <p className="text-sm text-zinc-400 mt-1 uppercase tracking-wider font-medium">Gestisci gli ordini in tempo reale</p>
                 </div>
                 <div className="flex items-center gap-2">
-                  <div className="flex bg-black/50 p-1 rounded-xl mr-2 border border-white/10 backdrop-blur-sm">
+                  <div className="flex bg-black/60 p-1.5 rounded-2xl mr-2 border border-white/5 shadow-2xl shadow-black/80 backdrop-blur-3xl">
                     <Button
                       variant={kitchenViewMode === 'table' ? 'default' : 'ghost'}
                       size="sm"
                       onClick={() => setKitchenViewMode('table')}
-                      className={`h-8 text-xs font-bold rounded-lg transition-all ${kitchenViewMode === 'table' ? 'bg-zinc-800 text-amber-500 shadow-lg' : 'text-zinc-400 hover:text-zinc-200'}`}
+                      className={`h-9 px-4 text-xs font-bold rounded-xl transition-all duration-300 ${kitchenViewMode === 'table' ? 'bg-amber-500 text-black shadow-lg shadow-amber-500/20' : 'text-zinc-400 hover:text-zinc-200'}`}
                     >
                       Tavoli
                     </Button>
@@ -1458,7 +1457,7 @@ const RestaurantDashboard = ({ user, onLogout }: RestaurantDashboardProps) => {
                       variant={kitchenViewMode === 'dish' ? 'default' : 'ghost'}
                       size="sm"
                       onClick={() => setKitchenViewMode('dish')}
-                      className={`h-8 text-xs font-bold rounded-lg transition-all ${kitchenViewMode === 'dish' ? 'bg-zinc-800 text-amber-500 shadow-lg' : 'text-zinc-400 hover:text-zinc-200'}`}
+                      className={`h-9 px-4 text-xs font-bold rounded-xl transition-all duration-300 ${kitchenViewMode === 'dish' ? 'bg-amber-500 text-black shadow-lg shadow-amber-500/20' : 'text-zinc-400 hover:text-zinc-200'}`}
                     >
                       Piatti
                     </Button>
@@ -1532,10 +1531,10 @@ const RestaurantDashboard = ({ user, onLogout }: RestaurantDashboardProps) => {
 
 
                   <Select value={orderSortMode} onValueChange={(value: 'oldest' | 'newest') => setOrderSortMode(value)}>
-                    <SelectTrigger className="w-[140px] h-10 bg-black/40 border-white/10 text-zinc-300 shadow-sm backdrop-blur-sm">
+                    <SelectTrigger className="w-[140px] h-10 bg-black/60 border-white/5 text-zinc-300 shadow-2xl shadow-black/80 rounded-xl backdrop-blur-3xl focus:ring-0">
                       <SelectValue />
                     </SelectTrigger>
-                    <SelectContent className="bg-zinc-950 border-zinc-800 text-zinc-100">
+                    <SelectContent className="bg-zinc-950 border-zinc-900 text-zinc-100 rounded-xl">
                       <SelectItem value="oldest">Meno recenti</SelectItem>
                       <SelectItem value="newest">Più recenti</SelectItem>
                     </SelectContent>

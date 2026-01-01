@@ -47,13 +47,20 @@ export default function AdminStatistics({ onImpersonate }: AdminStatisticsProps)
 
                 // 1. Filtered Data
                 const filteredOrders = allOrders.filter(o => {
-                    const date = parseISO(o.created_at)
-                    return isWithinInterval(date, { start, end })
+                    if (!o.created_at) return false
+                    try {
+                        const date = parseISO(o.created_at)
+                        return isWithinInterval(date, { start, end })
+                    } catch { return false }
                 })
 
                 const filteredSessions = allSessions.filter(s => {
-                    const date = parseISO(s.created_at)
-                    return isWithinInterval(date, { start, end })
+                    const dateStr = s.created_at || s.opened_at
+                    if (!dateStr) return false
+                    try {
+                        const date = parseISO(dateStr)
+                        return isWithinInterval(date, { start, end })
+                    } catch { return false }
                 })
 
                 // 2. Calculations
@@ -88,16 +95,20 @@ export default function AdminStatistics({ onImpersonate }: AdminStatisticsProps)
                 // 4. Peak Hours
                 const hoursMap = new Array(24).fill(0)
                 filteredOrders.forEach(order => {
-                    const hour = new Date(order.created_at).getHours()
-                    hoursMap[hour]++
+                    if (order.created_at) {
+                        try {
+                            const hour = new Date(order.created_at).getHours()
+                            hoursMap[hour]++
+                        } catch { }
+                    }
                 })
                 const peakHours = hoursMap.map((count, hour) => ({ hour, count }))
 
                 // 5. Growth Tracking
                 const days = eachDayOfInterval({ start, end })
                 const growthData = days.map(day => {
-                    const cumulativeRes = allRestaurants.filter(r => parseISO(r.created_at!) <= endOfDay(day)).length
-                    const dailyOrders = filteredOrders.filter(o => isSameDay(parseISO(o.created_at), day)).length
+                    const cumulativeRes = allRestaurants.filter(r => r.created_at && parseISO(r.created_at) <= endOfDay(day)).length
+                    const dailyOrders = filteredOrders.filter(o => o.created_at && isSameDay(parseISO(o.created_at), day)).length
                     return {
                         date: format(day, 'dd MMM', { locale: it }),
                         restaurants: cumulativeRes,
@@ -182,7 +193,7 @@ export default function AdminStatistics({ onImpersonate }: AdminStatisticsProps)
             {/* Charts Section */}
             <div className="grid gap-6 md:grid-cols-2">
                 {/* Growth Chart */}
-                <Card className="bg-black/40 backdrop-blur-xl border border-white/5 rounded-3xl shadow-2xl overflow-hidden shadow-black/60">
+                <Card className="bg-zinc-900/40 backdrop-blur-3xl border border-white/5 rounded-3xl shadow-[0_30px_60px_-15px_rgba(0,0,0,0.9)] overflow-hidden">
                     <CardHeader className="pb-2">
                         <CardTitle className="text-lg font-bold text-white flex items-center justify-between">
                             <div className="flex items-center gap-2">
@@ -215,7 +226,7 @@ export default function AdminStatistics({ onImpersonate }: AdminStatisticsProps)
                 </Card>
 
                 {/* Order Volume Chart */}
-                <Card className="bg-black/40 backdrop-blur-xl border border-white/5 rounded-3xl shadow-2xl overflow-hidden shadow-black/60">
+                <Card className="bg-zinc-900/40 backdrop-blur-3xl border border-white/5 rounded-3xl shadow-[0_30px_60px_-15px_rgba(0,0,0,0.9)] overflow-hidden">
                     <CardHeader className="pb-2">
                         <CardTitle className="text-lg font-bold text-white flex items-center justify-between">
                             <div className="flex items-center gap-2">
@@ -250,8 +261,8 @@ export default function AdminStatistics({ onImpersonate }: AdminStatisticsProps)
 
             <div className="grid gap-6 md:grid-cols-3">
                 {/* Rankings */}
-                <Card className="col-span-2 bg-black/40 backdrop-blur-xl border border-white/5 rounded-3xl shadow-2xl shadow-black/60">
-                    <CardHeader>
+                <Card className="col-span-2 bg-zinc-900/40 backdrop-blur-xl border border-white/5 rounded-3xl shadow-[0_30px_60px_-15px_rgba(0,0,0,0.9)] overflow-hidden">
+                    <CardHeader className="border-b border-white/5 pb-6">
                         <CardTitle className="text-xl font-bold text-white flex items-center justify-between">
                             <div className="flex items-center gap-3">
                                 <div className="p-2 bg-amber-500/10 rounded-xl">
@@ -303,7 +314,7 @@ export default function AdminStatistics({ onImpersonate }: AdminStatisticsProps)
                 </Card>
 
                 {/* Peak Hours Breakdown */}
-                <Card className="col-span-1 bg-black/40 backdrop-blur-xl border border-white/5 rounded-3xl shadow-2xl shadow-black/60">
+                <Card className="col-span-1 bg-zinc-900/40 backdrop-blur-3xl border border-white/5 rounded-3xl shadow-[0_30px_60px_-15px_rgba(0,0,0,0.9)] overflow-hidden">
                     <CardHeader>
                         <CardTitle className="flex items-center gap-3 text-lg font-bold text-white">
                             <Clock className="text-amber-500" /> Distribuzione Oraria
@@ -339,7 +350,7 @@ function KPICard({ title, value, subtitle, icon, color, isLive }: { title: strin
     const shadowClass = color === 'amber' ? 'shadow-amber-500/20' : 'shadow-orange-500/20'
 
     return (
-        <Card className="bg-black/60 backdrop-blur-3xl border border-white/5 rounded-3xl shadow-2xl hover:border-white/10 transition-all group overflow-hidden shadow-black/80">
+        <Card className="bg-zinc-900/50 backdrop-blur-3xl border border-white/5 rounded-3xl shadow-[0_25px_50px_-12px_rgba(0,0,0,0.8)] hover:border-amber-500/20 transition-all group overflow-hidden">
             <CardContent className="p-6">
                 <div className="flex items-center justify-between mb-4">
                     <div className={`p-3 rounded-2xl bg-${color}-500/10 ${colorClass}`}>

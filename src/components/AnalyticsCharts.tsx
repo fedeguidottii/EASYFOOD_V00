@@ -12,7 +12,7 @@ import { TrendUp, CurrencyEur, Users, ShoppingBag, Clock, ChartLine, CalendarBla
 import jsPDF from 'jspdf'
 import autoTable from 'jspdf-autotable'
 import type { Order, Dish, Category, OrderItem } from '../services/types'
-import AIAnalyticsSection from './AIAnalyticsSection'
+
 
 interface AnalyticsChartsProps {
   orders: Order[]
@@ -979,11 +979,6 @@ export default function AnalyticsCharts({ orders, completedOrders, dishes, categ
         </Card>
       </div>
 
-      <AIAnalyticsSection
-        orders={dateFilteredOrders}
-        dishes={dishes}
-        categories={categories}
-      />
     </>
   )
 }

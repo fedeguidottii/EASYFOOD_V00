@@ -67,26 +67,26 @@ export const populateRestaurantData = async (restaurantId: string) => {
 
     // 4. Create Dishes (Extended)
     const dishesRaw = [
-        { name: 'Tagliere Imperiale', price: 18, cat: 'Antipasti' },
-        { name: 'Tartare di Tonno', price: 16, cat: 'Antipasti' },
-        { name: 'Fiori di Zucca', price: 10, cat: 'Antipasti' },
-        { name: 'Spaghetti alle Vongole', price: 15, cat: 'Primi Piatti' },
-        { name: 'Paccheri al Ragu di Polpo', price: 16, cat: 'Primi Piatti' },
-        { name: 'Carbonara Tartufata', price: 14, cat: 'Primi Piatti' },
-        { name: 'Gnocchi alla Sorrentina', price: 12, cat: 'Primi Piatti' },
-        { name: 'Filetto al Pepe Verde', price: 24, cat: 'Secondi di Carne' },
-        { name: 'Tagliata con Porcini', price: 22, cat: 'Secondi di Carne' },
-        { name: 'Grigliata Mista di Pesce', price: 28, cat: 'Secondi di Pesce' },
-        { name: 'Frittura di Paranza', price: 18, cat: 'Secondi di Pesce' },
-        { name: 'Margherita DOP', price: 8, cat: 'Pizze Gourmet' },
-        { name: 'Pistacchiosa', price: 14, cat: 'Pizze Gourmet' },
-        { name: 'Diavola Special', price: 10, cat: 'Pizze Gourmet' },
-        { name: 'Tiramisù della Casa', price: 7, cat: 'Dolci Artigianali' },
-        { name: 'Cheesecake Frutti di Bosco', price: 7, cat: 'Dolci Artigianali' },
-        { name: 'Cannolo Scomposto', price: 6, cat: 'Dolci Artigianali' },
-        { name: 'Vino Rosso - Calice', price: 6, cat: 'Cantina & Bevande' },
-        { name: 'Birra Artigianale 0.5L', price: 7, cat: 'Cantina & Bevande' },
-        { name: 'Acqua Minerale 0.75L', price: 3, cat: 'Cantina & Bevande' }
+        { name: 'Tagliere Imperiale', price: 18, cat: 'Antipasti', img: 'https://images.unsplash.com/photo-1544124499-58912cbddada?q=80&w=1000&auto=format&fit=crop' },
+        { name: 'Tartare di Tonno', price: 16, cat: 'Antipasti', img: 'https://images.unsplash.com/photo-1546069901-ba9599a7e63c?q=80&w=1000&auto=format&fit=crop' },
+        { name: 'Fiori di Zucca', price: 10, cat: 'Antipasti', img: 'https://images.unsplash.com/photo-1599321955726-e048426394af?q=80&w=1000&auto=format&fit=crop' },
+        { name: 'Spaghetti alle Vongole', price: 15, cat: 'Primi Piatti', img: 'https://images.unsplash.com/photo-1551892374-ecf57bb4f1dd?q=80&w=1000&auto=format&fit=crop' },
+        { name: 'Paccheri al Ragu di Polpo', price: 16, cat: 'Primi Piatti', img: 'https://images.unsplash.com/photo-1563379091339-03b21bc4a4f8?q=80&w=1000&auto=format&fit=crop' },
+        { name: 'Carbonara Tartufata', price: 14, cat: 'Primi Piatti', img: 'https://images.unsplash.com/photo-1612874742237-6526221588e3?q=80&w=1000&auto=format&fit=crop' },
+        { name: 'Gnocchi alla Sorrentina', price: 12, cat: 'Primi Piatti', img: 'https://images.unsplash.com/photo-1551183053-bf91a1d81141?q=80&w=1000&auto=format&fit=crop' },
+        { name: 'Filetto al Pepe Verde', price: 24, cat: 'Secondi di Carne', img: 'https://images.unsplash.com/photo-1546241072-48010ad28c2c?q=80&w=1000&auto=format&fit=crop' },
+        { name: 'Tagliata con Porcini', price: 22, cat: 'Secondi di Carne', img: 'https://images.unsplash.com/photo-1558030006-450675393462?q=80&w=1000&auto=format&fit=crop' },
+        { name: 'Grigliata Mista di Pesce', price: 28, cat: 'Secondi di Pesce', img: 'https://images.unsplash.com/photo-1519708227418-c8fd9a32b7a2?q=80&w=1000&auto=format&fit=crop' },
+        { name: 'Frittura di Paranza', price: 18, cat: 'Secondi di Pesce', img: 'https://images.unsplash.com/photo-1467003909585-2f8a72700288?q=80&w=1000&auto=format&fit=crop' },
+        { name: 'Margherita DOP', price: 8, cat: 'Pizze Gourmet', img: 'https://images.unsplash.com/photo-1574071318508-1cdbad80ad38?q=80&w=1000&auto=format&fit=crop' },
+        { name: 'Pistacchiosa', price: 14, cat: 'Pizze Gourmet', img: 'https://images.unsplash.com/photo-1513104890138-7c749659a591?q=80&w=1000&auto=format&fit=crop' },
+        { name: 'Diavola Special', price: 10, cat: 'Pizze Gourmet', img: 'https://images.unsplash.com/photo-1534308983496-4fabb1a015ee?q=80&w=1000&auto=format&fit=crop' },
+        { name: 'Tiramisù della Casa', price: 7, cat: 'Dolci Artigianali', img: 'https://images.unsplash.com/photo-1571877227200-a0d98ea607e9?q=80&w=1000&auto=format&fit=crop' },
+        { name: 'Cheesecake Frutti di Bosco', price: 7, cat: 'Dolci Artigianali', img: 'https://images.unsplash.com/photo-1533134242443-d4fd215305ad?q=80&w=1000&auto=format&fit=crop' },
+        { name: 'Cannolo Scomposto', price: 6, cat: 'Dolci Artigianali', img: 'https://images.unsplash.com/photo-1551024601-bec78aea704b?q=80&w=1000&auto=format&fit=crop' },
+        { name: 'Vino Rosso - Calice', price: 6, cat: 'Cantina & Bevande', img: 'https://images.unsplash.com/photo-1510812431401-41d2bd2722f3?q=80&w=1000&auto=format&fit=crop' },
+        { name: 'Birra Artigianale 0.5L', price: 7, cat: 'Cantina & Bevande', img: 'https://images.unsplash.com/photo-1535958636474-b021ee887b13?q=80&w=1000&auto=format&fit=crop' },
+        { name: 'Acqua Minerale 0.75L', price: 3, cat: 'Cantina & Bevande', img: 'https://images.unsplash.com/photo-1523362622312-64c6a2399679?q=80&w=1000&auto=format&fit=crop' }
     ]
     const createdDishes: Dish[] = []
     for (const d of dishesRaw) {
@@ -97,7 +97,8 @@ export const populateRestaurantData = async (restaurantId: string) => {
             name: d.name,
             price: d.price,
             vat_rate: 10,
-            is_active: true
+            is_active: true,
+            image_url: (d as any).img
         }
         await DatabaseService.createDish(dish)
         createdDishes.push(dish)
@@ -116,9 +117,8 @@ export const populateRestaurantData = async (restaurantId: string) => {
             table_id: randomTable.id,
             status: 'CLOSED',
             opened_at: randomDate.toISOString(),
-            closed_at: addDays(randomDate, 0).toISOString(), // Roughly same time
-            customer_count: 2 + Math.floor(Math.random() * 4),
-            created_at: randomDate.toISOString()
+            closed_at: randomDate.toISOString(), // Same day for historical
+            customer_count: 2 + Math.floor(Math.random() * 4)
         })
 
         const orderItemsCount = 2 + Math.floor(Math.random() * 5)
@@ -156,8 +156,7 @@ export const populateRestaurantData = async (restaurantId: string) => {
             table_id: table.id,
             status: 'OPEN',
             opened_at: new Date().toISOString(),
-            customer_count: 2,
-            created_at: new Date().toISOString()
+            customer_count: 2
         })
         const dish = createdDishes[Math.floor(Math.random() * createdDishes.length)]
         await DatabaseService.createOrder({

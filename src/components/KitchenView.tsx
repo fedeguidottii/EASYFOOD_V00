@@ -94,7 +94,7 @@ export function KitchenView({ orders, tables, dishes, selectedCategoryIds = [], 
     }, [activeOrders, dishes, selectedCategoryIds])
 
     return (
-        <div className="h-[calc(100vh-180px)] w-full overflow-hidden bg-background relative">
+        <div className="h-[calc(100vh-180px)] w-full overflow-hidden bg-black relative">
             <div
                 className="w-full h-full overflow-y-auto px-2 origin-top-left transition-all duration-200"
                 style={{
@@ -150,9 +150,9 @@ export function KitchenView({ orders, tables, dishes, selectedCategoryIds = [], 
                             return (
                                 <Card
                                     key={`table-${tableName}`}
-                                    className="flex flex-col rounded-xl border border-white/5 bg-zinc-900/60 backdrop-blur-md shadow-xl transition-all duration-300 hover:border-amber-500/30 h-fit"
+                                    className="flex flex-col rounded-[2.5rem] border border-white/[0.03] bg-black/40 backdrop-blur-3xl shadow-[0_40px_80px_-15px_rgba(0,0,0,0.9)] transition-all duration-500 hover:border-amber-500/20 h-fit group/card overflow-hidden"
                                 >
-                                    <CardHeader className="pb-3 pt-4 px-4 border-b border-white/5 shrink-0 bg-white/5">
+                                    <CardHeader className="pb-4 pt-6 px-6 border-b border-white/[0.03] shrink-0 bg-gradient-to-b from-white/[0.02] to-transparent">
                                         <div className="flex justify-between items-center w-full">
                                             <span className="text-3xl font-light text-zinc-100 whitespace-nowrap overflow-hidden text-ellipsis max-w-[60%] tracking-tight">
                                                 {tableName}
@@ -179,10 +179,10 @@ export function KitchenView({ orders, tables, dishes, selectedCategoryIds = [], 
                                                         <div
                                                             key={`${item.id}-${idx}`}
                                                             className={cn(
-                                                                "flex items-center justify-between p-3 rounded-lg border transition-all duration-300 mb-2 group relative",
+                                                                "flex items-center justify-between p-4 rounded-2xl border transition-all duration-300 mb-2 group/item relative",
                                                                 isItemDone
-                                                                    ? "opacity-30 bg-zinc-950/30 border-transparent scale-[0.99]"
-                                                                    : "bg-black/40 border-white/5 hover:border-amber-500/20 hover:bg-black/60"
+                                                                    ? "opacity-20 bg-transparent border-transparent scale-95 grayscale transition-all duration-500"
+                                                                    : "bg-white/[0.02] border-white/[0.03] hover:border-amber-500/20 hover:bg-white/[0.04] shadow-2xl shadow-black/50"
                                                             )}
                                                         >
                                                             <div
@@ -217,15 +217,15 @@ export function KitchenView({ orders, tables, dishes, selectedCategoryIds = [], 
                                                                 size="icon"
                                                                 variant={isItemDone ? "ghost" : "default"}
                                                                 className={cn(
-                                                                    "h-12 w-12 rounded-lg flex-shrink-0 ml-3 transition-all duration-300",
+                                                                    "h-11 w-11 rounded-xl flex-shrink-0 ml-3 transition-all duration-500",
                                                                     isItemDone
-                                                                        ? "text-zinc-700 bg-transparent"
-                                                                        : "bg-amber-500 hover:bg-amber-400 text-black shadow-[0_0_15px_-5px_rgba(245,158,11,0.4)]"
+                                                                        ? "text-zinc-800 bg-transparent"
+                                                                        : "bg-amber-500 hover:bg-amber-400 text-black shadow-[0_10px_20px_-10px_rgba(245,158,11,0.5)] active:scale-90"
                                                                 )}
                                                                 onClick={() => !isItemDone && onCompleteDish(item.orderId, item.id)}
                                                                 disabled={isItemDone}
                                                             >
-                                                                <Check weight="bold" className="h-6 w-6" />
+                                                                <Check weight="bold" className="h-5 w-5" />
                                                             </Button>
                                                         </div>
                                                     )
