@@ -2514,7 +2514,7 @@ const RestaurantDashboard = ({ user, onLogout }: RestaurantDashboardProps) => {
                           <span className="text-sm text-zinc-300">All You Can Eat</span>
                           <span className="text-xs text-zinc-500">
                             (€{currentRestaurant
-                              ? getCurrentAyceSettings(currentRestaurant, lunchTimeStart, dinnerTimeStart).price
+                              ? getCurrentAyceSettings({ ...currentRestaurant, weekly_ayce: weeklyAyce } as any, lunchTimeStart, dinnerTimeStart).price
                               : aycePrice})
                           </span>
                         </div>
@@ -2531,7 +2531,7 @@ const RestaurantDashboard = ({ user, onLogout }: RestaurantDashboardProps) => {
                           <span className="text-sm text-zinc-300">Coperto</span>
                           <span className="text-xs text-zinc-500">
                             (€{currentRestaurant
-                              ? getCurrentCopertoPrice(currentRestaurant, lunchTimeStart, dinnerTimeStart).price
+                              ? getCurrentCopertoPrice({ ...currentRestaurant, weekly_coperto: weeklyCoperto } as any, lunchTimeStart, dinnerTimeStart).price
                               : copertoPrice})
                           </span>
                         </div>

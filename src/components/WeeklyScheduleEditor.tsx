@@ -32,9 +32,33 @@ export default function WeeklyScheduleEditor({
     onChange
 }: WeeklyScheduleEditorProps) {
     const [showAdvanced, setShowAdvanced] = useState(schedule.useWeeklySchedule)
+    const [localPrice, setLocalPrice] = useState(schedule.defaultPrice.toString())
+
+    // Sync local state when prop changes externally (e.g. initial load or reset)
+    React.useEffect(() => {
+        // Only update if the numeric value is different to prevent overwriting active typing
+        // unless it's a completely different value (logic simplified)
+        if (parseFloat(localPrice) !== schedule.defaultPrice) {
+            setLocalPrice(schedule.defaultPrice.toString())
+        }
+    }, [schedule.defaultPrice])
 
     const updateDefaultPrice = (price: number) => {
         onChange({ ...schedule, defaultPrice: price })
+    }
+
+    const handlePriceChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+        const val = e.target.value
+        setLocalPrice(val)
+
+        if (val === '') {
+            updateDefaultPrice(0)
+        } else {
+            const parsed = parseFloat(val)
+            if (!isNaN(parsed)) {
+                updateDefaultPrice(parsed)
+            }
+        }
     }
 
     const updateEnabled = (enabled: boolean) => {
@@ -119,8 +143,8 @@ export default function WeeklyScheduleEditor({
                                 type="number"
                                 step="0.5"
                                 min="0"
-                                value={schedule.defaultPrice}
-                                onChange={(e) => updateDefaultPrice(parseFloat(e.target.value) || 0)}
+                                value={localPrice}
+                                onChange={handlePriceChange}
                                 className="pl-7 bg-zinc-900 border-zinc-700 h-9"
                             />
                         </div>
