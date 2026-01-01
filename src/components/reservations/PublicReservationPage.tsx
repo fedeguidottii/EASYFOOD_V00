@@ -184,19 +184,19 @@ const PublicReservationPage = () => {
                         })
                     }
 
-                    // Lunch
+                    // Lunch slots: 15m intervals
                     for (let h = startLunch; h < endLunch; h++) {
-                        const t1 = `${h}:00`
-                        const t2 = `${h}:30`
-                        slots.push({ time: t1, available: checkAvailable(t1) })
-                        slots.push({ time: t2, available: checkAvailable(t2) })
+                        for (let m = 0; m < 60; m += 15) {
+                            const time = `${h}:${m === 0 ? '00' : m}`
+                            slots.push({ time, available: checkAvailable(time) })
+                        }
                     }
-                    // Dinner
+                    // Dinner slots: 15m intervals
                     for (let h = startDinner; h < endDinner; h++) {
-                        const t1 = `${h}:00`
-                        const t2 = `${h}:30`
-                        slots.push({ time: t1, available: checkAvailable(t1) })
-                        slots.push({ time: t2, available: checkAvailable(t2) })
+                        for (let m = 0; m < 60; m += 15) {
+                            const time = `${h}:${m === 0 ? '00' : m}`
+                            slots.push({ time, available: checkAvailable(time) })
+                        }
                     }
                     setAvailableSlots(slots)
                 }
@@ -359,22 +359,22 @@ const PublicReservationPage = () => {
                     </div>
                     <div>
                         <h1 className="text-3xl font-bold text-white tracking-tight">{restaurant.name}</h1>
-                        <div className="flex items-center justify-center gap-2 text-sm text-zinc-400 mt-2">
-                            <MapPin size={14} className="text-amber-500" />
-                            <span>Via Roma 123, Milano</span> {/* Mock address if not in DB */}
+                        <div className="flex items-center justify-center gap-2 text-sm text-zinc-500 mt-2 font-medium tracking-wide uppercase">
+                            <Sparkle size={14} className="text-amber-500" />
+                            <span>Prenotazione Online</span>
                         </div>
                     </div>
                 </div>
 
                 {/* MENU PREVIEW BUTTON */}
-                <div className="px-6 py-2 flex justify-center">
+                <div className="px-6 py-4 flex justify-center">
                     <Button
-                        variant="outline"
-                        size="sm"
+                        variant="default"
+                        size="lg"
                         onClick={() => setMenuPreviewOpen(true)}
-                        className="border-amber-500/30 text-amber-500 hover:bg-amber-500/10 hover:text-amber-400 bg-zinc-900/50 backdrop-blur-sm"
+                        className="bg-amber-500 hover:bg-amber-600 text-black font-bold h-14 px-10 rounded-2xl shadow-xl shadow-amber-500/20 active:scale-95 transition-all w-full md:w-auto flex items-center gap-3 text-lg"
                     >
-                        <ForkKnife size={16} className="mr-2" />
+                        <ForkKnife size={24} weight="bold" />
                         Vedi il Menu
                     </Button>
                 </div>
@@ -460,17 +460,17 @@ const PublicReservationPage = () => {
                                         {/* Time Slots */}
                                         <div className="space-y-3">
                                             <label className="text-xs font-medium text-zinc-500 uppercase tracking-wider">Orario</label>
-                                            <div className="grid grid-cols-4 gap-2">
+                                            <div className="grid grid-cols-4 gap-2 max-h-[220px] overflow-y-auto pr-2 scrollbar-thin scrollbar-thumb-zinc-800 scrollbar-track-transparent">
                                                 {availableSlots.map((slot) => (
                                                     <button
                                                         key={slot.time}
                                                         disabled={!slot.available}
                                                         onClick={() => setFormData(d => ({ ...d, time: slot.time }))}
-                                                        className={`py-2 rounded-lg text-sm font-medium transition-all ${formData.time === slot.time
-                                                            ? "bg-white text-black shadow-lg"
+                                                        className={`py-3 rounded-xl text-sm font-bold transition-all tabular-nums ${formData.time === slot.time
+                                                            ? "bg-amber-500 text-black shadow-lg shadow-amber-500/30 scale-[1.02]"
                                                             : slot.available
-                                                                ? "bg-zinc-800/30 text-zinc-300 hover:bg-zinc-800 border border-transparent hover:border-zinc-700"
-                                                                : "bg-zinc-900/20 text-zinc-700 cursor-not-allowed"
+                                                                ? "bg-zinc-900 border border-zinc-800 text-zinc-300 hover:border-amber-500/50 hover:bg-zinc-800/80"
+                                                                : "bg-zinc-950/50 text-zinc-700 cursor-not-allowed border border-zinc-900 opacity-50"
                                                             }`}
                                                     >
                                                         {slot.time}

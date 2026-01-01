@@ -7,7 +7,7 @@ import { Textarea } from '@/components/ui/textarea'
 import { Label } from '@/components/ui/label'
 import { Badge } from '@/components/ui/badge'
 import { toast } from 'sonner'
-import { Trash, MagnifyingGlass as Search, Check, Clock, ArrowRight, Users } from '@phosphor-icons/react'
+import { Trash, MagnifyingGlass as Search, Check, Clock, ArrowRight, Users, ChatText } from '@phosphor-icons/react'
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover'
 import type { Table, Booking, User } from '../services/types'
 import { DatabaseService } from '../services/DatabaseService'
@@ -662,8 +662,13 @@ export default function TimelineReservations({ user, restaurantId, tables, booki
                             }}
                             onMouseEnter={() => setHoveredSlot(null)} // Hide ghost block explicitly when entering a block
                           >
-                            <div className="font-bold text-sm truncate leading-tight">
-                              {block.booking.name}
+                            <div className="flex items-center gap-1.5 overflow-hidden">
+                              <div className="font-bold text-sm truncate leading-tight flex-1">
+                                {block.booking.name}
+                              </div>
+                              {block.booking.notes && (
+                                <ChatText size={14} weight="fill" className="text-black/60 shrink-0" />
+                              )}
                             </div>
                             <div className="text-[10px] truncate opacity-80 mt-0.5 font-bold uppercase tracking-wide">
                               {minutesToTime(block.startMinutes)} - {minutesToTime(block.startMinutes + block.duration)} • {block.booking.guests}p
