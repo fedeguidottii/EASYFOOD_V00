@@ -164,21 +164,24 @@ const PublicReservationPage = () => {
                     const checkAvailable = (slotTime: string) => {
                         const [sH, sM] = slotTime.split(':').map(Number)
                         const slotMinutes = sH * 60 + sM
+                        const slotEndMinutes = slotMinutes + reservationDuration
 
-                        let occupiedSeats = 0
-                        if (dayBookings) {
-                            dayBookings.forEach(b => {
+                        // Filter tables by capacity first
+                        const capableTables = activeTables.filter(t => (t.seats || 4) >= formData.guests)
+                        if (capableTables.length === 0) return false
+
+                        // Check if at least one capable table is free
+                        return capableTables.some(table => {
+                            const tableBookings = (dayBookings as any[])?.filter(b => b.table_id === table.id) || []
+                            const hasConflict = tableBookings.some(b => {
                                 const bTime = new Date(b.date_time)
                                 const bStartMinutes = bTime.getHours() * 60 + bTime.getMinutes()
                                 const bEndMinutes = bStartMinutes + reservationDuration
 
-                                if (slotMinutes >= bStartMinutes && slotMinutes < bEndMinutes) {
-                                    occupiedSeats += b.guests
-                                }
+                                return (slotMinutes < bEndMinutes && slotEndMinutes > bStartMinutes)
                             })
-                        }
-
-                        return (occupiedSeats + formData.guests) <= totalCapacity
+                            return !hasConflict
+                        })
                     }
 
                     // Lunch

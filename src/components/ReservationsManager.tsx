@@ -165,6 +165,13 @@ export default function ReservationsManager({ user, restaurantId, tables, rooms,
       notes: editForm.notes.trim()
     }
 
+    // Capacity Check
+    const selectedTable = restaurantTables.find(t => t.id === editForm.tableId)
+    if (selectedTable && (selectedTable.seats || 4) < editForm.guests) {
+      toast.error(`Il tavolo ${selectedTable.number} può contenere massimo ${selectedTable.seats || 4} persone`)
+      return
+    }
+
     DatabaseService.updateBooking(updatedBooking)
       .then(() => {
         setShowEditDialog(false)
@@ -603,74 +610,6 @@ export default function ReservationsManager({ user, restaurantId, tables, rooms,
         />
       </div>
 
-      {/* Unassigned Bookings Section */}
-      {(() => {
-        const unassignedBookings = activeBookings.filter(b => !b.table_id)
-
-        if (unassignedBookings.length === 0) return null
-
-        return (
-          <Card className="border-amber-500/20 bg-amber-500/5 backdrop-blur-sm shadow-xl">
-            <CardHeader className="pb-3">
-              <CardTitle className="text-xl flex items-center gap-2 text-amber-500">
-                <div className="w-2.5 h-2.5 rounded-full bg-amber-500 animate-pulse shadow-[0_0_10px_rgba(245,158,11,0.5)]" />
-                Prenotazioni da Assegnare ({unassignedBookings.length})
-              </CardTitle>
-              <CardDescription className="text-zinc-400">
-                Prenotazioni ricevute tramite QR Code che necessitano di un tavolo
-              </CardDescription>
-            </CardHeader>
-            <CardContent>
-              <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-                {unassignedBookings.map(booking => (
-                  <div key={booking.id} className="bg-black/40 p-5 rounded-2xl border border-white/10 flex flex-col gap-4 hover:border-amber-500/30 transition-colors group">
-                    <div className="flex justify-between items-start">
-                      <div>
-                        <h4 className="font-bold text-lg text-white group-hover:text-amber-400 transition-colors">{booking.name}</h4>
-                        <div className="flex items-center gap-3 text-sm text-zinc-400 mt-1.5">
-                          <div className="flex items-center gap-1.5">
-                            <Clock size={16} className="text-amber-500" />
-                            <span className="font-medium">{booking.date_time.split('T')[1].substring(0, 5)}</span>
-                          </div>
-                          <div className="w-1 h-1 rounded-full bg-zinc-700" />
-                          <div className="flex items-center gap-1.5">
-                            <Users size={16} className="text-amber-500" />
-                            <span className="font-medium">{booking.guests} ospiti</span>
-                          </div>
-                        </div>
-                        {booking.phone && (
-                          <div className="flex items-center gap-2 text-sm text-zinc-500 mt-2">
-                            <Phone size={14} />
-                            {booking.phone}
-                          </div>
-                        )}
-                      </div>
-                      <Badge variant="outline" className="border-amber-500/30 text-amber-500 bg-amber-500/10 px-2 py-0.5">
-                        QR Online
-                      </Badge>
-                    </div>
-
-                    {booking.notes && (
-                      <div className="bg-white/5 p-3 rounded-xl text-sm text-zinc-300 border border-white/5">
-                        <span className="text-amber-500/70 font-bold uppercase text-[10px] tracking-widest block mb-1">Dettagli / Preferenze:</span>
-                        {booking.notes}
-                      </div>
-                    )}
-
-                    <Button
-                      size="sm"
-                      className="w-full mt-auto bg-amber-500 hover:bg-amber-600 text-black font-bold h-11 rounded-xl shadow-lg shadow-amber-500/10 active:scale-95 transition-all"
-                      onClick={() => handleEditBooking(booking)}
-                    >
-                      Assegna Tavolo
-                    </Button>
-                  </div>
-                ))}
-              </div>
-            </CardContent>
-          </Card>
-        )
-      })()}
 
 
       {/* Edit Reservation Dialog */}

@@ -88,8 +88,9 @@ export default function TimelineReservations({ user, restaurantId, tables, booki
 
   const dayBookings = localBookings?.filter(res => {
     if (!res.date_time) return false
-    const date = res.date_time.split('T')[0]
-    return date === selectedDate
+    const bDate = new Date(res.date_time)
+    const bDateStr = `${bDate.getFullYear()}-${String(bDate.getMonth() + 1).padStart(2, '0')}-${String(bDate.getDate()).padStart(2, '0')}`
+    return bDateStr === selectedDate
   }) || []
 
   // Timeline configuration
@@ -144,11 +145,10 @@ export default function TimelineReservations({ user, restaurantId, tables, booki
         const table = restaurantTables.find(t => t.id === booking.table_id)
         if (!table) return null // Skip if table not found
 
-        // Parse the time correctly from ISO format
-        const dateStr = booking.date_time.includes('T') ? booking.date_time.split('T')[1] : booking.date_time
-        const timeParts = dateStr.split(':')
-        const hours = parseInt(timeParts[0], 10)
-        const minutes = parseInt(timeParts[1], 10)
+        // Parse the time correctly using local time to match the grid
+        const bTime = new Date(booking.date_time)
+        const hours = bTime.getHours()
+        const minutes = bTime.getMinutes()
 
         // Calculate start minutes from the actual reservation time
         const startMinutes = hours * 60 + minutes
@@ -270,6 +270,14 @@ export default function TimelineReservations({ user, restaurantId, tables, booki
     }
 
     try {
+      // Capacity Check
+      const selectedTable = restaurantTables.find(t => t.id === newReservation.tableId)
+      const guests = typeof newReservation.guests === 'string' ? parseInt(newReservation.guests) || 1 : newReservation.guests
+      if (selectedTable && (selectedTable.seats || 4) < guests) {
+        toast.error(`Il tavolo ${selectedTable.number} può contenere massimo ${selectedTable.seats || 4} persone`)
+        return
+      }
+
       const dateTime = `${selectedDate}T${newReservation.time}:00`
 
       await DatabaseService.createBooking({
@@ -332,6 +340,14 @@ export default function TimelineReservations({ user, restaurantId, tables, booki
 
     if (hasConflict(tableId, newTime, reservationDuration, bookingId)) {
       toast.error('Orario occupato o sovrapposto')
+      return
+    }
+
+    // Capacity Check
+    const targetTable = restaurantTables.find(t => t.id === tableId)
+    const movingBooking = localBookings.find(b => b.id === bookingId)
+    if (targetTable && movingBooking && (targetTable.seats || 4) < movingBooking.guests) {
+      toast.error(`Il tavolo ${targetTable.number} può contenere massimo ${targetTable.seats || 4} persone`)
       return
     }
 
