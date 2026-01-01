@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react'
+import React, { useState, useEffect } from 'react'
 import { Switch } from '@/components/ui/switch'
 import { Input } from '@/components/ui/input'
 import { Button } from '@/components/ui/button'
@@ -26,39 +26,52 @@ interface WeeklyScheduleEditorProps {
     onChange: (schedule: WeeklyCopertoSchedule | WeeklyAyceSchedule) => void
 }
 
+// Helper component to handle local state for price inputs
+// Prevents "0" snap-back when clearing the input
+const PriceInput = ({ value, onChange, className, ...props }: { value: number, onChange: (val: number) => void } & Omit<React.ComponentProps<typeof Input>, 'value' | 'onChange'>) => {
+    const [localValue, setLocalValue] = useState(value?.toString() || '0')
+
+    useEffect(() => {
+        // If local is empty and value is 0, DO NOT sync (allows empty state)
+        if (localValue === '' && value === 0) return
+
+        // If values match numerically, don't sync (preserves "1.0" vs "1")
+        if (parseFloat(localValue) === value) return
+
+        setLocalValue(value.toString())
+    }, [value])
+
+    const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+        const val = e.target.value
+        setLocalValue(val)
+        if (val === '') {
+            onChange(0)
+        } else {
+            const parsed = parseFloat(val)
+            if (!isNaN(parsed)) onChange(parsed)
+        }
+    }
+
+    return (
+        <Input
+            type="number"
+            value={localValue}
+            onChange={handleChange}
+            className={className}
+            {...props}
+        />
+    )
+}
+
 export default function WeeklyScheduleEditor({
     type,
     schedule,
     onChange
 }: WeeklyScheduleEditorProps) {
     const [showAdvanced, setShowAdvanced] = useState(schedule.useWeeklySchedule)
-    const [localPrice, setLocalPrice] = useState(schedule.defaultPrice.toString())
-
-    // Sync local state when prop changes externally (e.g. initial load or reset)
-    React.useEffect(() => {
-        // Only update if the numeric value is different to prevent overwriting active typing
-        // unless it's a completely different value (logic simplified)
-        if (parseFloat(localPrice) !== schedule.defaultPrice) {
-            setLocalPrice(schedule.defaultPrice.toString())
-        }
-    }, [schedule.defaultPrice])
 
     const updateDefaultPrice = (price: number) => {
         onChange({ ...schedule, defaultPrice: price })
-    }
-
-    const handlePriceChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-        const val = e.target.value
-        setLocalPrice(val)
-
-        if (val === '') {
-            updateDefaultPrice(0)
-        } else {
-            const parsed = parseFloat(val)
-            if (!isNaN(parsed)) {
-                updateDefaultPrice(parsed)
-            }
-        }
     }
 
     const updateEnabled = (enabled: boolean) => {
@@ -139,12 +152,11 @@ export default function WeeklyScheduleEditor({
                         <Label className="text-zinc-400 whitespace-nowrap">Prezzo Base:</Label>
                         <div className="relative flex-1 max-w-[120px]">
                             <span className="absolute left-3 top-1/2 -translate-y-1/2 text-zinc-500">€</span>
-                            <Input
-                                type="number"
+                            <PriceInput
+                                value={schedule.defaultPrice}
+                                onChange={updateDefaultPrice}
                                 step="0.5"
                                 min="0"
-                                value={localPrice}
-                                onChange={handlePriceChange}
                                 className="pl-7 bg-zinc-900 border-zinc-700 h-9"
                             />
                         </div>
@@ -197,13 +209,12 @@ export default function WeeklyScheduleEditor({
                                                 >
                                                     {getMealConfig(key, 'lunch').enabled ? <Check size={14} weight="bold" /> : <X size={14} />}
                                                 </button>
-                                                <Input
-                                                    type="number"
+                                                <PriceInput
+                                                    value={getMealConfig(key, 'lunch').price}
+                                                    onChange={(val) => updateDayMeal(key, 'lunch', { price: val })}
+                                                    disabled={!getMealConfig(key, 'lunch').enabled}
                                                     step="0.5"
                                                     min="0"
-                                                    value={getMealConfig(key, 'lunch').price}
-                                                    onChange={(e) => updateDayMeal(key, 'lunch', { price: parseFloat(e.target.value) || 0 })}
-                                                    disabled={!getMealConfig(key, 'lunch').enabled}
                                                     className="w-20 h-8 text-sm bg-zinc-900 border-zinc-700 disabled:opacity-40"
                                                 />
                                             </div>
@@ -221,13 +232,12 @@ export default function WeeklyScheduleEditor({
                                                 >
                                                     {getMealConfig(key, 'dinner').enabled ? <Check size={14} weight="bold" /> : <X size={14} />}
                                                 </button>
-                                                <Input
-                                                    type="number"
+                                                <PriceInput
+                                                    value={getMealConfig(key, 'dinner').price}
+                                                    onChange={(val) => updateDayMeal(key, 'dinner', { price: val })}
+                                                    disabled={!getMealConfig(key, 'dinner').enabled}
                                                     step="0.5"
                                                     min="0"
-                                                    value={getMealConfig(key, 'dinner').price}
-                                                    onChange={(e) => updateDayMeal(key, 'dinner', { price: parseFloat(e.target.value) || 0 })}
-                                                    disabled={!getMealConfig(key, 'dinner').enabled}
                                                     className="w-20 h-8 text-sm bg-zinc-900 border-zinc-700 disabled:opacity-40"
                                                 />
                                             </div>

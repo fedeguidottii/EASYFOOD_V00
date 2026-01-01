@@ -61,7 +61,7 @@ export const SessionProvider: React.FC<{ children: React.ReactNode }> = ({ child
                     if (newStatus === 'CLOSED' || newStatus === 'PAID') {
                         toast.info('Il tavolo è stato chiuso. Grazie della visita!');
                         exitSession(); // Force logout
-                        navigate('/'); // Redirect to home/login
+                        // navigate('/'); // REMOVED: Stay on page to show PIN screen again
                     } else {
                         setSessionStatus(newStatus);
                     }
@@ -112,7 +112,7 @@ export const SessionProvider: React.FC<{ children: React.ReactNode }> = ({ child
 
                 return true;
             }
-            
+
             toast.error('Tavolo non disponibile. Riprova.');
             return false;
         } catch (err: any) {

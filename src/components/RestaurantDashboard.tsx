@@ -2004,7 +2004,7 @@ const RestaurantDashboard = ({ user, onLogout }: RestaurantDashboardProps) => {
                         Menu Personalizzati
                       </Button>
                     </DialogTrigger>
-                    <DialogContent className="max-w-[96vw] w-full md:max-w-[1100px] h-[90vh] max-h-[90vh] p-0 overflow-hidden bg-zinc-950 border-zinc-800 text-zinc-100 flex flex-col">
+                    <DialogContent className="max-w-[92vw] w-full md:max-w-5xl h-[80vh] max-h-[85vh] p-0 overflow-hidden bg-zinc-950 border-zinc-800 text-zinc-100 flex flex-col rounded-2xl">
                       <VisuallyHidden>
                         <DialogTitle>Gestione Menu Personalizzati</DialogTitle>
                         <DialogDescription>Gestisci i menu personalizzati</DialogDescription>
