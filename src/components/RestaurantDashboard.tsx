@@ -20,8 +20,10 @@ import {
   Plus, Minus, Trash, Pencil, Check, X,
   CaretDown, CaretUp, Funnel, MagnifyingGlass,
   ChefHat, SignOut, SpeakerHigh, ForkKnife, Receipt, ClockCounterClockwise,
-  Users, CheckCircle, QrCode, PencilSimple, List, DotsSixVertical, Tag, Eye, EyeSlash, Sparkle
+  Users, CheckCircle, QrCode, PencilSimple, List, DotsSixVertical, Tag, Eye, EyeSlash, Sparkle, DownloadSimple
 } from '@phosphor-icons/react'
+import jsPDF from 'jspdf'
+import html2canvas from 'html2canvas'
 import { useRestaurantLogic } from '../hooks/useRestaurantLogic'
 import { DatabaseService } from '../services/DatabaseService'
 import { useSupabaseData } from '../hooks/useSupabaseData'
@@ -370,6 +372,7 @@ const RestaurantDashboard = ({ user, onLogout }: RestaurantDashboardProps) => {
   const [currentSessionPin, setCurrentSessionPin] = useState<string>('')
   const [allergenInput, setAllergenInput] = useState('')
   const [showTableQrDialog, setShowTableQrDialog] = useState(false)
+  const [isGeneratingTableQrPdf, setIsGeneratingTableQrPdf] = useState(false)
   const [showTableBillDialog, setShowTableBillDialog] = useState(false)
   const [selectedTableForActions, setSelectedTableForActions] = useState<Table | null>(null)
   const [kitchenViewMode, setKitchenViewMode] = useState<'table' | 'dish'>('table')
@@ -1737,7 +1740,31 @@ const RestaurantDashboard = ({ user, onLogout }: RestaurantDashboardProps) => {
               >
                 <div className="grid gap-6 grid-cols-[repeat(auto-fill,minmax(240px,1fr))]">
                   {restaurantTables
+                    // Search filter
+                    .filter(t => !tableSearchTerm || t.number?.toLowerCase().includes(tableSearchTerm.toLowerCase()))
+                    // Room filter
                     .filter(t => selectedRoomFilter === 'all' || t.room_id === selectedRoomFilter)
+                    // Sorting
+                    .sort((a, b) => {
+                      if (tableSortMode === 'number') {
+                        // Sort by number/name
+                        const numA = parseInt(a.number?.replace(/\D/g, '') || '0')
+                        const numB = parseInt(b.number?.replace(/\D/g, '') || '0')
+                        if (numA !== numB) return numA - numB
+                        return (a.number || '').localeCompare(b.number || '')
+                      } else if (tableSortMode === 'seats') {
+                        // Sort by capacity
+                        return (b.seats || 0) - (a.seats || 0)
+                      } else if (tableSortMode === 'status') {
+                        // Sort by active status (active first)
+                        const sessionA = sessions?.find(s => s.table_id === a.id && s.status === 'OPEN')
+                        const sessionB = sessions?.find(s => s.table_id === b.id && s.status === 'OPEN')
+                        const isActiveA = sessionA ? 1 : 0
+                        const isActiveB = sessionB ? 1 : 0
+                        return isActiveB - isActiveA
+                      }
+                      return 0
+                    })
                     .map(table => {
                       const session = getOpenSessionForTable(table.id)
                       const isActive = session?.status === 'OPEN'
@@ -2034,92 +2061,134 @@ const RestaurantDashboard = ({ user, onLogout }: RestaurantDashboardProps) => {
                 </div >
               </div >
 
-              <div className="space-y-8">
+              <div className="space-y-10">
                 {restaurantCategories.map(category => {
                   const categoryDishes = restaurantDishes.filter(d => d.id && d.category_id === category.id)
                   if (categoryDishes.length === 0) return null
 
                   return (
-                    <div key={category.id} className="space-y-4">
-                      <div className="flex items-center gap-3 pb-2 border-b border-border/10">
-                        <div className="w-10 h-10 rounded-xl bg-primary/10 flex items-center justify-center text-primary">
-                          <Tag size={20} weight="duotone" />
+                    <div key={category.id} className="space-y-5">
+                      {/* Category Header - Minimal */}
+                      <div className="flex items-center gap-3">
+                        <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-amber-500/20 to-amber-600/10 flex items-center justify-center">
+                          <Tag size={16} weight="fill" className="text-amber-500" />
                         </div>
-                        <h3 className="text-xl font-bold text-foreground">{category.name}</h3>
+                        <h3 className="text-lg font-semibold text-zinc-100 tracking-wide">{category.name}</h3>
+                        <div className="flex-1 h-px bg-gradient-to-r from-zinc-800 to-transparent" />
+                        <span className="text-xs text-zinc-600 font-medium">{categoryDishes.length} piatti</span>
                       </div>
-                      <div className="grid gap-3 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+
+                      {/* Dish Grid - Responsive */}
+                      <div className="grid gap-4 grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5">
                         {categoryDishes.map(dish => (
-                          <Card key={dish.id} className={`group hover:shadow-lg transition-all border-zinc-800 bg-zinc-900 shadow-none overflow-hidden ${!dish.is_active ? 'opacity-60 grayscale' : ''}`}>
-                            <CardContent className="p-0">
-                              <div className="flex gap-4 p-4">
-                                {/* Larger Image */}
-                                {dish.image_url ? (
-                                  <div className="relative w-24 h-24 shrink-0 overflow-hidden rounded-xl shadow-sm">
-                                    <img
-                                      src={dish.image_url}
-                                      alt={dish.name}
-                                      className="w-full h-full object-cover transition-transform duration-300 group-hover:scale-110"
-                                    />
-                                  </div>
-                                ) : (
-                                  <div className="w-24 h-24 shrink-0 rounded-xl bg-white/5 flex items-center justify-center">
-                                    <ForkKnife size={32} className="text-zinc-700" />
-                                  </div>
-                                )}
+                          <div
+                            key={dish.id}
+                            className={`group relative bg-zinc-900/80 rounded-2xl overflow-hidden border border-zinc-800/50 hover:border-amber-500/30 transition-all duration-300 hover:shadow-xl hover:shadow-amber-500/5 ${!dish.is_active ? 'opacity-50 grayscale' : ''}`}
+                          >
+                            {/* Image Section */}
+                            <div className="relative aspect-[4/3] overflow-hidden bg-zinc-800">
+                              {dish.image_url ? (
+                                <img
+                                  src={dish.image_url}
+                                  alt={dish.name}
+                                  className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105"
+                                />
+                              ) : (
+                                <div className="w-full h-full flex items-center justify-center bg-gradient-to-br from-zinc-800 to-zinc-900">
+                                  <ForkKnife size={40} weight="duotone" className="text-zinc-700" />
+                                </div>
+                              )}
 
-                                {/* Content */}
-                                <div className="flex-1 min-w-0 flex flex-col justify-between">
-                                  <div>
-                                    <div className="flex items-start justify-between gap-2">
-                                      <h4 className="font-bold text-lg leading-tight line-clamp-2 text-zinc-100">{dish.name}</h4>
-                                      <span className="font-bold text-amber-500 text-lg whitespace-nowrap">€{dish.price.toFixed(2)}</span>
-                                    </div>
-                                    {dish.description && (
-                                      <p className="text-sm text-zinc-400 mt-1 line-clamp-2">{dish.description}</p>
-                                    )}
-                                  </div>
+                              {/* Price Badge */}
+                              <div className="absolute top-3 right-3">
+                                <span className="px-3 py-1.5 bg-zinc-950/90 backdrop-blur-sm rounded-full text-amber-400 font-bold text-sm shadow-lg">
+                                  €{dish.price.toFixed(2)}
+                                </span>
+                              </div>
 
-                                  <div className="flex items-center justify-between mt-3">
-                                    <div className="flex items-center gap-2">
-                                      {dish.is_ayce && (
-                                        <Badge className="bg-amber-500 text-black border-none px-2 py-0.5 shadow-sm">
-                                          AYCE
-                                        </Badge>
-                                      )}
-                                    </div>
+                              {/* AYCE Badge */}
+                              {dish.is_ayce && (
+                                <div className="absolute top-3 left-3">
+                                  <span className="px-2.5 py-1 bg-amber-500 text-zinc-950 font-bold text-xs rounded-full shadow-md uppercase tracking-wide">
+                                    AYCE
+                                  </span>
+                                </div>
+                              )}
 
-                                    {/* Clean Actions (No gray bar) */}
-                                    <div className="flex items-center gap-1 opacity-100 sm:opacity-0 sm:group-hover:opacity-100 transition-opacity">
-                                      <Button
-                                        variant="ghost"
-                                        size="icon"
-                                        className="h-8 w-8 hover:bg-white/5 hover:text-amber-500 rounded-full text-zinc-400"
-                                        onClick={() => handleEditDish(dish)}
-                                      >
-                                        <PencilSimple size={18} />
-                                      </Button>
-                                      <Button
-                                        variant="ghost"
-                                        size="icon"
-                                        className={`h-8 w-8 rounded-full ${!dish.is_active ? 'text-zinc-700 hover:bg-white/5' : 'text-amber-500 hover:bg-amber-900/30'}`}
-                                        onClick={() => handleToggleDish(dish.id)}
-                                      >
-                                        {dish.is_active ? <Eye size={18} /> : <EyeSlash size={18} />}
-                                      </Button>
-                                      <Button
-                                        variant="ghost"
-                                        size="icon"
-                                        className="h-8 w-8 text-destructive hover:bg-destructive/10 rounded-full"
-                                        onClick={() => handleDeleteDish(dish.id)}
-                                      >
-                                        <Trash size={18} />
-                                      </Button>
-                                    </div>
-                                  </div>
+                              {/* Hover Actions Overlay */}
+                              <div className="absolute inset-0 bg-gradient-to-t from-zinc-950/90 via-zinc-950/20 to-transparent opacity-0 group-hover:opacity-100 transition-all duration-300 flex items-end justify-center pb-4">
+                                <div className="flex items-center gap-2">
+                                  <Button
+                                    size="sm"
+                                    className="h-9 px-4 bg-amber-500 hover:bg-amber-400 text-zinc-950 font-semibold rounded-full shadow-lg"
+                                    onClick={() => handleEditDish(dish)}
+                                  >
+                                    <PencilSimple size={16} className="mr-1.5" />
+                                    Modifica
+                                  </Button>
+                                  <Button
+                                    size="icon"
+                                    variant="secondary"
+                                    className={`h-9 w-9 rounded-full ${dish.is_active ? 'bg-zinc-800 hover:bg-zinc-700' : 'bg-zinc-700 hover:bg-zinc-600'}`}
+                                    onClick={() => handleToggleDish(dish.id)}
+                                  >
+                                    {dish.is_active ? <Eye size={16} className="text-amber-500" /> : <EyeSlash size={16} className="text-zinc-400" />}
+                                  </Button>
+                                  <Button
+                                    size="icon"
+                                    variant="destructive"
+                                    className="h-9 w-9 rounded-full"
+                                    onClick={() => handleDeleteDish(dish.id)}
+                                  >
+                                    <Trash size={16} />
+                                  </Button>
                                 </div>
                               </div>
-                            </CardContent>
-                          </Card>
+                            </div>
+
+                            {/* Content Section */}
+                            <div className="p-4">
+                              {/* Dish Name - Full visible */}
+                              <h4 className="font-semibold text-base text-zinc-100 leading-snug mb-1.5 group-hover:text-amber-400 transition-colors">
+                                {dish.name}
+                              </h4>
+
+                              {/* Description */}
+                              {dish.description && (
+                                <p className="text-sm text-zinc-500 leading-relaxed line-clamp-2">
+                                  {dish.description}
+                                </p>
+                              )}
+
+                              {/* Mobile Actions - Always visible on touch devices */}
+                              <div className="flex items-center justify-end gap-1 mt-3 sm:hidden">
+                                <Button
+                                  variant="ghost"
+                                  size="icon"
+                                  className="h-8 w-8 text-zinc-400 hover:text-amber-500 hover:bg-amber-500/10 rounded-full"
+                                  onClick={() => handleEditDish(dish)}
+                                >
+                                  <PencilSimple size={16} />
+                                </Button>
+                                <Button
+                                  variant="ghost"
+                                  size="icon"
+                                  className={`h-8 w-8 rounded-full ${dish.is_active ? 'text-amber-500' : 'text-zinc-600'}`}
+                                  onClick={() => handleToggleDish(dish.id)}
+                                >
+                                  {dish.is_active ? <Eye size={16} /> : <EyeSlash size={16} />}
+                                </Button>
+                                <Button
+                                  variant="ghost"
+                                  size="icon"
+                                  className="h-8 w-8 text-red-400 hover:text-red-300 hover:bg-red-500/10 rounded-full"
+                                  onClick={() => handleDeleteDish(dish.id)}
+                                >
+                                  <Trash size={16} />
+                                </Button>
+                              </div>
+                            </div>
+                          </div>
                         ))}
                       </div>
                     </div>
@@ -2332,7 +2401,11 @@ const RestaurantDashboard = ({ user, onLogout }: RestaurantDashboardProps) => {
                       <div className="flex items-center justify-between p-3 bg-zinc-900/50 rounded-lg border border-zinc-800">
                         <div className="flex items-center gap-2">
                           <span className="text-sm text-zinc-300">All You Can Eat</span>
-                          <span className="text-xs text-zinc-500">(€{aycePrice})</span>
+                          <span className="text-xs text-zinc-500">
+                            (€{currentRestaurant
+                              ? getCurrentAyceSettings(currentRestaurant, lunchTimeStart, dinnerTimeStart).price
+                              : aycePrice})
+                          </span>
                         </div>
                         <Switch
                           checked={tableAyceOverride}
@@ -2345,7 +2418,11 @@ const RestaurantDashboard = ({ user, onLogout }: RestaurantDashboardProps) => {
                       <div className="flex items-center justify-between p-3 bg-zinc-900/50 rounded-lg border border-zinc-800">
                         <div className="flex items-center gap-2">
                           <span className="text-sm text-zinc-300">Coperto</span>
-                          <span className="text-xs text-zinc-500">(€{copertoPrice})</span>
+                          <span className="text-xs text-zinc-500">
+                            (€{currentRestaurant
+                              ? getCurrentCopertoPrice(currentRestaurant, lunchTimeStart, dinnerTimeStart).price
+                              : copertoPrice})
+                          </span>
                         </div>
                         <Switch
                           checked={tableCopertoOverride}
@@ -2634,9 +2711,127 @@ const RestaurantDashboard = ({ user, onLogout }: RestaurantDashboardProps) => {
                   </>
                 )}
               </div>
-              <Button onClick={() => setShowTableQrDialog(false)} className="w-full">
-                Chiudi
-              </Button>
+              <div className="flex gap-2">
+                <Button
+                  variant="outline"
+                  className="flex-1 gap-2"
+                  disabled={isGeneratingTableQrPdf}
+                  onClick={async () => {
+                    setIsGeneratingTableQrPdf(true)
+                    try {
+                      const qrContent = document.getElementById('table-qr-pdf-content')
+                      if (!qrContent) {
+                        toast.error('Errore generazione PDF')
+                        return
+                      }
+
+                      const originalDisplay = qrContent.style.display
+                      qrContent.style.display = 'block'
+
+                      const canvas = await html2canvas(qrContent, {
+                        scale: 2,
+                        backgroundColor: '#09090b',
+                        useCORS: true
+                      })
+
+                      qrContent.style.display = originalDisplay
+
+                      const imgData = canvas.toDataURL('image/png')
+                      const pdf = new jsPDF({
+                        orientation: 'portrait',
+                        unit: 'mm',
+                        format: 'a4'
+                      })
+
+                      const pdfWidth = pdf.internal.pageSize.getWidth()
+                      const imgProps = pdf.getImageProperties(imgData)
+                      const imgHeight = (imgProps.height * pdfWidth) / imgProps.width
+
+                      pdf.addImage(imgData, 'PNG', 0, 0, pdfWidth, imgHeight)
+                      pdf.save(`QR_Tavolo_${selectedTableForActions?.number || 'tavolo'}.pdf`)
+                      toast.success('PDF scaricato!')
+                    } catch (err) {
+                      console.error(err)
+                      toast.error('Errore durante la generazione del PDF')
+                    } finally {
+                      setIsGeneratingTableQrPdf(false)
+                    }
+                  }}
+                >
+                  <DownloadSimple size={18} />
+                  {isGeneratingTableQrPdf ? 'Generazione...' : 'Scarica PDF'}
+                </Button>
+                <Button onClick={() => setShowTableQrDialog(false)} className="flex-1">
+                  Chiudi
+                </Button>
+              </div>
+
+              {/* Hidden content for PDF generation */}
+              <div id="table-qr-pdf-content" style={{ display: 'none', position: 'fixed', top: '-9999px', width: '800px', height: '1131px' }}>
+                <div style={{
+                  width: '100%',
+                  height: '100%',
+                  background: 'linear-gradient(135deg, #09090b 0%, #18181b 100%)',
+                  display: 'flex',
+                  flexDirection: 'column',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  color: 'white',
+                  fontFamily: 'Segoe UI, sans-serif',
+                  padding: '60px'
+                }}>
+                  <div style={{
+                    border: '4px solid rgba(245, 158, 11, 0.3)',
+                    padding: '60px',
+                    borderRadius: '40px',
+                    background: 'rgba(255,255,255,0.03)',
+                    backdropFilter: 'blur(20px)',
+                    display: 'flex',
+                    flexDirection: 'column',
+                    alignItems: 'center',
+                    textAlign: 'center',
+                    boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.5)'
+                  }}>
+                    <p style={{ fontSize: '18px', color: '#94a3b8', marginBottom: '20px', textTransform: 'uppercase', letterSpacing: '3px' }}>
+                      {currentRestaurant?.name || 'Ristorante'}
+                    </p>
+                    <h1 style={{ fontSize: '56px', fontWeight: 'bold', marginBottom: '10px', color: '#fff' }}>
+                      Tavolo {selectedTableForActions?.number}
+                    </h1>
+                    <p style={{ fontSize: '24px', color: '#94a3b8', marginBottom: '50px' }}>Scansiona per ordinare</p>
+
+                    <div style={{
+                      background: 'white',
+                      padding: '30px',
+                      borderRadius: '30px',
+                      marginBottom: '40px',
+                      boxShadow: '0 0 40px rgba(245, 158, 11, 0.2)'
+                    }}>
+                      {selectedTableForActions && (
+                        <QRCodeGenerator
+                          value={generateQrCode(selectedTableForActions.id)}
+                          size={350}
+                        />
+                      )}
+                    </div>
+
+                    <div style={{
+                      background: 'rgba(245, 158, 11, 0.1)',
+                      border: '1px solid rgba(245, 158, 11, 0.3)',
+                      borderRadius: '20px',
+                      padding: '25px 40px',
+                      width: '100%'
+                    }}>
+                      <p style={{ color: '#fbbf24', fontSize: '20px', marginBottom: '10px' }}>PIN di accesso</p>
+                      <p style={{ fontSize: '48px', fontWeight: 'bold', color: '#fff', letterSpacing: '12px', fontFamily: 'monospace' }}>
+                        {currentSessionPin || '----'}
+                      </p>
+                    </div>
+
+                    <p style={{ marginTop: '40px', fontSize: '14px', color: '#64748b' }}>Powered by EASYFOOD</p>
+                  </div>
+                </div>
+              </div>
             </DialogContent>
           </Dialog >
 

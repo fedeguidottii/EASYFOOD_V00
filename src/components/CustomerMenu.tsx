@@ -545,8 +545,6 @@ const CustomerMenu = () => {
   return <AuthorizedMenuContent restaurantId={activeSession?.restaurant_id!} tableId={tableId} sessionId={sessionId!} activeSession={activeSession!} />
 }
 
-export default CustomerMenu
-
 // Refactored Content Component to keep logic clean
 function AuthorizedMenuContent({ restaurantId, tableId, sessionId, activeSession }: { restaurantId: string, tableId: string, sessionId: string, activeSession: TableSession }) {
   // Using passed props instead of resolving them
@@ -578,6 +576,8 @@ function AuthorizedMenuContent({ restaurantId, tableId, sessionId, activeSession
   const [isCartAnimating, setIsCartAnimating] = useState(false)
   const [activeTab, setActiveTab] = useState<'menu' | 'cart' | 'orders'>('menu')
   const [activeWaitCourse, setActiveWaitCourse] = useState(1) // Waiter Mode: Selected course for new items
+  const [courseSplittingEnabled, setCourseSplittingEnabled] = useState(true) // Default to true
+  const [fullRestaurant, setFullRestaurant] = useState<any>(null) // Restaurant data for pricing
 
   // Helper to generate PIN
   const generatePin = () => Math.floor(1000 + Math.random() * 9000).toString()
@@ -605,12 +605,14 @@ function AuthorizedMenuContent({ restaurantId, tableId, sessionId, activeSession
 
         const { data: restaurantData } = await supabase
           .from('restaurants')
-          .select('name')
+          .select('*')
           .eq('id', tableData.restaurant_id)
           .single()
 
-        if (restaurantData?.name) {
-          setRestaurantName(restaurantData.name)
+        if (restaurantData) {
+          setRestaurantName(restaurantData.name || '')
+          setFullRestaurant(restaurantData)
+          setCourseSplittingEnabled(restaurantData.enable_course_splitting ?? true)
         }
         return
       }
@@ -628,12 +630,14 @@ function AuthorizedMenuContent({ restaurantId, tableId, sessionId, activeSession
 
         const { data: restaurantData } = await supabase
           .from('restaurants')
-          .select('name')
+          .select('*')
           .eq('id', activeSessionData.restaurant_id)
           .single()
 
-        if (restaurantData?.name) {
-          setRestaurantName(restaurantData.name)
+        if (restaurantData) {
+          setRestaurantName(restaurantData.name || '')
+          setFullRestaurant(restaurantData)
+          setCourseSplittingEnabled(restaurantData.enable_course_splitting ?? true)
         }
         return
       }
@@ -1603,3 +1607,5 @@ function AuthorizedMenuContent({ restaurantId, tableId, sessionId, activeSession
     </div>
   )
 }
+
+export default CustomerMenu

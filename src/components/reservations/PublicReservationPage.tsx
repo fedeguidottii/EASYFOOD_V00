@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react'
-import { useParams } from 'react-router-dom'
+import { useParams, Link } from 'react-router-dom'
 import { supabase } from '../../lib/supabase'
 import { DatabaseService } from '../../services/DatabaseService'
 import { Button } from '../ui/button'
@@ -7,7 +7,7 @@ import { Input } from '../ui/input'
 import { Label } from '../ui/label'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../ui/select'
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '../ui/card'
-import { Calendar, Users, Clock, CaretRight, CheckCircle, Storefront, MapPin, Warning, ForkKnife, Info } from '@phosphor-icons/react'
+import { Calendar, Users, Clock, CaretRight, CheckCircle, Storefront, MapPin, Warning, ForkKnife, Info, Eye, ArrowLeft } from '@phosphor-icons/react'
 import { toast } from 'sonner'
 import type { Restaurant, Room, Table, Category, Dish } from '../../services/types'
 import { motion, AnimatePresence } from 'framer-motion'
@@ -24,6 +24,7 @@ const PublicReservationPage = () => {
 
     const [loading, setLoading] = useState(true)
     const [submitting, setSubmitting] = useState(false)
+    const [showMenuPreview, setShowMenuPreview] = useState(false)
 
     // Form Data
     const [name, setName] = useState('')
@@ -201,376 +202,379 @@ const PublicReservationPage = () => {
 
     if (loading && !restaurant) {
         return (
-            <div className="min-h-screen flex items-center justify-center bg-slate-950 text-emerald-500">
+            <div className="min-h-screen flex items-center justify-center bg-zinc-950 text-amber-500">
                 <div className="flex flex-col items-center gap-4">
-                    <div className="w-12 h-12 border-4 border-emerald-500/30 border-t-emerald-500 rounded-full animate-spin" />
-                    <p className="animate-pulse">Caricamento...</p>
+                    <div className="w-12 h-12 border-4 border-amber-500/30 border-t-amber-500 rounded-full animate-spin" />
+                    <p className="animate-pulse text-zinc-400">Caricamento...</p>
+                </div>
+            </div>
+        )
+    }
+
+    // Menu Preview Modal
+    if (showMenuPreview) {
+        return (
+            <div className="min-h-screen bg-zinc-950 text-zinc-100">
+                <div className="sticky top-0 z-50 bg-zinc-950/95 backdrop-blur-lg border-b border-zinc-800/50">
+                    <div className="container mx-auto px-4 py-4 flex items-center justify-between">
+                        <Button
+                            variant="ghost"
+                            onClick={() => setShowMenuPreview(false)}
+                            className="text-zinc-400 hover:text-white hover:bg-zinc-800"
+                        >
+                            <ArrowLeft className="mr-2" size={18} />
+                            Torna alla Prenotazione
+                        </Button>
+                        <h1 className="text-lg font-bold text-zinc-100">Anteprima Menu</h1>
+                        <div className="w-20" />
+                    </div>
+                </div>
+                <div className="container mx-auto px-4 py-8 max-w-2xl">
+                    {categories.map(cat => {
+                        const catDishes = dishes.filter(d => d.category_id === cat.id && d.is_active)
+                        if (catDishes.length === 0) return null
+
+                        return (
+                            <div key={cat.id} className="mb-8">
+                                <h2 className="text-amber-500 font-bold text-lg mb-4 pb-2 border-b border-zinc-800">{cat.name}</h2>
+                                <div className="space-y-4">
+                                    {catDishes.map(dish => (
+                                        <div key={dish.id} className="flex justify-between items-start gap-4 p-3 bg-zinc-900/50 rounded-xl border border-zinc-800/50">
+                                            <div className="flex-1 min-w-0">
+                                                <p className="text-zinc-100 font-medium">{dish.name}</p>
+                                                {dish.description && <p className="text-xs text-zinc-500 mt-1 line-clamp-2">{dish.description}</p>}
+                                            </div>
+                                            <span className="text-amber-500 font-bold whitespace-nowrap">€{dish.price.toFixed(2)}</span>
+                                        </div>
+                                    ))}
+                                </div>
+                            </div>
+                        )
+                    })}
                 </div>
             </div>
         )
     }
 
     return (
-        <div className="min-h-screen bg-slate-950 text-slate-100 flex flex-col">
+        <div className="min-h-screen bg-zinc-950 text-zinc-100 flex flex-col">
 
-            {/* Hero Section */}
-            <div className="relative h-64 md:h-80 w-full bg-slate-900 overflow-hidden">
-                <div className="absolute inset-0 bg-gradient-to-b from-transparent to-slate-950/90 z-10" />
-                {restaurant?.cover_image_url ? (
-                    <img src={restaurant.cover_image_url} alt="Cover" className="w-full h-full object-cover opacity-60" />
-                ) : (
-                    <div className="w-full h-full bg-slate-800 flex items-center justify-center">
-                        <Storefront size={64} className="text-slate-700" />
-                    </div>
-                )}
-
-                <div className="absolute bottom-0 left-0 w-full p-6 z-20 flex flex-col items-center md:items-start md:pl-10 lg:pl-20">
-                    <div className="w-24 h-24 bg-slate-900 rounded-full p-1 shadow-2xl border-4 border-slate-800 mb-4 overflow-hidden">
+            {/* Hero Section - Minimal */}
+            <div className="relative py-12 md:py-16 w-full bg-zinc-900/50 border-b border-zinc-800/50">
+                <div className="container mx-auto px-4 flex flex-col items-center text-center">
+                    <div className="w-20 h-20 bg-zinc-800 rounded-2xl p-1 shadow-2xl border border-zinc-700/50 mb-6 overflow-hidden flex items-center justify-center">
                         {restaurant?.logo_url ? (
-                            <img src={restaurant.logo_url} alt="Logo" className="w-full h-full object-cover rounded-full" />
+                            <img src={restaurant.logo_url} alt="Logo" className="w-full h-full object-cover rounded-xl" />
                         ) : (
-                            <div className="w-full h-full flex items-center justify-center bg-slate-800">
-                                <Storefront size={32} className="text-emerald-500" />
-                            </div>
+                            <Storefront size={32} className="text-amber-500" weight="duotone" />
                         )}
                     </div>
-                    <h1 className="text-3xl md:text-5xl font-bold text-white mb-2">{restaurant?.name || 'Prenotazioni'}</h1>
-                    <p className="text-slate-300 max-w-md text-center md:text-left">
-                        Reserve your table online instantly.
+                    <h1 className="text-3xl md:text-4xl font-bold text-zinc-100 mb-2 tracking-tight">{restaurant?.name || 'Prenotazioni'}</h1>
+                    <p className="text-zinc-500 text-sm">
+                        Prenota il tuo tavolo online in pochi click.
                     </p>
                 </div>
             </div>
 
-            <main className="flex-1 container mx-auto px-4 py-8 max-w-6xl grid grid-cols-1 lg:grid-cols-3 gap-8">
+            <main className="flex-1 container mx-auto px-4 py-8 max-w-xl">
 
-                {/* Left Column: Form */}
-                <div className="lg:col-span-2 space-y-6">
-                    <AnimatePresence mode="wait">
-                        {step === 'details' && (
-                            <motion.div
-                                key="details"
-                                initial={{ opacity: 0, y: 20 }}
-                                animate={{ opacity: 1, y: 0 }}
-                                exit={{ opacity: 0, y: -20 }}
-                            >
-                                <Card className="bg-slate-900/50 border-slate-800 shadow-xl overflow-hidden backdrop-blur-sm">
-                                    <CardHeader>
-                                        <div className="flex items-center gap-3 mb-2">
-                                            <div className="w-8 h-8 rounded-full bg-emerald-500/20 flex items-center justify-center text-emerald-500 font-bold">1</div>
-                                            <CardTitle className="text-xl">Dettagli Prenotazione</CardTitle>
-                                        </div>
-                                        <CardDescription>Inserisci i tuoi dati per verificare la disponibilità</CardDescription>
-                                    </CardHeader>
-                                    <CardContent className="space-y-6">
-                                        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                                            <div className="space-y-2">
-                                                <Label className="text-slate-300">Data e Ora</Label>
-                                                <div className="flex gap-2">
-                                                    <div className="relative flex-1">
-                                                        <Calendar size={18} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
-                                                        <Input
-                                                            type="date"
-                                                            value={date}
-                                                            onChange={(e) => setDate(e.target.value)}
-                                                            className="pl-10 bg-slate-950 border-slate-700 focus:border-emerald-500"
-                                                            min={new Date().toISOString().split('T')[0]}
-                                                        />
-                                                    </div>
-                                                    <div className="relative w-32">
-                                                        <Clock size={18} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
-                                                        <Input
-                                                            type="time"
-                                                            value={time}
-                                                            onChange={(e) => setTime(e.target.value)}
-                                                            className="pl-10 bg-slate-950 border-slate-700 focus:border-emerald-500"
-                                                        />
-                                                    </div>
-                                                </div>
-                                            </div>
-
-                                            <div className="space-y-2">
-                                                <Label className="text-slate-300">Ospiti & Sala</Label>
-                                                <div className="flex gap-2">
-                                                    <div className="relative w-24">
-                                                        <Users size={18} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
-                                                        <Input
-                                                            type="number"
-                                                            min="1"
-                                                            max="20"
-                                                            value={pax}
-                                                            onChange={(e) => setPax(e.target.value)}
-                                                            className="pl-10 bg-slate-950 border-slate-700 focus:border-emerald-500"
-                                                        />
-                                                    </div>
-                                                    <div className="flex-1">
-                                                        <Select value={selectedRoomId} onValueChange={setSelectedRoomId}>
-                                                            <SelectTrigger className="bg-slate-950 border-slate-700 text-slate-200">
-                                                                <SelectValue placeholder="Sala" />
-                                                            </SelectTrigger>
-                                                            <SelectContent>
-                                                                <SelectItem value="any">Qualsiasi Sala</SelectItem>
-                                                                {rooms.map(r => (
-                                                                    <SelectItem key={r.id} value={r.id}>{r.name}</SelectItem>
-                                                                ))}
-                                                            </SelectContent>
-                                                        </Select>
-                                                    </div>
-                                                </div>
-                                            </div>
-                                        </div>
-
-                                        <div className="space-y-4 pt-4 border-t border-slate-800">
-                                            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                                                <div className="space-y-2">
-                                                    <Label className="text-slate-300">Nome Completo *</Label>
-                                                    <Input
-                                                        placeholder="Mario Rossi"
-                                                        value={name}
-                                                        onChange={(e) => setName(e.target.value)}
-                                                        className="bg-slate-950 border-slate-700 focus:border-emerald-500"
-                                                    />
-                                                </div>
-                                                <div className="space-y-2">
-                                                    <Label className="text-slate-300">Telefono *</Label>
-                                                    <Input
-                                                        type="tel"
-                                                        placeholder="+39 333 ..."
-                                                        value={phone}
-                                                        onChange={(e) => setPhone(e.target.value)}
-                                                        className="bg-slate-950 border-slate-700 focus:border-emerald-500"
-                                                    />
-                                                </div>
-                                            </div>
-                                            <div className="space-y-2">
-                                                <Label className="text-slate-300">Note aggiuntive</Label>
+                <AnimatePresence mode="wait">
+                    {step === 'details' && (
+                        <motion.div
+                            key="details"
+                            initial={{ opacity: 0, y: 20 }}
+                            animate={{ opacity: 1, y: 0 }}
+                            exit={{ opacity: 0, y: -20 }}
+                            className="space-y-6"
+                        >
+                            <Card className="bg-zinc-900/80 border-zinc-800/50 shadow-xl overflow-hidden">
+                                <CardHeader className="pb-4">
+                                    <div className="flex items-center gap-3 mb-1">
+                                        <div className="w-7 h-7 rounded-full bg-amber-500/20 flex items-center justify-center text-amber-500 text-sm font-bold">1</div>
+                                        <CardTitle className="text-lg text-zinc-100">Dettagli Prenotazione</CardTitle>
+                                    </div>
+                                    <CardDescription className="text-zinc-500 text-sm">Inserisci i tuoi dati per verificare la disponibilità.</CardDescription>
+                                </CardHeader>
+                                <CardContent className="space-y-5">
+                                    {/* Date & Time */}
+                                    <div className="space-y-2">
+                                        <Label className="text-zinc-400 text-xs uppercase tracking-wide font-semibold">Data e Ora</Label>
+                                        <div className="flex gap-3">
+                                            <div className="relative flex-1">
+                                                <Calendar size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-zinc-500" />
                                                 <Input
-                                                    placeholder="Intolleranze, seggiolone, ecc..."
-                                                    value={notes}
-                                                    onChange={(e) => setNotes(e.target.value)}
-                                                    className="bg-slate-950 border-slate-700 focus:border-emerald-500"
+                                                    type="date"
+                                                    value={date}
+                                                    onChange={(e) => setDate(e.target.value)}
+                                                    className="pl-10 h-11 bg-zinc-950 border-zinc-800 focus:border-amber-500/50 focus:ring-amber-500/20 text-zinc-100"
+                                                    min={new Date().toISOString().split('T')[0]}
+                                                />
+                                            </div>
+                                            <div className="relative w-28">
+                                                <Clock size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-zinc-500" />
+                                                <Input
+                                                    type="time"
+                                                    value={time}
+                                                    onChange={(e) => setTime(e.target.value)}
+                                                    className="pl-10 h-11 bg-zinc-950 border-zinc-800 focus:border-amber-500/50 focus:ring-amber-500/20 text-zinc-100"
                                                 />
                                             </div>
                                         </div>
+                                    </div>
 
-                                        {noAvailability && (
-                                            <motion.div
-                                                initial={{ opacity: 0, height: 0 }}
-                                                animate={{ opacity: 1, height: 'auto' }}
-                                                className="bg-red-500/10 border border-red-500/20 rounded-lg p-4"
-                                            >
-                                                <div className="flex items-center gap-3 mb-3">
-                                                    <Warning size={24} className="text-red-400" />
-                                                    <div>
-                                                        <p className="font-medium text-red-200">Nessun tavolo disponibile alle {time}</p>
-                                                        <p className="text-sm text-red-300/60">Prova un altro orario o un'altra data.</p>
-                                                    </div>
-                                                </div>
+                                    {/* Guests & Room */}
+                                    <div className="space-y-2">
+                                        <Label className="text-zinc-400 text-xs uppercase tracking-wide font-semibold">Ospiti & Sala</Label>
+                                        <div className="flex gap-3">
+                                            <div className="relative w-20">
+                                                <Users size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-zinc-500" />
+                                                <Input
+                                                    type="number"
+                                                    min="1"
+                                                    max="20"
+                                                    value={pax}
+                                                    onChange={(e) => setPax(e.target.value)}
+                                                    className="pl-10 h-11 bg-zinc-950 border-zinc-800 focus:border-amber-500/50 text-zinc-100"
+                                                />
+                                            </div>
+                                            <div className="flex-1">
+                                                <Select value={selectedRoomId} onValueChange={setSelectedRoomId}>
+                                                    <SelectTrigger className="h-11 bg-zinc-950 border-zinc-800 text-zinc-300">
+                                                        <SelectValue placeholder="Sala" />
+                                                    </SelectTrigger>
+                                                    <SelectContent className="bg-zinc-900 border-zinc-800">
+                                                        <SelectItem value="any">Qualsiasi Sala</SelectItem>
+                                                        {rooms.map(r => (
+                                                            <SelectItem key={r.id} value={r.id}>{r.name}</SelectItem>
+                                                        ))}
+                                                    </SelectContent>
+                                                </Select>
+                                            </div>
+                                        </div>
+                                    </div>
 
-                                                {alternativeTimes.length > 0 && (
-                                                    <div className="mt-2">
-                                                        <p className="text-sm text-slate-300 mb-2">Orari alternativi disponibili per oggi:</p>
-                                                        <div className="flex flex-wrap gap-2">
-                                                            {alternativeTimes.map(t => (
-                                                                <Button
-                                                                    key={t}
-                                                                    variant="outline"
-                                                                    size="sm"
-                                                                    className="border-emerald-500/50 text-emerald-400 hover:bg-emerald-500/10"
-                                                                    onClick={() => {
-                                                                        setTime(t)
-                                                                        setNoAvailability(false)
-                                                                        setAlternativeTimes([])
-                                                                    }}
-                                                                >
-                                                                    {t}
-                                                                </Button>
-                                                            ))}
-                                                        </div>
-                                                    </div>
-                                                )}
-                                            </motion.div>
-                                        )}
+                                    <div className="border-t border-zinc-800/50 pt-5 space-y-4">
+                                        {/* Name */}
+                                        <div className="space-y-2">
+                                            <Label className="text-zinc-400 text-xs uppercase tracking-wide font-semibold">Nome Completo *</Label>
+                                            <Input
+                                                placeholder="Mario Rossi"
+                                                value={name}
+                                                onChange={(e) => setName(e.target.value)}
+                                                className="h-11 bg-zinc-950 border-zinc-800 focus:border-amber-500/50 text-zinc-100 placeholder:text-zinc-600"
+                                            />
+                                        </div>
+                                        {/* Phone */}
+                                        <div className="space-y-2">
+                                            <Label className="text-zinc-400 text-xs uppercase tracking-wide font-semibold">Telefono *</Label>
+                                            <Input
+                                                type="tel"
+                                                placeholder="+39 333 ..."
+                                                value={phone}
+                                                onChange={(e) => setPhone(e.target.value)}
+                                                className="h-11 bg-zinc-950 border-zinc-800 focus:border-amber-500/50 text-zinc-100 placeholder:text-zinc-600"
+                                            />
+                                        </div>
+                                        {/* Notes */}
+                                        <div className="space-y-2">
+                                            <Label className="text-zinc-400 text-xs uppercase tracking-wide font-semibold">Note aggiuntive</Label>
+                                            <Input
+                                                placeholder="Intolleranze, seggiolone, ecc..."
+                                                value={notes}
+                                                onChange={(e) => setNotes(e.target.value)}
+                                                className="h-11 bg-zinc-950 border-zinc-800 focus:border-amber-500/50 text-zinc-100 placeholder:text-zinc-600"
+                                            />
+                                        </div>
+                                    </div>
 
-                                        <Button
-                                            onClick={handleCheckAvailability}
-                                            disabled={loading}
-                                            className="w-full h-12 bg-emerald-600 hover:bg-emerald-700 text-white font-semibold text-lg shadow-lg shadow-emerald-900/50 transition-all hover:scale-[1.01] active:scale-[0.99]"
+                                    {noAvailability && (
+                                        <motion.div
+                                            initial={{ opacity: 0, height: 0 }}
+                                            animate={{ opacity: 1, height: 'auto' }}
+                                            className="bg-red-950/30 border border-red-500/20 rounded-xl p-4"
                                         >
-                                            {loading ? 'Verifica...' : 'Continua'}
-                                            <CaretRight weight="bold" className="ml-2" />
-                                        </Button>
-                                    </CardContent>
-                                </Card>
-                            </motion.div>
-                        )}
-
-                        {step === 'confirm' && (
-                            <motion.div
-                                key="confirm"
-                                initial={{ opacity: 0, x: 20 }}
-                                animate={{ opacity: 1, x: 0 }}
-                                exit={{ opacity: 0, x: -20 }}
-                            >
-                                <Card className="bg-slate-900/50 border-slate-800 shadow-xl overflow-hidden backdrop-blur-sm">
-                                    <CardHeader>
-                                        <div className="flex items-center gap-3 mb-2">
-                                            <div className="w-8 h-8 rounded-full bg-emerald-500/20 flex items-center justify-center text-emerald-500 font-bold">2</div>
-                                            <CardTitle className="text-xl">Conferma Prenotazione</CardTitle>
-                                        </div>
-                                        <CardDescription>Rivedi i dettagli prima di confermare. Nessun pagamento richiesto.</CardDescription>
-                                    </CardHeader>
-                                    <CardContent className="space-y-6">
-                                        <div className="bg-slate-950/50 rounded-xl p-6 border border-slate-800 space-y-4">
-                                            <div className="flex items-start gap-4">
-                                                <div className="w-12 h-12 rounded-full bg-emerald-500/10 flex items-center justify-center text-emerald-500 shrink-0">
-                                                    <Calendar size={24} weight="duotone" />
-                                                </div>
+                                            <div className="flex items-center gap-3 mb-3">
+                                                <Warning size={20} className="text-red-400" />
                                                 <div>
-                                                    <p className="text-sm text-slate-400">Data e Ora</p>
-                                                    <p className="text-lg font-semibold text-white">
-                                                        {new Date(date).toLocaleDateString('it-IT', { weekday: 'long', day: 'numeric', month: 'long' })}
+                                                    <p className="font-medium text-red-200 text-sm">Nessun tavolo disponibile alle {time}</p>
+                                                    <p className="text-xs text-red-300/60">Prova un altro orario o un'altra data.</p>
+                                                </div>
+                                            </div>
+
+                                            {alternativeTimes.length > 0 && (
+                                                <div className="mt-2">
+                                                    <p className="text-xs text-zinc-400 mb-2">Orari alternativi disponibili:</p>
+                                                    <div className="flex flex-wrap gap-2">
+                                                        {alternativeTimes.map(t => (
+                                                            <Button
+                                                                key={t}
+                                                                variant="outline"
+                                                                size="sm"
+                                                                className="border-amber-500/30 text-amber-400 hover:bg-amber-500/10 hover:border-amber-500/50"
+                                                                onClick={() => {
+                                                                    setTime(t)
+                                                                    setNoAvailability(false)
+                                                                    setAlternativeTimes([])
+                                                                }}
+                                                            >
+                                                                {t}
+                                                            </Button>
+                                                        ))}
+                                                    </div>
+                                                </div>
+                                            )}
+                                        </motion.div>
+                                    )}
+
+                                    {/* Menu Preview Button */}
+                                    <Button
+                                        variant="outline"
+                                        onClick={() => setShowMenuPreview(true)}
+                                        className="w-full h-11 border-zinc-700 text-zinc-400 hover:text-amber-400 hover:border-amber-500/30 hover:bg-amber-500/5"
+                                    >
+                                        <Eye className="mr-2" size={16} />
+                                        Vedi Anteprima Menu
+                                    </Button>
+
+                                    <Button
+                                        onClick={handleCheckAvailability}
+                                        disabled={loading}
+                                        className="w-full h-12 bg-amber-600 hover:bg-amber-700 text-zinc-950 font-bold text-base shadow-lg shadow-amber-900/30 transition-all"
+                                    >
+                                        {loading ? 'Verifica...' : 'Continua'}
+                                        <CaretRight weight="bold" className="ml-2" />
+                                    </Button>
+                                </CardContent>
+                            </Card>
+                        </motion.div>
+                    )}
+
+                    {step === 'confirm' && (
+                        <motion.div
+                            key="confirm"
+                            initial={{ opacity: 0, x: 20 }}
+                            animate={{ opacity: 1, x: 0 }}
+                            exit={{ opacity: 0, x: -20 }}
+                        >
+                            <Card className="bg-zinc-900/80 border-zinc-800/50 shadow-xl overflow-hidden">
+                                <CardHeader className="pb-4">
+                                    <div className="flex items-center gap-3 mb-1">
+                                        <div className="w-7 h-7 rounded-full bg-amber-500/20 flex items-center justify-center text-amber-500 text-sm font-bold">2</div>
+                                        <CardTitle className="text-lg text-zinc-100">Conferma Prenotazione</CardTitle>
+                                    </div>
+                                    <CardDescription className="text-zinc-500 text-sm">Rivedi i dettagli prima di confermare.</CardDescription>
+                                </CardHeader>
+                                <CardContent className="space-y-5">
+                                    <div className="bg-zinc-950/50 rounded-xl p-5 border border-zinc-800/50 space-y-4">
+                                        <div className="flex items-start gap-4">
+                                            <div className="w-11 h-11 rounded-xl bg-amber-500/10 flex items-center justify-center text-amber-500 shrink-0">
+                                                <Calendar size={20} weight="duotone" />
+                                            </div>
+                                            <div>
+                                                <p className="text-xs text-zinc-500 uppercase tracking-wide font-semibold">Data e Ora</p>
+                                                <p className="text-base font-semibold text-zinc-100 mt-0.5">
+                                                    {new Date(date).toLocaleDateString('it-IT', { weekday: 'long', day: 'numeric', month: 'long' })}
+                                                </p>
+                                                <p className="text-amber-500 font-bold text-xl">{time}</p>
+                                            </div>
+                                        </div>
+
+                                        <div className="h-px bg-zinc-800/50" />
+
+                                        <div className="grid grid-cols-2 gap-4">
+                                            <div className="flex items-center gap-3">
+                                                <Users size={18} className="text-zinc-500" />
+                                                <div>
+                                                    <p className="text-[10px] text-zinc-500 uppercase tracking-wide font-semibold">Ospiti</p>
+                                                    <p className="font-medium text-zinc-200">{pax} Persone</p>
+                                                </div>
+                                            </div>
+                                            <div className="flex items-center gap-3">
+                                                <MapPin size={18} className="text-zinc-500" />
+                                                <div>
+                                                    <p className="text-[10px] text-zinc-500 uppercase tracking-wide font-semibold">Sala</p>
+                                                    <p className="font-medium text-zinc-200">
+                                                        {selectedRoomId === 'any'
+                                                            ? 'Miglior tavolo'
+                                                            : rooms.find(r => r.id === selectedRoomId)?.name}
                                                     </p>
-                                                    <p className="text-emerald-400 font-bold text-xl">{time}</p>
                                                 </div>
-                                            </div>
-
-                                            <div className="h-px bg-slate-800" />
-
-                                            <div className="grid grid-cols-2 gap-4">
-                                                <div className="flex items-center gap-3">
-                                                    <Users className="text-slate-400" />
-                                                    <div>
-                                                        <p className="text-xs text-slate-400">Ospiti</p>
-                                                        <p className="font-medium text-slate-200">{pax} Persone</p>
-                                                    </div>
-                                                </div>
-                                                <div className="flex items-center gap-3">
-                                                    <MapPin className="text-slate-400" />
-                                                    <div>
-                                                        <p className="text-xs text-slate-400">Sala</p>
-                                                        <p className="font-medium text-slate-200">
-                                                            {selectedRoomId === 'any'
-                                                                ? 'Miglior tavolo disponibile'
-                                                                : rooms.find(r => r.id === selectedRoomId)?.name}
-                                                        </p>
-                                                    </div>
-                                                </div>
-                                            </div>
-
-                                            <div className="bg-slate-900 p-4 rounded-lg">
-                                                <p className="text-xs text-slate-500 uppercase tracking-wider font-bold mb-2">I Vostri Dati</p>
-                                                <p className="text-slate-300 font-medium">{name}</p>
-                                                <p className="text-slate-400 text-sm">{phone}</p>
-                                                {notes && <p className="text-emerald-400/80 text-sm mt-1">Note: {notes}</p>}
                                             </div>
                                         </div>
 
-                                        <div className="flex gap-4 pt-2">
-                                            <Button
-                                                variant="ghost"
-                                                onClick={() => setStep('details')}
-                                                className="flex-1 h-14 text-slate-400 hover:text-white hover:bg-white/5"
-                                            >
-                                                Indietro
-                                            </Button>
-                                            <Button
-                                                onClick={handleConfirmBooking}
-                                                disabled={submitting}
-                                                className="flex-[2] h-14 bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-lg shadow-lg shadow-emerald-900/50"
-                                            >
-                                                {submitting ? 'Conferma in corso...' : 'Conferma Prenotazione'}
-                                            </Button>
+                                        <div className="bg-zinc-900/80 p-4 rounded-lg border border-zinc-800/50">
+                                            <p className="text-[10px] text-zinc-500 uppercase tracking-wider font-bold mb-2">I Vostri Dati</p>
+                                            <p className="text-zinc-200 font-medium">{name}</p>
+                                            <p className="text-zinc-400 text-sm">{phone}</p>
+                                            {notes && <p className="text-amber-500/80 text-sm mt-1">Note: {notes}</p>}
                                         </div>
-                                    </CardContent>
-                                </Card>
-                            </motion.div>
-                        )}
+                                    </div>
 
-                        {step === 'success' && (
-                            <motion.div
-                                key="success"
-                                initial={{ opacity: 0, scale: 0.95 }}
-                                animate={{ opacity: 1, scale: 1 }}
-                                className="bg-emerald-500/10 border border-emerald-500/30 rounded-2xl p-8 text-center space-y-6"
-                            >
-                                <div className="w-24 h-24 bg-emerald-500 rounded-full flex items-center justify-center mx-auto shadow-2xl shadow-emerald-500/30">
-                                    <CheckCircle size={48} className="text-white" weight="fill" />
-                                </div>
-                                <div>
-                                    <h2 className="text-3xl font-bold text-white mb-2">Prenotazione Confermata!</h2>
-                                    <p className="text-slate-300">
-                                        Ti aspettiamo il <span className="text-white font-medium">{new Date(date).toLocaleDateString('it-IT')}</span> alle <span className="text-white font-medium">{time}</span>.
-                                    </p>
-                                </div>
+                                    <div className="flex gap-3 pt-2">
+                                        <Button
+                                            variant="ghost"
+                                            onClick={() => setStep('details')}
+                                            className="flex-1 h-12 text-zinc-400 hover:text-white hover:bg-zinc-800"
+                                        >
+                                            Indietro
+                                        </Button>
+                                        <Button
+                                            onClick={handleConfirmBooking}
+                                            disabled={submitting}
+                                            className="flex-[2] h-12 bg-amber-600 hover:bg-amber-700 text-zinc-950 font-bold text-base shadow-lg shadow-amber-900/30"
+                                        >
+                                            {submitting ? 'Conferma in corso...' : 'Conferma Prenotazione'}
+                                        </Button>
+                                    </div>
+                                </CardContent>
+                            </Card>
+                        </motion.div>
+                    )}
 
+                    {step === 'success' && (
+                        <motion.div
+                            key="success"
+                            initial={{ opacity: 0, scale: 0.95 }}
+                            animate={{ opacity: 1, scale: 1 }}
+                            className="bg-amber-500/10 border border-amber-500/30 rounded-2xl p-8 text-center space-y-6"
+                        >
+                            <div className="w-20 h-20 bg-amber-500 rounded-full flex items-center justify-center mx-auto shadow-2xl shadow-amber-500/30">
+                                <CheckCircle size={40} className="text-zinc-950" weight="fill" />
+                            </div>
+                            <div>
+                                <h2 className="text-2xl font-bold text-zinc-100 mb-2">Prenotazione Confermata!</h2>
+                                <p className="text-zinc-400">
+                                    Ti aspettiamo il <span className="text-zinc-100 font-medium">{new Date(date).toLocaleDateString('it-IT')}</span> alle <span className="text-amber-500 font-bold">{time}</span>.
+                                </p>
+                            </div>
+
+                            <div className="flex flex-col gap-3">
+                                <Button
+                                    onClick={() => setShowMenuPreview(true)}
+                                    variant="outline"
+                                    className="border-amber-500/30 text-amber-400 hover:bg-amber-500/10"
+                                >
+                                    <ForkKnife className="mr-2" size={16} />
+                                    Scopri il Menu
+                                </Button>
                                 <Button
                                     onClick={() => window.location.reload()}
-                                    variant="outline"
-                                    className="border-emerald-500/30 text-emerald-400 hover:bg-emerald-500/10"
+                                    variant="ghost"
+                                    className="text-zinc-400 hover:text-white hover:bg-zinc-800"
                                 >
                                     Effettua un'altra prenotazione
                                 </Button>
-                            </motion.div>
-                        )}
-                    </AnimatePresence>
-                </div>
-
-                {/* Right Column: Menu Preview (Sticky) */}
-                <div className="lg:col-span-1">
-                    <div className="sticky top-8 space-y-6">
-                        <div className="flex items-center justify-between text-slate-400 mb-2">
-                            <h3 className="font-semibold text-white uppercase tracking-wider text-sm flex items-center gap-2">
-                                <ForkKnife size={16} />
-                                Menu Anteprima
-                            </h3>
-                        </div>
-
-                        <div className="bg-slate-900/50 border border-slate-800 rounded-xl overflow-hidden backdrop-blur-sm max-h-[80vh] overflow-y-auto custom-scrollbar">
-                            {categories.length === 0 ? (
-                                <div className="p-8 text-center text-slate-500">
-                                    <ForkKnife size={32} className="mx-auto mb-2 opacity-50" />
-                                    <p>Menu non disponibile online al momento.</p>
-                                </div>
-                            ) : (
-                                categories.map(cat => {
-                                    const catDishes = dishes.filter(d => d.category_id === cat.id)
-                                    if (catDishes.length === 0) return null
-
-                                    return (
-                                        <div key={cat.id} className="p-4 border-b border-slate-800/50 last:border-0">
-                                            <h4 className="text-emerald-500 font-bold mb-3 text-sm">{cat.name}</h4>
-                                            <div className="space-y-3">
-                                                {catDishes.slice(0, 3).map(dish => (
-                                                    <div key={dish.id} className="flex justify-between items-start gap-4">
-                                                        <div>
-                                                            <p className="text-slate-200 text-sm font-medium leading-tight">{dish.name}</p>
-                                                            {dish.description && <p className="text-xs text-slate-500 line-clamp-1 mt-0.5">{dish.description}</p>}
-                                                        </div>
-                                                        <span className="text-slate-300 text-sm font-semibold whitespace-nowrap">€ {dish.price.toFixed(2)}</span>
-                                                    </div>
-                                                ))}
-                                                {catDishes.length > 3 && (
-                                                    <p className="text-xs text-emerald-500/60 italic text-center pt-1">
-                                                        + altri {catDishes.length - 3} piatti
-                                                    </p>
-                                                )}
-                                            </div>
-                                        </div>
-                                    )
-                                })
-                            )}
-                        </div>
-
-                        <div className="bg-slate-800/50 rounded-lg p-4 flex gap-3 items-start border border-slate-700/50">
-                            <Info size={20} className="text-slate-400 mt-0.5 shrink-0" />
-                            <p className="text-xs text-slate-400 leading-relaxed">
-                                Il menu potrebbe subire variazioni in base alla disponibilità dei prodotti freschi.
-                            </p>
-                        </div>
-                    </div>
-                </div>
+                            </div>
+                        </motion.div>
+                    )}
+                </AnimatePresence>
 
             </main>
+
+            {/* Footer */}
+            <footer className="py-6 text-center text-zinc-600 text-xs border-t border-zinc-800/30">
+                Powered by EASYFOOD
+            </footer>
         </div>
     )
 }

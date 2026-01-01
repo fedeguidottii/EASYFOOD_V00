@@ -441,73 +441,73 @@ export default function AnalyticsCharts({ orders, completedOrders, dishes, categ
           </div>
         </div>
 
-        {/* Summary Cards */}
+        {/* Summary Cards - Unified Dark Minimal Design */}
         <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-          <Card className="shadow-lg border-none bg-gradient-to-br from-primary/5 to-primary/10">
-            <CardContent className="p-6">
-              <div className="flex items-center gap-3">
-                <div className="p-3 bg-primary/10 rounded-xl">
-                  <ShoppingBag size={24} className="text-primary" />
+          <Card className="border-zinc-800/50 bg-zinc-900/80 shadow-xl">
+            <CardContent className="p-5">
+              <div className="flex items-center gap-4">
+                <div className="p-3 bg-zinc-800 rounded-xl border border-zinc-700/50">
+                  <ShoppingBag size={22} className="text-zinc-400" weight="duotone" />
                 </div>
                 <div>
-                  <p className="text-sm text-muted-foreground font-medium">Ordini</p>
-                  <p className="text-3xl font-bold tracking-tight">{analytics.totalOrders}</p>
+                  <p className="text-xs text-zinc-500 font-medium uppercase tracking-wide">Ordini</p>
+                  <p className="text-2xl font-bold text-zinc-100 mt-0.5">{analytics.totalOrders}</p>
                 </div>
               </div>
             </CardContent>
           </Card>
 
-          <Card className="shadow-lg border-none bg-gradient-to-br from-green-500/5 to-green-500/10">
-            <CardContent className="p-6">
-              <div className="flex items-center gap-3">
-                <div className="p-3 bg-green-500/10 rounded-xl">
-                  <CurrencyEur size={24} className="text-green-600" />
+          <Card className="border-zinc-800/50 bg-zinc-900/80 shadow-xl">
+            <CardContent className="p-5">
+              <div className="flex items-center gap-4">
+                <div className="p-3 bg-zinc-800 rounded-xl border border-zinc-700/50">
+                  <CurrencyEur size={22} className="text-amber-500" weight="duotone" />
                 </div>
                 <div>
-                  <p className="text-sm text-muted-foreground font-medium">Ricavi</p>
-                  <p className="text-3xl font-bold tracking-tight">€{analytics.totalRevenue.toFixed(0)}</p>
+                  <p className="text-xs text-zinc-500 font-medium uppercase tracking-wide">Ricavi</p>
+                  <p className="text-2xl font-bold text-zinc-100 mt-0.5">€{analytics.totalRevenue.toFixed(0)}</p>
                 </div>
               </div>
             </CardContent>
           </Card>
 
-          <Card className="shadow-lg border-none bg-gradient-to-br from-blue-500/5 to-blue-500/10">
-            <CardContent className="p-6">
-              <div className="flex items-center gap-3">
-                <div className="p-3 bg-blue-500/10 rounded-xl">
-                  <TrendUp size={24} className="text-blue-600" />
+          <Card className="border-zinc-800/50 bg-zinc-900/80 shadow-xl">
+            <CardContent className="p-5">
+              <div className="flex items-center gap-4">
+                <div className="p-3 bg-zinc-800 rounded-xl border border-zinc-700/50">
+                  <TrendUp size={22} className="text-zinc-400" weight="duotone" />
                 </div>
                 <div>
-                  <p className="text-sm text-muted-foreground font-medium">Scontrino Medio</p>
-                  <p className="text-3xl font-bold tracking-tight">€{analytics.averageOrderValue.toFixed(2)}</p>
+                  <p className="text-xs text-zinc-500 font-medium uppercase tracking-wide">Scontrino Medio</p>
+                  <p className="text-2xl font-bold text-zinc-100 mt-0.5">€{analytics.averageOrderValue.toFixed(2)}</p>
                 </div>
               </div>
             </CardContent>
           </Card>
 
-          <Card className="shadow-lg border-none bg-gradient-to-br from-orange-500/5 to-orange-500/10">
-            <CardContent className="p-6">
-              <div className="flex items-center gap-3">
-                <div className={`p-3 rounded-xl ${inventoryData.trendAlerts?.[0]?.change > 0 ? 'bg-green-500/10' : inventoryData.trendAlerts?.[0]?.change < 0 ? 'bg-red-500/10' : 'bg-orange-500/10'}`}>
+          <Card className="border-zinc-800/50 bg-zinc-900/80 shadow-xl">
+            <CardContent className="p-5">
+              <div className="flex items-center gap-4">
+                <div className={`p-3 rounded-xl border ${inventoryData.trendAlerts?.[0]?.change > 0 ? 'bg-emerald-950/50 border-emerald-800/50' : inventoryData.trendAlerts?.[0]?.change < 0 ? 'bg-red-950/50 border-red-800/50' : 'bg-zinc-800 border-zinc-700/50'}`}>
                   {inventoryData.trendAlerts?.[0]?.change > 0 ? (
-                    <TrendUp size={24} className="text-green-600" />
+                    <TrendUp size={22} className="text-emerald-400" weight="duotone" />
                   ) : inventoryData.trendAlerts?.[0]?.change < 0 ? (
-                    <TrendDown size={24} className="text-red-600" />
+                    <TrendDown size={22} className="text-red-400" weight="duotone" />
                   ) : (
-                    <Star size={24} className="text-orange-600" weight="fill" />
+                    <Minus size={22} className="text-zinc-400" weight="bold" />
                   )}
                 </div>
                 <div className="min-w-0 flex-1">
-                  <p className="text-sm text-muted-foreground font-medium">Trend del Periodo</p>
+                  <p className="text-xs text-zinc-500 font-medium uppercase tracking-wide">Trend Periodo</p>
                   {inventoryData.trendAlerts && inventoryData.trendAlerts.length > 0 ? (
-                    <div className="flex items-center gap-2">
-                      <p className="text-lg font-bold tracking-tight truncate">{inventoryData.trendAlerts[0].name}</p>
-                      <span className={`text-sm font-bold ${inventoryData.trendAlerts[0].change > 0 ? 'text-green-600' : 'text-red-600'}`}>
+                    <div className="flex items-center gap-2 mt-0.5">
+                      <p className="text-base font-bold text-zinc-100 truncate">{inventoryData.trendAlerts[0].name}</p>
+                      <span className={`text-sm font-bold ${inventoryData.trendAlerts[0].change > 0 ? 'text-emerald-400' : 'text-red-400'}`}>
                         {inventoryData.trendAlerts[0].change > 0 ? '+' : ''}{inventoryData.trendAlerts[0].change}%
                       </span>
                     </div>
                   ) : (
-                    <p className="text-lg font-bold tracking-tight text-muted-foreground">Nessun trend</p>
+                    <p className="text-base font-medium text-zinc-600 mt-0.5">Nessun trend</p>
                   )}
                 </div>
               </div>
@@ -518,17 +518,17 @@ export default function AnalyticsCharts({ orders, completedOrders, dishes, categ
         {/* Charts Grid */}
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
           {/* Time Series Chart */}
-          <Card className="shadow-lg border-none overflow-hidden">
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-6 bg-muted/10">
-              <CardTitle className="flex items-center gap-2 text-lg">
-                <ChartLine size={20} className="text-primary" />
+          <Card className="border-zinc-800/50 bg-zinc-900/80 shadow-xl overflow-hidden">
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-4 border-b border-zinc-800/50">
+              <CardTitle className="flex items-center gap-2 text-base font-semibold text-zinc-200">
+                <ChartLine size={18} className="text-amber-500" weight="duotone" />
                 Andamento nel Tempo
               </CardTitle>
               <Select value={timeSeriesMetric} onValueChange={(v: any) => setTimeSeriesMetric(v)}>
-                <SelectTrigger className="w-40 h-8 text-xs">
+                <SelectTrigger className="w-36 h-8 text-xs border-zinc-700 bg-zinc-800/50 text-zinc-300">
                   <SelectValue />
                 </SelectTrigger>
-                <SelectContent>
+                <SelectContent className="bg-zinc-900 border-zinc-800">
                   <SelectItem value="orders">Num. Ordini</SelectItem>
                   <SelectItem value="revenue">Ricavi (€)</SelectItem>
                   <SelectItem value="average">Scontrino Medio</SelectItem>
@@ -610,17 +610,17 @@ export default function AnalyticsCharts({ orders, completedOrders, dishes, categ
           </Card>
 
           {/* Category Chart */}
-          <Card className="shadow-lg border-none overflow-hidden">
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-6 bg-muted/10">
-              <CardTitle className="flex items-center gap-2 text-lg">
-                <List size={20} className="text-primary" />
+          <Card className="border-zinc-800/50 bg-zinc-900/80 shadow-xl overflow-hidden">
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-4 border-b border-zinc-800/50">
+              <CardTitle className="flex items-center gap-2 text-base font-semibold text-zinc-200">
+                <List size={18} className="text-amber-500" weight="duotone" />
                 Performance Categorie
               </CardTitle>
               <Select value={categoryMetric} onValueChange={(v: any) => setCategoryMetric(v)}>
-                <SelectTrigger className="w-40 h-8 text-xs">
+                <SelectTrigger className="w-36 h-8 text-xs border-zinc-700 bg-zinc-800/50 text-zinc-300">
                   <SelectValue />
                 </SelectTrigger>
-                <SelectContent>
+                <SelectContent className="bg-zinc-900 border-zinc-800">
                   <SelectItem value="revenue">Per Ricavi (€)</SelectItem>
                   <SelectItem value="quantity">Per Quantità</SelectItem>
                 </SelectContent>
@@ -633,7 +633,7 @@ export default function AnalyticsCharts({ orders, completedOrders, dishes, categ
                   layout="vertical"
                   margin={{ top: 0, right: 30, left: 40, bottom: 0 }}
                 >
-                  <CartesianGrid strokeDasharray="3 3" horizontal={false} stroke="var(--border)" />
+                  <CartesianGrid strokeDasharray="3 3" horizontal={false} stroke="#27272a" />
                   <XAxis type="number" hide />
                   <YAxis
                     dataKey="name"
@@ -641,11 +641,13 @@ export default function AnalyticsCharts({ orders, completedOrders, dishes, categ
                     width={100}
                     axisLine={false}
                     tickLine={false}
-                    tick={{ fontSize: 12, fill: 'var(--foreground)', fontWeight: 500 }}
+                    tick={{ fontSize: 12, fill: '#a1a1aa', fontWeight: 500 }}
                   />
                   <Tooltip
-                    cursor={{ fill: 'var(--muted)', opacity: 0.2 }}
-                    contentStyle={{ borderRadius: '8px', border: 'none', boxShadow: '0 4px 12px rgba(0,0,0,0.1)' }}
+                    cursor={{ fill: '#27272a', opacity: 0.5 }}
+                    contentStyle={{ backgroundColor: '#18181b', borderRadius: '8px', border: '1px solid #27272a', boxShadow: '0 4px 12px rgba(0,0,0,0.3)' }}
+                    labelStyle={{ color: '#f4f4f5' }}
+                    itemStyle={{ color: '#f4f4f5' }}
                     formatter={(value: number) => [
                       categoryMetric === 'revenue' ? `€${value.toFixed(2)}` : value,
                       categoryMetric === 'revenue' ? 'Ricavi' : 'Quantità'
@@ -653,9 +655,9 @@ export default function AnalyticsCharts({ orders, completedOrders, dishes, categ
                   />
                   <Bar
                     dataKey={categoryMetric}
-                    fill="#C9A152"
-                    radius={[0, 4, 4, 0]}
-                    barSize={32}
+                    fill="#f59e0b"
+                    radius={[0, 6, 6, 0]}
+                    barSize={28}
                   />
                 </BarChart>
               </ResponsiveContainer>

@@ -554,35 +554,35 @@ export default function CustomMenusManager({ restaurantId, dishes, categories, o
                             </div>
                         </>
                     ) : (
-                        <div className="flex-1 p-6 flex flex-col bg-muted/5 w-full overflow-auto">
-                            <div className="w-full max-w-full bg-card p-6 rounded-3xl border shadow-sm">
+                        <div className="flex-1 p-6 flex flex-col w-full overflow-auto">
+                            <div className="w-full max-w-full bg-zinc-900/80 p-6 rounded-2xl border border-zinc-800/50 shadow-xl">
                                 <div className="text-center mb-6">
-                                    <h3 className="text-lg font-bold flex items-center justify-center gap-3 text-white tracking-wide">
-                                        <Clock weight="duotone" size={24} className="text-amber-500" />
+                                    <h3 className="text-base font-semibold flex items-center justify-center gap-2 text-zinc-100">
+                                        <Clock weight="duotone" size={20} className="text-amber-500" />
                                         Programmazione Automatica
                                     </h3>
-                                    <p className="text-zinc-500 text-xs mt-1 max-w-md mx-auto">
+                                    <p className="text-zinc-500 text-xs mt-1.5">
                                         Attiva automaticamente il menu negli orari selezionati.
                                     </p>
                                 </div>
 
-                                <div className="w-full overflow-x-auto pb-4">
-                                    <div className="border border-white/5 rounded-2xl shadow-lg min-w-[900px] overflow-hidden bg-zinc-950/50">
-                                        <div className="grid grid-cols-[100px_repeat(7,1fr)] bg-zinc-900/50">
+                                <div className="w-full overflow-x-auto pb-2">
+                                    <div className="border border-zinc-800/50 rounded-xl overflow-hidden min-w-[700px]">
+                                        <div className="grid grid-cols-[80px_repeat(7,1fr)]">
                                             {/* Header Row */}
-                                            <div className="p-4 border-r border-b border-white/5 bg-zinc-900/80"></div> {/* Corner */}
+                                            <div className="p-3 border-r border-b border-zinc-800/50 bg-zinc-950"></div>
                                             {DAYS_OF_WEEK.map(day => (
-                                                <div key={day.value} className="p-4 text-center text-xs font-bold text-zinc-400 uppercase border-b border-r border-white/5 last:border-r-0 bg-zinc-900/80 tracking-widest">
+                                                <div key={day.value} className="p-3 text-center text-[10px] font-bold text-zinc-500 uppercase border-b border-r border-zinc-800/50 last:border-r-0 bg-zinc-950 tracking-wider">
                                                     {day.label}
                                                 </div>
                                             ))}
 
                                             {/* Rows */}
                                             {MEAL_TYPES.map((meal, index) => (
-                                                <div key={meal.value} className="contents group">
+                                                <div key={meal.value} className="contents">
                                                     {/* Row Label */}
                                                     <div className={cn(
-                                                        "p-4 flex items-center justify-end font-semibold text-xs uppercase tracking-widest text-zinc-400 border-r border-white/5 bg-zinc-900/50",
+                                                        "p-3 flex items-center justify-center font-semibold text-[10px] uppercase tracking-wider text-zinc-500 border-r border-zinc-800/50 bg-zinc-950",
                                                         index !== MEAL_TYPES.length - 1 && "border-b"
                                                     )}>
                                                         {meal.label}
@@ -595,19 +595,21 @@ export default function CustomMenusManager({ restaurantId, dishes, categories, o
                                                             <div
                                                                 key={`${day.value}-${meal.value}`}
                                                                 className={cn(
-                                                                    "relative h-32 border-r border-white/5 last:border-r-0 flex items-center justify-center p-2 transition-all cursor-pointer hover:bg-white/5",
+                                                                    "relative h-20 border-r border-zinc-800/50 last:border-r-0 flex items-center justify-center p-2 transition-all cursor-pointer",
                                                                     index !== MEAL_TYPES.length - 1 && "border-b",
-                                                                    isActive && "bg-amber-500/10 hover:bg-amber-500/20"
+                                                                    isActive
+                                                                        ? "bg-amber-500/10 hover:bg-amber-500/15"
+                                                                        : "bg-zinc-900/50 hover:bg-zinc-800/50"
                                                                 )}
                                                                 onClick={() => handleToggleSchedule(day.value, meal.value)}
                                                             >
                                                                 <div className={cn(
-                                                                    "w-14 h-14 rounded-full flex items-center justify-center transition-all duration-300",
+                                                                    "w-10 h-10 rounded-full flex items-center justify-center transition-all duration-200",
                                                                     isActive
-                                                                        ? "bg-emerald-500 text-white shadow-lg scale-110"
-                                                                        : "bg-transparent text-transparent border-2 border-dashed border-muted-foreground/20 group-hover:border-primary/20"
+                                                                        ? "bg-amber-500 text-zinc-950 shadow-lg shadow-amber-500/30"
+                                                                        : "border-2 border-dashed border-zinc-700 hover:border-zinc-600"
                                                                 )}>
-                                                                    <Check size={24} weight="bold" />
+                                                                    {isActive && <Check size={18} weight="bold" />}
                                                                 </div>
                                                             </div>
                                                         )
@@ -618,8 +620,8 @@ export default function CustomMenusManager({ restaurantId, dishes, categories, o
                                     </div>
                                 </div>
 
-                                <div className="mt-4 flex items-start gap-2 p-3 bg-blue-50 dark:bg-blue-950/20 text-blue-700 dark:text-blue-300 rounded-xl text-xs border border-blue-100 dark:border-blue-900/50">
-                                    <Info size={20} weight="fill" className="shrink-0 mt-0.5" />
+                                <div className="mt-4 flex items-start gap-2.5 p-3 bg-zinc-800/50 text-zinc-400 rounded-xl text-xs border border-zinc-700/30">
+                                    <Info size={16} weight="fill" className="shrink-0 mt-0.5 text-zinc-500" />
                                     <p className="leading-relaxed">
                                         Il sistema attiverà automaticamente questo menu all'inizio del servizio selezionato. Il menu rimane attivo fino all'inizio del pasto successivo impostato nelle impostazioni.
                                     </p>

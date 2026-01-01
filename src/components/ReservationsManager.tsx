@@ -10,7 +10,8 @@ import { Badge } from '@/components/ui/badge'
 import { Separator } from '@/components/ui/separator'
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover'
 import { toast } from 'sonner'
-import { Calendar, Clock, Users, PencilSimple, Trash, Phone, User as UserIcon, CalendarBlank, ArrowsLeftRight, QrCode } from '@phosphor-icons/react'
+import { Calendar, Clock, Users, PencilSimple, Trash, Phone, User as UserIcon, CalendarBlank, ArrowsLeftRight, QrCode, DownloadSimple, Table as TableIcon } from '@phosphor-icons/react'
+import { Checkbox } from '@/components/ui/checkbox'
 import type { User, Booking, Table, Room } from '../services/types'
 import TimelineReservations from './TimelineReservations'
 import QRCodeGenerator from './QRCodeGenerator'
@@ -40,7 +41,29 @@ export default function ReservationsManager({ user, restaurantId, tables, rooms,
   const [showHistoryDialog, setShowHistoryDialog] = useState(false)
   const [showMoveDialog, setShowMoveDialog] = useState(false)
   const [showQrDialog, setShowQrDialog] = useState(false)
+  const [showExportDialog, setShowExportDialog] = useState(false)
   const [isGeneratingPdf, setIsGeneratingPdf] = useState(false)
+  const [isGeneratingTablePdf, setIsGeneratingTablePdf] = useState(false)
+
+  // Export dialog state
+  const [exportStartDate, setExportStartDate] = useState('')
+  const [exportEndDate, setExportEndDate] = useState('')
+  const [exportSelectedRooms, setExportSelectedRooms] = useState<string[]>(['all'])
+  const [restaurantName, setRestaurantName] = useState('Ristorante')
+
+  // Fetch restaurant name on mount
+  useEffect(() => {
+    const fetchRestaurantName = async () => {
+      try {
+        const restaurants = await DatabaseService.getRestaurants()
+        const restaurant = restaurants.find(r => r.id === restaurantId)
+        if (restaurant) setRestaurantName(restaurant.name)
+      } catch (e) {
+        console.error('Error fetching restaurant name:', e)
+      }
+    }
+    fetchRestaurantName()
+  }, [restaurantId])
 
   // Helper for date comparison (ignoring time)
   const isSameDay = (d1: Date, d2: Date) => {
@@ -299,6 +322,217 @@ export default function ReservationsManager({ user, restaurantId, tables, rooms,
   const historyDateFilters = getHistoryDateFilters()
   const filteredHistoryBookings = getFilteredHistoryBookings()
 
+  // Handle room checkbox toggle for export
+  const handleExportRoomToggle = (roomId: string) => {
+    if (roomId === 'all') {
+      setExportSelectedRooms(['all'])
+    } else {
+      setExportSelectedRooms(prev => {
+        const filtered = prev.filter(id => id !== 'all')
+        if (filtered.includes(roomId)) {
+          const result = filtered.filter(id => id !== roomId)
+          return result.length === 0 ? ['all'] : result
+        } else {
+          return [...filtered, roomId]
+        }
+      })
+    }
+  }
+
+  // Get bookings for export based on date range and rooms
+  const getExportBookings = () => {
+    let filtered = restaurantBookings.filter(b => b.status !== 'CANCELLED')
+
+    // Filter by date range
+    if (exportStartDate && exportEndDate) {
+      const start = new Date(exportStartDate)
+      const end = new Date(exportEndDate)
+      end.setHours(23, 59, 59, 999)
+      filtered = filtered.filter(b => {
+        const bookingDate = new Date(b.date_time)
+        return bookingDate >= start && bookingDate <= end
+      })
+    } else if (exportStartDate) {
+      // Single date
+      filtered = filtered.filter(b => b.date_time.startsWith(exportStartDate))
+    }
+
+    // Filter by rooms
+    if (!exportSelectedRooms.includes('all')) {
+      const roomTableIds = tables
+        .filter(t => exportSelectedRooms.includes(t.room_id || ''))
+        .map(t => t.id)
+      filtered = filtered.filter(b => b.table_id && roomTableIds.includes(b.table_id))
+    }
+
+    return filtered.sort((a, b) => new Date(a.date_time).getTime() - new Date(b.date_time).getTime())
+  }
+
+  // Generate Table PDF
+  const generateTablePDF = async () => {
+    setIsGeneratingTablePdf(true)
+    try {
+      const bookingsToExport = getExportBookings()
+
+      if (bookingsToExport.length === 0) {
+        toast.error('Nessuna prenotazione da esportare per il periodo selezionato')
+        setIsGeneratingTablePdf(false)
+        return
+      }
+
+      const pdf = new jsPDF({
+        orientation: 'portrait',
+        unit: 'mm',
+        format: 'a4'
+      })
+
+      const pageWidth = pdf.internal.pageSize.getWidth()
+      const pageHeight = pdf.internal.pageSize.getHeight()
+      const margin = 15
+      let yPosition = margin
+
+      // Header section
+      pdf.setFillColor(251, 146, 60) // amber-400
+      pdf.rect(0, 0, pageWidth, 45, 'F')
+
+      // EASYFOOD branding
+      pdf.setTextColor(0, 0, 0)
+      pdf.setFontSize(10)
+      pdf.setFont('helvetica', 'normal')
+      pdf.text('EASYFOOD', margin, 12)
+
+      // Restaurant name
+      pdf.setFontSize(22)
+      pdf.setFont('helvetica', 'bold')
+      pdf.text(restaurantName, margin, 28)
+
+      // Title
+      pdf.setFontSize(14)
+      pdf.setFont('helvetica', 'normal')
+      pdf.text('TABELLA PRENOTAZIONI', margin, 38)
+
+      // Date info on right
+      const dateText = exportStartDate === exportEndDate || !exportEndDate
+        ? formatDate(exportStartDate || new Date().toISOString().split('T')[0])
+        : `Dal ${formatDate(exportStartDate)} al ${formatDate(exportEndDate)}`
+      pdf.setFontSize(10)
+      pdf.text(dateText, pageWidth - margin, 28, { align: 'right' })
+
+      // Generated date
+      pdf.setFontSize(8)
+      pdf.setTextColor(80, 80, 80)
+      pdf.text(`Generato il: ${new Date().toLocaleString('it-IT')}`, pageWidth - margin, 38, { align: 'right' })
+
+      yPosition = 55
+
+      // Table header
+      pdf.setFillColor(39, 39, 42) // zinc-800
+      pdf.rect(margin, yPosition, pageWidth - margin * 2, 10, 'F')
+      pdf.setTextColor(255, 255, 255)
+      pdf.setFontSize(9)
+      pdf.setFont('helvetica', 'bold')
+
+      const colWidths = [35, 25, 40, 35, 25, 20]
+      const colStarts = [margin + 2]
+      for (let i = 1; i < colWidths.length; i++) {
+        colStarts.push(colStarts[i - 1] + colWidths[i - 1])
+      }
+
+      pdf.text('Data', colStarts[0], yPosition + 7)
+      pdf.text('Ora', colStarts[1], yPosition + 7)
+      pdf.text('Nome', colStarts[2], yPosition + 7)
+      pdf.text('Telefono', colStarts[3], yPosition + 7)
+      pdf.text('Tavolo', colStarts[4], yPosition + 7)
+      pdf.text('Ospiti', colStarts[5], yPosition + 7)
+
+      yPosition += 12
+
+      // Table rows
+      pdf.setTextColor(50, 50, 50)
+      pdf.setFont('helvetica', 'normal')
+
+      let rowCount = 0
+      for (const booking of bookingsToExport) {
+        // Check if we need a new page
+        if (yPosition > pageHeight - 25) {
+          pdf.addPage()
+          yPosition = margin
+
+          // Repeat header on new page
+          pdf.setFillColor(39, 39, 42)
+          pdf.rect(margin, yPosition, pageWidth - margin * 2, 10, 'F')
+          pdf.setTextColor(255, 255, 255)
+          pdf.setFontSize(9)
+          pdf.setFont('helvetica', 'bold')
+          pdf.text('Data', colStarts[0], yPosition + 7)
+          pdf.text('Ora', colStarts[1], yPosition + 7)
+          pdf.text('Nome', colStarts[2], yPosition + 7)
+          pdf.text('Telefono', colStarts[3], yPosition + 7)
+          pdf.text('Tavolo', colStarts[4], yPosition + 7)
+          pdf.text('Ospiti', colStarts[5], yPosition + 7)
+          yPosition += 12
+          pdf.setTextColor(50, 50, 50)
+          pdf.setFont('helvetica', 'normal')
+        }
+
+        // Alternating row colors
+        if (rowCount % 2 === 0) {
+          pdf.setFillColor(250, 250, 250)
+        } else {
+          pdf.setFillColor(245, 245, 245)
+        }
+        pdf.rect(margin, yPosition - 3, pageWidth - margin * 2, 8, 'F')
+
+        const [date, time] = booking.date_time.split('T')
+        const formattedDate = new Date(date).toLocaleDateString('it-IT', { day: '2-digit', month: '2-digit', year: 'numeric' })
+        const formattedTime = time.substring(0, 5)
+        const tableName = getTableName(booking.table_id)
+
+        pdf.setFontSize(8)
+        pdf.text(formattedDate, colStarts[0], yPosition + 3)
+        pdf.text(formattedTime, colStarts[1], yPosition + 3)
+        pdf.text(booking.name.substring(0, 18), colStarts[2], yPosition + 3)
+        pdf.text((booking.phone || '-').substring(0, 15), colStarts[3], yPosition + 3)
+        pdf.text(tableName.substring(0, 12), colStarts[4], yPosition + 3)
+        pdf.text(String(booking.guests), colStarts[5], yPosition + 3)
+
+        yPosition += 8
+        rowCount++
+      }
+
+      // Summary at bottom
+      yPosition += 5
+      pdf.setDrawColor(200, 200, 200)
+      pdf.line(margin, yPosition, pageWidth - margin, yPosition)
+      yPosition += 8
+
+      pdf.setFontSize(10)
+      pdf.setFont('helvetica', 'bold')
+      pdf.setTextColor(251, 146, 60)
+      pdf.text(`Totale Prenotazioni: ${bookingsToExport.length}`, margin, yPosition)
+
+      const totalGuests = bookingsToExport.reduce((sum, b) => sum + b.guests, 0)
+      pdf.text(`Totale Ospiti: ${totalGuests}`, pageWidth / 2, yPosition)
+
+      // Footer
+      pdf.setFontSize(8)
+      pdf.setTextColor(150, 150, 150)
+      pdf.text('Powered by EASYFOOD', pageWidth / 2, pageHeight - 10, { align: 'center' })
+
+      // Save
+      const filename = `Prenotazioni_${restaurantName.replace(/\s+/g, '_')}_${exportStartDate || 'all'}.pdf`
+      pdf.save(filename)
+      toast.success('Tabella prenotazioni scaricata con successo!')
+      setShowExportDialog(false)
+
+    } catch (err) {
+      console.error(err)
+      toast.error('Errore durante la generazione del PDF')
+    } finally {
+      setIsGeneratingTablePdf(false)
+    }
+  }
+
   const generatePDF = async () => {
     setIsGeneratingPdf(true)
     try {
@@ -381,6 +615,19 @@ export default function ReservationsManager({ user, restaurantId, tables, rooms,
               onClick={() => setShowHistoryDialog(true)}
             >
               Storico Prenotazioni
+            </Button>
+            <Button
+              variant="outline"
+              className="gap-2"
+              onClick={() => {
+                setExportStartDate(selectedDate.toISOString().split('T')[0])
+                setExportEndDate(selectedDate.toISOString().split('T')[0])
+                setExportSelectedRooms(['all'])
+                setShowExportDialog(true)
+              }}
+            >
+              <DownloadSimple size={18} weight="bold" />
+              Esporta Tabella
             </Button>
           </div>
         </div>
@@ -788,6 +1035,108 @@ export default function ReservationsManager({ user, restaurantId, tables, rooms,
               </div>
             </div>
 
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* Export Reservations Table Dialog */}
+      <Dialog open={showExportDialog} onOpenChange={setShowExportDialog}>
+        <DialogContent className="max-w-md bg-zinc-950 border-zinc-800 text-zinc-100">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <TableIcon size={24} weight="duotone" className="text-amber-500" />
+              Esporta Tabella Prenotazioni
+            </DialogTitle>
+            <DialogDescription>
+              Seleziona il periodo e le sale da includere nel PDF
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-5 py-4">
+            {/* Date Range */}
+            <div className="space-y-3">
+              <Label className="text-sm font-medium text-zinc-300">Periodo</Label>
+              <div className="grid grid-cols-2 gap-3">
+                <div className="space-y-1">
+                  <Label htmlFor="export-start" className="text-xs text-zinc-500">Data Inizio</Label>
+                  <Input
+                    id="export-start"
+                    type="date"
+                    value={exportStartDate}
+                    onChange={(e) => setExportStartDate(e.target.value)}
+                  />
+                </div>
+                <div className="space-y-1">
+                  <Label htmlFor="export-end" className="text-xs text-zinc-500">Data Fine</Label>
+                  <Input
+                    id="export-end"
+                    type="date"
+                    value={exportEndDate}
+                    onChange={(e) => setExportEndDate(e.target.value)}
+                  />
+                </div>
+              </div>
+            </div>
+
+            {/* Room Selection */}
+            <div className="space-y-3">
+              <Label className="text-sm font-medium text-zinc-300">Sale da includere</Label>
+              <div className="space-y-2 max-h-40 overflow-y-auto">
+                <div className="flex items-center space-x-2">
+                  <Checkbox
+                    id="room-all"
+                    checked={exportSelectedRooms.includes('all')}
+                    onCheckedChange={() => handleExportRoomToggle('all')}
+                    className="border-zinc-600 data-[state=checked]:bg-amber-500 data-[state=checked]:border-amber-500"
+                  />
+                  <Label htmlFor="room-all" className="text-sm cursor-pointer">Tutte le Sale</Label>
+                </div>
+                <Separator className="my-2" />
+                {rooms.map(room => (
+                  <div key={room.id} className="flex items-center space-x-2">
+                    <Checkbox
+                      id={`room-${room.id}`}
+                      checked={exportSelectedRooms.includes(room.id) || exportSelectedRooms.includes('all')}
+                      disabled={exportSelectedRooms.includes('all')}
+                      onCheckedChange={() => handleExportRoomToggle(room.id)}
+                      className="border-zinc-600 data-[state=checked]:bg-amber-500 data-[state=checked]:border-amber-500"
+                    />
+                    <Label htmlFor={`room-${room.id}`} className="text-sm cursor-pointer">{room.name}</Label>
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            {/* Preview count */}
+            <div className="bg-zinc-900/50 rounded-lg p-3 border border-zinc-800">
+              <p className="text-sm text-zinc-400">
+                <span className="font-bold text-amber-500">{getExportBookings().length}</span> prenotazioni trovate per il periodo selezionato
+              </p>
+            </div>
+
+            {/* Actions */}
+            <div className="flex gap-3 pt-2">
+              <Button
+                variant="outline"
+                className="flex-1"
+                onClick={() => setShowExportDialog(false)}
+              >
+                Annulla
+              </Button>
+              <Button
+                className="flex-1 bg-amber-600 hover:bg-amber-700 text-white gap-2"
+                onClick={generateTablePDF}
+                disabled={isGeneratingTablePdf || getExportBookings().length === 0}
+              >
+                {isGeneratingTablePdf ? (
+                  <span>Generazione...</span>
+                ) : (
+                  <>
+                    <DownloadSimple size={18} />
+                    Scarica PDF
+                  </>
+                )}
+              </Button>
+            </div>
           </div>
         </DialogContent>
       </Dialog>
