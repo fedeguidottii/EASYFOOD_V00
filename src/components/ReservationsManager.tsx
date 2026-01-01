@@ -4,6 +4,7 @@ import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card'
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog'
 import { Input } from '@/components/ui/input'
+import { Textarea } from '@/components/ui/textarea'
 import { Label } from '@/components/ui/label'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { Badge } from '@/components/ui/badge'
@@ -85,7 +86,8 @@ export default function ReservationsManager({ user, restaurantId, tables, rooms,
     tableId: '',
     date: '',
     time: '',
-    guests: 1
+    guests: 1,
+    notes: ''
   })
 
   // Move form state
@@ -125,7 +127,8 @@ export default function ReservationsManager({ user, restaurantId, tables, rooms,
       tableId: booking.table_id || '',
       date: date,
       time: time.substring(0, 5),
-      guests: booking.guests
+      guests: booking.guests,
+      notes: booking.notes || ''
     })
     setShowEditDialog(true)
   }
@@ -158,7 +161,8 @@ export default function ReservationsManager({ user, restaurantId, tables, rooms,
       phone: editForm.phone.trim(),
       table_id: editForm.tableId,
       date_time: dateTime,
-      guests: editForm.guests
+      guests: editForm.guests,
+      notes: editForm.notes.trim()
     }
 
     DatabaseService.updateBooking(updatedBooking)
@@ -751,6 +755,17 @@ export default function ReservationsManager({ user, restaurantId, tables, rooms,
               </Select>
             </div>
 
+            <div>
+              <Label htmlFor="edit-notes">Note / Richieste Speciali</Label>
+              <Textarea
+                id="edit-notes"
+                value={editForm.notes}
+                onChange={(e) => setEditForm(prev => ({ ...prev, notes: e.target.value }))}
+                placeholder="Allergie, tavolo preferito, compleanni..."
+                className="min-h-[100px] bg-zinc-950/50 border-zinc-800"
+              />
+            </div>
+
             <div className="flex gap-3 justify-end pt-4">
               <Button
                 variant="outline"
@@ -956,6 +971,12 @@ export default function ReservationsManager({ user, restaurantId, tables, rooms,
                               </Badge>
                             </div>
                           </div>
+                          {booking.notes && (
+                            <div className="mt-3 text-xs bg-white/5 p-2 rounded-lg border border-white/5">
+                              <span className="text-amber-500/70 font-semibold uppercase text-[9px] tracking-wider block mb-1">Note:</span>
+                              <p className="text-zinc-400 italic">"{booking.notes}"</p>
+                            </div>
+                          )}
                         </CardContent>
                       </Card>
                     ))

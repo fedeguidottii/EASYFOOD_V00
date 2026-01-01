@@ -3,6 +3,7 @@ import { Card, CardContent } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog'
 import { Input } from '@/components/ui/input'
+import { Textarea } from '@/components/ui/textarea'
 import { Label } from '@/components/ui/label'
 import { Badge } from '@/components/ui/badge'
 import { toast } from 'sonner'
@@ -69,12 +70,14 @@ export default function TimelineReservations({ user, restaurantId, tables, booki
     guests: number | string
     time: string
     tableId: string
+    notes: string
   }>({
     name: '',
     phone: '',
     guests: 2,
     time: '',
-    tableId: ''
+    tableId: '',
+    notes: ''
   })
 
   // Filter tables for this restaurant
@@ -277,12 +280,12 @@ export default function TimelineReservations({ user, restaurantId, tables, booki
         status: 'CONFIRMED',
         name: newReservation.name,
         phone: newReservation.phone,
-        notes: ''
+        notes: newReservation.notes
       })
 
       toast.success('Prenotazione creata')
       setShowReservationDialog(false)
-      setNewReservation({ name: '', phone: '', guests: 2, time: '', tableId: '' })
+      setNewReservation({ name: '', phone: '', guests: 2, time: '', tableId: '', notes: '' })
       onRefresh?.()
     } catch (error) {
       console.error('Error creating reservation:', error)
@@ -755,7 +758,8 @@ export default function TimelineReservations({ user, restaurantId, tables, booki
                             phone: '',
                             guests: searchGuests,
                             time: searchTime,
-                            tableId: table.id
+                            tableId: table.id,
+                            notes: ''
                           })
                           setShowSmartSearch(false)
                           setShowReservationDialog(true)
@@ -807,6 +811,17 @@ export default function TimelineReservations({ user, restaurantId, tables, booki
                   placeholder="Telefono"
                 />
               </div>
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="res-notes">Note / Richieste Speciali</Label>
+              <Textarea
+                id="res-notes"
+                value={newReservation.notes}
+                onChange={(e) => setNewReservation(prev => ({ ...prev, notes: e.target.value }))}
+                placeholder="Allergie, tavolo preferito..."
+                className="bg-zinc-950/50 border-zinc-800 min-h-[80px]"
+              />
             </div>
             <div className="grid gap-4 md:grid-cols-2">
               <div className="space-y-2">

@@ -278,7 +278,7 @@ const PublicReservationPage = () => {
                     phone: formData.phone,
                     email: "",
                     guests: formData.guests,
-                    date_time: bookingDate.toISOString(),
+                    date_time: format(bookingDate, "yyyy-MM-dd'T'HH:mm:ss"),
                     notes: (formData.roomId ? `[Sala: ${rooms.find(r => r.id === formData.roomId)?.name}] ` : "") + formData.notes,
                     status: "CONFIRMED"
                 })
