@@ -1,16 +1,26 @@
-import React, { useEffect, useState } from 'react'
+import React, { useEffect, useState, Suspense, lazy } from 'react'
 import { Routes, Route, Navigate, useLocation } from 'react-router-dom'
 import { Toaster } from 'sonner'
 import { SessionProvider } from './context/SessionContext'
 import { supabase } from './lib/supabase'
 
-// Components
-import LoginPage from './components/LoginPage'
-import RestaurantDashboard from './components/RestaurantDashboard'
-import AdminDashboard from './components/AdminDashboard'
-import WaiterDashboard from './components/waiter/WaiterDashboard'
-import CustomerMenu from './components/CustomerMenu'
-import PublicReservationPage from './components/reservations/PublicReservationPage'
+// Lazy loaded components for code splitting
+const LoginPage = lazy(() => import('./components/LoginPage'))
+const RestaurantDashboard = lazy(() => import('./components/RestaurantDashboard'))
+const AdminDashboard = lazy(() => import('./components/AdminDashboard'))
+const WaiterDashboard = lazy(() => import('./components/waiter/WaiterDashboard'))
+const CustomerMenu = lazy(() => import('./components/CustomerMenu'))
+const PublicReservationPage = lazy(() => import('./components/reservations/PublicReservationPage'))
+
+// Loading spinner component
+const LoadingSpinner = () => (
+  <div className="h-screen flex items-center justify-center bg-zinc-950">
+    <div className="flex flex-col items-center gap-4">
+      <div className="w-10 h-10 border-4 border-amber-500/30 border-t-amber-500 rounded-full animate-spin" />
+      <p className="text-zinc-500 text-sm animate-pulse">Caricamento...</p>
+    </div>
+  </div>
+)
 
 // Route Guard for Admin/Staff
 const ProtectedRoute = ({ children, user, loading }: { children: React.ReactNode, user: any, loading: boolean }) => {
@@ -66,54 +76,56 @@ const AppContent = () => {
 
   return (
     <>
-      <Routes>
-        {/* PUBLIC / ADMIN LOGIN */}
-        <Route
-          path="/"
-          element={
-            !user
-              ? <LoginPage onLogin={(u) => setUser(u)} />
-              : <Navigate to={getRedirectPath(user)} replace />
-          }
-        />
+      <Suspense fallback={<LoadingSpinner />}>
+        <Routes>
+          {/* PUBLIC / ADMIN LOGIN */}
+          <Route
+            path="/"
+            element={
+              !user
+                ? <LoginPage onLogin={(u) => setUser(u)} />
+                : <Navigate to={getRedirectPath(user)} replace />
+            }
+          />
 
-        {/* ADMIN DASHBOARD (for ADMIN role - manages all restaurants) */}
-        <Route
-          path="/admin/*"
-          element={
-            <ProtectedRoute user={user} loading={loading}>
-              <AdminDashboard user={user} onLogout={handleLogout} />
-            </ProtectedRoute>
-          }
-        />
+          {/* ADMIN DASHBOARD (for ADMIN role - manages all restaurants) */}
+          <Route
+            path="/admin/*"
+            element={
+              <ProtectedRoute user={user} loading={loading}>
+                <AdminDashboard user={user} onLogout={handleLogout} />
+              </ProtectedRoute>
+            }
+          />
 
-        {/* RESTAURANT DASHBOARD (for OWNER role - single restaurant) */}
-        <Route
-          path="/dashboard/*"
-          element={
-            <ProtectedRoute user={user} loading={loading}>
-              <RestaurantDashboard user={user} onLogout={handleLogout} />
-            </ProtectedRoute>
-          }
-        />
+          {/* RESTAURANT DASHBOARD (for OWNER role - single restaurant) */}
+          <Route
+            path="/dashboard/*"
+            element={
+              <ProtectedRoute user={user} loading={loading}>
+                <RestaurantDashboard user={user} onLogout={handleLogout} />
+              </ProtectedRoute>
+            }
+          />
 
-        {/* WAITER DASHBOARD */}
-        <Route
-          path="/waiter/*"
-          element={
-            <ProtectedRoute user={user} loading={loading}>
-              <WaiterDashboard user={user} onLogout={handleLogout} />
-            </ProtectedRoute>
-          }
-        />
+          {/* WAITER DASHBOARD */}
+          <Route
+            path="/waiter/*"
+            element={
+              <ProtectedRoute user={user} loading={loading}>
+                <WaiterDashboard user={user} onLogout={handleLogout} />
+              </ProtectedRoute>
+            }
+          />
 
-        {/* CUSTOMER ROUTES */}
-        <Route path="/client/table/:tableId" element={<CustomerMenu />} />
-        <Route path="/book/:restaurantId" element={<PublicReservationPage />} />
+          {/* CUSTOMER ROUTES */}
+          <Route path="/client/table/:tableId" element={<CustomerMenu />} />
+          <Route path="/book/:restaurantId" element={<PublicReservationPage />} />
 
-        {/* Fallback for unknown routes */}
-        <Route path="*" element={<Navigate to="/" replace />} />
-      </Routes>
+          {/* Fallback for unknown routes */}
+          <Route path="*" element={<Navigate to="/" replace />} />
+        </Routes>
+      </Suspense>
 
       <Toaster position="top-right" expand={true} richColors />
     </>

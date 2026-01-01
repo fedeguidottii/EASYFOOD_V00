@@ -38,6 +38,7 @@ import type { Table, Order, Dish, Category, TableSession, Booking, Restaurant, R
 import { soundManager, type SoundType } from '../utils/SoundManager'
 import { ModeToggle } from './ModeToggle'
 import { motion, AnimatePresence } from 'framer-motion'
+import { OnboardingTour, useOnboardingTour, DASHBOARD_TOUR_STEPS } from './OnboardingTour'
 
 interface RestaurantDashboardProps {
   user: any
@@ -77,6 +78,9 @@ const RestaurantDashboard = ({ user, onLogout }: RestaurantDashboardProps) => {
   const restaurantTables = tables || []
   const restaurantOrders = orders || []
   const restaurantCompletedOrders = useMemo(() => orders?.filter(o => o.status === 'completed') || [], [orders])
+
+  // Onboarding Tour
+  const { isOpen: isTourOpen, completeTour, startTour } = useOnboardingTour()
 
   // Sound Settings State
   const [selectedReservationDate, setSelectedReservationDate] = useState(new Date())
@@ -1157,16 +1161,17 @@ const RestaurantDashboard = ({ user, onLogout }: RestaurantDashboardProps) => {
 
         <nav className="flex-1 px-3 py-6 space-y-1 overflow-y-auto">
           {[
-            { id: 'orders', label: 'Ordini', icon: Clock },
-            { id: 'tables', label: 'Tavoli', icon: MapPin },
-            { id: 'menu', label: 'Menu', icon: BookOpen },
-            { id: 'reservations', label: 'Prenotazioni', icon: Calendar },
-            { id: 'analytics', label: 'Analitiche', icon: ChartBar },
-            { id: 'settings', label: 'Impostazioni', icon: Gear },
+            { id: 'orders', label: 'Ordini', icon: Clock, tour: 'welcome' },
+            { id: 'tables', label: 'Tavoli', icon: MapPin, tour: 'tables' },
+            { id: 'menu', label: 'Menu', icon: BookOpen, tour: 'menu' },
+            { id: 'reservations', label: 'Prenotazioni', icon: Calendar, tour: 'reservations' },
+            { id: 'analytics', label: 'Analitiche', icon: ChartBar, tour: 'analytics' },
+            { id: 'settings', label: 'Impostazioni', icon: Gear, tour: 'settings' },
           ].map((item) => (
             <Button
               key={item.id}
               variant="ghost"
+              data-tour={item.tour}
               className={`w-full justify-start h-12 px-4 rounded-xl transition-all duration-200 group relative overflow-hidden ${activeTab === item.id
                 ? 'bg-amber-500/10 text-amber-500 font-medium'
                 : 'text-zinc-500 hover:text-zinc-200 hover:bg-zinc-900'
@@ -2360,6 +2365,8 @@ const RestaurantDashboard = ({ user, onLogout }: RestaurantDashboardProps) => {
                     DatabaseService.updateRestaurant({ id: restaurantId, weekly_ayce: schedule })
                   }
                 }}
+
+                onRestartTour={startTour}
               />
             </TabsContent >
           </Tabs >
@@ -2941,6 +2948,13 @@ const RestaurantDashboard = ({ user, onLogout }: RestaurantDashboardProps) => {
 
         </div >
       </main >
+
+      {/* Onboarding Tour for new users */}
+      <OnboardingTour
+        steps={DASHBOARD_TOUR_STEPS}
+        isOpen={isTourOpen}
+        onComplete={completeTour}
+      />
     </div >
   )
 }
