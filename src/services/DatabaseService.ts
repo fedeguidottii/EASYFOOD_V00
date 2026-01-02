@@ -24,7 +24,8 @@ export const DatabaseService = {
             allYouCanEat: r.all_you_can_eat,
             coverChargePerPerson: r.cover_charge_per_person,
             waiter_mode_enabled: r.waiter_mode_enabled,
-            allow_waiter_payments: r.allow_waiter_payments
+            allow_waiter_payments: r.allow_waiter_payments,
+            waiter_password: r.waiter_password
         })) as Restaurant[]
     },
 
@@ -70,7 +71,7 @@ export const DatabaseService = {
         const payload: any = {}
 
         // Campi permessi per l'aggiornamento
-        const allowedFields = ['name', 'address', 'phone', 'email', 'logo_url', 'cover_image_url', 'owner_id', 'all_you_can_eat', 'ayce_price', 'ayce_max_orders', 'cover_charge_per_person', 'lunch_time_start', 'dinner_time_start', 'enable_course_splitting', 'reservation_duration', 'weekly_coperto', 'weekly_ayce']
+        const allowedFields = ['name', 'address', 'phone', 'email', 'logo_url', 'cover_image_url', 'owner_id', 'all_you_can_eat', 'ayce_price', 'ayce_max_orders', 'cover_charge_per_person', 'lunch_time_start', 'dinner_time_start', 'enable_course_splitting', 'reservation_duration', 'weekly_coperto', 'weekly_ayce', 'waiter_password']
 
         // Copia solo i campi presenti nell'oggetto input
         allowedFields.forEach(field => {
