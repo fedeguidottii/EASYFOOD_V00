@@ -658,12 +658,15 @@ const RestaurantDashboard = ({ user, onLogout }: RestaurantDashboardProps) => {
 
   const saveWaiterPassword = async (password: string) => {
     if (!restaurantId || !password.trim()) return
+    // Update local state immediately so UI reflects the change
+    setWaiterPassword(password)
     await DatabaseService.updateRestaurant({
       id: restaurantId,
       waiter_password: password
     })
     toast.success('Password cameriere aggiornata')
-    refreshRestaurants()
+    // Don't call refreshRestaurants() here as it can cause a race condition
+    // that resets the state before the UI updates
   }
 
   const updateAllowWaiterPayments = async (enabled: boolean) => {
