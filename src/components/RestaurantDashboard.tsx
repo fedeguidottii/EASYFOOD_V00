@@ -1616,10 +1616,10 @@ const RestaurantDashboard = ({ user, onLogout }: RestaurantDashboardProps) => {
 
             {/* Tables Tab */}
             < TabsContent value="tables" className="space-y-6" >
-              <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between pb-4 border-b border-slate-200 dark:border-slate-800">
+              <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between pb-4 border-b border-white/10">
                 <div>
-                  <h2 className="text-2xl font-semibold text-slate-900 dark:text-slate-100">Gestione Tavoli</h2>
-                  <p className="text-sm text-slate-500 dark:text-slate-400 mt-1">Gestisci la sala e i tavoli</p>
+                  <h2 className="text-2xl font-light text-white tracking-tight">Gestione <span className="font-bold text-amber-500">Tavoli</span></h2>
+                  <p className="text-sm text-zinc-400 mt-1 uppercase tracking-wider font-medium">Gestisci la sala e i tavoli</p>
                 </div>
                 <div className="flex flex-wrap items-center gap-2">
                   <div className="relative">
@@ -2185,8 +2185,8 @@ const RestaurantDashboard = ({ user, onLogout }: RestaurantDashboardProps) => {
                     <BookOpen size={20} weight="duotone" />
                   </div>
                   <div>
-                    <h2 className="text-2xl font-bold text-foreground">Gestione Menu</h2>
-                    <p className="text-xs text-muted-foreground mt-0.5">Gestisci piatti e categorie</p>
+                    <h2 className="text-2xl font-light text-white tracking-tight">Gestione <span className="font-bold text-amber-500">Menu</span></h2>
+                    <p className="text-sm text-zinc-400 mt-1 uppercase tracking-wider font-medium">Gestisci piatti e categorie</p>
                   </div>
                 </div>
                 <div className="flex gap-2">
@@ -2589,11 +2589,20 @@ const RestaurantDashboard = ({ user, onLogout }: RestaurantDashboardProps) => {
                 setSelectedSound={setSelectedSound}
 
                 waiterModeEnabled={waiterModeEnabled}
-                setWaiterModeEnabled={setWaiterModeEnabled}
+                setWaiterModeEnabled={(val) => {
+                  setWaiterModeEnabled(val)
+                  setWaiterCredentialsDirty(true)
+                }}
                 allowWaiterPayments={allowWaiterPayments}
-                setAllowWaiterPayments={setAllowWaiterPayments}
+                setAllowWaiterPayments={(val) => {
+                  setAllowWaiterPayments(val)
+                  setWaiterCredentialsDirty(true)
+                }}
                 waiterPassword={waiterPassword}
-                setWaiterPassword={setWaiterPassword}
+                setWaiterPassword={(val) => {
+                  setWaiterPassword(val)
+                  setWaiterCredentialsDirty(true)
+                }}
                 saveWaiterCredentials={saveWaiterCredentials}
                 waiterCredentialsDirty={waiterCredentialsDirty}
 

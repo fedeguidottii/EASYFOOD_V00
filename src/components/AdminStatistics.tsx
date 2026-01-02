@@ -4,11 +4,13 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { DatabaseService } from '../services/DatabaseService'
 import { Order, TableSession, Restaurant } from '../services/types'
-import { ChartBar, Money, ShoppingCart, Users, Clock, Fire, Calendar, TrendUp, Storefront, Eye, Funnel } from '@phosphor-icons/react'
+import { ChartBar, Money, ShoppingCart, Users, Clock, Fire, Calendar, TrendUp, Storefront, Eye, Funnel, Check, UsersThree, Receipt, CurrencyEur, CaretDown } from '@phosphor-icons/react'
 import { format, isWithinInterval, startOfDay, endOfDay, parseISO, eachDayOfInterval, isSameDay, subDays } from 'date-fns'
 import { Badge } from '@/components/ui/badge'
 import { it } from 'date-fns/locale'
-import { ResponsiveContainer, AreaChart, Area, XAxis, YAxis, Tooltip, CartesianGrid } from 'recharts'
+import { ResponsiveContainer, AreaChart, Area, XAxis, YAxis, Tooltip, CartesianGrid, BarChart, Bar } from 'recharts'
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover'
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 
 interface AdminStatisticsProps {
     onImpersonate?: (restaurantId: string) => void
@@ -21,9 +23,13 @@ interface GlobalStats {
     activeOrders: number
     totalRestaurants: number
     activeSessions: number
-    revenueByRestaurant: { id: string; name: string; revenue: number; orders: number }[]
+    avgRevenuePerRestaurant: number
+    avgOrdersPerRestaurant: number
+    avgOrderValue: number
+    totalSessions: number
+    revenueByRestaurant: { id: string; name: string; revenue: number; orders: number; customers: number }[]
     peakHours: { hour: number; count: number }[]
-    growthData: { date: string; restaurants: number; orders: number }[]
+    growthData: { date: string; restaurants: number; orders: number; revenue: number }[]
 }
 
 export default function AdminStatistics({ onImpersonate }: AdminStatisticsProps) {
@@ -31,23 +37,37 @@ export default function AdminStatistics({ onImpersonate }: AdminStatisticsProps)
     const [loading, setLoading] = useState(true)
     const [startDate, setStartDate] = useState<string>(format(subDays(new Date(), 30), 'yyyy-MM-dd'))
     const [endDate, setEndDate] = useState<string>(format(new Date(), 'yyyy-MM-dd'))
+    const [allRestaurants, setAllRestaurants] = useState<Restaurant[]>([])
+    const [selectedRestaurantIds, setSelectedRestaurantIds] = useState<string[]>([])
 
     useEffect(() => {
         const fetchStats = async () => {
             try {
                 setLoading(true)
-                const [allOrders, allSessions, allRestaurants] = await Promise.all([
+                const [allOrders, allSessions, restaurants] = await Promise.all([
                     DatabaseService.getAllOrders(),
                     DatabaseService.getAllTableSessions(),
                     DatabaseService.getRestaurants()
                 ])
 
+                setAllRestaurants(restaurants)
+                // Initialize selection to all if empty
+                if (selectedRestaurantIds.length === 0) {
+                    setSelectedRestaurantIds(restaurants.map(r => r.id))
+                }
+
                 const start = startOfDay(parseISO(startDate))
                 const end = endOfDay(parseISO(endDate))
 
-                // 1. Filtered Data
+                // Get active restaurant filter (all if none selected)
+                const activeRestaurantIds = selectedRestaurantIds.length > 0
+                    ? selectedRestaurantIds
+                    : restaurants.map(r => r.id)
+
+                // 1. Filtered Data (by date AND restaurant)
                 const filteredOrders = allOrders.filter(o => {
                     if (!o.created_at) return false
+                    if (!activeRestaurantIds.includes(o.restaurant_id)) return false
                     try {
                         const date = parseISO(o.created_at)
                         return isWithinInterval(date, { start, end })
@@ -57,30 +77,43 @@ export default function AdminStatistics({ onImpersonate }: AdminStatisticsProps)
                 const filteredSessions = allSessions.filter(s => {
                     const dateStr = s.created_at || s.opened_at
                     if (!dateStr) return false
+                    if (!activeRestaurantIds.includes(s.restaurant_id)) return false
                     try {
                         const date = parseISO(dateStr)
                         return isWithinInterval(date, { start, end })
                     } catch { return false }
                 })
 
-                // 2. Calculations
-                const totalRevenue = filteredOrders
-                    .filter(o => o.status === 'PAID')
-                    .reduce((sum, o) => sum + (o.total_amount || 0), 0)
-
+                // 2. Basic Calculations
+                const paidOrders = filteredOrders.filter(o => o.status === 'PAID')
+                const totalRevenue = paidOrders.reduce((sum, o) => sum + (o.total_amount || 0), 0)
                 const totalOrders = filteredOrders.length
                 const activeOrders = filteredOrders.filter(o => o.status === 'OPEN').length
-                const totalCustomers = filteredSessions.length
-                const totalRestaurants = allRestaurants.length
+                const totalSessions = filteredSessions.length
+                const totalRestaurants = restaurants.length
                 const activeSessions = allSessions.filter(s => s.status === 'OPEN').length
 
-                // 3. Rankings (with IDs for impersonation)
-                const restaurantMap = new Map<string, { id: string; name: string; revenue: number; orders: number }>()
+                // 3. Averages
+                const activeRestaurantCount = activeRestaurantIds.length
+                const avgRevenuePerRestaurant = activeRestaurantCount > 0 ? totalRevenue / activeRestaurantCount : 0
+                const avgOrdersPerRestaurant = activeRestaurantCount > 0 ? totalOrders / activeRestaurantCount : 0
+                const avgOrderValue = paidOrders.length > 0 ? totalRevenue / paidOrders.length : 0
+
+                // 4. Customer count by session
+                const totalCustomers = filteredSessions.reduce((sum, s) => sum + (s.customer_count || 1), 0)
+
+                // 5. Rankings (with IDs for impersonation)
+                const restaurantMap = new Map<string, { id: string; name: string; revenue: number; orders: number; customers: number }>()
+
+                // Initialize all restaurants
+                restaurants.filter(r => activeRestaurantIds.includes(r.id)).forEach(r => {
+                    restaurantMap.set(r.id, { id: r.id, name: r.name, revenue: 0, orders: 0, customers: 0 })
+                })
 
                 filteredOrders.forEach(order => {
                     const restaurantId = order.restaurant_id
-                    const restaurantName = order.restaurant?.name || 'Sconosciuto'
-                    const current = restaurantMap.get(restaurantId) || { id: restaurantId, name: restaurantName, revenue: 0, orders: 0 }
+                    const restaurantName = order.restaurant?.name || restaurants.find(r => r.id === restaurantId)?.name || 'Sconosciuto'
+                    const current = restaurantMap.get(restaurantId) || { id: restaurantId, name: restaurantName, revenue: 0, orders: 0, customers: 0 }
 
                     if (order.status === 'PAID') {
                         current.revenue += (order.total_amount || 0)
@@ -89,10 +122,18 @@ export default function AdminStatistics({ onImpersonate }: AdminStatisticsProps)
                     restaurantMap.set(restaurantId, current)
                 })
 
+                // Add customer counts from sessions
+                filteredSessions.forEach(session => {
+                    const current = restaurantMap.get(session.restaurant_id)
+                    if (current) {
+                        current.customers += (session.customer_count || 1)
+                    }
+                })
+
                 const revenueByRestaurant = Array.from(restaurantMap.values())
                     .sort((a, b) => b.revenue - a.revenue)
 
-                // 4. Peak Hours
+                // 6. Peak Hours
                 const hoursMap = new Array(24).fill(0)
                 filteredOrders.forEach(order => {
                     if (order.created_at) {
@@ -104,15 +145,17 @@ export default function AdminStatistics({ onImpersonate }: AdminStatisticsProps)
                 })
                 const peakHours = hoursMap.map((count, hour) => ({ hour, count }))
 
-                // 5. Growth Tracking
+                // 7. Growth Tracking (with revenue)
                 const days = eachDayOfInterval({ start, end })
                 const growthData = days.map(day => {
-                    const cumulativeRes = allRestaurants.filter(r => r.created_at && parseISO(r.created_at) <= endOfDay(day)).length
-                    const dailyOrders = filteredOrders.filter(o => o.created_at && isSameDay(parseISO(o.created_at), day)).length
+                    const cumulativeRes = restaurants.filter(r => r.created_at && parseISO(r.created_at) <= endOfDay(day)).length
+                    const dailyOrders = filteredOrders.filter(o => o.created_at && isSameDay(parseISO(o.created_at), day))
+                    const dailyRevenue = dailyOrders.filter(o => o.status === 'PAID').reduce((sum, o) => sum + (o.total_amount || 0), 0)
                     return {
                         date: format(day, 'dd MMM', { locale: it }),
                         restaurants: cumulativeRes,
-                        orders: dailyOrders
+                        orders: dailyOrders.length,
+                        revenue: dailyRevenue
                     }
                 })
 
@@ -123,6 +166,10 @@ export default function AdminStatistics({ onImpersonate }: AdminStatisticsProps)
                     activeOrders,
                     totalRestaurants,
                     activeSessions,
+                    avgRevenuePerRestaurant,
+                    avgOrdersPerRestaurant,
+                    avgOrderValue,
+                    totalSessions,
                     revenueByRestaurant,
                     peakHours,
                     growthData
@@ -135,7 +182,7 @@ export default function AdminStatistics({ onImpersonate }: AdminStatisticsProps)
         }
 
         fetchStats()
-    }, [startDate, endDate])
+    }, [startDate, endDate, selectedRestaurantIds])
 
     if (loading) return (
         <div className="p-12 flex flex-col items-center gap-4">
@@ -158,36 +205,106 @@ export default function AdminStatistics({ onImpersonate }: AdminStatisticsProps)
                     <p className="text-xs text-zinc-500 font-bold uppercase tracking-[0.2em] mt-1">Global Platform Performance</p>
                 </div>
 
-                <div className="flex items-center gap-3 bg-black/40 p-2 rounded-xl border border-white/5">
-                    <div className="flex items-center gap-2 px-3">
-                        <Calendar className="text-zinc-500" size={18} />
-                        <span className="text-xs font-bold text-zinc-400 uppercase tracking-wider">Intervallo:</span>
+                <div className="flex flex-wrap items-center gap-3">
+                    {/* Restaurant Filter */}
+                    <Popover>
+                        <PopoverTrigger asChild>
+                            <Button variant="outline" className="h-9 gap-2 bg-black/40 border-white/10 text-zinc-300 hover:text-white hover:bg-zinc-800">
+                                <Storefront size={16} className="text-amber-500" />
+                                <span className="text-xs">
+                                    {selectedRestaurantIds.length === allRestaurants.length || selectedRestaurantIds.length === 0
+                                        ? 'Tutti i ristoranti'
+                                        : `${selectedRestaurantIds.length} selezionati`}
+                                </span>
+                                <CaretDown size={14} />
+                            </Button>
+                        </PopoverTrigger>
+                        <PopoverContent className="w-72 p-0 bg-zinc-950 border-zinc-800" align="end">
+                            <div className="p-3 border-b border-zinc-800">
+                                <div className="flex items-center justify-between">
+                                    <span className="text-xs font-bold text-zinc-400 uppercase tracking-wider">Filtra Ristoranti</span>
+                                    <div className="flex gap-1">
+                                        <Button
+                                            size="sm"
+                                            variant="ghost"
+                                            className="h-6 px-2 text-xs text-zinc-500 hover:text-white"
+                                            onClick={() => setSelectedRestaurantIds(allRestaurants.map(r => r.id))}
+                                        >
+                                            Tutti
+                                        </Button>
+                                        <Button
+                                            size="sm"
+                                            variant="ghost"
+                                            className="h-6 px-2 text-xs text-zinc-500 hover:text-white"
+                                            onClick={() => setSelectedRestaurantIds([])}
+                                        >
+                                            Nessuno
+                                        </Button>
+                                    </div>
+                                </div>
+                            </div>
+                            <div className="max-h-64 overflow-y-auto p-2 space-y-1">
+                                {allRestaurants.map(restaurant => {
+                                    const isSelected = selectedRestaurantIds.includes(restaurant.id)
+                                    return (
+                                        <div
+                                            key={restaurant.id}
+                                            className={`flex items-center gap-2 p-2 rounded-lg cursor-pointer transition-colors ${isSelected ? 'bg-amber-500/10 text-amber-400' : 'text-zinc-400 hover:bg-zinc-800'}`}
+                                            onClick={() => {
+                                                if (isSelected) {
+                                                    setSelectedRestaurantIds(prev => prev.filter(id => id !== restaurant.id))
+                                                } else {
+                                                    setSelectedRestaurantIds(prev => [...prev, restaurant.id])
+                                                }
+                                            }}
+                                        >
+                                            <div className={`w-4 h-4 rounded border flex items-center justify-center transition-colors ${isSelected ? 'bg-amber-500 border-amber-500' : 'border-zinc-600'}`}>
+                                                {isSelected && <Check size={10} className="text-black" weight="bold" />}
+                                            </div>
+                                            <span className="text-sm truncate flex-1">{restaurant.name}</span>
+                                        </div>
+                                    )
+                                })}
+                            </div>
+                        </PopoverContent>
+                    </Popover>
+
+                    {/* Date Filter */}
+                    <div className="flex items-center gap-2 bg-black/40 p-2 rounded-xl border border-white/5">
+                        <div className="flex items-center gap-2 px-2">
+                            <Calendar className="text-zinc-500" size={16} />
+                        </div>
+                        <Input
+                            type="date"
+                            value={startDate}
+                            onChange={(e) => setStartDate(e.target.value)}
+                            className="bg-transparent border-none text-white text-sm w-32 h-8 focus-visible:ring-0"
+                        />
+                        <div className="w-3 h-px bg-zinc-700" />
+                        <Input
+                            type="date"
+                            value={endDate}
+                            onChange={(e) => setEndDate(e.target.value)}
+                            className="bg-transparent border-none text-white text-sm w-32 h-8 focus-visible:ring-0"
+                        />
                     </div>
-                    <Input
-                        type="date"
-                        value={startDate}
-                        onChange={(e) => setStartDate(e.target.value)}
-                        className="bg-transparent border-none text-white text-sm w-36 h-9 focus-visible:ring-0"
-                    />
-                    <div className="w-4 h-px bg-zinc-700" />
-                    <Input
-                        type="date"
-                        value={endDate}
-                        onChange={(e) => setEndDate(e.target.value)}
-                        className="bg-transparent border-none text-white text-sm w-36 h-9 focus-visible:ring-0"
-                    />
-                    <Button size="icon" variant="ghost" className="h-9 w-9 text-amber-500 hover:bg-amber-500/10">
-                        <Funnel size={18} />
-                    </Button>
                 </div>
             </div>
 
-            {/* KPI Cards */}
-            <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
-                <KPICard title="Revenue Totale" value={`€ ${stats.totalRevenue.toLocaleString()}`} subtitle="Incasso periodo" icon={<Money size={24} />} color="amber" />
+            {/* KPI Cards - Row 1: Main metrics */}
+            <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+                <KPICard title="Revenue Totale" value={`€ ${stats.totalRevenue.toLocaleString('it-IT')}`} subtitle="Incasso periodo" icon={<Money size={24} />} color="amber" />
                 <KPICard title="Partner Attivi" value={stats.totalRestaurants.toString()} subtitle="Ristoranti registrati" icon={<Storefront size={24} />} color="amber" />
                 <KPICard title="Volume Ordini" value={stats.totalOrders.toString()} subtitle={`Media ${Math.round(stats.totalOrders / (stats.growthData.length || 1))} / giorno`} icon={<ShoppingCart size={24} />} color="amber" />
                 <KPICard title="Sessioni Live" value={stats.activeSessions.toString()} subtitle="Tavoli attivi ora" icon={<Fire size={24} weight="fill" />} color="orange" isLive />
+            </div>
+
+            {/* KPI Cards - Row 2: Detailed metrics */}
+            <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+                <KPICard title="Clienti Totali" value={stats.totalCustomers.toLocaleString('it-IT')} subtitle={`${stats.totalSessions} sessioni uniche`} icon={<UsersThree size={24} />} color="blue" />
+                <KPICard title="Scontrino Medio" value={`€ ${stats.avgOrderValue.toFixed(2)}`} subtitle="Valore medio ordine" icon={<Receipt size={24} />} color="green" />
+                <KPICard title="Media/Ristorante" value={`€ ${stats.avgRevenuePerRestaurant.toFixed(0)}`} subtitle={`~${stats.avgOrdersPerRestaurant.toFixed(0)} ordini ciascuno`} icon={<CurrencyEur size={24} />} color="purple" />
+                <KPICard title="Ordini Attivi" value={stats.activeOrders.toString()} subtitle="In lavorazione" icon={<Clock size={24} />} color="amber" />
             </div>
 
             {/* Charts Section */}
@@ -346,14 +463,20 @@ export default function AdminStatistics({ onImpersonate }: AdminStatisticsProps)
 }
 
 function KPICard({ title, value, subtitle, icon, color, isLive }: { title: string, value: string, subtitle: string, icon: any, color: string, isLive?: boolean }) {
-    const colorClass = color === 'amber' ? 'text-amber-500' : 'text-orange-500'
-    const shadowClass = color === 'amber' ? 'shadow-amber-500/20' : 'shadow-orange-500/20'
+    const colorClasses: Record<string, { text: string; bg: string; border: string }> = {
+        amber: { text: 'text-amber-500', bg: 'bg-amber-500/10', border: 'hover:border-amber-500/20' },
+        orange: { text: 'text-orange-500', bg: 'bg-orange-500/10', border: 'hover:border-orange-500/20' },
+        blue: { text: 'text-blue-500', bg: 'bg-blue-500/10', border: 'hover:border-blue-500/20' },
+        green: { text: 'text-emerald-500', bg: 'bg-emerald-500/10', border: 'hover:border-emerald-500/20' },
+        purple: { text: 'text-purple-500', bg: 'bg-purple-500/10', border: 'hover:border-purple-500/20' }
+    }
+    const { text: colorClass, bg: bgClass, border: borderClass } = colorClasses[color] || colorClasses.amber
 
     return (
-        <Card className="bg-zinc-900/50 backdrop-blur-3xl border border-white/5 rounded-3xl shadow-[0_25px_50px_-12px_rgba(0,0,0,0.8)] hover:border-amber-500/20 transition-all group overflow-hidden">
-            <CardContent className="p-6">
-                <div className="flex items-center justify-between mb-4">
-                    <div className={`p-3 rounded-2xl bg-${color}-500/10 ${colorClass}`}>
+        <Card className={`bg-zinc-900/50 backdrop-blur-3xl border border-white/5 rounded-2xl shadow-[0_20px_40px_-12px_rgba(0,0,0,0.8)] ${borderClass} transition-all group overflow-hidden`}>
+            <CardContent className="p-5">
+                <div className="flex items-center justify-between mb-3">
+                    <div className={`p-2.5 rounded-xl ${bgClass} ${colorClass}`}>
                         {icon}
                     </div>
                     {isLive && (
@@ -364,9 +487,9 @@ function KPICard({ title, value, subtitle, icon, color, isLive }: { title: strin
                     )}
                 </div>
                 <div>
-                    <h3 className="text-xs font-bold uppercase tracking-[0.2em] text-zinc-500 group-hover:text-zinc-300 transition-colors">{title}</h3>
-                    <div className={`text-3xl font-black mt-1 ${colorClass} tracking-tight tabular-nums`}>{value}</div>
-                    <p className="text-[10px] text-zinc-400 font-bold mt-2 uppercase tracking-widest flex items-center gap-1">
+                    <h3 className="text-xs font-bold uppercase tracking-[0.15em] text-zinc-500 group-hover:text-zinc-300 transition-colors">{title}</h3>
+                    <div className={`text-2xl font-black mt-1 ${colorClass} tracking-tight tabular-nums`}>{value}</div>
+                    <p className="text-[10px] text-zinc-500 font-bold mt-1 uppercase tracking-widest flex items-center gap-1">
                         {subtitle}
                     </p>
                 </div>

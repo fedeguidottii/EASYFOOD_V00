@@ -373,6 +373,57 @@ const CustomerMenu = () => {
     }
   }, [sessionId, restaurantId])
 
+  // Real-time subscription to detect when session is closed (table paid/emptied)
+  // This ensures authenticated customers are immediately redirected to PIN screen
+  useEffect(() => {
+    if (!tableId || !isAuthenticated) return
+
+    const sessionChannel = supabase
+      .channel(`customer-session-watch:${tableId}`)
+      .on('postgres_changes', {
+        event: '*',
+        schema: 'public',
+        table: 'table_sessions',
+        filter: `table_id=eq.${tableId}`
+      }, async (payload) => {
+        // Handle session updates (status changed to CLOSED)
+        if (payload.eventType === 'UPDATE') {
+          const updatedSession = payload.new as any
+          if (updatedSession.status === 'CLOSED') {
+            // Session closed - force logout
+            localStorage.removeItem('customerSessionId')
+            localStorage.removeItem('sessionPin')
+            setIsAuthenticated(false)
+            setActiveSession(null)
+            setPin(['', '', '', ''])
+            toast.info('Il tavolo è stato chiuso. Inserisci il nuovo codice per ordinare.', {
+              duration: 4000,
+              style: { background: '#3b82f6', color: 'white' }
+            })
+          }
+        }
+
+        // Handle session deletion
+        if (payload.eventType === 'DELETE') {
+          // Session deleted - force logout
+          localStorage.removeItem('customerSessionId')
+          localStorage.removeItem('sessionPin')
+          setIsAuthenticated(false)
+          setActiveSession(null)
+          setPin(['', '', '', ''])
+          toast.info('Il tavolo è stato chiuso. Inserisci il nuovo codice per ordinare.', {
+            duration: 4000,
+            style: { background: '#3b82f6', color: 'white' }
+          })
+        }
+      })
+      .subscribe()
+
+    return () => {
+      supabase.removeChannel(sessionChannel)
+    }
+  }, [tableId, isAuthenticated])
+
   const handlePinSubmit = async (enteredPin: string) => {
     // Retry joining session if missing (connection recovery)
     if (!activeSession) {
@@ -571,6 +622,7 @@ function AuthorizedMenuContent({ restaurantId, tableId, sessionId, activeSession
   const [error, setError] = useState<string | null>(null)
   const [isLoading, setIsLoading] = useState(true)
   const [tableName, setTableName] = useState<string>('')
+  const [dataInitialized, setDataInitialized] = useState(false) // Prevent double loading
 
   const [activeCategory, setActiveCategory] = useState<string>('all')
   const [cart, setCart] = useState<CartItem[]>([])
@@ -597,10 +649,14 @@ function AuthorizedMenuContent({ restaurantId, tableId, sessionId, activeSession
   // Helper to generate PIN
   const generatePin = () => Math.floor(1000 + Math.random() * 9000).toString()
 
-  const initMenu = async () => {
-    if (!tableId) {
-      // Don't show error during initial load, just stop loading
-      setIsLoading(false)
+  // --- FIX DOUBLE LOADING: Consolidated data fetch ---
+  const [categories, setCategories] = useState<Category[]>([])
+  const [dishes, setDishes] = useState<Dish[]>([])
+
+  const initMenu = useCallback(async () => {
+    if (!tableId || !restaurantId || dataInitialized) {
+      // Don't re-fetch if already initialized or missing required data
+      if (!tableId) setIsLoading(false)
       return
     }
 
@@ -608,97 +664,45 @@ function AuthorizedMenuContent({ restaurantId, tableId, sessionId, activeSession
       setIsLoading(true)
       setError(null)
 
-      const { data: tableData } = await supabase
-        .from('tables')
-        .select('restaurant_id, number')
-        .eq('id', tableId)
-        .single()
+      // Fetch table data and restaurant info in one batch
+      const [tableResult, restaurantResult, catsResult, dishesResult] = await Promise.all([
+        supabase.from('tables').select('restaurant_id, number').eq('id', tableId).single(),
+        supabase.from('restaurants').select('*').eq('id', restaurantId).single(),
+        supabase.from('categories').select('*').eq('restaurant_id', restaurantId).order('order', { ascending: true }),
+        supabase.from('dishes').select('*').eq('restaurant_id', restaurantId).eq('is_active', true)
+      ])
 
-      if (tableData?.restaurant_id) {
-        /* setRestaurantId removed */
-        setTableName(tableData.number || '')
-
-        const { data: restaurantData } = await supabase
-          .from('restaurants')
-          .select('*')
-          .eq('id', tableData.restaurant_id)
-          .single()
-
-        if (restaurantData) {
-          setRestaurantName(restaurantData.name || '')
-          setFullRestaurant(restaurantData)
-          setCourseSplittingEnabled(restaurantData.enable_course_splitting ?? true)
-        }
-        return
+      if (tableResult.data) {
+        setTableName(tableResult.data.number || '')
       }
 
-      const { data: activeSessionData } = await supabase
-        .from('table_activeSessions')
-        .select('restaurant_id')
-        .eq('table_id', tableId)
-        .eq('status', 'OPEN')
-        .limit(1)
-        .maybeSingle()
-
-      if (activeSessionData?.restaurant_id) {
-        /* setRestaurantId removed */
-
-        const { data: restaurantData } = await supabase
-          .from('restaurants')
-          .select('*')
-          .eq('id', activeSessionData.restaurant_id)
-          .single()
-
-        if (restaurantData) {
-          setRestaurantName(restaurantData.name || '')
-          setFullRestaurant(restaurantData)
-          setCourseSplittingEnabled(restaurantData.enable_course_splitting ?? true)
-        }
-        return
+      if (restaurantResult.data) {
+        setRestaurantName(restaurantResult.data.name || '')
+        setFullRestaurant(restaurantResult.data)
+        setCourseSplittingEnabled(restaurantResult.data.enable_course_splitting ?? true)
       }
 
-      throw new Error("Impossibile identificare il ristorante.")
+      if (catsResult.data) {
+        setCategories(catsResult.data)
+      }
+
+      if (dishesResult.data) {
+        setDishes(dishesResult.data)
+      }
+
+      setDataInitialized(true) // Mark as initialized to prevent re-fetching
 
     } catch (err: any) {
       setError(err.message || "Errore di connessione")
     } finally {
       setIsLoading(false)
     }
-  }
+  }, [tableId, restaurantId, dataInitialized])
 
+  // Single effect to initialize data - no double loading
   useEffect(() => {
     initMenu()
-  }, [tableId])
-
-  // --- FIX FLICKERING: Manual fetch instead of useSupabaseData hook which might loop ---
-  const [categories, setCategories] = useState<Category[]>([])
-  const [dishes, setDishes] = useState<Dish[]>([])
-
-  useEffect(() => {
-    if (!restaurantId) return
-
-    const fetchData = async () => {
-      // Fetch Categories
-      const { data: cats } = await supabase
-        .from('categories')
-        .select('*')
-        .eq('restaurant_id', restaurantId)
-        .order('order', { ascending: true })
-
-      if (cats) setCategories(cats)
-
-      // Fetch Dishes
-      const { data: d } = await supabase
-        .from('dishes')
-        .select('*')
-        .eq('restaurant_id', restaurantId)
-        .eq('is_active', true)
-
-      if (d) setDishes(d)
-    }
-
-    fetchData()
-  }, [restaurantId]) // Only re-run if restaurantId changes
+  }, [initMenu])
 
   // Sort categories by order field properly
   const sortedCategories = useMemo(() => {
@@ -1018,57 +1022,50 @@ function AuthorizedMenuContent({ restaurantId, tableId, sessionId, activeSession
         {activeTab === 'menu' && (
           <>
             <header className="flex-none z-20 bg-zinc-950/90 backdrop-blur-xl border-b border-amber-500/10">
-              <div className="max-w-2xl mx-auto px-4 py-4">
-                {/* Restaurant Name - Luxury Header */}
+              <div className="max-w-2xl mx-auto px-4 py-3">
+                {/* Restaurant Name - Compact Header */}
                 {restaurantName && (
-                  <div className="text-center mb-4 pb-4 border-b border-white/5">
-                    <p className="text-amber-500/50 text-[10px] tracking-[0.3em] uppercase mb-2">Menu</p>
-                    <h1 className="text-xl font-light text-white tracking-widest uppercase mb-1" style={{ fontFamily: 'Georgia, serif' }}>
+                  <div className="text-center mb-2 pb-2 border-b border-white/5">
+                    <h1 className="text-base font-light text-white tracking-widest uppercase" style={{ fontFamily: 'Georgia, serif' }}>
                       {restaurantName}
                     </h1>
-                    <div className="flex items-center justify-center gap-3 mt-3">
-                      <div className="h-px w-8 bg-gradient-to-r from-transparent to-amber-500/30"></div>
-                      <div className="w-1 h-1 rotate-45 bg-amber-500/30"></div>
-                      <div className="h-px w-8 bg-gradient-to-l from-transparent to-amber-500/30"></div>
-                    </div>
                   </div>
                 )}
 
-                {/* Menu Header & Search */}
-                <div className="flex items-center justify-between mb-4">
-                  <div className="flex items-center gap-3">
+                {/* Menu Header & Search - Compact */}
+                <div className="flex items-center justify-between mb-3">
+                  <div className="flex items-center gap-2">
                     <div className="relative">
-                      <div className="w-10 h-10 rounded-full border border-amber-500/30 flex items-center justify-center bg-zinc-900">
-                        <Utensils className="w-4 h-4 text-amber-400" strokeWidth={1.5} />
+                      <div className="w-8 h-8 rounded-full border border-amber-500/30 flex items-center justify-center bg-zinc-900">
+                        <Utensils className="w-3.5 h-3.5 text-amber-400" strokeWidth={1.5} />
                       </div>
-                      {activeSession && <div className="absolute -top-0.5 -right-0.5 w-2.5 h-2.5 rounded-full bg-amber-500 border-2 border-zinc-950" />}
+                      {activeSession && <div className="absolute -top-0.5 -right-0.5 w-2 h-2 rounded-full bg-amber-500 border-2 border-zinc-950" />}
                     </div>
                     <div>
                       <h2 className="text-sm font-medium text-white tracking-wide">Tavolo {tableName}</h2>
-                      <p className="text-[10px] text-zinc-400 uppercase tracking-wider">Benvenuto</p>
                     </div>
                   </div>
 
                   <div className="flex items-center gap-2">
                     <div className="relative">
-                      <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-zinc-500" />
+                      <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-zinc-500" />
                       <input
                         type="text"
                         placeholder="Cerca..."
                         value={searchTerm}
                         onChange={(e) => setSearchTerm(e.target.value)}
-                        className="w-32 bg-zinc-900/50 border border-white/10 rounded-full pl-9 pr-3 py-2 text-xs text-white placeholder:text-zinc-600 focus:outline-none focus:border-amber-500/50 focus:w-40 transition-all duration-300"
+                        className="w-28 bg-zinc-900/50 border border-white/10 rounded-full pl-8 pr-3 py-1.5 text-xs text-white placeholder:text-zinc-600 focus:outline-none focus:border-amber-500/50 focus:w-36 transition-all duration-300"
                       />
                     </div>
                   </div>
                 </div>
 
-                {/* Categories */}
-                <ScrollArea className="w-full whitespace-nowrap pb-2">
-                  <div className="flex space-x-2">
+                {/* Categories - Horizontally Scrollable */}
+                <div className="overflow-x-auto scrollbar-hide -mx-4 px-4 pb-1">
+                  <div className="flex space-x-2 w-max">
                     <button
                       onClick={() => setActiveCategory('all')}
-                      className={`px-4 py-2 rounded-full text-xs font-medium transition-all duration-300 border ${activeCategory === 'all'
+                      className={`px-3 py-1.5 rounded-full text-xs font-medium transition-all duration-300 border flex-shrink-0 ${activeCategory === 'all'
                         ? 'bg-amber-500 text-zinc-950 border-amber-500 shadow-lg shadow-amber-500/20'
                         : 'bg-zinc-900/50 text-zinc-400 border-white/5 hover:border-amber-500/30 hover:text-white'
                         }`}
@@ -1079,7 +1076,7 @@ function AuthorizedMenuContent({ restaurantId, tableId, sessionId, activeSession
                       <button
                         key={cat.id}
                         onClick={() => setActiveCategory(cat.id)}
-                        className={`px-4 py-2 rounded-full text-xs font-medium transition-all duration-300 border ${activeCategory === cat.id
+                        className={`px-3 py-1.5 rounded-full text-xs font-medium transition-all duration-300 border flex-shrink-0 whitespace-nowrap ${activeCategory === cat.id
                           ? 'bg-amber-500 text-zinc-950 border-amber-500 shadow-lg shadow-amber-500/20'
                           : 'bg-zinc-900/50 text-zinc-400 border-white/5 hover:border-amber-500/30 hover:text-white'
                           }`}
@@ -1088,7 +1085,7 @@ function AuthorizedMenuContent({ restaurantId, tableId, sessionId, activeSession
                       </button>
                     ))}
                   </div>
-                </ScrollArea>
+                </div>
               </div>
             </header>
 

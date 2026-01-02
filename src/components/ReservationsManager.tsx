@@ -11,7 +11,7 @@ import { Badge } from '@/components/ui/badge'
 import { Separator } from '@/components/ui/separator'
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover'
 import { toast } from 'sonner'
-import { Calendar, Clock, Users, PencilSimple, Trash, Phone, User as UserIcon, CalendarBlank, ArrowsLeftRight, QrCode, DownloadSimple, Table as TableIcon } from '@phosphor-icons/react'
+import { Calendar, Clock, Users, PencilSimple, Trash, Phone, User as UserIcon, CalendarBlank, ArrowsLeftRight, QrCode, DownloadSimple, Table as TableIcon, Copy, MagnifyingGlass, X, CheckCircle, XCircle } from '@phosphor-icons/react'
 import { Checkbox } from '@/components/ui/checkbox'
 import type { User, Booking, Table, Room } from '../services/types'
 import TimelineReservations from './TimelineReservations'
@@ -78,6 +78,9 @@ export default function ReservationsManager({ user, restaurantId, tables, rooms,
   const [historyFilter, setHistoryFilter] = useState<string>('all')
   const [customHistoryStartDate, setCustomHistoryStartDate] = useState('')
   const [customHistoryEndDate, setCustomHistoryEndDate] = useState('')
+  const [historySearchName, setHistorySearchName] = useState('')
+  const [historySearchPhone, setHistorySearchPhone] = useState('')
+  const [historyStatusFilter, setHistoryStatusFilter] = useState<'all' | 'COMPLETED' | 'CANCELLED'>('all')
 
   // Form states for editing
   const [editForm, setEditForm] = useState({
@@ -279,6 +282,7 @@ export default function ReservationsManager({ user, restaurantId, tables, rooms,
     let filtered = historyBookings
     const today = new Date()
 
+    // Date filter
     if (historyFilter !== 'all') {
       switch (historyFilter) {
         case 'today':
@@ -328,11 +332,52 @@ export default function ReservationsManager({ user, restaurantId, tables, rooms,
       }
     }
 
+    // Name search filter
+    if (historySearchName.trim()) {
+      const searchLower = historySearchName.toLowerCase().trim()
+      filtered = filtered.filter(res => res.name.toLowerCase().includes(searchLower))
+    }
+
+    // Phone search filter
+    if (historySearchPhone.trim()) {
+      const searchPhone = historySearchPhone.replace(/\s/g, '')
+      filtered = filtered.filter(res => res.phone?.replace(/\s/g, '').includes(searchPhone))
+    }
+
+    // Status filter
+    if (historyStatusFilter !== 'all') {
+      filtered = filtered.filter(res => res.status === historyStatusFilter)
+    }
+
     return filtered
+  }
+
+  // Helper functions for history
+  const clearHistoryFilters = () => {
+    setHistoryFilter('all')
+    setHistorySearchName('')
+    setHistorySearchPhone('')
+    setHistoryStatusFilter('all')
+    setCustomHistoryStartDate('')
+    setCustomHistoryEndDate('')
+  }
+
+  const copyPhoneToClipboard = (phone: string) => {
+    navigator.clipboard.writeText(phone)
+    toast.success('Numero copiato negli appunti')
   }
 
   const historyDateFilters = getHistoryDateFilters()
   const filteredHistoryBookings = getFilteredHistoryBookings()
+
+  // Statistics for history
+  const historyStats = (() => {
+    const filtered = filteredHistoryBookings
+    const totalGuests = filtered.reduce((sum, b) => sum + b.guests, 0)
+    const completed = filtered.filter(b => b.status === 'COMPLETED').length
+    const cancelled = filtered.filter(b => b.status === 'CANCELLED').length
+    return { total: filtered.length, totalGuests, completed, cancelled }
+  })()
 
   // Handle room checkbox toggle for export
   const handleExportRoomToggle = (roomId: string) => {
@@ -842,25 +887,75 @@ export default function ReservationsManager({ user, restaurantId, tables, rooms,
         </DialogContent>
       </Dialog>
 
-      {/* Reservation History Dialog */}
+      {/* Reservation History Dialog - Premium Redesign */}
       <Dialog open={showHistoryDialog} onOpenChange={setShowHistoryDialog}>
-        <DialogContent className="max-w-4xl h-[80vh] flex flex-col bg-black/90 border-amber-500/20 text-zinc-100 backdrop-blur-xl shadow-[0_0_50px_rgba(0,0,0,0.5)]">
-          <DialogHeader>
-            <DialogTitle>Storico Prenotazioni</DialogTitle>
-            <DialogDescription>
-              Tutte le prenotazioni completate o cancellate
-            </DialogDescription>
-          </DialogHeader>
+        <DialogContent className="max-w-5xl h-[85vh] flex flex-col bg-zinc-950/98 border border-amber-500/20 text-zinc-100 backdrop-blur-xl shadow-[0_0_80px_rgba(0,0,0,0.8)]">
+          {/* Header with gradient */}
+          <div className="flex items-center justify-between pb-4 border-b border-white/10">
+            <div className="flex items-center gap-4">
+              <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-amber-500/20 to-amber-600/5 flex items-center justify-center border border-amber-500/30">
+                <CalendarBlank size={24} weight="duotone" className="text-amber-400" />
+              </div>
+              <div>
+                <DialogTitle className="text-xl font-semibold text-white">Storico Prenotazioni</DialogTitle>
+                <DialogDescription className="text-zinc-500 text-sm">
+                  Archivio completo delle prenotazioni passate
+                </DialogDescription>
+              </div>
+            </div>
+            {/* Stats badges */}
+            <div className="hidden md:flex items-center gap-3">
+              <div className="px-3 py-1.5 bg-zinc-900/80 rounded-lg border border-white/5 text-center">
+                <p className="text-xs text-zinc-500 uppercase tracking-wider">Totale</p>
+                <p className="text-lg font-bold text-white">{historyStats.total}</p>
+              </div>
+              <div className="px-3 py-1.5 bg-zinc-900/80 rounded-lg border border-white/5 text-center">
+                <p className="text-xs text-zinc-500 uppercase tracking-wider">Ospiti</p>
+                <p className="text-lg font-bold text-amber-400">{historyStats.totalGuests}</p>
+              </div>
+              <div className="px-3 py-1.5 bg-emerald-950/50 rounded-lg border border-emerald-500/20 text-center">
+                <p className="text-xs text-emerald-400/70 uppercase tracking-wider">Completate</p>
+                <p className="text-lg font-bold text-emerald-400">{historyStats.completed}</p>
+              </div>
+              <div className="px-3 py-1.5 bg-rose-950/50 rounded-lg border border-rose-500/20 text-center">
+                <p className="text-xs text-rose-400/70 uppercase tracking-wider">Cancellate</p>
+                <p className="text-lg font-bold text-rose-400">{historyStats.cancelled}</p>
+              </div>
+            </div>
+          </div>
 
-          <div className="flex-1 overflow-hidden flex flex-col gap-4">
-            {/* History Filter */}
-            <div className="flex items-center gap-4 flex-wrap">
+          {/* Filters Section */}
+          <div className="py-4 space-y-4 border-b border-white/5">
+            {/* Search inputs row */}
+            <div className="flex flex-wrap gap-3">
+              {/* Name Search */}
+              <div className="relative flex-1 min-w-[180px]">
+                <UserIcon size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-zinc-500" />
+                <Input
+                  placeholder="Cerca per nome..."
+                  value={historySearchName}
+                  onChange={(e) => setHistorySearchName(e.target.value)}
+                  className="pl-9 bg-zinc-900/50 border-zinc-800 focus:border-amber-500/50 text-sm"
+                />
+              </div>
+              {/* Phone Search */}
+              <div className="relative flex-1 min-w-[180px]">
+                <Phone size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-zinc-500" />
+                <Input
+                  placeholder="Cerca per telefono..."
+                  value={historySearchPhone}
+                  onChange={(e) => setHistorySearchPhone(e.target.value)}
+                  className="pl-9 bg-zinc-900/50 border-zinc-800 focus:border-amber-500/50 text-sm"
+                />
+              </div>
+              {/* Date filter dropdown */}
               <Select value={historyFilter} onValueChange={setHistoryFilter}>
-                <SelectTrigger className="w-48">
-                  <SelectValue placeholder="Filtra storico" />
+                <SelectTrigger className="w-48 bg-zinc-900/50 border-zinc-800">
+                  <CalendarBlank size={16} className="mr-2 text-zinc-500" />
+                  <SelectValue placeholder="Periodo" />
                 </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all">Tutte le prenotazioni</SelectItem>
+                <SelectContent className="bg-zinc-950 border-zinc-800">
+                  <SelectItem value="all">Tutte le date</SelectItem>
                   {historyDateFilters.map(filter => (
                     <SelectItem key={filter.value} value={filter.value}>
                       {filter.label}
@@ -868,85 +963,195 @@ export default function ReservationsManager({ user, restaurantId, tables, rooms,
                   ))}
                 </SelectContent>
               </Select>
-
-              {historyFilter === 'custom' && (
-                <Popover>
-                  <PopoverTrigger asChild>
-                    <Button variant="outline" className="gap-2">
-                      <CalendarBlank size={16} />
-                      Periodo Personalizzato
-                    </Button>
-                  </PopoverTrigger>
-                  <PopoverContent className="w-80" align="end">
-                    <div className="space-y-4 p-2">
-                      <div className="space-y-2">
-                        <Label htmlFor="custom-history-start">Data Inizio</Label>
-                        <Input
-                          id="custom-history-start"
-                          type="date"
-                          value={customHistoryStartDate}
-                          onChange={(e) => setCustomHistoryStartDate(e.target.value)}
-                        />
-                      </div>
-                      <div className="space-y-2">
-                        <Label htmlFor="custom-history-end">Data Fine</Label>
-                        <Input
-                          id="custom-history-end"
-                          type="date"
-                          value={customHistoryEndDate}
-                          onChange={(e) => setCustomHistoryEndDate(e.target.value)}
-                        />
-                      </div>
-                    </div>
-                  </PopoverContent>
-                </Popover>
-              )}
             </div>
 
-            <div className="flex-1 overflow-y-auto pr-2">
-              {filteredHistoryBookings.length === 0 ? (
-                <div className="text-center py-10 text-muted-foreground">
-                  <p>{historyFilter === 'all' ? 'Nessuna prenotazione nello storico' : 'Nessuna prenotazione trovata per il periodo selezionato'}</p>
+            {/* Custom date range (when selected) */}
+            {historyFilter === 'custom' && (
+              <div className="flex gap-3 items-center bg-zinc-900/30 p-3 rounded-lg border border-zinc-800">
+                <div className="flex items-center gap-2">
+                  <Label className="text-xs text-zinc-500">Da:</Label>
+                  <Input
+                    type="date"
+                    value={customHistoryStartDate}
+                    onChange={(e) => setCustomHistoryStartDate(e.target.value)}
+                    className="w-40 bg-zinc-900 border-zinc-700 text-sm"
+                  />
                 </div>
-              ) : (
-                <div className="space-y-3">
-                  {filteredHistoryBookings
-                    .sort((a, b) => new Date(b.date_time).getTime() - new Date(a.date_time).getTime())
-                    .map(booking => (
-                      <Card key={booking.id} className="border-l-4 border-l-muted">
-                        <CardContent className="p-4">
-                          <div className="grid gap-2 md:grid-cols-2 lg:grid-cols-4">
-                            <div>
-                              <p className="font-semibold">{booking.name}</p>
-                              <p className="text-sm text-muted-foreground">{booking.phone}</p>
+                <div className="flex items-center gap-2">
+                  <Label className="text-xs text-zinc-500">A:</Label>
+                  <Input
+                    type="date"
+                    value={customHistoryEndDate}
+                    onChange={(e) => setCustomHistoryEndDate(e.target.value)}
+                    className="w-40 bg-zinc-900 border-zinc-700 text-sm"
+                  />
+                </div>
+              </div>
+            )}
+
+            {/* Status filter pills + Clear button */}
+            <div className="flex items-center justify-between flex-wrap gap-3">
+              <div className="flex items-center gap-2">
+                <span className="text-xs text-zinc-500 uppercase tracking-wider mr-2">Status:</span>
+                <button
+                  onClick={() => setHistoryStatusFilter('all')}
+                  className={`px-3 py-1.5 rounded-full text-xs font-medium transition-all ${historyStatusFilter === 'all'
+                      ? 'bg-amber-500 text-black'
+                      : 'bg-zinc-800 text-zinc-400 hover:bg-zinc-700'
+                    }`}
+                >
+                  Tutte
+                </button>
+                <button
+                  onClick={() => setHistoryStatusFilter('COMPLETED')}
+                  className={`px-3 py-1.5 rounded-full text-xs font-medium transition-all flex items-center gap-1.5 ${historyStatusFilter === 'COMPLETED'
+                      ? 'bg-emerald-500 text-black'
+                      : 'bg-zinc-800 text-zinc-400 hover:bg-zinc-700'
+                    }`}
+                >
+                  <CheckCircle size={14} weight="fill" />
+                  Completate
+                </button>
+                <button
+                  onClick={() => setHistoryStatusFilter('CANCELLED')}
+                  className={`px-3 py-1.5 rounded-full text-xs font-medium transition-all flex items-center gap-1.5 ${historyStatusFilter === 'CANCELLED'
+                      ? 'bg-rose-500 text-black'
+                      : 'bg-zinc-800 text-zinc-400 hover:bg-zinc-700'
+                    }`}
+                >
+                  <XCircle size={14} weight="fill" />
+                  Cancellate
+                </button>
+              </div>
+
+              {/* Clear filters button */}
+              {(historySearchName || historySearchPhone || historyFilter !== 'all' || historyStatusFilter !== 'all') && (
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={clearHistoryFilters}
+                  className="text-zinc-500 hover:text-white gap-1.5"
+                >
+                  <X size={14} />
+                  Pulisci filtri
+                </Button>
+              )}
+            </div>
+          </div>
+
+          {/* Results list */}
+          <div className="flex-1 overflow-y-auto scrollbar-thin scrollbar-thumb-zinc-700 scrollbar-track-transparent pr-1 mt-2">
+            {filteredHistoryBookings.length === 0 ? (
+              <div className="flex flex-col items-center justify-center py-16 text-zinc-500">
+                <CalendarBlank size={48} weight="thin" className="mb-4 opacity-30" />
+                <p className="text-lg font-light">Nessuna prenotazione trovata</p>
+                <p className="text-sm text-zinc-600 mt-1">
+                  {historySearchName || historySearchPhone || historyFilter !== 'all' || historyStatusFilter !== 'all'
+                    ? 'Prova a modificare i filtri di ricerca'
+                    : 'Lo storico delle prenotazioni è vuoto'}
+                </p>
+              </div>
+            ) : (
+              <div className="space-y-2">
+                {filteredHistoryBookings
+                  .sort((a, b) => new Date(b.date_time).getTime() - new Date(a.date_time).getTime())
+                  .map(booking => (
+                    <div
+                      key={booking.id}
+                      className={`relative p-4 rounded-xl border transition-all hover:scale-[1.005] ${booking.status === 'COMPLETED'
+                          ? 'bg-gradient-to-r from-emerald-500/5 via-transparent to-transparent border-emerald-500/20 hover:border-emerald-500/40'
+                          : 'bg-gradient-to-r from-rose-500/5 via-transparent to-transparent border-rose-500/20 hover:border-rose-500/40'
+                        }`}
+                    >
+                      <div className="flex items-start justify-between gap-4">
+                        {/* Main info grid */}
+                        <div className="flex-1 grid gap-4 md:grid-cols-4">
+                          {/* Customer info */}
+                          <div className="space-y-1">
+                            <p className="font-semibold text-white text-base">{booking.name}</p>
+                            {booking.phone && (
+                              <button
+                                onClick={() => copyPhoneToClipboard(booking.phone!)}
+                                className="flex items-center gap-1.5 text-sm text-zinc-400 hover:text-amber-400 transition-colors group"
+                              >
+                                <Phone size={14} />
+                                <span>{booking.phone}</span>
+                                <Copy size={12} className="opacity-0 group-hover:opacity-100 transition-opacity" />
+                              </button>
+                            )}
+                          </div>
+
+                          {/* Date & Time */}
+                          <div className="space-y-1">
+                            <div className="flex items-center gap-1.5 text-sm text-zinc-300">
+                              <Calendar size={14} className="text-amber-500/70" />
+                              <span>{formatDate(booking.date_time.split('T')[0])}</span>
                             </div>
-                            <div>
-                              <p className="text-sm">{formatDate(booking.date_time.split('T')[0])}</p>
-                              <p className="text-sm text-muted-foreground">{booking.date_time.split('T')[1].substring(0, 5)}</p>
-                            </div>
-                            <div>
-                              <p className="text-sm">{getTableName(booking.table_id)}</p>
-                              <p className="text-sm text-muted-foreground">{booking.guests} ospiti</p>
-                            </div>
-                            <div className="flex items-center">
-                              <Badge variant={booking.status === 'COMPLETED' ? 'default' : 'destructive'} className={booking.status === 'COMPLETED' ? 'bg-green-600' : ''}>
-                                {booking.status === 'COMPLETED' ? 'Completata' : 'Cancellata'}
-                              </Badge>
+                            <div className="flex items-center gap-1.5 text-sm text-zinc-500">
+                              <Clock size={14} />
+                              <span>{booking.date_time.split('T')[1].substring(0, 5)}</span>
                             </div>
                           </div>
-                          {booking.notes && (
-                            <div className="mt-3 text-xs bg-white/5 p-2 rounded-lg border border-white/5">
-                              <span className="text-amber-500/70 font-semibold uppercase text-[9px] tracking-wider block mb-1">Note:</span>
-                              <p className="text-zinc-400 italic">"{booking.notes}"</p>
+
+                          {/* Table & Guests */}
+                          <div className="space-y-1">
+                            <div className="flex items-center gap-1.5 text-sm text-zinc-300">
+                              <TableIcon size={14} className="text-amber-500/70" />
+                              <span>{getTableName(booking.table_id)}</span>
                             </div>
-                          )}
-                        </CardContent>
-                      </Card>
-                    ))
-                  }
-                </div>
+                            <div className="flex items-center gap-1.5 text-sm text-zinc-500">
+                              <Users size={14} />
+                              <span>{booking.guests} ospiti</span>
+                            </div>
+                          </div>
+
+                          {/* Status badge */}
+                          <div className="flex items-start justify-end">
+                            <Badge
+                              className={`${booking.status === 'COMPLETED'
+                                  ? 'bg-emerald-500/20 text-emerald-400 border-emerald-500/30'
+                                  : 'bg-rose-500/20 text-rose-400 border-rose-500/30'
+                                } border font-medium`}
+                            >
+                              {booking.status === 'COMPLETED' ? (
+                                <><CheckCircle size={12} weight="fill" className="mr-1" /> Completata</>
+                              ) : (
+                                <><XCircle size={12} weight="fill" className="mr-1" /> Cancellata</>
+                              )}
+                            </Badge>
+                          </div>
+                        </div>
+                      </div>
+
+                      {/* Notes section (if present) */}
+                      {booking.notes && (
+                        <div className="mt-3 pt-3 border-t border-white/5">
+                          <p className="text-xs text-zinc-500 mb-1">Note:</p>
+                          <p className="text-sm text-zinc-400 italic">"{booking.notes}"</p>
+                        </div>
+                      )}
+                    </div>
+                  ))}
+              </div>
+            )}
+          </div>
+
+          {/* Footer with total */}
+          <div className="pt-3 border-t border-white/10 flex items-center justify-between">
+            <p className="text-xs text-zinc-500">
+              Visualizzate <span className="text-amber-400 font-medium">{filteredHistoryBookings.length}</span> prenotazioni
+              {historyStats.total !== filteredHistoryBookings.length && (
+                <span> su {historyStats.total} totali</span>
               )}
-            </div>
+            </p>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => setShowHistoryDialog(false)}
+              className="border-zinc-700 hover:bg-zinc-800"
+            >
+              Chiudi
+            </Button>
           </div>
         </DialogContent>
       </Dialog>

@@ -350,9 +350,11 @@ export default function AnalyticsCharts({ orders, completedOrders, dishes, categ
     doc.save(`Analisi_Vendite_${new Date().toISOString().split('T')[0]}.pdf`)
   }
 
-  // Inventory (Magazzino) calculations
+  // Inventory (Magazzino) calculations - NOW USES MAIN DATE FILTER
   const inventoryData = useMemo(() => {
-    const { start: invStart, end: invEnd } = getInventoryDateRange(inventoryPeriod)
+    // Use the same date range as the main analytics (from dateFilter)
+    const invStart = start
+    const invEnd = end
     const periodDays = Math.max(1, Math.ceil((invEnd - invStart) / (24 * 60 * 60 * 1000)))
 
     // Filter orders for inventory period (excluding cancelled)
@@ -446,7 +448,7 @@ export default function AnalyticsCharts({ orders, completedOrders, dishes, categ
       totalPortions: dishInventory.reduce((sum, d) => sum + d.periodQuantity, 0),
       trendAlerts
     }
-  }, [allOrders, dishes, categories, inventoryPeriod, inventoryCustomStart, inventoryCustomEnd, inventorySortBy, inventoryCategories])
+  }, [allOrders, dishes, categories, start, end, inventorySortBy, inventoryCategories])
 
   return (
     <>
@@ -844,23 +846,17 @@ export default function AnalyticsCharts({ orders, completedOrders, dishes, categ
                   </PopoverContent>
                 </Popover>
 
-                {/* Period Selector */}
-                <Select value={inventoryPeriod} onValueChange={(v: InventoryPeriod) => setInventoryPeriod(v)}>
-                  <SelectTrigger className="w-[140px] h-9 border-zinc-700 bg-zinc-800/50 text-zinc-300">
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent className="bg-zinc-900 border-zinc-800 text-zinc-300">
-                    {inventoryPeriods.map(period => (
-                      <SelectItem key={period.value} value={period.value} className="focus:bg-zinc-800 focus:text-white">{period.label}</SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
+                {/* Note: Inventory now uses the main date filter at the top of the page */}
 
-                {/* Sort Selector */}
+                {/* Sort Selector - Fixed to show correct label */}
                 <Select value={inventorySortBy} onValueChange={(v: any) => setInventorySortBy(v)}>
                   <SelectTrigger className="w-[160px] h-9 border-zinc-700 bg-zinc-800/50 text-zinc-300">
                     <span className="opacity-50 mr-2 text-xs uppercase">Ordina:</span>
-                    <SelectValue />
+                    <span>
+                      {inventorySortBy === 'quantity' ? 'Piatti V.' :
+                        inventorySortBy === 'revenue' ? 'Incassi' :
+                          inventorySortBy === 'category' ? 'Categoria' : 'Prezzo'}
+                    </span>
                   </SelectTrigger>
                   <SelectContent className="bg-zinc-900 border-zinc-800 text-zinc-300">
                     <SelectItem value="quantity" className="focus:bg-zinc-800 focus:text-white">Piatti Venduti</SelectItem>
@@ -871,25 +867,6 @@ export default function AnalyticsCharts({ orders, completedOrders, dishes, categ
                 </Select>
               </div>
             </div>
-
-            {/* Custom Date Inputs */}
-            {inventoryPeriod === 'custom' && (
-              <div className="flex justify-end mt-4 gap-2">
-                <Input
-                  type="date"
-                  value={inventoryCustomStart}
-                  onChange={(e) => setInventoryCustomStart(e.target.value)}
-                  className="w-auto h-8 bg-zinc-900 border-zinc-700 text-xs"
-                />
-                <span className="text-zinc-500 self-center">-</span>
-                <Input
-                  type="date"
-                  value={inventoryCustomEnd}
-                  onChange={(e) => setInventoryCustomEnd(e.target.value)}
-                  className="w-auto h-8 bg-zinc-900 border-zinc-700 text-xs"
-                />
-              </div>
-            )}
           </CardHeader>
 
           <CardContent className="p-0">
