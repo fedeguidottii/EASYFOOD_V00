@@ -31,6 +31,8 @@ const WaiterDashboard = ({ user, onLogout }: WaiterDashboardProps) => {
     const [selectedTableForPayment, setSelectedTableForPayment] = useState<Table | null>(null)
     const [isPaymentDialogOpen, setIsPaymentDialogOpen] = useState(false)
     const [isReadyDrawerOpen, setIsReadyDrawerOpen] = useState(false)
+    const [selectedTable, setSelectedTable] = useState<Table | null>(null)
+    const [isTableModalOpen, setIsTableModalOpen] = useState(false)
 
     // Timer effect for timeline
     useEffect(() => {
@@ -235,7 +237,8 @@ const WaiterDashboard = ({ user, onLogout }: WaiterDashboardProps) => {
     }
 
     const handleTableClick = (table: Table) => {
-        window.location.href = `/waiter/table/${table.id}`
+        setSelectedTable(table)
+        setIsTableModalOpen(true)
     }
 
     const openPaymentDialog = (e: React.MouseEvent, table: Table) => {
@@ -571,6 +574,151 @@ const WaiterDashboard = ({ user, onLogout }: WaiterDashboardProps) => {
                             LIBERA (Senza Incasso)
                         </Button>
                     </DialogFooter>
+                </DialogContent>
+            </Dialog>
+
+            {/* Table Management Modal */}
+            <Dialog open={isTableModalOpen} onOpenChange={setIsTableModalOpen}>
+                <DialogContent className="sm:max-w-lg bg-zinc-950 border-zinc-800 text-zinc-100 p-0 overflow-hidden max-h-[85vh]">
+                    {selectedTable && (() => {
+                        const session = sessions.find(s => s.table_id === selectedTable.id)
+                        const tableOrders = session
+                            ? activeOrders.filter(o => o.table_session_id === session.id && o.status !== 'CANCELLED')
+                            : []
+                        const tableTotal = session ? getTableTotal(session.id) : 0
+                        const statusInfo = getDetailedTableStatus(selectedTable.id)
+
+                        return (
+                            <>
+                                {/* Header */}
+                                <div className="p-6 bg-gradient-to-b from-zinc-900 to-zinc-950 border-b border-white/5">
+                                    <DialogHeader>
+                                        <DialogTitle className="text-2xl font-bold text-white flex items-center gap-3">
+                                            <span className="bg-amber-500/10 border border-amber-500/20 px-4 py-2 rounded-xl text-2xl text-amber-500 font-serif">{selectedTable.number}</span>
+                                            <div className="flex flex-col">
+                                                <span className="bg-gradient-to-r from-white to-zinc-400 bg-clip-text text-transparent">Gestione Tavolo</span>
+                                                <span className={`text-sm font-medium ${statusInfo.step === 'free' ? 'text-zinc-500' :
+                                                        statusInfo.step === 'seated' ? 'text-blue-400' :
+                                                            statusInfo.step === 'waiting' ? 'text-amber-400' :
+                                                                'text-emerald-400'
+                                                    }`}>
+                                                    {statusInfo.label} {statusInfo.time && `• ${statusInfo.time}`}
+                                                </span>
+                                            </div>
+                                        </DialogTitle>
+                                    </DialogHeader>
+                                </div>
+
+                                {/* Content */}
+                                <ScrollArea className="flex-1 max-h-[50vh]">
+                                    <div className="p-4">
+                                        {!session ? (
+                                            <div className="text-center py-12">
+                                                <div className="w-16 h-16 mx-auto mb-4 rounded-full bg-zinc-900 flex items-center justify-center">
+                                                    <User size={32} className="text-zinc-700" />
+                                                </div>
+                                                <p className="text-zinc-500 mb-2">Tavolo libero</p>
+                                                <p className="text-xs text-zinc-600">Nessun cliente seduto</p>
+                                            </div>
+                                        ) : tableOrders.length === 0 ? (
+                                            <div className="text-center py-12">
+                                                <div className="w-16 h-16 mx-auto mb-4 rounded-full bg-blue-500/10 flex items-center justify-center">
+                                                    <Clock size={32} className="text-blue-500" />
+                                                </div>
+                                                <p className="text-zinc-400 mb-2">Clienti appena seduti</p>
+                                                <p className="text-xs text-zinc-500">In attesa di ordinare</p>
+                                            </div>
+                                        ) : (
+                                            <div className="space-y-3">
+                                                <h4 className="text-xs font-bold text-zinc-500 uppercase tracking-wider mb-3">Ordini attivi</h4>
+                                                {tableOrders.map(order => (
+                                                    <div key={order.id} className="bg-zinc-900/80 border border-white/5 rounded-xl p-4">
+                                                        <div className="flex justify-between items-center mb-3">
+                                                            <Badge variant="outline" className={`text-[10px] ${order.status === 'ready' ? 'text-amber-400 border-amber-500/30' :
+                                                                    order.status === 'served' ? 'text-emerald-400 border-emerald-500/30' :
+                                                                        'text-blue-400 border-blue-500/30'
+                                                                }`}>
+                                                                {order.status === 'ready' ? 'Pronto' :
+                                                                    order.status === 'served' ? 'Servito' :
+                                                                        order.status === 'preparing' ? 'In Preparazione' : 'In Attesa'}
+                                                            </Badge>
+                                                            <span className="text-xs text-zinc-500">
+                                                                {new Date(order.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                                                            </span>
+                                                        </div>
+                                                        <div className="space-y-2">
+                                                            {order.items?.map(item => (
+                                                                <div key={item.id} className="flex justify-between items-center text-sm">
+                                                                    <div className="flex items-center gap-2">
+                                                                        <span className="text-amber-500 font-bold">{item.quantity}x</span>
+                                                                        <span className={item.status === 'served' ? 'text-zinc-500 line-through' : 'text-white'}>
+                                                                            {item.dish?.name || 'Piatto'}
+                                                                        </span>
+                                                                        {item.status === 'ready' && (
+                                                                            <Badge className="bg-amber-500 text-black text-[8px] px-1">PRONTO</Badge>
+                                                                        )}
+                                                                    </div>
+                                                                    <span className="text-zinc-400">€{((item.dish?.price || 0) * item.quantity).toFixed(2)}</span>
+                                                                </div>
+                                                            ))}
+                                                        </div>
+                                                        <div className="mt-3 pt-3 border-t border-white/5 flex justify-between">
+                                                            <span className="text-xs text-zinc-500">Subtotale</span>
+                                                            <span className="text-sm font-bold text-white">€{(order.total_amount || 0).toFixed(2)}</span>
+                                                        </div>
+                                                    </div>
+                                                ))}
+                                            </div>
+                                        )}
+                                    </div>
+                                </ScrollArea>
+
+                                {/* Footer */}
+                                {session && (
+                                    <div className="p-4 border-t border-white/5 bg-zinc-900/50 space-y-3">
+                                        <div className="flex justify-between items-center py-3 px-4 bg-black/30 rounded-xl">
+                                            <span className="text-sm font-bold text-zinc-400">Totale Tavolo</span>
+                                            <span className="text-2xl font-black text-amber-500">€{tableTotal.toFixed(2)}</span>
+                                        </div>
+
+                                        {restaurant?.allow_waiter_payments && (
+                                            <Button
+                                                className="w-full h-12 text-base font-bold bg-amber-500 hover:bg-amber-400 text-black shadow-lg shadow-amber-500/20 rounded-xl"
+                                                onClick={() => {
+                                                    setIsTableModalOpen(false)
+                                                    setSelectedTableForPayment(selectedTable)
+                                                    setIsPaymentDialogOpen(true)
+                                                }}
+                                            >
+                                                <Receipt size={20} className="mr-2" />
+                                                Vai al Conto
+                                            </Button>
+                                        )}
+
+                                        <Button
+                                            variant="outline"
+                                            className="w-full h-10 text-sm border-white/10 text-zinc-400 hover:text-white"
+                                            onClick={() => setIsTableModalOpen(false)}
+                                        >
+                                            Chiudi
+                                        </Button>
+                                    </div>
+                                )}
+
+                                {!session && (
+                                    <div className="p-4 border-t border-white/5">
+                                        <Button
+                                            variant="outline"
+                                            className="w-full h-10 border-white/10 text-zinc-400"
+                                            onClick={() => setIsTableModalOpen(false)}
+                                        >
+                                            Chiudi
+                                        </Button>
+                                    </div>
+                                )}
+                            </>
+                        )
+                    })()}
                 </DialogContent>
             </Dialog>
         </div>
