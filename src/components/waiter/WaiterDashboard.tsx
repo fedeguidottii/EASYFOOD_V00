@@ -17,11 +17,13 @@ interface WaiterDashboardProps {
 
 const WaiterDashboard = ({ user, onLogout }: WaiterDashboardProps) => {
     const [tables, setTables] = useState<Table[]>([])
+    const [rooms, setRooms] = useState<any[]>([])
     const [sessions, setSessions] = useState<TableSession[]>([])
     const [activeOrders, setActiveOrders] = useState<Order[]>([])
     const [loading, setLoading] = useState(true)
     const [restaurantId, setRestaurantId] = useState<string | null>(null)
     const [restaurant, setRestaurant] = useState<Restaurant | null>(null)
+    const [activatingTable, setActivatingTable] = useState(false)
 
     // Sorting State
     const [sortBy, setSortBy] = useState<'alpha' | 'seats' | 'status'>('status')
@@ -83,6 +85,10 @@ const WaiterDashboard = ({ user, onLogout }: WaiterDashboardProps) => {
 
                 const tbs = await DatabaseService.getTables(rId)
                 setTables(tbs)
+
+                // Fetch rooms
+                const rms = await DatabaseService.getRooms(rId)
+                setRooms(rms)
 
                 const { data: sess } = await supabase
                     .from('table_sessions')
@@ -284,6 +290,32 @@ const WaiterDashboard = ({ user, onLogout }: WaiterDashboardProps) => {
         }
     }
 
+    // Activate a free table (create session)
+    const activateTable = async (table: Table) => {
+        if (!restaurantId) return
+        setActivatingTable(true)
+        try {
+            const pin = Math.floor(1000 + Math.random() * 9000).toString()
+            const newSession = await DatabaseService.createSession({
+                table_id: table.id,
+                restaurant_id: restaurantId,
+                status: 'OPEN',
+                session_pin: pin,
+                opened_at: new Date().toISOString(),
+                customer_count: table.seats || 2
+            })
+            setSessions(prev => [...prev, newSession])
+            toast.success(`Tavolo ${table.number} attivato! PIN: ${pin}`)
+            setIsTableModalOpen(false)
+            refreshData()
+        } catch (error) {
+            console.error('Error activating table:', error)
+            toast.error('Errore attivazione tavolo')
+        } finally {
+            setActivatingTable(false)
+        }
+    }
+
     if (loading) return (
         <div className="min-h-screen bg-zinc-950 flex flex-col items-center justify-center text-amber-500">
             <div className="w-12 h-12 border-4 border-amber-500/30 border-t-amber-500 rounded-full animate-spin mb-4" />
@@ -293,6 +325,99 @@ const WaiterDashboard = ({ user, onLogout }: WaiterDashboardProps) => {
 
     const sortedTables = sortTables(tables)
     const readyCount = readyItems.length
+
+    // Helper function to render a table card
+    const renderTableCard = (table: Table) => {
+        const statusInfo = getDetailedTableStatus(table.id)
+        const session = sessions.find(s => s.table_id === table.id)
+
+        return (
+            <Card
+                key={table.id}
+                className={`
+                    group cursor-pointer transition-all duration-500 relative overflow-hidden border
+                    ${statusInfo.color}
+                    ${statusInfo.step === 'free'
+                        ? 'hover:border-amber-500/30 hover:bg-zinc-900/60 hover:shadow-lg hover:shadow-amber-500/5'
+                        : 'hover:scale-[1.02] hover:shadow-2xl hover:shadow-black/50'}
+                `}
+                onClick={() => handleTableClick(table)}
+            >
+                <CardContent className="p-0 flex flex-col h-full min-h-[160px]">
+                    {/* Header */}
+                    <div className="p-4 flex items-start justify-between z-10 relative">
+                        <div className="flex flex-col">
+                            <div className="flex items-center gap-2">
+                                <span className="text-3xl font-bold text-white leading-none tracking-tight font-serif">
+                                    {table.number}
+                                </span>
+                                {statusInfo.step !== 'free' && (
+                                    <div className="h-2 w-2 rounded-full bg-current opacity-50 animate-pulse"></div>
+                                )}
+                            </div>
+                            <span className="text-xs text-zinc-500 font-medium mt-1 flex items-center gap-1">
+                                <User size={12} weight="fill" />
+                                {table.seats || 4} Posti
+                            </span>
+                        </div>
+
+                        {/* Status Badge */}
+                        <div className={`
+                            px-2.5 py-1 rounded-lg text-[10px] font-bold uppercase tracking-wider shadow-sm border backdrop-blur-md
+                            ${statusInfo.step === 'free' ? 'text-zinc-500 bg-zinc-900/80 border-white/5' :
+                                statusInfo.step === 'waiting' ? 'text-amber-400 bg-amber-500/10 border-amber-500/20' :
+                                    statusInfo.step === 'seated' ? 'text-blue-400 bg-blue-500/10 border-blue-500/20' :
+                                        'text-emerald-400 bg-emerald-500/10 border-emerald-500/20'
+                            }
+                        `}>
+                            {statusInfo.step === 'free' ? 'Libero' : (
+                                <div className="flex items-center gap-1">
+                                    <Clock size={12} weight="bold" />
+                                    {statusInfo.time}
+                                </div>
+                            )}
+                        </div>
+                    </div>
+
+                    {/* Content Logic for Timeline */}
+                    <div className="flex-1 px-4 pb-4 flex flex-col justify-end gap-3 z-10 relative">
+                        {session ? (
+                            <>
+                                {/* Status Steps Visualization */}
+                                <div className="flex items-center gap-1 mt-auto">
+                                    <div className={`h-1 flex-1 rounded-full transition-all duration-500 ${['seated', 'waiting', 'eating'].includes(statusInfo.step) ? 'bg-blue-500 shadow-[0_0_8px_rgba(59,130,246,0.5)]' : 'bg-zinc-800'}`}></div>
+                                    <div className={`h-1 flex-1 rounded-full transition-all duration-500 ${['waiting', 'eating'].includes(statusInfo.step) ? 'bg-amber-500 shadow-[0_0_8px_rgba(245,158,11,0.5)]' : 'bg-zinc-800'}`}></div>
+                                    <div className={`h-1 flex-1 rounded-full transition-all duration-500 ${statusInfo.step === 'eating' ? 'bg-emerald-500 shadow-[0_0_8px_rgba(16,185,129,0.5)]' : 'bg-zinc-800'}`}></div>
+                                </div>
+
+                                {/* Action Button - Only visible if occupied */}
+                                {restaurant?.allow_waiter_payments && (
+                                    <Button
+                                        size="sm"
+                                        variant="ghost"
+                                        className="w-full mt-2 h-9 text-xs font-bold border border-white/10 bg-black/20 hover:bg-amber-500 hover:text-black hover:border-amber-500 transition-all rounded-xl"
+                                        onClick={(e) => {
+                                            e.stopPropagation()
+                                            openPaymentDialog(e, table)
+                                        }}
+                                    >
+                                        <Receipt size={14} className="mr-2" />
+                                        Conto
+                                    </Button>
+                                )}
+                            </>
+                        ) : (
+                            <div className="flex items-end justify-end h-full opacity-0 group-hover:opacity-100 transition-opacity duration-300">
+                                <div className="bg-amber-500 text-black p-2 rounded-full shadow-lg shadow-amber-500/20 transform group-hover:scale-110 transition-transform">
+                                    <Plus size={20} weight="bold" />
+                                </div>
+                            </div>
+                        )}
+                    </div>
+                </CardContent>
+            </Card>
+        )
+    }
 
     return (
         <div className="min-h-screen bg-zinc-950 p-4 md:p-6 pb-24 text-zinc-100 font-sans selection:bg-amber-500/30">
@@ -377,96 +502,65 @@ const WaiterDashboard = ({ user, onLogout }: WaiterDashboardProps) => {
                 </div>
             </header>
 
-            {/* Grid */}
-            <div className="relative z-10 grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-4">
-                {sortedTables.map(table => {
-                    const statusInfo = getDetailedTableStatus(table.id)
-                    const session = sessions.find(s => s.table_id === table.id)
+            {/* Tables grouped by Room */}
+            <div className="relative z-10 space-y-8">
+                {(() => {
+                    // Group tables by room
+                    const tablesByRoom = new Map<string, Table[]>()
+                    const noRoomTables: Table[] = []
 
-                    return (
-                        <Card
-                            key={table.id}
-                            className={`
-                                group cursor-pointer transition-all duration-500 relative overflow-hidden border
-                                ${statusInfo.color}
-                                ${statusInfo.step === 'free'
-                                    ? 'hover:border-amber-500/30 hover:bg-zinc-900/60 hover:shadow-lg hover:shadow-amber-500/5'
-                                    : 'hover:scale-[1.02] hover:shadow-2xl hover:shadow-black/50'}
-                            `}
-                            onClick={() => handleTableClick(table)}
-                        >
-                            <CardContent className="p-0 flex flex-col h-full min-h-[160px]">
-                                {/* Header */}
-                                <div className="p-4 flex items-start justify-between z-10 relative">
-                                    <div className="flex flex-col">
-                                        <div className="flex items-center gap-2">
-                                            <span className="text-3xl font-bold text-white leading-none tracking-tight font-serif">
-                                                {table.number}
-                                            </span>
-                                            {statusInfo.step !== 'free' && (
-                                                <div className="h-2 w-2 rounded-full bg-current opacity-50 animate-pulse"></div>
-                                            )}
-                                        </div>
-                                        <span className="text-xs text-zinc-500 font-medium mt-1 flex items-center gap-1">
-                                            <User size={12} weight="fill" />
-                                            {table.seats || 4} Posti
-                                        </span>
+                    sortedTables.forEach(table => {
+                        if (table.room_id) {
+                            const existing = tablesByRoom.get(table.room_id) || []
+                            existing.push(table)
+                            tablesByRoom.set(table.room_id, existing)
+                        } else {
+                            noRoomTables.push(table)
+                        }
+                    })
+
+                    // Render each room section
+                    const roomSections: React.ReactNode[] = []
+
+                    // Render rooms in order
+                    rooms.forEach(room => {
+                        const roomTables = tablesByRoom.get(room.id) || []
+                        if (roomTables.length > 0) {
+                            roomSections.push(
+                                <div key={room.id} className="space-y-4">
+                                    <div className="flex items-center gap-3">
+                                        <h3 className="text-lg font-bold text-white">{room.name}</h3>
+                                        <div className="flex-1 h-px bg-white/10" />
+                                        <span className="text-xs text-zinc-500">{roomTables.length} tavoli</span>
                                     </div>
-
-                                    {/* Status Badge */}
-                                    <div className={`
-                                        px-2.5 py-1 rounded-lg text-[10px] font-bold uppercase tracking-wider shadow-sm border backdrop-blur-md
-                                        ${statusInfo.step === 'free' ? 'text-zinc-500 bg-zinc-900/80 border-white/5' :
-                                            statusInfo.step === 'waiting' ? 'text-amber-400 bg-amber-500/10 border-amber-500/20' :
-                                                statusInfo.step === 'seated' ? 'text-blue-400 bg-blue-500/10 border-blue-500/20' :
-                                                    'text-emerald-400 bg-emerald-500/10 border-emerald-500/20'
-                                        }
-                                    `}>
-                                        {statusInfo.step === 'free' ? 'Libero' : (
-                                            <div className="flex items-center gap-1">
-                                                <Clock size={12} weight="bold" />
-                                                {statusInfo.time}
-                                            </div>
-                                        )}
+                                    <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-4">
+                                        {roomTables.map(table => renderTableCard(table))}
                                     </div>
                                 </div>
+                            )
+                        }
+                    })
 
-                                {/* Content Logic for Timeline */}
-                                <div className="flex-1 px-4 pb-4 flex flex-col justify-end gap-3 z-10 relative">
-                                    {session ? (
-                                        <>
-                                            {/* Status Steps Visualization */}
-                                            <div className="flex items-center gap-1 mt-auto">
-                                                <div className={`h-1 flex-1 rounded-full transition-all duration-500 ${['seated', 'waiting', 'eating'].includes(statusInfo.step) ? 'bg-blue-500 shadow-[0_0_8px_rgba(59,130,246,0.5)]' : 'bg-zinc-800'}`}></div>
-                                                <div className={`h-1 flex-1 rounded-full transition-all duration-500 ${['waiting', 'eating'].includes(statusInfo.step) ? 'bg-amber-500 shadow-[0_0_8px_rgba(245,158,11,0.5)]' : 'bg-zinc-800'}`}></div>
-                                                <div className={`h-1 flex-1 rounded-full transition-all duration-500 ${statusInfo.step === 'eating' ? 'bg-emerald-500 shadow-[0_0_8px_rgba(16,185,129,0.5)]' : 'bg-zinc-800'}`}></div>
-                                            </div>
-
-                                            {/* Action Button - Only visible if occupied */}
-                                            {restaurant?.allow_waiter_payments && (
-                                                <Button
-                                                    size="sm"
-                                                    variant="ghost"
-                                                    className="w-full mt-2 h-9 text-xs font-bold border border-white/10 bg-black/20 hover:bg-amber-500 hover:text-black hover:border-amber-500 transition-all rounded-xl"
-                                                    onClick={(e) => openPaymentDialog(e, table)}
-                                                >
-                                                    <Receipt size={14} className="mr-2" />
-                                                    Conto
-                                                </Button>
-                                            )}
-                                        </>
-                                    ) : (
-                                        <div className="flex items-end justify-end h-full opacity-0 group-hover:opacity-100 transition-opacity duration-300">
-                                            <div className="bg-amber-500 text-black p-2 rounded-full shadow-lg shadow-amber-500/20 transform group-hover:scale-110 transition-transform">
-                                                <Plus size={20} weight="bold" />
-                                            </div>
-                                        </div>
-                                    )}
+                    // No-room tables
+                    if (noRoomTables.length > 0) {
+                        roomSections.push(
+                            <div key="no-room" className="space-y-4">
+                                {rooms.length > 0 && (
+                                    <div className="flex items-center gap-3">
+                                        <h3 className="text-lg font-bold text-white">Sala Principale</h3>
+                                        <div className="flex-1 h-px bg-white/10" />
+                                        <span className="text-xs text-zinc-500">{noRoomTables.length} tavoli</span>
+                                    </div>
+                                )}
+                                <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-4">
+                                    {noRoomTables.map(table => renderTableCard(table))}
                                 </div>
-                            </CardContent>
-                        </Card>
-                    )
-                })}
+                            </div>
+                        )
+                    }
+
+                    return roomSections
+                })()}
             </div>
 
             {/* Ready Items Drawer */}
@@ -598,9 +692,9 @@ const WaiterDashboard = ({ user, onLogout }: WaiterDashboardProps) => {
                                             <div className="flex flex-col">
                                                 <span className="bg-gradient-to-r from-white to-zinc-400 bg-clip-text text-transparent">Gestione Tavolo</span>
                                                 <span className={`text-sm font-medium ${statusInfo.step === 'free' ? 'text-zinc-500' :
-                                                        statusInfo.step === 'seated' ? 'text-blue-400' :
-                                                            statusInfo.step === 'waiting' ? 'text-amber-400' :
-                                                                'text-emerald-400'
+                                                    statusInfo.step === 'seated' ? 'text-blue-400' :
+                                                        statusInfo.step === 'waiting' ? 'text-amber-400' :
+                                                            'text-emerald-400'
                                                     }`}>
                                                     {statusInfo.label} {statusInfo.time && `• ${statusInfo.time}`}
                                                 </span>
@@ -635,8 +729,8 @@ const WaiterDashboard = ({ user, onLogout }: WaiterDashboardProps) => {
                                                     <div key={order.id} className="bg-zinc-900/80 border border-white/5 rounded-xl p-4">
                                                         <div className="flex justify-between items-center mb-3">
                                                             <Badge variant="outline" className={`text-[10px] ${order.status === 'ready' ? 'text-amber-400 border-amber-500/30' :
-                                                                    order.status === 'served' ? 'text-emerald-400 border-emerald-500/30' :
-                                                                        'text-blue-400 border-blue-500/30'
+                                                                order.status === 'served' ? 'text-emerald-400 border-emerald-500/30' :
+                                                                    'text-blue-400 border-blue-500/30'
                                                                 }`}>
                                                                 {order.status === 'ready' ? 'Pronto' :
                                                                     order.status === 'served' ? 'Servito' :
@@ -706,7 +800,24 @@ const WaiterDashboard = ({ user, onLogout }: WaiterDashboardProps) => {
                                 )}
 
                                 {!session && (
-                                    <div className="p-4 border-t border-white/5">
+                                    <div className="p-4 border-t border-white/5 space-y-3">
+                                        <Button
+                                            className="w-full h-12 text-base font-bold bg-amber-500 hover:bg-amber-400 text-black shadow-lg shadow-amber-500/20 rounded-xl"
+                                            onClick={() => activateTable(selectedTable)}
+                                            disabled={activatingTable}
+                                        >
+                                            {activatingTable ? (
+                                                <div className="flex items-center gap-2">
+                                                    <div className="w-5 h-5 border-2 border-black/30 border-t-black rounded-full animate-spin" />
+                                                    Attivazione...
+                                                </div>
+                                            ) : (
+                                                <>
+                                                    <Plus size={20} className="mr-2" weight="bold" />
+                                                    Attiva Tavolo
+                                                </>
+                                            )}
+                                        </Button>
                                         <Button
                                             variant="outline"
                                             className="w-full h-10 border-white/10 text-zinc-400"
