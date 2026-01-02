@@ -1,5 +1,5 @@
 import { motion } from 'framer-motion'
-import { useState } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Label } from '@/components/ui/label'
 import { Input } from '@/components/ui/input'
@@ -44,8 +44,7 @@ interface SettingsViewProps {
     setAllowWaiterPayments: (enabled: boolean) => void
     waiterPassword: string
     setWaiterPassword: (password: string) => void
-    saveWaiterCredentials: () => void
-    waiterCredentialsDirty: boolean
+    saveWaiterPassword: (password: string) => void
 
     ayceEnabled: boolean
     setAyceEnabled: (enabled: boolean) => void
@@ -103,12 +102,11 @@ export function SettingsView({
     setAllowWaiterPayments,
     waiterPassword,
     setWaiterPassword,
-    saveWaiterCredentials,
+    saveWaiterPassword,
     enableReservationRoomSelection,
     setEnableReservationRoomSelection,
     enablePublicReservations,
     setEnablePublicReservations,
-    waiterCredentialsDirty,
     ayceEnabled,
     setAyceEnabled,
     aycePrice,
@@ -407,20 +405,19 @@ export function SettingsView({
                                         </div>
                                         <div className="space-y-2">
                                             <Label className="text-amber-200">Password Accesso</Label>
-                                            <div className="flex gap-2">
-                                                <Input
-                                                    type="text"
-                                                    value={waiterPassword}
-                                                    onChange={(e) => setWaiterPassword(e.target.value)}
-                                                    className="bg-black/40 border-amber-500/20 text-white font-mono h-12 text-center tracking-widest"
-                                                    placeholder="Es. 1234"
-                                                />
-                                                {waiterCredentialsDirty && (
-                                                    <Button onClick={saveWaiterCredentials} className="h-12 bg-amber-600 hover:bg-amber-700 text-white font-bold">
-                                                        Aggiorna
-                                                    </Button>
-                                                )}
-                                            </div>
+                                            <Input
+                                                type="text"
+                                                value={waiterPassword}
+                                                onChange={(e) => setWaiterPassword(e.target.value)}
+                                                onBlur={(e) => {
+                                                    if (e.target.value.trim()) {
+                                                        saveWaiterPassword(e.target.value)
+                                                    }
+                                                }}
+                                                className="bg-black/40 border-amber-500/20 text-white font-mono h-12 text-center tracking-widest"
+                                                placeholder="Es. 1234"
+                                            />
+                                            <p className="text-xs text-amber-300/50">La password viene salvata automaticamente</p>
                                         </div>
                                     </div>
                                     <Separator className="bg-amber-500/10" />

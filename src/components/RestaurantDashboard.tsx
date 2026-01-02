@@ -638,16 +638,42 @@ const RestaurantDashboard = ({ user, onLogout }: RestaurantDashboardProps) => {
   // This block was misplaced and causing a syntax error. It's removed as per instruction.
   // if (currentRestaurant && currentRestaurant.isActive === false) {sword,
 
-  const saveWaiterCredentials = async () => {
+  // Auto-save handlers for waiter settings - save immediately on change
+  const updateWaiterModeEnabled = async (enabled: boolean) => {
     if (!restaurantId) return
+    setWaiterModeEnabled(enabled)
     await DatabaseService.updateRestaurant({
       id: restaurantId,
-      waiter_password: waiterPassword,
-      waiter_mode_enabled: waiterModeEnabled,
-      allow_waiter_payments: allowWaiterPayments
+      waiter_mode_enabled: enabled
     })
-    toast.success('Credenziali cameriere aggiornate')
-    setWaiterCredentialsDirty(false)
+    toast.success(enabled ? 'Modalità cameriere attivata' : 'Modalità cameriere disattivata')
+    refreshRestaurants()
+  }
+
+  const updateWaiterPassword = async (password: string) => {
+    if (!restaurantId) return
+    setWaiterPassword(password)
+    // Use debounce - save after user stops typing (handled in SettingsView)
+  }
+
+  const saveWaiterPassword = async (password: string) => {
+    if (!restaurantId || !password.trim()) return
+    await DatabaseService.updateRestaurant({
+      id: restaurantId,
+      waiter_password: password
+    })
+    toast.success('Password cameriere aggiornata')
+    refreshRestaurants()
+  }
+
+  const updateAllowWaiterPayments = async (enabled: boolean) => {
+    if (!restaurantId) return
+    setAllowWaiterPayments(enabled)
+    await DatabaseService.updateRestaurant({
+      id: restaurantId,
+      allow_waiter_payments: enabled
+    })
+    toast.success(enabled ? 'Permessi pagamento abilitati' : 'Permessi pagamento disabilitati')
     refreshRestaurants()
   }
 
@@ -2589,22 +2615,12 @@ const RestaurantDashboard = ({ user, onLogout }: RestaurantDashboardProps) => {
                 setSelectedSound={setSelectedSound}
 
                 waiterModeEnabled={waiterModeEnabled}
-                setWaiterModeEnabled={(val) => {
-                  setWaiterModeEnabled(val)
-                  setWaiterCredentialsDirty(true)
-                }}
+                setWaiterModeEnabled={updateWaiterModeEnabled}
                 allowWaiterPayments={allowWaiterPayments}
-                setAllowWaiterPayments={(val) => {
-                  setAllowWaiterPayments(val)
-                  setWaiterCredentialsDirty(true)
-                }}
+                setAllowWaiterPayments={updateAllowWaiterPayments}
                 waiterPassword={waiterPassword}
-                setWaiterPassword={(val) => {
-                  setWaiterPassword(val)
-                  setWaiterCredentialsDirty(true)
-                }}
-                saveWaiterCredentials={saveWaiterCredentials}
-                waiterCredentialsDirty={waiterCredentialsDirty}
+                setWaiterPassword={updateWaiterPassword}
+                saveWaiterPassword={saveWaiterPassword}
 
                 enableReservationRoomSelection={enableReservationRoomSelection}
                 setEnableReservationRoomSelection={updateEnableReservationRoomSelection}
