@@ -617,16 +617,19 @@ export default function AnalyticsCharts({ orders, completedOrders, dishes, categ
     <>
       {/* All analytics content in a single view */}
       <div className="space-y-8">
-        {/* Filter Controls - Enhanced Glassmorphism */}
-        <div className="flex items-center justify-between flex-wrap gap-4 bg-zinc-900/60 p-4 rounded-xl border border-white/5 shadow-lg backdrop-blur-xl">
-          <h2 className="text-2xl font-light text-white tracking-tight">Gestione <span className="font-bold text-amber-500">Analitiche</span></h2>
-          <div className="flex items-center gap-3">
+        {/* Header - Matching standard pattern */}
+        <div className="flex flex-col md:flex-row items-start md:items-center justify-between mb-6 gap-4 pb-4 border-b border-white/10">
+          <div>
+            <h2 className="text-2xl font-light text-white tracking-tight">Gestione <span className="font-bold text-amber-500">Analitiche</span></h2>
+            <p className="text-sm text-zinc-400 mt-1 uppercase tracking-wider font-medium">Visualizza statistiche e report</p>
+          </div>
+          <div className="flex items-center gap-2 flex-wrap">
             <Popover>
               <PopoverTrigger asChild>
-                <Button variant="outline" className="gap-2 h-9 border-zinc-700 bg-zinc-900/50 text-zinc-300 hover:text-amber-500 hover:border-amber-500/50 hover:bg-amber-500/10 transition-all">
-                  <List size={16} />
+                <Button variant="outline" size="sm" className="h-10 border-white/10 bg-black/40 hover:bg-zinc-900/60 backdrop-blur-sm text-zinc-300">
+                  <List size={16} className="mr-2" />
                   Categorie
-                  <Badge variant="secondary" className="ml-1 h-5 px-1.5 min-w-5 bg-amber-500/20 text-amber-500 border border-amber-500/20">
+                  <Badge variant="secondary" className="ml-1.5 h-5 px-1.5 min-w-5 bg-amber-500/20 text-amber-500 border border-amber-500/20">
                     {activeCategoryIds.length}
                   </Badge>
                 </Button>
@@ -665,7 +668,7 @@ export default function AnalyticsCharts({ orders, completedOrders, dishes, categ
             </Popover>
 
             <Select value={dateFilter} onValueChange={(v: DateFilter) => setDateFilter(v)}>
-              <SelectTrigger className="w-44 h-9 border-zinc-700 bg-zinc-900/50 text-zinc-300 hover:border-amber-500/30 transition-all focus:ring-amber-500/20">
+              <SelectTrigger className="w-44 h-10 border-white/10 bg-black/40 text-zinc-300 hover:bg-zinc-900/60 transition-all">
                 <CalendarBlank size={16} className="mr-2 text-amber-500/70" />
                 <SelectValue />
               </SelectTrigger>
@@ -682,24 +685,25 @@ export default function AnalyticsCharts({ orders, completedOrders, dishes, categ
                   type="date"
                   value={customStartDate}
                   onChange={(e) => setCustomStartDate(e.target.value)}
-                  className="w-36 h-9 bg-zinc-900 border-zinc-700 focus:border-amber-500/50 text-zinc-300"
+                  className="w-36 h-10 bg-black/40 border-white/10 text-zinc-300"
                 />
                 <span className="text-zinc-600">-</span>
                 <Input
                   type="date"
                   value={customEndDate}
                   onChange={(e) => setCustomEndDate(e.target.value)}
-                  className="w-36 h-9 bg-zinc-900 border-zinc-700 focus:border-amber-500/50 text-zinc-300"
+                  className="w-36 h-10 bg-black/40 border-white/10 text-zinc-300"
                 />
               </div>
             )}
 
             <Button
               variant="outline"
-              className="gap-2 h-9 border-zinc-700 bg-zinc-900/50 text-zinc-300 hover:text-white hover:bg-zinc-800"
+              size="sm"
+              className="h-10 border-white/10 bg-black/40 hover:bg-zinc-900/60 text-zinc-300"
               onClick={handleExportAnalytics}
             >
-              <DownloadSimple size={16} />
+              <DownloadSimple size={16} className="mr-2" />
               Esporta Report
             </Button>
           </div>

@@ -56,6 +56,13 @@ const WaiterDashboard = ({ user, onLogout }: WaiterDashboardProps) => {
     const [roomToEdit, setRoomToEdit] = useState<Room | null>(null)
     const [newRoomName, setNewRoomName] = useState('')
 
+    // Quick Order State
+    const [isQuickOrderDialogOpen, setIsQuickOrderDialogOpen] = useState(false)
+    const [selectedTableForQuickOrder, setSelectedTableForQuickOrder] = useState<Table | null>(null)
+
+    // Ready Items View Mode (like gestione ordini)
+    const [readyViewMode, setReadyViewMode] = useState<'table' | 'dish'>('table')
+
     // Timer effect for timeline
     useEffect(() => {
         const interval = setInterval(() => setNow(new Date()), 60000) // Update every minute
@@ -549,6 +556,11 @@ const WaiterDashboard = ({ user, onLogout }: WaiterDashboardProps) => {
                     <div className="flex-1 px-4 pb-4 flex flex-col justify-end gap-3 z-10 relative">
                         {session ? (
                             <>
+                                {/* PIN Display */}
+                                <div className="absolute top-0 right-4 text-xs font-mono text-amber-500/70 bg-black/30 px-2 py-1 rounded-lg border border-amber-500/20">
+                                    PIN: {session.session_pin || '----'}
+                                </div>
+
                                 {/* Status Steps Visualization */}
                                 <div className="flex items-center gap-1 mt-auto">
                                     <div className={`h-1 flex-1 rounded-full transition-all duration-500 ${['seated', 'waiting', 'eating'].includes(statusInfo.step) ? 'bg-blue-500 shadow-[0_0_8px_rgba(59,130,246,0.5)]' : 'bg-zinc-800'}`}></div>
@@ -556,21 +568,36 @@ const WaiterDashboard = ({ user, onLogout }: WaiterDashboardProps) => {
                                     <div className={`h-1 flex-1 rounded-full transition-all duration-500 ${statusInfo.step === 'eating' ? 'bg-emerald-500 shadow-[0_0_8px_rgba(16,185,129,0.5)]' : 'bg-zinc-800'}`}></div>
                                 </div>
 
-                                {/* Action Button - Only visible if occupied */}
-                                {restaurant?.allow_waiter_payments && (
+                                {/* Action Buttons */}
+                                <div className="flex gap-2 mt-2">
                                     <Button
                                         size="sm"
                                         variant="ghost"
-                                        className="w-full mt-2 h-9 text-xs font-bold border border-white/10 bg-black/20 hover:bg-amber-500 hover:text-black hover:border-amber-500 transition-all rounded-xl"
+                                        className="flex-1 h-9 text-xs font-bold border border-blue-500/30 bg-blue-500/10 text-blue-400 hover:bg-blue-500 hover:text-white hover:border-blue-500 transition-all rounded-xl"
                                         onClick={(e) => {
                                             e.stopPropagation()
-                                            openPaymentDialog(e, table)
+                                            setSelectedTableForQuickOrder(table)
+                                            setIsQuickOrderDialogOpen(true)
                                         }}
                                     >
-                                        <Receipt size={14} className="mr-2" />
-                                        Conto
+                                        <Plus size={14} className="mr-1" />
+                                        Ordina
                                     </Button>
-                                )}
+                                    {restaurant?.allow_waiter_payments && (
+                                        <Button
+                                            size="sm"
+                                            variant="ghost"
+                                            className="flex-1 h-9 text-xs font-bold border border-white/10 bg-black/20 hover:bg-amber-500 hover:text-black hover:border-amber-500 transition-all rounded-xl"
+                                            onClick={(e) => {
+                                                e.stopPropagation()
+                                                openPaymentDialog(e, table)
+                                            }}
+                                        >
+                                            <Receipt size={14} className="mr-1" />
+                                            Conto
+                                        </Button>
+                                    )}
+                                </div>
                             </>
                         ) : (
                             <div className="flex items-end justify-end h-full opacity-0 group-hover:opacity-100 transition-opacity duration-300">
@@ -754,61 +781,169 @@ const WaiterDashboard = ({ user, onLogout }: WaiterDashboardProps) => {
                 })()}
             </div>
 
-            {/* Ready Items Drawer */}
+            {/* Ready Items Drawer - Matching gestione ordini interface */}
             <Dialog open={isReadyDrawerOpen} onOpenChange={setIsReadyDrawerOpen}>
-                <DialogContent className="sm:max-w-md bg-zinc-950 border-zinc-800 text-zinc-100 h-[80vh] flex flex-col p-0 overflow-hidden">
-                    <DialogHeader className="p-6 pb-4 border-b border-white/5 bg-zinc-900/50 backdrop-blur-xl">
-                        <DialogTitle className="text-2xl font-bold flex items-center gap-3">
-                            <div className="w-10 h-10 rounded-full bg-amber-500 flex items-center justify-center text-black shadow-lg shadow-amber-500/20">
-                                <BellRinging size={24} weight="fill" />
-                            </div>
-                            <span className="bg-gradient-to-r from-white to-zinc-400 bg-clip-text text-transparent">Pronti da Servire</span>
-                        </DialogTitle>
-                        <DialogDescription className="text-zinc-500">
-                            Piatti pronti dalla cucina. Segna come serviti.
-                        </DialogDescription>
-                    </DialogHeader>
-
-                    <ScrollArea className="flex-1 p-4 bg-zinc-950/50">
-                        <div className="space-y-3">
-                            {readyItems.length === 0 ? (
-                                <div className="flex flex-col items-center justify-center h-64 text-zinc-600">
-                                    <div className="w-16 h-16 rounded-full bg-zinc-900 flex items-center justify-center mb-4">
-                                        <CheckCircle size={32} weight="duotone" className="opacity-20" />
-                                    </div>
-                                    <p>Tutto tranquillo, nessun piatto in attesa</p>
-                                </div>
-                            ) : (
-                                readyItems.map((item, idx) => {
-                                    const table = tables.find(t => t.id === item.tableId)
-                                    return (
-                                        <div key={item.id + idx} className="bg-zinc-900/80 border border-white/5 p-4 rounded-2xl flex items-center justify-between shadow-sm animate-in fade-in slide-in-from-bottom-2 duration-300">
-                                            <div>
-                                                <div className="flex items-center gap-2 mb-1">
-                                                    <Badge variant="outline" className="bg-black/40 text-amber-500 border-amber-500/20 text-[10px] px-2 py-0.5 rounded-lg">
-                                                        Tavolo {table?.number || '?'}
-                                                    </Badge>
-                                                    <span className="text-[10px] text-zinc-500 uppercase tracking-wider font-medium">{new Date(item.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>
-                                                </div>
-                                                <p className="font-bold text-lg text-white font-serif">{item.quantity}x {item.dish?.name || 'Piatto'}</p>
-                                                {item.notes && <p className="text-sm text-yellow-500/80 italic mt-0.5">Note: {item.notes}</p>}
-                                            </div>
-                                            <Button
-                                                size="sm"
-                                                className="h-12 w-12 rounded-full bg-amber-500 hover:bg-amber-400 text-black shadow-lg shadow-amber-500/20 p-0 transition-transform hover:scale-105 active:scale-95"
-                                                onClick={() => handleMarkAsServed(item.order_id, item.id)}
-                                            >
-                                                <CheckCircle size={24} weight="fill" />
-                                            </Button>
-                                        </div>
-                                    )
-                                })
-                            )}
+                <DialogContent className="sm:max-w-2xl bg-zinc-950 border-zinc-800 text-zinc-100 h-[85vh] flex flex-col p-0 overflow-hidden">
+                    {/* Header - Same style as gestione ordini */}
+                    <div className="flex flex-col md:flex-row items-start md:items-center justify-between p-6 pb-4 gap-4 border-b border-white/10 shrink-0">
+                        <div>
+                            <h2 className="text-2xl font-light text-white tracking-tight">Piatti <span className="font-bold text-amber-500">Pronti</span></h2>
+                            <p className="text-sm text-zinc-400 mt-1 uppercase tracking-wider font-medium">Pronti da servire ai tavoli</p>
                         </div>
+                        <div className="flex items-center gap-2">
+                            {/* View Mode Toggle - Same as gestione ordini */}
+                            <div className="flex bg-black/60 p-1.5 rounded-2xl border border-white/5 shadow-2xl shadow-black/80 backdrop-blur-3xl">
+                                <Button
+                                    variant={readyViewMode === 'table' ? 'default' : 'ghost'}
+                                    size="sm"
+                                    onClick={() => setReadyViewMode('table')}
+                                    className={`h-9 px-4 text-xs font-bold rounded-xl transition-all duration-300 ${readyViewMode === 'table' ? 'bg-amber-500 text-black shadow-lg shadow-amber-500/20' : 'text-zinc-400 hover:text-zinc-200'}`}
+                                >
+                                    Tavoli
+                                </Button>
+                                <Button
+                                    variant={readyViewMode === 'dish' ? 'default' : 'ghost'}
+                                    size="sm"
+                                    onClick={() => setReadyViewMode('dish')}
+                                    className={`h-9 px-4 text-xs font-bold rounded-xl transition-all duration-300 ${readyViewMode === 'dish' ? 'bg-amber-500 text-black shadow-lg shadow-amber-500/20' : 'text-zinc-400 hover:text-zinc-200'}`}
+                                >
+                                    Piatti
+                                </Button>
+                            </div>
+                        </div>
+                    </div>
+
+                    <ScrollArea className="flex-1 p-4">
+                        {readyItems.length === 0 ? (
+                            <div className="flex flex-col items-center justify-center h-64 text-zinc-600">
+                                <div className="w-16 h-16 rounded-full bg-zinc-900 flex items-center justify-center mb-4">
+                                    <CheckCircle size={32} weight="duotone" className="opacity-20" />
+                                </div>
+                                <p>Tutto tranquillo, nessun piatto in attesa</p>
+                            </div>
+                        ) : readyViewMode === 'table' ? (
+                            /* TABLE VIEW - Group by table */
+                            <div className="space-y-4">
+                                {(() => {
+                                    // Group by table
+                                    const byTable = new Map<string, typeof readyItems>()
+                                    readyItems.forEach(item => {
+                                        const tableId = item.tableId || 'unknown'
+                                        const existing = byTable.get(tableId) || []
+                                        byTable.set(tableId, [...existing, item])
+                                    })
+
+                                    return Array.from(byTable.entries()).map(([tableId, items]) => {
+                                        const table = tables.find(t => t.id === tableId)
+                                        return (
+                                            <div key={tableId} className="bg-zinc-900/50 border border-white/5 rounded-2xl overflow-hidden">
+                                                {/* Table Header */}
+                                                <div className="flex items-center justify-between p-4 border-b border-white/5 bg-black/30">
+                                                    <div className="flex items-center gap-3">
+                                                        <span className="text-2xl font-bold text-white font-serif">{table?.number || '?'}</span>
+                                                        <Badge className="bg-amber-500/10 text-amber-500 border-amber-500/20 text-xs">
+                                                            {items.length} piatti pronti
+                                                        </Badge>
+                                                    </div>
+                                                    <Button
+                                                        size="sm"
+                                                        className="h-9 px-4 bg-amber-500 hover:bg-amber-400 text-black font-bold rounded-xl"
+                                                        onClick={() => items.forEach(item => handleMarkAsServed(item.order_id, item.id))}
+                                                    >
+                                                        <CheckCircle size={16} className="mr-2" weight="fill" />
+                                                        Segna tutti serviti
+                                                    </Button>
+                                                </div>
+                                                {/* Items */}
+                                                <div className="p-3 space-y-2">
+                                                    {items.map((item, idx) => (
+                                                        <div key={item.id + idx} className="flex items-center justify-between p-3 bg-black/20 rounded-xl border border-white/5">
+                                                            <div className="flex-1">
+                                                                <p className="font-bold text-white">{item.quantity}x {item.dish?.name || 'Piatto'}</p>
+                                                                {item.notes && <p className="text-xs text-yellow-500/80 italic mt-1">Note: {item.notes}</p>}
+                                                            </div>
+                                                            <Button
+                                                                size="sm"
+                                                                className="h-10 w-10 rounded-full bg-amber-500 hover:bg-amber-400 text-black p-0"
+                                                                onClick={() => handleMarkAsServed(item.order_id, item.id)}
+                                                            >
+                                                                <CheckCircle size={20} weight="fill" />
+                                                            </Button>
+                                                        </div>
+                                                    ))}
+                                                </div>
+                                            </div>
+                                        )
+                                    })
+                                })()}
+                            </div>
+                        ) : (
+                            /* DISH VIEW - Group by dish */
+                            <div className="space-y-4">
+                                {(() => {
+                                    // Group by dish
+                                    const byDish = new Map<string, typeof readyItems>()
+                                    readyItems.forEach(item => {
+                                        const dishName = item.dish?.name || 'Altro'
+                                        const existing = byDish.get(dishName) || []
+                                        byDish.set(dishName, [...existing, item])
+                                    })
+
+                                    return Array.from(byDish.entries()).map(([dishName, items]) => {
+                                        const totalQty = items.reduce((sum, i) => sum + (i.quantity || 1), 0)
+                                        return (
+                                            <div key={dishName} className="bg-zinc-900/50 border border-white/5 rounded-2xl overflow-hidden">
+                                                {/* Dish Header */}
+                                                <div className="flex items-center justify-between p-4 border-b border-white/5 bg-black/30">
+                                                    <div className="flex items-center gap-3">
+                                                        <span className="text-xl font-bold text-white">{dishName}</span>
+                                                        <Badge className="bg-amber-500/10 text-amber-500 border-amber-500/20 text-xs">
+                                                            {totalQty}x totali
+                                                        </Badge>
+                                                    </div>
+                                                    <Button
+                                                        size="sm"
+                                                        className="h-9 px-4 bg-amber-500 hover:bg-amber-400 text-black font-bold rounded-xl"
+                                                        onClick={() => items.forEach(item => handleMarkAsServed(item.order_id, item.id))}
+                                                    >
+                                                        <CheckCircle size={16} className="mr-2" weight="fill" />
+                                                        Segna tutti
+                                                    </Button>
+                                                </div>
+                                                {/* Items by table */}
+                                                <div className="p-3 space-y-2">
+                                                    {items.map((item, idx) => {
+                                                        const table = tables.find(t => t.id === item.tableId)
+                                                        return (
+                                                            <div key={item.id + idx} className="flex items-center justify-between p-3 bg-black/20 rounded-xl border border-white/5">
+                                                                <div className="flex-1 flex items-center gap-3">
+                                                                    <Badge variant="outline" className="bg-black/40 text-amber-500 border-amber-500/20 px-2 py-1 rounded-lg text-xs">
+                                                                        Tavolo {table?.number || '?'}
+                                                                    </Badge>
+                                                                    <span className="text-white font-medium">{item.quantity}x</span>
+                                                                    {item.notes && <span className="text-xs text-yellow-500/80 italic">({item.notes})</span>}
+                                                                </div>
+                                                                <Button
+                                                                    size="sm"
+                                                                    className="h-10 w-10 rounded-full bg-amber-500 hover:bg-amber-400 text-black p-0"
+                                                                    onClick={() => handleMarkAsServed(item.order_id, item.id)}
+                                                                >
+                                                                    <CheckCircle size={20} weight="fill" />
+                                                                </Button>
+                                                            </div>
+                                                        )
+                                                    })}
+                                                </div>
+                                            </div>
+                                        )
+                                    })
+                                })()}
+                            </div>
+                        )}
                     </ScrollArea>
 
-                    <div className="p-4 border-t border-white/5 bg-zinc-900/80 backdrop-blur-xl">
-                        <Button className="w-full bg-zinc-800 hover:bg-zinc-700 text-zinc-300 h-12 font-medium" onClick={() => setIsReadyDrawerOpen(false)}>
+                    <div className="p-4 border-t border-white/5 bg-zinc-900/80 shrink-0">
+                        <Button className="w-full bg-zinc-800 hover:bg-zinc-700 text-zinc-300 h-10 font-medium rounded-xl" onClick={() => setIsReadyDrawerOpen(false)}>
                             Chiudi
                         </Button>
                     </div>
@@ -817,48 +952,45 @@ const WaiterDashboard = ({ user, onLogout }: WaiterDashboardProps) => {
 
             {/* Payment Dialog */}
             <Dialog open={isPaymentDialogOpen} onOpenChange={setIsPaymentDialogOpen}>
-                <DialogContent className="sm:max-w-md bg-zinc-950 border-zinc-800 text-zinc-100 p-0 overflow-visible flex flex-col max-h-[90vh]">
-                    <div className="p-6 pb-2 bg-gradient-to-b from-zinc-900 to-zinc-950 border-b border-white/5 shrink-0">
-                        <DialogHeader>
-                            <DialogTitle className="text-2xl font-bold text-white flex items-center gap-3">
-                                <span className="bg-amber-500/10 border border-amber-500/20 px-3 py-1 rounded-xl text-lg text-amber-500 font-serif">#{selectedTableForPayment?.number}</span>
-                                <span className="bg-gradient-to-r from-white to-zinc-400 bg-clip-text text-transparent">Gestione Conto</span>
-                            </DialogTitle>
-                            <DialogDescription className="text-zinc-500 mt-2">
-                                Gestisci il pagamento e la chiusura del tavolo.
-                            </DialogDescription>
-                        </DialogHeader>
+                <DialogContent className="sm:max-w-md bg-zinc-950 border-zinc-800 text-zinc-100 p-6">
+                    <DialogHeader className="pb-4">
+                        <DialogTitle className="text-xl font-bold text-white flex items-center gap-3">
+                            <span className="bg-amber-500/10 border border-amber-500/20 px-3 py-1 rounded-xl text-base text-amber-500 font-mono">#{selectedTableForPayment?.number}</span>
+                            Gestione Conto
+                        </DialogTitle>
+                        <DialogDescription className="text-zinc-500">
+                            Gestisci il pagamento e la chiusura del tavolo.
+                        </DialogDescription>
+                    </DialogHeader>
 
-                        <div className="py-8 flex flex-col items-center justify-center bg-black/20 rounded-2xl border border-white/5 mb-4 mt-6 relative overflow-hidden">
-                            <div className="absolute inset-0 bg-amber-500/5 blur-xl"></div>
-                            <span className="text-xs font-bold text-zinc-500 uppercase tracking-widest mb-2 relative z-10">Totale da Saldare</span>
-                            <span className="text-5xl font-black text-white tracking-tight flex items-start gap-1 relative z-10">
-                                <span className="text-2xl text-amber-500 mt-2">€</span>
-                                {selectedTableForPayment && sessions.find(s => s.table_id === selectedTableForPayment.id)
-                                    ? getTableTotal(sessions.find(s => s.table_id === selectedTableForPayment.id)!.id).toFixed(2)
-                                    : '0.00'}
-                            </span>
-                        </div>
+                    <div className="py-6 flex flex-col items-center justify-center bg-black/30 rounded-xl border border-white/5 my-4">
+                        <span className="text-xs font-bold text-zinc-500 uppercase tracking-widest mb-2">Totale da Saldare</span>
+                        <span className="text-4xl font-black text-white tracking-tight flex items-start gap-1">
+                            <span className="text-xl text-amber-500 mt-1">€</span>
+                            {selectedTableForPayment && sessions.find(s => s.table_id === selectedTableForPayment.id)
+                                ? getTableTotal(sessions.find(s => s.table_id === selectedTableForPayment.id)!.id).toFixed(2)
+                                : '0.00'}
+                        </span>
                     </div>
 
-                    <DialogFooter className="flex flex-col gap-3 p-6 bg-zinc-950 shrink-0">
+                    <div className="flex flex-col gap-3 pt-2">
                         <Button
-                            className="w-full h-14 text-lg font-bold bg-amber-500 hover:bg-amber-400 text-black shadow-lg shadow-amber-500/20 rounded-xl transition-all hover:scale-[1.02]"
+                            className="w-full h-12 text-base font-bold bg-amber-500 hover:bg-amber-400 text-black rounded-xl"
                             onClick={() => handleCloseTable(true)}
                         >
-                            <CheckCircle className="mr-2 h-6 w-6" weight="fill" />
+                            <CheckCircle className="mr-2 h-5 w-5" weight="fill" />
                             SEGNA COME PAGATO
                         </Button>
 
                         <Button
                             variant="outline"
-                            className="w-full h-14 text-base font-bold bg-transparent border-white/5 text-zinc-500 hover:text-red-400 hover:border-red-500/30 hover:bg-red-500/5 rounded-xl transition-all"
+                            className="w-full h-12 text-sm font-bold bg-transparent border-zinc-700 text-zinc-400 hover:text-red-400 hover:border-red-500/30 hover:bg-red-500/5 rounded-xl"
                             onClick={() => handleCloseTable(false)}
                         >
-                            <Trash className="mr-2 h-5 w-5" weight="duotone" />
+                            <Trash className="mr-2 h-4 w-4" weight="duotone" />
                             LIBERA (Senza Incasso)
                         </Button>
-                    </DialogFooter>
+                    </div>
                 </DialogContent>
             </Dialog>
 

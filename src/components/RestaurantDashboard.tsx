@@ -1672,7 +1672,7 @@ const RestaurantDashboard = ({ user, onLogout }: RestaurantDashboardProps) => {
 
             {/* Tables Tab */}
             < TabsContent value="tables" className="space-y-6" >
-              <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between pb-4 border-b border-white/10">
+              <div className="flex flex-col md:flex-row items-start md:items-center justify-between mb-6 gap-4 pb-4 border-b border-white/10">
                 <div>
                   <h2 className="text-2xl font-light text-white tracking-tight">Gestione <span className="font-bold text-amber-500">Tavoli</span></h2>
                   <p className="text-sm text-zinc-400 mt-1 uppercase tracking-wider font-medium">Gestisci la sala e i tavoli</p>
@@ -2235,15 +2235,10 @@ const RestaurantDashboard = ({ user, onLogout }: RestaurantDashboardProps) => {
 
             {/* Menu Tab */}
             < TabsContent value="menu" className="space-y-6" >
-              <div className="flex items-center justify-between mb-6">
-                <div className="flex items-center gap-3">
-                  <div className="w-11 h-11 rounded-xl bg-primary/10 flex items-center justify-center text-primary">
-                    <BookOpen size={20} weight="duotone" />
-                  </div>
-                  <div>
-                    <h2 className="text-2xl font-light text-white tracking-tight">Gestione <span className="font-bold text-amber-500">Menu</span></h2>
-                    <p className="text-sm text-zinc-400 mt-1 uppercase tracking-wider font-medium">Gestisci piatti e categorie</p>
-                  </div>
+              <div className="flex flex-col md:flex-row items-start md:items-center justify-between mb-6 gap-4 pb-4 border-b border-white/10">
+                <div>
+                  <h2 className="text-2xl font-light text-white tracking-tight">Gestione <span className="font-bold text-amber-500">Menu</span></h2>
+                  <p className="text-sm text-zinc-400 mt-1 uppercase tracking-wider font-medium">Gestisci piatti e categorie</p>
                 </div>
                 <div className="flex gap-2">
                   <Dialog>
