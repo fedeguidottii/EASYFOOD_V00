@@ -35,28 +35,7 @@ interface ReservationsManagerProps {
   onRefresh?: () => void
 }
 
-// Helper function to fix oklch colors that html2canvas doesn't support
-const fixOklchColors = (clonedDoc: Document) => {
-  const allElements = clonedDoc.querySelectorAll('*')
-  allElements.forEach(el => {
-    const computed = getComputedStyle(el)
-    const props = ['color', 'backgroundColor', 'borderColor', 'borderTopColor', 'borderBottomColor', 'borderLeftColor', 'borderRightColor', 'outlineColor', 'fill', 'stroke']
-    props.forEach(prop => {
-      const value = computed.getPropertyValue(prop)
-      if (value && value.includes('oklch')) {
-        (el as HTMLElement).style.setProperty(prop, prop === 'backgroundColor' ? 'transparent' : 'inherit', 'important')
-      }
-    })
-    const style = (el as HTMLElement).style
-    for (let i = 0; i < style.length; i++) {
-      const propName = style[i]
-      const value = style.getPropertyValue(propName)
-      if (value && value.includes('oklch')) {
-        style.setProperty(propName, 'transparent', 'important')
-      }
-    }
-  })
-}
+import { generatePdfFromElement } from '../utils/pdfUtils'
 
 export default function ReservationsManager({ user, restaurantId, tables, rooms, bookings, selectedDate, openingTime = '10:00', closingTime = '23:00', reservationDuration = 120, onRefresh }: ReservationsManagerProps) {
   const [selectedBooking, setSelectedBooking] = useState<Booking | null>(null)
@@ -448,223 +427,31 @@ export default function ReservationsManager({ user, restaurantId, tables, rooms,
     return filtered.sort((a, b) => new Date(a.date_time).getTime() - new Date(b.date_time).getTime())
   }
 
-  // Generate Table PDF - With day-by-day separation
+  // Generate Table PDF - Visual Timeline Export
   const generateTablePDF = async () => {
     setIsGeneratingTablePdf(true)
     try {
-      const bookingsToExport = getExportBookings()
-
-      if (bookingsToExport.length === 0) {
-        toast.error('Nessuna prenotazione da esportare per il periodo selezionato')
-        setIsGeneratingTablePdf(false)
-        return
-      }
-
-      const doc = new jsPDF({
-        orientation: 'portrait',
-        unit: 'mm',
-        format: 'a4'
+      // Capture the timeline container
+      await generatePdfFromElement('timeline-export-container', {
+        fileName: `Timeline_Prenotazioni_${restaurantName.replace(/\s+/g, '_')}_${selectedDate.toISOString().split('T')[0]}.pdf`,
+        scale: 2,
+        orientation: 'landscape', // Better for timeline
+        backgroundColor: '#09090b',
+        onClone: (doc) => {
+          // Force container to be fully visible and appropriate width
+          const container = doc.getElementById('timeline-export-container')
+          if (container) {
+            container.style.backgroundColor = '#09090b'
+            container.style.padding = '20px'
+            // Ensure any scrollable areas are expanded? 
+            // html2canvas usually captures full scrollHeight if configured, 
+            // but we might need to set height: auto explicitly on scroll areas if they are virtualized.
+            // Assuming TimelineReservations is not virtualized for now or handles print view.
+          }
+        }
       })
 
-      const pageWidth = 210
-      const pageHeight = 297
-      const margin = 14
-
-      // Group bookings by date
-      const bookingsByDate: { [date: string]: typeof bookingsToExport } = {}
-      bookingsToExport.forEach(booking => {
-        const date = booking.date_time.split('T')[0]
-        if (!bookingsByDate[date]) {
-          bookingsByDate[date] = []
-        }
-        bookingsByDate[date].push(booking)
-      })
-
-      const sortedDates = Object.keys(bookingsByDate).sort()
-      const isMultipleDays = sortedDates.length > 1
-
-      // Function to draw header on a page
-      const drawHeader = (pageDate?: string) => {
-        // Amber header bar
-        doc.setFillColor(251, 191, 36) // amber-400
-        doc.rect(0, 0, pageWidth, 35, 'F')
-
-        // Title
-        doc.setFontSize(22)
-        doc.setFont('helvetica', 'bold')
-        doc.setTextColor(0, 0, 0)
-        doc.text('TABELLA PRENOTAZIONI', margin, 16)
-
-        // Restaurant name
-        doc.setFontSize(14)
-        doc.setFont('helvetica', 'normal')
-        doc.text(restaurantName.toUpperCase(), margin, 26)
-
-        // Date info on right side
-        if (pageDate) {
-          doc.setFontSize(11)
-          doc.setFont('helvetica', 'bold')
-          doc.text(formatDate(pageDate), pageWidth - margin, 16, { align: 'right' })
-        } else {
-          const dateText = exportStartDate === exportEndDate || !exportEndDate
-            ? formatDate(exportStartDate || new Date().toISOString().split('T')[0])
-            : `Dal ${new Date(exportStartDate).toLocaleDateString('it-IT', { day: '2-digit', month: '2-digit', year: 'numeric' })} al ${new Date(exportEndDate).toLocaleDateString('it-IT', { day: '2-digit', month: '2-digit', year: 'numeric' })}`
-          doc.setFontSize(10)
-          doc.setFont('helvetica', 'normal')
-          doc.text(dateText, pageWidth - margin, 16, { align: 'right' })
-        }
-
-        doc.setFontSize(8)
-        doc.setFont('helvetica', 'normal')
-        doc.text(`Generato il: ${new Date().toLocaleString('it-IT')}`, pageWidth - margin, 26, { align: 'right' })
-      }
-
-      // Draw table for bookings
-      const drawTable = (bookings: typeof bookingsToExport, startY: number, showDate: boolean = true) => {
-        const tableBody = bookings.map(booking => {
-          const [date, time] = booking.date_time.split('T')
-          const row = showDate
-            ? [
-              new Date(date).toLocaleDateString('it-IT', { day: '2-digit', month: '2-digit' }),
-              time.substring(0, 5),
-              booking.name,
-              booking.phone || '-',
-              getTableName(booking.table_id),
-              booking.guests.toString(),
-              booking.notes || ''
-            ]
-            : [
-              time.substring(0, 5),
-              booking.name,
-              booking.phone || '-',
-              getTableName(booking.table_id),
-              booking.guests.toString(),
-              booking.notes || ''
-            ]
-          return row
-        })
-
-        const headers = showDate
-          ? [['Data', 'Ora', 'Nome', 'Telefono', 'Tavolo', 'Ospiti', 'Note']]
-          : [['Ora', 'Nome', 'Telefono', 'Tavolo', 'Ospiti', 'Note']]
-
-        const columnStyles = showDate
-          ? {
-            0: { cellWidth: 18 },
-            1: { cellWidth: 14 },
-            2: { cellWidth: 38 },
-            3: { cellWidth: 32 },
-            4: { cellWidth: 22 },
-            5: { cellWidth: 14, halign: 'center' as const },
-            6: { cellWidth: 'auto' as const }
-          }
-          : {
-            0: { cellWidth: 16 },
-            1: { cellWidth: 42 },
-            2: { cellWidth: 35 },
-            3: { cellWidth: 24 },
-            4: { cellWidth: 16, halign: 'center' as const },
-            5: { cellWidth: 'auto' as const }
-          }
-
-        autoTable(doc, {
-          head: headers,
-          body: tableBody,
-          startY: startY,
-          theme: 'grid',
-          styles: {
-            fontSize: 9,
-            cellPadding: 3,
-            textColor: [50, 50, 50],
-            lineColor: [200, 200, 200],
-            lineWidth: 0.1,
-          },
-          headStyles: {
-            fillColor: [39, 39, 42],
-            textColor: [255, 255, 255],
-            fontStyle: 'bold',
-            fontSize: 9,
-          },
-          alternateRowStyles: {
-            fillColor: [249, 250, 251],
-          },
-          columnStyles: columnStyles as any,
-          margin: { left: margin, right: margin }
-        })
-
-        return (doc as any).lastAutoTable.finalY
-      }
-
-      // Generate PDF content
-      if (isMultipleDays) {
-        // Multiple days: one section per day
-        let isFirstPage = true
-
-        sortedDates.forEach((date, index) => {
-          const dayBookings = bookingsByDate[date]
-
-          if (!isFirstPage) {
-            doc.addPage()
-          }
-          isFirstPage = false
-
-          // Draw header with specific date
-          drawHeader(date)
-
-          // Day title
-          let currentY = 45
-          doc.setFontSize(12)
-          doc.setFont('helvetica', 'bold')
-          doc.setTextColor(60, 60, 60)
-          const dayTitle = formatDate(date)
-          doc.text(dayTitle, margin, currentY)
-
-          doc.setFontSize(10)
-          doc.setFont('helvetica', 'normal')
-          doc.setTextColor(100, 100, 100)
-          doc.text(`${dayBookings.length} prenotazioni • ${dayBookings.reduce((sum, b) => sum + b.guests, 0)} ospiti`, margin, currentY + 6)
-
-          currentY += 12
-
-          // Draw table without date column (since date is in header)
-          drawTable(dayBookings, currentY, false)
-        })
-      } else {
-        // Single day or date range: one combined table
-        drawHeader()
-        drawTable(bookingsToExport, 45, sortedDates.length > 1)
-      }
-
-      // Add footer to all pages
-      const totalPages = doc.getNumberOfPages()
-      for (let i = 1; i <= totalPages; i++) {
-        doc.setPage(i)
-
-        // Summary on last page
-        if (i === totalPages) {
-          const finalY = (doc as any).lastAutoTable?.finalY || pageHeight - 40
-          if (finalY < pageHeight - 25) {
-            doc.setFontSize(10)
-            doc.setFont('helvetica', 'bold')
-            doc.setTextColor(245, 158, 11)
-            doc.text(`Totale: ${bookingsToExport.length} prenotazioni`, margin, finalY + 10)
-            doc.text(`${bookingsToExport.reduce((sum, b) => sum + b.guests, 0)} ospiti`, margin + 60, finalY + 10)
-          }
-        }
-
-        // Footer
-        doc.setFontSize(9)
-        doc.setTextColor(150, 150, 150)
-        doc.setFont('helvetica', 'normal')
-        doc.text('Powered by Easyfood', pageWidth / 2, pageHeight - 10, { align: 'center' })
-        if (totalPages > 1) {
-          doc.text(`Pagina ${i} di ${totalPages}`, pageWidth - margin, pageHeight - 10, { align: 'right' })
-        }
-      }
-
-      const filename = `Prenotazioni_${restaurantName.replace(/\s+/g, '_')}_${exportStartDate || 'all'}.pdf`
-      doc.save(filename)
-      toast.success('Tabella prenotazioni scaricata con successo!')
+      toast.success('Timeline scaricata con successo!')
       setShowExportDialog(false)
 
     } catch (err) {
@@ -689,35 +476,14 @@ export default function ReservationsManager({ user, restaurantId, tables, rooms,
       const originalStyle = qrContainer.style.display
       qrContainer.style.display = 'block'
 
-      const canvas = await html2canvas(qrContainer, {
+      await generatePdfFromElement('qr-download-content', {
+        fileName: 'Booking_QR.pdf',
         scale: 2,
-        backgroundColor: '#09090b', // Dark background (zinc-950)
-        useCORS: true,
-        onclone: (clonedDoc) => fixOklchColors(clonedDoc)
+        backgroundColor: '#09090b',
+        orientation: 'portrait'
       })
 
       qrContainer.style.display = originalStyle
-
-      const imgData = canvas.toDataURL('image/png')
-
-      // A4 PDF
-      const pdf = new jsPDF({
-        orientation: 'portrait',
-        unit: 'mm',
-        format: 'a4'
-      })
-
-      const pdfWidth = pdf.internal.pageSize.getWidth()
-      const pdfHeight = pdf.internal.pageSize.getHeight()
-
-      // Calculate image size to fit
-      const imgProps = pdf.getImageProperties(imgData)
-      const imgHeight = (imgProps.height * pdfWidth) / imgProps.width
-
-      // Add image centering it vertically if possible, or top
-      pdf.addImage(imgData, 'PNG', 0, 0, pdfWidth, imgHeight)
-
-      pdf.save('Booking_QR.pdf')
       toast.success("PDF scaricato con successo!")
 
     } catch (err) {
@@ -781,19 +547,21 @@ export default function ReservationsManager({ user, restaurantId, tables, rooms,
         </div>
 
         {/* Timeline Component */}
-        <TimelineReservations
-          user={user}
-          restaurantId={restaurantId}
-          tables={restaurantTables}
-          bookings={bookings}
-          selectedDate={`${selectedDate.getFullYear()}-${String(selectedDate.getMonth() + 1).padStart(2, '0')}-${String(selectedDate.getDate()).padStart(2, '0')}`}
-          openingTime={openingTime}
-          closingTime={closingTime}
-          reservationDuration={reservationDuration}
-          onRefresh={onRefresh}
-          onEditBooking={handleEditBooking}
-          onDeleteBooking={handleDeleteBooking}
-        />
+        <div id="timeline-export-container">
+          <TimelineReservations
+            user={user}
+            restaurantId={restaurantId}
+            tables={restaurantTables}
+            bookings={bookings}
+            selectedDate={`${selectedDate.getFullYear()}-${String(selectedDate.getMonth() + 1).padStart(2, '0')}-${String(selectedDate.getDate()).padStart(2, '0')}`}
+            openingTime={openingTime}
+            closingTime={closingTime}
+            reservationDuration={reservationDuration}
+            onRefresh={onRefresh}
+            onEditBooking={handleEditBooking}
+            onDeleteBooking={handleDeleteBooking}
+          />
+        </div>
       </div>
 
 

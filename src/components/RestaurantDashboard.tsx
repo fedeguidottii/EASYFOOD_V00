@@ -16,14 +16,33 @@ import { ScrollArea } from './ui/scroll-area'
 import { Textarea } from './ui/textarea'
 import { Popover, PopoverContent, PopoverTrigger } from './ui/popover'
 import {
-  Clock, MapPin, BookOpen, Calendar, ChartBar, Gear,
-  Plus, Minus, Trash, Pencil, Check, X,
-  CaretDown, CaretUp, Funnel, MagnifyingGlass,
-  ChefHat, SignOut, SpeakerHigh, ForkKnife, Receipt, ClockCounterClockwise,
-  Users, CheckCircle, QrCode, PencilSimple, List, DotsSixVertical, Tag, Eye, EyeSlash, Sparkle, DownloadSimple
+  SignOut,
+  Utensils,
+  BookBookmark,
+  ChartLine,
+  Gear,
+  Plus,
+  Trash,
+  PencilSimple,
+  X,
+  CaretRight,
+  List,
+  CheckCircle,
+  Warning,
+  Eye,
+  EyeSlash,
+  MagnifyingGlass,
+  Funnel,
+  SortAscending,
+  SortDescending,
+  DownloadSimple,
+  QrCode,
+  ForkKnife,
+  WarningCircle
 } from '@phosphor-icons/react'
 import jsPDF from 'jspdf'
 import html2canvas from 'html2canvas'
+import { generatePdfFromElement } from '../utils/pdfUtils'
 import { useRestaurantLogic } from '../hooks/useRestaurantLogic'
 import { DatabaseService } from '../services/DatabaseService'
 import { useSupabaseData } from '../hooks/useSupabaseData'
@@ -46,29 +65,6 @@ interface RestaurantDashboardProps {
 }
 
 // Helper function to fix oklch colors that html2canvas doesn't support
-const fixOklchColors = (clonedDoc: Document) => {
-  const allElements = clonedDoc.querySelectorAll('*')
-  allElements.forEach(el => {
-    const computed = getComputedStyle(el)
-    const props = ['color', 'backgroundColor', 'borderColor', 'borderTopColor', 'borderBottomColor', 'borderLeftColor', 'borderRightColor', 'outlineColor', 'fill', 'stroke']
-    props.forEach(prop => {
-      const value = computed.getPropertyValue(prop)
-      if (value && value.includes('oklch')) {
-        // Replace with fallback - transparent or inherit based on property
-        (el as HTMLElement).style.setProperty(prop, prop === 'backgroundColor' ? 'transparent' : 'inherit', 'important')
-      }
-    })
-    // Also check CSS variables
-    const style = (el as HTMLElement).style
-    for (let i = 0; i < style.length; i++) {
-      const propName = style[i]
-      const value = style.getPropertyValue(propName)
-      if (value && value.includes('oklch')) {
-        style.setProperty(propName, 'transparent', 'important')
-      }
-    }
-  })
-}
 
 const RestaurantDashboard = ({ user, onLogout }: RestaurantDashboardProps) => {
   const navigate = useNavigate()
@@ -283,9 +279,10 @@ const RestaurantDashboard = ({ user, onLogout }: RestaurantDashboardProps) => {
   }, [restaurantId, lunchTimeStart, dinnerTimeStart])
 
   // Export Menu Function
+  // Export Menu Function
   const handleExportMenu = async () => {
-    const input = document.getElementById('menu-print-view')
-    if (!input) {
+    const element = document.getElementById('menu-print-view')
+    if (!element) {
       toast.error('Errore durante la generazione del menu')
       return
     }
@@ -293,141 +290,29 @@ const RestaurantDashboard = ({ user, onLogout }: RestaurantDashboardProps) => {
     const toastId = toast.loading('Generazione PDF in corso...')
 
     try {
-      // Make it visible specifically for capture (although it might need to be visible in DOM but hidden from viewport)
-      // Actually, standard way is: visible but absolute positioned off-screen, or z-index behind.
-      // But html2canvas needs it rendered.
-      // My minimal hidden div approach:
-      input.style.display = 'block'
+      element.style.display = 'block'
 
-      const canvas = await html2canvas(input, {
-        scale: 2, // High res
-        useCORS: true, // For images
-        backgroundColor: '#18181b', // zinc-950
-        logging: false,
-        onclone: (clonedDoc) => fixOklchColors(clonedDoc)
-      })
-
-      input.style.display = 'none'
-
-      const imgData = canvas.toDataURL('image/png')
-      const pdf = new jsPDF({
+      await generatePdfFromElement('menu-print-view', {
+        fileName: `Menu_${restaurantSlug}_${new Date().toISOString().split('T')[0]}.pdf`,
+        scale: 2,
+        backgroundColor: '#09090b',
         orientation: 'portrait',
-        unit: 'mm',
-        format: 'a4'
+        onClone: (doc) => {
+          const el = doc.getElementById('menu-print-view')
+          if (el) {
+            el.style.backgroundColor = '#09090b'
+            el.style.padding = '20px'
+          }
+        }
       })
 
-      const pdfWidth = pdf.internal.pageSize.getWidth()
-      const pdfHeight = pdf.internal.pageSize.getHeight()
-      const imgProps = pdf.getImageProperties(imgData)
-      const imgHeight = (imgProps.height * pdfWidth) / imgProps.width
-
-      // Retrieve number of pages
-      let heightLeft = imgHeight
-      let position = 0
-
-      // First page
-      pdf.addImage(imgData, 'PNG', 0, position, pdfWidth, imgHeight)
-      heightLeft -= pdfHeight
-
-      // Subsequent pages
-      while (heightLeft > 0) {
-        position = heightLeft - imgHeight // top position
-        // This simple multipage split might cut lines.
-        // For a sophisticated "Elegant" menu, generating page by page or using autoTable with images is safer but harder to style as "Elegant HTML".
-        // Given the request "Elegant", HTML->Canvas is best for visuals.
-        // I'll stick to single page if it fits, or multipage cut.
-        // If it's a long menu, multipage is needed.
-        // For simplicity in this iteration: Standard single long image split.
-        pdf.addPage()
-        pdf.addImage(imgData, 'PNG', 0, position - 297 * (Math.ceil(imgHeight / 297) - 1), pdfWidth, imgHeight) // Math is tricky here
-        // Actually simpler loop:
-        /* 
-           Iterating pages is complex with strict cut-offs. 
-           Let's assume the user wants a digital PDF mainly?
-           Or printable. 
-           Let's try a simpler approach: Just add the image. If it's too long, it scales down? No, that's unreadable.
-           Let's use the standard "addPage" loop.
-           
-           Simpler:
-           pdf.addImage(imgData, 'PNG', 0, 0, pdfWidth, imgHeight)
-           if (imgHeight > pdfHeight) { ... }
-        */
-
-        /* RE-THINK: jsPDF autotable is better for multi-page lists. 
-           BUT user wants "Elegant"... maybe with photos.
-           Let's use the HTML canvas method but styled nicely.
-        */
-
-        // Re-implementing simplified multipage loop
-        // (Not perfect but works for general cases)
-        // Actually, let's just save one long page if poss? No, PDF has fixed size.
-        // Let's stick to the canvas capture.
-      }
-
-      // Since simplistic cutting is bad, let's use a smarter approach:
-      // We will assume the menu fits in reasonable pages or we accept cuts.
-      // For now, I will use jsPDF addImage for the whole thing and let's hope it's not super long.
-      // Wait, if I use the loop method from stackoverflow it works usually.
-
-      /* 
-         Standard implementation:
-      */
-
-      // Reset for standard implementation
+      toast.success('Menu scaricato con successo!')
     } catch (err) {
       console.error(err)
       toast.error('Errore creazione PDF')
     } finally {
       toast.dismiss(toastId)
-    }
-  }
-
-  // CORRECT IMPLEMENTATION OF handleExportMenu
-  const handleExportMenuLogic = async () => {
-    const element = document.getElementById('menu-print-view');
-    if (!element) return;
-
-    const toastId = toast.loading('Preparazione Menu...');
-
-    element.style.display = 'block';
-
-    try {
-      const canvas = await html2canvas(element, {
-        scale: 2,
-        useCORS: true,
-        backgroundColor: '#09090b', // Zinc 950
-        allowTaint: true,
-        onclone: (clonedDoc) => fixOklchColors(clonedDoc)
-      });
-
-      element.style.display = 'none';
-
-      const imgData = canvas.toDataURL('image/png');
-      const pdf = new jsPDF('p', 'mm', 'a4');
-      const imgWidth = 210;
-      const pageHeight = 297;
-      const imgHeight = canvas.height * imgWidth / canvas.width;
-      let heightLeft = imgHeight;
-      let position = 0;
-
-      pdf.addImage(imgData, 'PNG', 0, position, imgWidth, imgHeight);
-      heightLeft -= pageHeight;
-
-      while (heightLeft >= 0) {
-        position = heightLeft - imgHeight;
-        pdf.addPage();
-        pdf.addImage(imgData, 'PNG', 0, position, imgWidth, imgHeight);
-        heightLeft -= pageHeight;
-      }
-
-      pdf.save('Menu_Elegante.pdf');
-      toast.success('Menu scaricato!');
-    } catch (error) {
-      console.error(error);
-      toast.error('Errore export');
-    } finally {
-      toast.dismiss(toastId);
-      if (element) element.style.display = 'none';
+      if (element) element.style.display = 'none'
     }
   }
 
@@ -1411,7 +1296,7 @@ const RestaurantDashboard = ({ user, onLogout }: RestaurantDashboardProps) => {
         <Button variant="ghost" onClick={onLogout} className="relative z-10 mt-8 text-zinc-600 hover:text-amber-500 hover:bg-white/5 uppercase text-xs tracking-widest">
           Torna al login
         </Button>
-      </div>
+      </div >
     )
   }
 
@@ -3093,39 +2978,21 @@ const RestaurantDashboard = ({ user, onLogout }: RestaurantDashboardProps) => {
                   className="flex-1 gap-2"
                   disabled={isGeneratingTableQrPdf}
                   onClick={async () => {
+                    if (typeof window === 'undefined') return
                     setIsGeneratingTableQrPdf(true)
                     try {
-                      const qrContent = document.getElementById('table-qr-pdf-content')
-                      if (!qrContent) {
-                        toast.error('Errore generazione PDF')
-                        return
-                      }
+                      const originalDisplay = document.getElementById('table-qr-pdf-content')?.style.display
+                      const el = document.getElementById('table-qr-pdf-content')
+                      if (el) el.style.display = 'flex'
 
-                      const originalDisplay = qrContent.style.display
-                      qrContent.style.display = 'block'
-
-                      const canvas = await html2canvas(qrContent, {
+                      await generatePdfFromElement('table-qr-pdf-content', {
+                        fileName: `QR_Tavolo_${selectedTableForActions?.number || 'tavolo'}.pdf`,
                         scale: 2,
                         backgroundColor: '#09090b',
-                        useCORS: true,
-                        onclone: (clonedDoc) => fixOklchColors(clonedDoc)
+                        orientation: 'portrait'
                       })
 
-                      qrContent.style.display = originalDisplay
-
-                      const imgData = canvas.toDataURL('image/png')
-                      const pdf = new jsPDF({
-                        orientation: 'portrait',
-                        unit: 'mm',
-                        format: 'a4'
-                      })
-
-                      const pdfWidth = pdf.internal.pageSize.getWidth()
-                      const imgProps = pdf.getImageProperties(imgData)
-                      const imgHeight = (imgProps.height * pdfWidth) / imgProps.width
-
-                      pdf.addImage(imgData, 'PNG', 0, 0, pdfWidth, imgHeight)
-                      pdf.save(`QR_Tavolo_${selectedTableForActions?.number || 'tavolo'}.pdf`)
+                      if (el) el.style.display = 'none'
                       toast.success('PDF scaricato!')
                     } catch (err) {
                       console.error(err)
@@ -3320,16 +3187,17 @@ const RestaurantDashboard = ({ user, onLogout }: RestaurantDashboardProps) => {
         </div >
       </main >
 
-      {/* HIDDEN PRINT VIEW FOR MENU EXPORT - OPTIMIZED FOR B&W PRINTING */}
-      < div id="menu-print-view" style={{ display: 'none', position: 'fixed', top: 0, left: 0, zIndex: 100, width: '210mm', minHeight: '297mm', background: 'white', color: 'black', padding: '15mm', fontFamily: 'Times New Roman, serif' }}>
+      {/* HIDDEN PRINT VIEW FOR MENU EXPORT - ELEGANT DARK MODE */}
+      <div id="menu-print-view" style={{ display: 'none', position: 'fixed', top: 0, left: 0, zIndex: 100, width: '210mm', minHeight: '297mm', background: '#09090b', color: 'white', padding: '15mm', fontFamily: 'Georgia, serif' }}>
         {/* Header */}
-        < div className="text-center mb-10 border-b-2 border-black pb-6" >
-          <h1 className="text-4xl font-bold uppercase tracking-widest text-black mb-2">{currentRestaurant?.name || 'Menu'}</h1>
-          <p className="text-zinc-600 text-sm uppercase tracking-wide">Lista Valori e Sapori</p>
-        </div >
+        <div className="text-center mb-10 border-b border-white/10 pb-6 relative">
+          <div className="absolute top-0 left-1/2 -translate-x-1/2 w-24 h-1 bg-gradient-to-r from-transparent via-amber-500 to-transparent opacity-50"></div>
+          <h1 className="text-5xl font-light tracking-[0.2em] text-white mb-2 uppercase">{currentRestaurant?.name || 'Menu'}</h1>
+          <p className="text-amber-500/80 text-sm italic tracking-widest font-light">Fine Dining Experience</p>
+        </div>
 
         {/* Content */}
-        < div className="space-y-8" >
+        <div className="space-y-10">
           {
             restaurantCategories.map(category => {
               const categoryDishes = restaurantDishes
@@ -3339,24 +3207,38 @@ const RestaurantDashboard = ({ user, onLogout }: RestaurantDashboardProps) => {
               if (categoryDishes.length === 0) return null;
 
               return (
-                <div key={category.id} className="break-inside-avoid">
-                  <h2 className="text-xl font-bold text-black mb-4 uppercase tracking-wider border-b border-zinc-300 pb-1">{category.name}</h2>
-                  <div className="grid grid-cols-1 gap-4">
+                <div key={category.id} className="break-inside-avoid mb-8">
+                  <div className="flex items-center gap-4 mb-6">
+                    <h2 className="text-2xl font-light text-amber-500 uppercase tracking-[0.15em]">{category.name}</h2>
+                    <div className="h-px flex-1 bg-gradient-to-r from-amber-500/30 to-transparent"></div>
+                  </div>
+
+                  <div className="grid grid-cols-1 gap-6">
                     {categoryDishes.map(dish => (
-                      <div key={dish.id} className="flex gap-4 items-start break-inside-avoid py-2">
-                        {dish.image_url && (
-                          <div className="w-20 h-20 shrink-0 rounded-sm overflow-hidden border border-zinc-200 grayscale-[30%]">
-                            <img src={dish.image_url} alt={dish.name} className="w-full h-full object-cover" />
+                      <div key={dish.id} className="flex gap-6 items-start break-inside-avoid group relative">
+                        {/* Image or Elegant Placeholder */}
+                        <div className="w-24 h-24 shrink-0 rounded-lg overflow-hidden border border-white/5 shadow-lg bg-zinc-900 relative">
+                          {dish.image_url ? (
+                            <img src={dish.image_url} alt={dish.name} className="w-full h-full object-cover opacity-90 group-hover:opacity-100 transition-opacity" />
+                          ) : (
+                            <div className="w-full h-full flex items-center justify-center bg-zinc-800/50">
+                              <ForkKnife className="text-zinc-700" size={24} weight="light" />
+                            </div>
+                          )}
+                        </div>
+
+                        <div className="flex-1 pt-1">
+                          <div className="flex justify-between items-baseline mb-2 border-b border-dotted border-white/10 pb-2 relative">
+                            <h3 className="text-xl font-medium text-zinc-100 tracking-wide">{dish.name}</h3>
+                            <span className="text-lg font-light text-amber-400 whitespace-nowrap ml-4">€ {dish.price.toFixed(2)}</span>
+                            <div className="absolute bottom-0 left-0 w-full h-px bg-gradient-to-r from-transparent via-white/5 to-transparent"></div>
                           </div>
-                        )}
-                        <div className="flex-1">
-                          <div className="flex justify-between items-baseline mb-1 border-b border-dotted border-zinc-300 pb-1">
-                            <h3 className="text-lg font-bold text-black">{dish.name}</h3>
-                            <span className="text-lg font-bold text-black">€{dish.price.toFixed(2)}</span>
-                          </div>
-                          {dish.description && <p className="text-zinc-700 text-sm italic leading-relaxed">{dish.description}</p>}
+                          {dish.description && <p className="text-zinc-400 text-sm font-light leading-relaxed italic">{dish.description}</p>}
                           {dish.allergens && dish.allergens.length > 0 && (
-                            <p className="text-xs text-zinc-500 mt-1 uppercase">Allergeni: {dish.allergens.join(', ')}</p>
+                            <div className="flex items-center gap-2 mt-2">
+                              <WarningCircle size={12} className="text-amber-500/50" />
+                              <p className="text-[10px] text-zinc-600 uppercase tracking-wider">Contains: {dish.allergens.join(', ')}</p>
+                            </div>
                           )}
                         </div>
                       </div>
@@ -3366,13 +3248,13 @@ const RestaurantDashboard = ({ user, onLogout }: RestaurantDashboardProps) => {
               )
             })
           }
-        </div >
+        </div>
 
         {/* Footer */}
-        < div className="mt-16 pt-6 border-t border-black text-center text-zinc-600 text-xs uppercase tracking-widest" >
-          <p>{currentRestaurant?.address || ''} • {currentRestaurant?.phone || ''}</p>
-        </div >
-      </div >
+        <div className="mt-20 pt-8 border-t border-white/5 text-center text-zinc-600 text-[10px] uppercase tracking-[0.3em]">
+          <p>{currentRestaurant?.address || ''} • {currentRestaurant?.phone || ''} • EasyFood</p>
+        </div>
+      </div>
     </div >
   )
 }
