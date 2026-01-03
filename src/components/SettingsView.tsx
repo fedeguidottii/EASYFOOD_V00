@@ -146,14 +146,14 @@ export function SettingsView({
             <motion.div
                 initial={{ opacity: 0, y: -20 }}
                 animate={{ opacity: 1, y: 0 }}
-                className="flex flex-col gap-2"
+                className="flex flex-col md:flex-row items-start md:items-center justify-between mb-6 gap-4 pb-4 border-b border-white/10"
             >
-                <h2 className="text-3xl font-bold tracking-tight bg-gradient-to-r from-white to-zinc-400 bg-clip-text text-transparent">
-                    Impostazioni
-                </h2>
-                <p className="text-zinc-400">
-                    Configura ogni aspetto del tuo ristorante, dai menu al personale.
-                </p>
+                <div>
+                    <h2 className="text-2xl font-light text-white tracking-tight">Gestione <span className="font-bold text-amber-500">Impostazioni</span></h2>
+                    <p className="text-sm text-zinc-400 mt-1 uppercase tracking-wider font-medium">
+                        Configura ogni aspetto del tuo ristorante
+                    </p>
+                </div>
             </motion.div>
 
             <Tabs defaultValue="general" className="w-full">

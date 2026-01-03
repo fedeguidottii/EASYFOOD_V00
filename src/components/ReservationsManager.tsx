@@ -35,6 +35,29 @@ interface ReservationsManagerProps {
   onRefresh?: () => void
 }
 
+// Helper function to fix oklch colors that html2canvas doesn't support
+const fixOklchColors = (clonedDoc: Document) => {
+  const allElements = clonedDoc.querySelectorAll('*')
+  allElements.forEach(el => {
+    const computed = getComputedStyle(el)
+    const props = ['color', 'backgroundColor', 'borderColor', 'borderTopColor', 'borderBottomColor', 'borderLeftColor', 'borderRightColor', 'outlineColor', 'fill', 'stroke']
+    props.forEach(prop => {
+      const value = computed.getPropertyValue(prop)
+      if (value && value.includes('oklch')) {
+        (el as HTMLElement).style.setProperty(prop, prop === 'backgroundColor' ? 'transparent' : 'inherit', 'important')
+      }
+    })
+    const style = (el as HTMLElement).style
+    for (let i = 0; i < style.length; i++) {
+      const propName = style[i]
+      const value = style.getPropertyValue(propName)
+      if (value && value.includes('oklch')) {
+        style.setProperty(propName, 'transparent', 'important')
+      }
+    }
+  })
+}
+
 export default function ReservationsManager({ user, restaurantId, tables, rooms, bookings, selectedDate, openingTime = '10:00', closingTime = '23:00', reservationDuration = 120, onRefresh }: ReservationsManagerProps) {
   const [selectedBooking, setSelectedBooking] = useState<Booking | null>(null)
   const [selectedRoomId, setSelectedRoomId] = useState<string>('all')
@@ -425,7 +448,7 @@ export default function ReservationsManager({ user, restaurantId, tables, rooms,
     return filtered.sort((a, b) => new Date(a.date_time).getTime() - new Date(b.date_time).getTime())
   }
 
-  // Generate Table PDF
+  // Generate Table PDF - With day-by-day separation
   const generateTablePDF = async () => {
     setIsGeneratingTablePdf(true)
     try {
@@ -443,89 +466,201 @@ export default function ReservationsManager({ user, restaurantId, tables, rooms,
         format: 'a4'
       })
 
-      // Header
-      doc.setFillColor(251, 146, 60) // amber-400
-      doc.rect(0, 0, 210, 40, 'F')
+      const pageWidth = 210
+      const pageHeight = 297
+      const margin = 14
 
-      doc.setTextColor(0, 0, 0)
-      doc.setFontSize(22)
-      doc.setFont('helvetica', 'bold')
-      doc.text(restaurantName, 14, 18)
-
-      doc.setFontSize(12)
-      doc.setFont('helvetica', 'normal')
-      doc.text('TABELLA PRENOTAZIONI', 14, 28)
-
-      // Date info
-      const dateText = exportStartDate === exportEndDate || !exportEndDate
-        ? formatDate(exportStartDate || new Date().toISOString().split('T')[0])
-        : `Dal ${formatDate(exportStartDate)} al ${formatDate(exportEndDate)}`
-      doc.setFontSize(10)
-      doc.text(dateText, 196, 18, { align: 'right' })
-
-      doc.setFontSize(8)
-      doc.text(`Generato il: ${new Date().toLocaleString('it-IT')}`, 196, 28, { align: 'right' })
-
-      // Prepare data for autoTable
-      const tableBody = bookingsToExport.map(booking => {
-        const [date, time] = booking.date_time.split('T')
-        return [
-          new Date(date).toLocaleDateString('it-IT', { day: '2-digit', month: '2-digit' }),
-          time.substring(0, 5),
-          booking.name,
-          booking.phone || '-',
-          getTableName(booking.table_id),
-          booking.guests,
-          booking.notes || ''
-        ]
-      })
-
-      autoTable(doc, {
-        head: [['Data', 'Ora', 'Nome', 'Telefono', 'Tavolo', 'Ospiti', 'Note']],
-        body: tableBody,
-        startY: 50,
-        theme: 'grid', // 'grid' theme gives the borders like a real table
-        styles: {
-          fontSize: 8,
-          cellPadding: 3,
-          textColor: [50, 50, 50],
-          lineColor: [200, 200, 200],
-          lineWidth: 0.1,
-        },
-        headStyles: {
-          fillColor: [39, 39, 42], // zinc-800
-          textColor: [255, 255, 255],
-          fontStyle: 'bold',
-          lineColor: [39, 39, 42],
-        },
-        alternateRowStyles: {
-          fillColor: [249, 250, 251], // gray-50
-        },
-        columnStyles: {
-          0: { cellWidth: 20 }, // Data
-          1: { cellWidth: 15 }, // Ora
-          2: { cellWidth: 40 }, // Nome
-          3: { cellWidth: 35 }, // Telefono
-          4: { cellWidth: 25 }, // Tavolo
-          5: { cellWidth: 15, halign: 'center' }, // Ospiti
-          6: { cellWidth: 'auto' } // Note
-        },
-        didDrawPage: (data) => {
-          // Footer
-          const pageHeight = doc.internal.pageSize.height || doc.internal.pageSize.getHeight()
-          doc.setFontSize(8)
-          doc.setTextColor(150, 150, 150)
-          doc.text('Powered by EASYFOOD', 105, pageHeight - 10, { align: 'center' })
+      // Group bookings by date
+      const bookingsByDate: { [date: string]: typeof bookingsToExport } = {}
+      bookingsToExport.forEach(booking => {
+        const date = booking.date_time.split('T')[0]
+        if (!bookingsByDate[date]) {
+          bookingsByDate[date] = []
         }
+        bookingsByDate[date].push(booking)
       })
 
-      // Summary
-      const finalY = (doc as any).lastAutoTable.finalY || 50
-      doc.setFontSize(10)
-      doc.setFont('helvetica', 'bold')
-      doc.setTextColor(245, 158, 11) // amber-500
-      doc.text(`Totale Prenotazioni: ${bookingsToExport.length}`, 14, finalY + 10)
-      doc.text(`Totale Ospiti: ${bookingsToExport.reduce((sum, b) => sum + b.guests, 0)}`, 80, finalY + 10)
+      const sortedDates = Object.keys(bookingsByDate).sort()
+      const isMultipleDays = sortedDates.length > 1
+
+      // Function to draw header on a page
+      const drawHeader = (pageDate?: string) => {
+        // Amber header bar
+        doc.setFillColor(251, 191, 36) // amber-400
+        doc.rect(0, 0, pageWidth, 35, 'F')
+
+        // Title
+        doc.setFontSize(22)
+        doc.setFont('helvetica', 'bold')
+        doc.setTextColor(0, 0, 0)
+        doc.text('TABELLA PRENOTAZIONI', margin, 16)
+
+        // Restaurant name
+        doc.setFontSize(14)
+        doc.setFont('helvetica', 'normal')
+        doc.text(restaurantName.toUpperCase(), margin, 26)
+
+        // Date info on right side
+        if (pageDate) {
+          doc.setFontSize(11)
+          doc.setFont('helvetica', 'bold')
+          doc.text(formatDate(pageDate), pageWidth - margin, 16, { align: 'right' })
+        } else {
+          const dateText = exportStartDate === exportEndDate || !exportEndDate
+            ? formatDate(exportStartDate || new Date().toISOString().split('T')[0])
+            : `Dal ${new Date(exportStartDate).toLocaleDateString('it-IT', { day: '2-digit', month: '2-digit', year: 'numeric' })} al ${new Date(exportEndDate).toLocaleDateString('it-IT', { day: '2-digit', month: '2-digit', year: 'numeric' })}`
+          doc.setFontSize(10)
+          doc.setFont('helvetica', 'normal')
+          doc.text(dateText, pageWidth - margin, 16, { align: 'right' })
+        }
+
+        doc.setFontSize(8)
+        doc.setFont('helvetica', 'normal')
+        doc.text(`Generato il: ${new Date().toLocaleString('it-IT')}`, pageWidth - margin, 26, { align: 'right' })
+      }
+
+      // Draw table for bookings
+      const drawTable = (bookings: typeof bookingsToExport, startY: number, showDate: boolean = true) => {
+        const tableBody = bookings.map(booking => {
+          const [date, time] = booking.date_time.split('T')
+          const row = showDate
+            ? [
+              new Date(date).toLocaleDateString('it-IT', { day: '2-digit', month: '2-digit' }),
+              time.substring(0, 5),
+              booking.name,
+              booking.phone || '-',
+              getTableName(booking.table_id),
+              booking.guests.toString(),
+              booking.notes || ''
+            ]
+            : [
+              time.substring(0, 5),
+              booking.name,
+              booking.phone || '-',
+              getTableName(booking.table_id),
+              booking.guests.toString(),
+              booking.notes || ''
+            ]
+          return row
+        })
+
+        const headers = showDate
+          ? [['Data', 'Ora', 'Nome', 'Telefono', 'Tavolo', 'Ospiti', 'Note']]
+          : [['Ora', 'Nome', 'Telefono', 'Tavolo', 'Ospiti', 'Note']]
+
+        const columnStyles = showDate
+          ? {
+            0: { cellWidth: 18 },
+            1: { cellWidth: 14 },
+            2: { cellWidth: 38 },
+            3: { cellWidth: 32 },
+            4: { cellWidth: 22 },
+            5: { cellWidth: 14, halign: 'center' as const },
+            6: { cellWidth: 'auto' as const }
+          }
+          : {
+            0: { cellWidth: 16 },
+            1: { cellWidth: 42 },
+            2: { cellWidth: 35 },
+            3: { cellWidth: 24 },
+            4: { cellWidth: 16, halign: 'center' as const },
+            5: { cellWidth: 'auto' as const }
+          }
+
+        autoTable(doc, {
+          head: headers,
+          body: tableBody,
+          startY: startY,
+          theme: 'grid',
+          styles: {
+            fontSize: 9,
+            cellPadding: 3,
+            textColor: [50, 50, 50],
+            lineColor: [200, 200, 200],
+            lineWidth: 0.1,
+          },
+          headStyles: {
+            fillColor: [39, 39, 42],
+            textColor: [255, 255, 255],
+            fontStyle: 'bold',
+            fontSize: 9,
+          },
+          alternateRowStyles: {
+            fillColor: [249, 250, 251],
+          },
+          columnStyles: columnStyles as any,
+          margin: { left: margin, right: margin }
+        })
+
+        return (doc as any).lastAutoTable.finalY
+      }
+
+      // Generate PDF content
+      if (isMultipleDays) {
+        // Multiple days: one section per day
+        let isFirstPage = true
+
+        sortedDates.forEach((date, index) => {
+          const dayBookings = bookingsByDate[date]
+
+          if (!isFirstPage) {
+            doc.addPage()
+          }
+          isFirstPage = false
+
+          // Draw header with specific date
+          drawHeader(date)
+
+          // Day title
+          let currentY = 45
+          doc.setFontSize(12)
+          doc.setFont('helvetica', 'bold')
+          doc.setTextColor(60, 60, 60)
+          const dayTitle = formatDate(date)
+          doc.text(dayTitle, margin, currentY)
+
+          doc.setFontSize(10)
+          doc.setFont('helvetica', 'normal')
+          doc.setTextColor(100, 100, 100)
+          doc.text(`${dayBookings.length} prenotazioni • ${dayBookings.reduce((sum, b) => sum + b.guests, 0)} ospiti`, margin, currentY + 6)
+
+          currentY += 12
+
+          // Draw table without date column (since date is in header)
+          drawTable(dayBookings, currentY, false)
+        })
+      } else {
+        // Single day or date range: one combined table
+        drawHeader()
+        drawTable(bookingsToExport, 45, sortedDates.length > 1)
+      }
+
+      // Add footer to all pages
+      const totalPages = doc.getNumberOfPages()
+      for (let i = 1; i <= totalPages; i++) {
+        doc.setPage(i)
+
+        // Summary on last page
+        if (i === totalPages) {
+          const finalY = (doc as any).lastAutoTable?.finalY || pageHeight - 40
+          if (finalY < pageHeight - 25) {
+            doc.setFontSize(10)
+            doc.setFont('helvetica', 'bold')
+            doc.setTextColor(245, 158, 11)
+            doc.text(`Totale: ${bookingsToExport.length} prenotazioni`, margin, finalY + 10)
+            doc.text(`${bookingsToExport.reduce((sum, b) => sum + b.guests, 0)} ospiti`, margin + 60, finalY + 10)
+          }
+        }
+
+        // Footer
+        doc.setFontSize(9)
+        doc.setTextColor(150, 150, 150)
+        doc.setFont('helvetica', 'normal')
+        doc.text('Powered by Easyfood', pageWidth / 2, pageHeight - 10, { align: 'center' })
+        if (totalPages > 1) {
+          doc.text(`Pagina ${i} di ${totalPages}`, pageWidth - margin, pageHeight - 10, { align: 'right' })
+        }
+      }
 
       const filename = `Prenotazioni_${restaurantName.replace(/\s+/g, '_')}_${exportStartDate || 'all'}.pdf`
       doc.save(filename)
@@ -557,7 +692,8 @@ export default function ReservationsManager({ user, restaurantId, tables, rooms,
       const canvas = await html2canvas(qrContainer, {
         scale: 2,
         backgroundColor: '#09090b', // Dark background (zinc-950)
-        useCORS: true
+        useCORS: true,
+        onclone: (clonedDoc) => fixOklchColors(clonedDoc)
       })
 
       qrContainer.style.display = originalStyle
@@ -596,8 +732,13 @@ export default function ReservationsManager({ user, restaurantId, tables, rooms,
     <div className="space-y-6">
       {/* Header with Timeline */}
       <div className="space-y-4">
-        <div className="flex items-center justify-between flex-wrap gap-4">
-          <h2 className="text-2xl font-bold text-foreground">Prenotazioni del {selectedDate.toLocaleDateString('it-IT')}</h2>
+        <div className="flex flex-col md:flex-row items-start md:items-center justify-between mb-6 gap-4 pb-4 border-b border-white/10">
+          <div>
+            <h2 className="text-2xl font-light text-white tracking-tight">Gestione <span className="font-bold text-amber-500">Prenotazioni</span></h2>
+            <p className="text-sm text-zinc-400 mt-1 uppercase tracking-wider font-medium">
+              {selectedDate.toLocaleDateString('it-IT', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })}
+            </p>
+          </div>
           <div className="flex gap-2 flex-wrap">
             <Button
               className="bg-amber-500 hover:bg-amber-600 text-black font-bold gap-2 shadow-[0_0_15px_rgba(245,158,11,0.2)] transition-all active:scale-95"
@@ -996,8 +1137,8 @@ export default function ReservationsManager({ user, restaurantId, tables, rooms,
                 <button
                   onClick={() => setHistoryStatusFilter('all')}
                   className={`px-3 py-1.5 rounded-full text-xs font-medium transition-all ${historyStatusFilter === 'all'
-                      ? 'bg-amber-500 text-black'
-                      : 'bg-zinc-800 text-zinc-400 hover:bg-zinc-700'
+                    ? 'bg-amber-500 text-black'
+                    : 'bg-zinc-800 text-zinc-400 hover:bg-zinc-700'
                     }`}
                 >
                   Tutte
@@ -1005,8 +1146,8 @@ export default function ReservationsManager({ user, restaurantId, tables, rooms,
                 <button
                   onClick={() => setHistoryStatusFilter('COMPLETED')}
                   className={`px-3 py-1.5 rounded-full text-xs font-medium transition-all flex items-center gap-1.5 ${historyStatusFilter === 'COMPLETED'
-                      ? 'bg-emerald-500 text-black'
-                      : 'bg-zinc-800 text-zinc-400 hover:bg-zinc-700'
+                    ? 'bg-emerald-500 text-black'
+                    : 'bg-zinc-800 text-zinc-400 hover:bg-zinc-700'
                     }`}
                 >
                   <CheckCircle size={14} weight="fill" />
@@ -1015,8 +1156,8 @@ export default function ReservationsManager({ user, restaurantId, tables, rooms,
                 <button
                   onClick={() => setHistoryStatusFilter('CANCELLED')}
                   className={`px-3 py-1.5 rounded-full text-xs font-medium transition-all flex items-center gap-1.5 ${historyStatusFilter === 'CANCELLED'
-                      ? 'bg-rose-500 text-black'
-                      : 'bg-zinc-800 text-zinc-400 hover:bg-zinc-700'
+                    ? 'bg-rose-500 text-black'
+                    : 'bg-zinc-800 text-zinc-400 hover:bg-zinc-700'
                     }`}
                 >
                   <XCircle size={14} weight="fill" />
@@ -1059,8 +1200,8 @@ export default function ReservationsManager({ user, restaurantId, tables, rooms,
                     <div
                       key={booking.id}
                       className={`relative p-4 rounded-xl border transition-all hover:scale-[1.005] ${booking.status === 'COMPLETED'
-                          ? 'bg-gradient-to-r from-emerald-500/5 via-transparent to-transparent border-emerald-500/20 hover:border-emerald-500/40'
-                          : 'bg-gradient-to-r from-rose-500/5 via-transparent to-transparent border-rose-500/20 hover:border-rose-500/40'
+                        ? 'bg-gradient-to-r from-emerald-500/5 via-transparent to-transparent border-emerald-500/20 hover:border-emerald-500/40'
+                        : 'bg-gradient-to-r from-rose-500/5 via-transparent to-transparent border-rose-500/20 hover:border-rose-500/40'
                         }`}
                     >
                       <div className="flex items-start justify-between gap-4">
@@ -1109,8 +1250,8 @@ export default function ReservationsManager({ user, restaurantId, tables, rooms,
                           <div className="flex items-start justify-end">
                             <Badge
                               className={`${booking.status === 'COMPLETED'
-                                  ? 'bg-emerald-500/20 text-emerald-400 border-emerald-500/30'
-                                  : 'bg-rose-500/20 text-rose-400 border-rose-500/30'
+                                ? 'bg-emerald-500/20 text-emerald-400 border-emerald-500/30'
+                                : 'bg-rose-500/20 text-rose-400 border-rose-500/30'
                                 } border font-medium`}
                             >
                               {booking.status === 'COMPLETED' ? (

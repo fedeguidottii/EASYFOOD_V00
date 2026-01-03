@@ -1,14 +1,17 @@
 import React, { useState, useEffect, useRef } from 'react'
 import { supabase } from '../../lib/supabase'
 import { DatabaseService } from '../../services/DatabaseService'
-import { Table, Order, TableSession, Restaurant } from '../../services/types'
+import { Table, Order, TableSession, Restaurant, Room } from '../../services/types'
 import { toast } from 'sonner'
-import { SignOut, User, CheckCircle, ArrowsClockwise, Receipt, Trash, Plus, BellRinging, Clock } from '@phosphor-icons/react'
+import { SignOut, User, CheckCircle, ArrowsClockwise, Receipt, Trash, Plus, BellRinging, Clock, Pencil, House, Funnel, GearSix } from '@phosphor-icons/react'
 import { Button } from '../ui/button'
 import { Card, CardContent } from '../ui/card'
 import { Badge } from '../ui/badge'
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '../ui/dialog'
 import { ScrollArea } from '../ui/scroll-area'
+import { Input } from '../ui/input'
+import { Label } from '../ui/label'
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../ui/select'
 
 interface WaiterDashboardProps {
     user: any
@@ -35,6 +38,23 @@ const WaiterDashboard = ({ user, onLogout }: WaiterDashboardProps) => {
     const [isReadyDrawerOpen, setIsReadyDrawerOpen] = useState(false)
     const [selectedTable, setSelectedTable] = useState<Table | null>(null)
     const [isTableModalOpen, setIsTableModalOpen] = useState(false)
+
+    // Room Filter State
+    const [selectedRoomFilter, setSelectedRoomFilter] = useState<string>('all')
+
+    // Table/Room Management State
+    const [isManageDialogOpen, setIsManageDialogOpen] = useState(false)
+    const [isAddTableDialogOpen, setIsAddTableDialogOpen] = useState(false)
+    const [isEditTableDialogOpen, setIsEditTableDialogOpen] = useState(false)
+    const [tableToEdit, setTableToEdit] = useState<Table | null>(null)
+    const [newTableNumber, setNewTableNumber] = useState('')
+    const [newTableSeats, setNewTableSeats] = useState('4')
+    const [newTableRoomId, setNewTableRoomId] = useState<string>('')
+
+    const [isAddRoomDialogOpen, setIsAddRoomDialogOpen] = useState(false)
+    const [isEditRoomDialogOpen, setIsEditRoomDialogOpen] = useState(false)
+    const [roomToEdit, setRoomToEdit] = useState<Room | null>(null)
+    const [newRoomName, setNewRoomName] = useState('')
 
     // Timer effect for timeline
     useEffect(() => {
@@ -193,7 +213,7 @@ const WaiterDashboard = ({ user, onLogout }: WaiterDashboardProps) => {
     const prevReadyCountRef = useRef(0)
     useEffect(() => {
         const currentReadyCount = activeOrders.reduce((acc, order) => {
-            return acc + (order.items?.filter(i => i.status === 'ready').length || 0)
+            return acc + (order.items?.filter(i => i.status?.toLowerCase() === 'ready').length || 0)
         }, 0)
 
         if (currentReadyCount > prevReadyCountRef.current) {
@@ -225,7 +245,7 @@ const WaiterDashboard = ({ user, onLogout }: WaiterDashboardProps) => {
     }
 
     const readyItems = activeOrders.flatMap(o =>
-        o.items?.filter(i => i.status === 'ready').map(i => ({ ...i, tableId: sessions.find(s => s.id === o.table_session_id)?.table_id }))
+        o.items?.filter(i => i.status?.toLowerCase() === 'ready').map(i => ({ ...i, tableId: sessions.find(s => s.id === o.table_session_id)?.table_id, order_id: o.id }))
     ).filter(i => i !== undefined) as any[]
 
     const sortTables = (tables: Table[]) => {
@@ -316,6 +336,152 @@ const WaiterDashboard = ({ user, onLogout }: WaiterDashboardProps) => {
         }
     }
 
+    // TABLE MANAGEMENT FUNCTIONS
+    const handleAddTable = async () => {
+        if (!restaurantId || !newTableNumber.trim()) {
+            toast.error('Inserisci un numero/nome per il tavolo')
+            return
+        }
+        try {
+            const newTable = await DatabaseService.createTable({
+                restaurant_id: restaurantId,
+                number: newTableNumber.trim(),
+                seats: parseInt(newTableSeats) || 4,
+                room_id: newTableRoomId || undefined,
+                is_active: true
+            })
+            setTables(prev => [...prev, newTable])
+            setNewTableNumber('')
+            setNewTableSeats('4')
+            setNewTableRoomId('')
+            setIsAddTableDialogOpen(false)
+            toast.success(`Tavolo "${newTableNumber}" creato!`)
+        } catch (error) {
+            console.error('Error creating table:', error)
+            toast.error('Errore nella creazione del tavolo')
+        }
+    }
+
+    const handleEditTable = async () => {
+        if (!tableToEdit) return
+        try {
+            await DatabaseService.updateTable(tableToEdit.id, {
+                number: newTableNumber.trim(),
+                seats: parseInt(newTableSeats) || 4,
+                room_id: newTableRoomId || undefined
+            })
+            setTables(prev => prev.map(t => t.id === tableToEdit.id ? {
+                ...t,
+                number: newTableNumber.trim(),
+                seats: parseInt(newTableSeats) || 4,
+                room_id: newTableRoomId || undefined
+            } : t))
+            setTableToEdit(null)
+            setIsEditTableDialogOpen(false)
+            toast.success('Tavolo aggiornato!')
+        } catch (error) {
+            console.error('Error updating table:', error)
+            toast.error('Errore nell\'aggiornamento del tavolo')
+        }
+    }
+
+    const handleDeleteTable = async (tableId: string) => {
+        const session = sessions.find(s => s.table_id === tableId)
+        if (session) {
+            toast.error('Impossibile eliminare un tavolo con una sessione attiva')
+            return
+        }
+        try {
+            await DatabaseService.deleteTable(tableId)
+            setTables(prev => prev.filter(t => t.id !== tableId))
+            setIsEditTableDialogOpen(false)
+            setTableToEdit(null)
+            toast.success('Tavolo eliminato!')
+        } catch (error) {
+            console.error('Error deleting table:', error)
+            toast.error('Errore nell\'eliminazione del tavolo')
+        }
+    }
+
+    const openEditTableDialog = (table: Table) => {
+        setTableToEdit(table)
+        setNewTableNumber(table.number)
+        setNewTableSeats(String(table.seats || 4))
+        setNewTableRoomId(table.room_id || '')
+        setIsEditTableDialogOpen(true)
+    }
+
+    // ROOM MANAGEMENT FUNCTIONS
+    const handleAddRoom = async () => {
+        if (!restaurantId || !newRoomName.trim()) {
+            toast.error('Inserisci un nome per la sala')
+            return
+        }
+        try {
+            await DatabaseService.createRoom({
+                restaurant_id: restaurantId,
+                name: newRoomName.trim(),
+                is_active: true,
+                order: rooms.length
+            })
+            const updatedRooms = await DatabaseService.getRooms(restaurantId)
+            setRooms(updatedRooms)
+            setNewRoomName('')
+            setIsAddRoomDialogOpen(false)
+            toast.success(`Sala "${newRoomName}" creata!`)
+        } catch (error) {
+            console.error('Error creating room:', error)
+            toast.error('Errore nella creazione della sala')
+        }
+    }
+
+    const handleEditRoom = async () => {
+        if (!roomToEdit || !newRoomName.trim()) return
+        try {
+            await DatabaseService.updateRoom(roomToEdit.id, {
+                name: newRoomName.trim()
+            })
+            setRooms(prev => prev.map(r => r.id === roomToEdit.id ? { ...r, name: newRoomName.trim() } : r))
+            setRoomToEdit(null)
+            setIsEditRoomDialogOpen(false)
+            toast.success('Sala aggiornata!')
+        } catch (error) {
+            console.error('Error updating room:', error)
+            toast.error('Errore nell\'aggiornamento della sala')
+        }
+    }
+
+    const handleDeleteRoom = async (roomId: string) => {
+        const tablesInRoom = tables.filter(t => t.room_id === roomId)
+        if (tablesInRoom.length > 0) {
+            toast.error('Impossibile eliminare una sala con tavoli assegnati. Riassegna prima i tavoli.')
+            return
+        }
+        try {
+            await DatabaseService.deleteRoom(roomId)
+            setRooms(prev => prev.filter(r => r.id !== roomId))
+            setIsEditRoomDialogOpen(false)
+            setRoomToEdit(null)
+            toast.success('Sala eliminata!')
+        } catch (error) {
+            console.error('Error deleting room:', error)
+            toast.error('Errore nell\'eliminazione della sala')
+        }
+    }
+
+    const openEditRoomDialog = (room: Room) => {
+        setRoomToEdit(room)
+        setNewRoomName(room.name)
+        setIsEditRoomDialogOpen(true)
+    }
+
+    // Filtered tables based on room selection
+    const filteredTables = selectedRoomFilter === 'all'
+        ? tables
+        : selectedRoomFilter === 'no-room'
+            ? tables.filter(t => !t.room_id)
+            : tables.filter(t => t.room_id === selectedRoomFilter)
+
     if (loading) return (
         <div className="min-h-screen bg-zinc-950 flex flex-col items-center justify-center text-amber-500">
             <div className="w-12 h-12 border-4 border-amber-500/30 border-t-amber-500 rounded-full animate-spin mb-4" />
@@ -323,7 +489,7 @@ const WaiterDashboard = ({ user, onLogout }: WaiterDashboardProps) => {
         </div>
     )
 
-    const sortedTables = sortTables(tables)
+    const sortedTables = sortTables(filteredTables)
     const readyCount = readyItems.length
 
     // Helper function to render a table card
@@ -491,6 +657,31 @@ const WaiterDashboard = ({ user, onLogout }: WaiterDashboardProps) => {
 
                     <div className="h-6 w-px bg-white/10 mx-2 hidden md:block"></div>
 
+                    {/* Room Filter */}
+                    <Select value={selectedRoomFilter} onValueChange={setSelectedRoomFilter}>
+                        <SelectTrigger className="w-[140px] h-10 bg-zinc-900/80 border-white/5 text-xs font-bold rounded-xl">
+                            <House size={16} className="mr-2 text-amber-500" />
+                            <SelectValue placeholder="Sala" />
+                        </SelectTrigger>
+                        <SelectContent className="bg-zinc-950 border-zinc-800">
+                            <SelectItem value="all">Tutte le Sale</SelectItem>
+                            <SelectItem value="no-room">Senza Sala</SelectItem>
+                            {rooms.map(room => (
+                                <SelectItem key={room.id} value={room.id}>{room.name}</SelectItem>
+                            ))}
+                        </SelectContent>
+                    </Select>
+
+                    {/* Management Button */}
+                    <Button
+                        variant="ghost"
+                        size="sm"
+                        className="text-zinc-400 hover:text-amber-500 hover:bg-amber-500/10 h-10 w-10 p-0 rounded-xl"
+                        onClick={() => setIsManageDialogOpen(true)}
+                    >
+                        <GearSix size={20} weight="duotone" />
+                    </Button>
+
                     <Button
                         variant="ghost"
                         size="sm"
@@ -626,8 +817,8 @@ const WaiterDashboard = ({ user, onLogout }: WaiterDashboardProps) => {
 
             {/* Payment Dialog */}
             <Dialog open={isPaymentDialogOpen} onOpenChange={setIsPaymentDialogOpen}>
-                <DialogContent className="sm:max-w-md bg-zinc-950 border-zinc-800 text-zinc-100 p-0 overflow-hidden">
-                    <div className="p-6 pb-2 bg-gradient-to-b from-zinc-900 to-zinc-950 border-b border-white/5">
+                <DialogContent className="sm:max-w-md bg-zinc-950 border-zinc-800 text-zinc-100 p-0 overflow-visible flex flex-col max-h-[90vh]">
+                    <div className="p-6 pb-2 bg-gradient-to-b from-zinc-900 to-zinc-950 border-b border-white/5 shrink-0">
                         <DialogHeader>
                             <DialogTitle className="text-2xl font-bold text-white flex items-center gap-3">
                                 <span className="bg-amber-500/10 border border-amber-500/20 px-3 py-1 rounded-xl text-lg text-amber-500 font-serif">#{selectedTableForPayment?.number}</span>
@@ -650,7 +841,7 @@ const WaiterDashboard = ({ user, onLogout }: WaiterDashboardProps) => {
                         </div>
                     </div>
 
-                    <DialogFooter className="flex flex-col gap-3 p-6 bg-zinc-950">
+                    <DialogFooter className="flex flex-col gap-3 p-6 bg-zinc-950 shrink-0">
                         <Button
                             className="w-full h-14 text-lg font-bold bg-amber-500 hover:bg-amber-400 text-black shadow-lg shadow-amber-500/20 rounded-xl transition-all hover:scale-[1.02]"
                             onClick={() => handleCloseTable(true)}
@@ -728,11 +919,11 @@ const WaiterDashboard = ({ user, onLogout }: WaiterDashboardProps) => {
                                                 {tableOrders.map(order => (
                                                     <div key={order.id} className="bg-zinc-900/80 border border-white/5 rounded-xl p-4">
                                                         <div className="flex justify-between items-center mb-3">
-                                                            <Badge variant="outline" className={`text-[10px] ${order.status === 'ready' ? 'text-amber-400 border-amber-500/30' :
+                                                            <Badge variant="outline" className={`text-[10px] ${order.status?.toLowerCase() === 'ready' ? 'text-amber-400 border-amber-500/30' :
                                                                 order.status === 'served' ? 'text-emerald-400 border-emerald-500/30' :
                                                                     'text-blue-400 border-blue-500/30'
                                                                 }`}>
-                                                                {order.status === 'ready' ? 'Pronto' :
+                                                                {order.status?.toLowerCase() === 'ready' ? 'Pronto' :
                                                                     order.status === 'served' ? 'Servito' :
                                                                         order.status === 'preparing' ? 'In Preparazione' : 'In Attesa'}
                                                             </Badge>
@@ -748,7 +939,7 @@ const WaiterDashboard = ({ user, onLogout }: WaiterDashboardProps) => {
                                                                         <span className={item.status === 'served' ? 'text-zinc-500 line-through' : 'text-white'}>
                                                                             {item.dish?.name || 'Piatto'}
                                                                         </span>
-                                                                        {item.status === 'ready' && (
+                                                                        {item.status?.toLowerCase() === 'ready' && (
                                                                             <Badge className="bg-amber-500 text-black text-[8px] px-1">PRONTO</Badge>
                                                                         )}
                                                                     </div>
@@ -830,6 +1021,200 @@ const WaiterDashboard = ({ user, onLogout }: WaiterDashboardProps) => {
                             </>
                         )
                     })()}
+                </DialogContent>
+            </Dialog>
+
+            {/* Management Dialog - Main Menu */}
+            <Dialog open={isManageDialogOpen} onOpenChange={setIsManageDialogOpen}>
+                <DialogContent className="sm:max-w-lg bg-zinc-950 border-zinc-800 text-zinc-100 p-0 overflow-hidden max-h-[85vh] flex flex-col">
+                    <DialogHeader className="p-6 pb-4 border-b border-white/5 bg-zinc-900/50 shrink-0">
+                        <DialogTitle className="text-xl font-bold flex items-center gap-3">
+                            <GearSix size={24} className="text-amber-500" />
+                            Gestione Tavoli e Sale
+                        </DialogTitle>
+                        <DialogDescription className="text-zinc-500">
+                            Aggiungi, modifica o elimina tavoli e sale
+                        </DialogDescription>
+                    </DialogHeader>
+
+                    <ScrollArea className="flex-1 p-4">
+                        <div className="space-y-6">
+                            {/* Tables Section */}
+                            <div>
+                                <div className="flex items-center justify-between mb-3">
+                                    <h3 className="text-sm font-bold uppercase tracking-wider text-zinc-500">Tavoli ({tables.length})</h3>
+                                    <Button size="sm" onClick={() => { setIsManageDialogOpen(false); setIsAddTableDialogOpen(true); }} className="h-8 bg-amber-500 hover:bg-amber-400 text-black font-bold">
+                                        <Plus size={16} className="mr-1" /> Aggiungi
+                                    </Button>
+                                </div>
+                                <div className="space-y-2 max-h-48 overflow-y-auto">
+                                    {tables.map(table => {
+                                        const room = rooms.find(r => r.id === table.room_id)
+                                        const session = sessions.find(s => s.table_id === table.id)
+                                        return (
+                                            <div key={table.id} className="flex items-center justify-between p-3 bg-zinc-900/80 rounded-xl border border-white/5">
+                                                <div>
+                                                    <span className="font-bold text-white">{table.number}</span>
+                                                    <span className="text-xs text-zinc-500 ml-2">{table.seats} posti</span>
+                                                    {room && <Badge variant="outline" className="ml-2 text-[10px] border-amber-500/30 text-amber-400">{room.name}</Badge>}
+                                                    {session && <Badge className="ml-2 text-[10px] bg-green-500/20 text-green-400 border-green-500/30">Attivo</Badge>}
+                                                </div>
+                                                <Button size="sm" variant="ghost" className="h-8 w-8 p-0 text-zinc-400 hover:text-amber-500" onClick={() => { setIsManageDialogOpen(false); openEditTableDialog(table); }}>
+                                                    <Pencil size={16} />
+                                                </Button>
+                                            </div>
+                                        )
+                                    })}
+                                </div>
+                            </div>
+
+                            {/* Rooms Section */}
+                            <div>
+                                <div className="flex items-center justify-between mb-3">
+                                    <h3 className="text-sm font-bold uppercase tracking-wider text-zinc-500">Sale ({rooms.length})</h3>
+                                    <Button size="sm" onClick={() => { setIsManageDialogOpen(false); setIsAddRoomDialogOpen(true); }} className="h-8 bg-amber-500 hover:bg-amber-400 text-black font-bold">
+                                        <Plus size={16} className="mr-1" /> Aggiungi
+                                    </Button>
+                                </div>
+                                <div className="space-y-2">
+                                    {rooms.length === 0 ? (
+                                        <p className="text-sm text-zinc-600 text-center py-4">Nessuna sala configurata</p>
+                                    ) : rooms.map(room => {
+                                        const tablesInRoom = tables.filter(t => t.room_id === room.id).length
+                                        return (
+                                            <div key={room.id} className="flex items-center justify-between p-3 bg-zinc-900/80 rounded-xl border border-white/5">
+                                                <div>
+                                                    <span className="font-bold text-white">{room.name}</span>
+                                                    <span className="text-xs text-zinc-500 ml-2">{tablesInRoom} tavoli</span>
+                                                </div>
+                                                <Button size="sm" variant="ghost" className="h-8 w-8 p-0 text-zinc-400 hover:text-amber-500" onClick={() => { setIsManageDialogOpen(false); openEditRoomDialog(room); }}>
+                                                    <Pencil size={16} />
+                                                </Button>
+                                            </div>
+                                        )
+                                    })}
+                                </div>
+                            </div>
+                        </div>
+                    </ScrollArea>
+
+                    <DialogFooter className="p-4 border-t border-white/5 shrink-0">
+                        <Button variant="outline" className="w-full border-white/10 text-zinc-400" onClick={() => setIsManageDialogOpen(false)}>Chiudi</Button>
+                    </DialogFooter>
+                </DialogContent>
+            </Dialog>
+
+            {/* Add Table Dialog */}
+            <Dialog open={isAddTableDialogOpen} onOpenChange={setIsAddTableDialogOpen}>
+                <DialogContent className="sm:max-w-md bg-zinc-950 border-zinc-800 text-zinc-100">
+                    <DialogHeader>
+                        <DialogTitle className="text-xl font-bold">Nuovo Tavolo</DialogTitle>
+                    </DialogHeader>
+                    <div className="space-y-4 py-4">
+                        <div className="space-y-2">
+                            <Label>Nome/Numero Tavolo</Label>
+                            <Input value={newTableNumber} onChange={(e) => setNewTableNumber(e.target.value)} placeholder="Es. 1, A1, Terrazza 1" className="bg-black/20 border-white/10" />
+                        </div>
+                        <div className="space-y-2">
+                            <Label>Posti</Label>
+                            <Input type="number" value={newTableSeats} onChange={(e) => setNewTableSeats(e.target.value)} placeholder="4" className="bg-black/20 border-white/10" />
+                        </div>
+                        <div className="space-y-2">
+                            <Label>Sala (opzionale)</Label>
+                            <Select value={newTableRoomId} onValueChange={setNewTableRoomId}>
+                                <SelectTrigger className="bg-black/20 border-white/10">
+                                    <SelectValue placeholder="Nessuna sala" />
+                                </SelectTrigger>
+                                <SelectContent className="bg-zinc-950 border-zinc-800">
+                                    <SelectItem value="">Nessuna sala</SelectItem>
+                                    {rooms.map(room => <SelectItem key={room.id} value={room.id}>{room.name}</SelectItem>)}
+                                </SelectContent>
+                            </Select>
+                        </div>
+                    </div>
+                    <DialogFooter className="gap-2">
+                        <Button variant="outline" onClick={() => setIsAddTableDialogOpen(false)} className="border-white/10">Annulla</Button>
+                        <Button onClick={handleAddTable} className="bg-amber-500 hover:bg-amber-400 text-black font-bold">Crea Tavolo</Button>
+                    </DialogFooter>
+                </DialogContent>
+            </Dialog>
+
+            {/* Edit Table Dialog */}
+            <Dialog open={isEditTableDialogOpen} onOpenChange={setIsEditTableDialogOpen}>
+                <DialogContent className="sm:max-w-md bg-zinc-950 border-zinc-800 text-zinc-100">
+                    <DialogHeader>
+                        <DialogTitle className="text-xl font-bold">Modifica Tavolo</DialogTitle>
+                    </DialogHeader>
+                    <div className="space-y-4 py-4">
+                        <div className="space-y-2">
+                            <Label>Nome/Numero Tavolo</Label>
+                            <Input value={newTableNumber} onChange={(e) => setNewTableNumber(e.target.value)} className="bg-black/20 border-white/10" />
+                        </div>
+                        <div className="space-y-2">
+                            <Label>Posti</Label>
+                            <Input type="number" value={newTableSeats} onChange={(e) => setNewTableSeats(e.target.value)} className="bg-black/20 border-white/10" />
+                        </div>
+                        <div className="space-y-2">
+                            <Label>Sala</Label>
+                            <Select value={newTableRoomId} onValueChange={setNewTableRoomId}>
+                                <SelectTrigger className="bg-black/20 border-white/10">
+                                    <SelectValue placeholder="Nessuna sala" />
+                                </SelectTrigger>
+                                <SelectContent className="bg-zinc-950 border-zinc-800">
+                                    <SelectItem value="">Nessuna sala</SelectItem>
+                                    {rooms.map(room => <SelectItem key={room.id} value={room.id}>{room.name}</SelectItem>)}
+                                </SelectContent>
+                            </Select>
+                        </div>
+                    </div>
+                    <DialogFooter className="flex justify-between gap-2">
+                        <Button variant="destructive" onClick={() => tableToEdit && handleDeleteTable(tableToEdit.id)} className="mr-auto">
+                            <Trash size={16} className="mr-1" /> Elimina
+                        </Button>
+                        <Button variant="outline" onClick={() => setIsEditTableDialogOpen(false)} className="border-white/10">Annulla</Button>
+                        <Button onClick={handleEditTable} className="bg-amber-500 hover:bg-amber-400 text-black font-bold">Salva</Button>
+                    </DialogFooter>
+                </DialogContent>
+            </Dialog>
+
+            {/* Add Room Dialog */}
+            <Dialog open={isAddRoomDialogOpen} onOpenChange={setIsAddRoomDialogOpen}>
+                <DialogContent className="sm:max-w-md bg-zinc-950 border-zinc-800 text-zinc-100">
+                    <DialogHeader>
+                        <DialogTitle className="text-xl font-bold">Nuova Sala</DialogTitle>
+                    </DialogHeader>
+                    <div className="space-y-4 py-4">
+                        <div className="space-y-2">
+                            <Label>Nome Sala</Label>
+                            <Input value={newRoomName} onChange={(e) => setNewRoomName(e.target.value)} placeholder="Es. Terrazza, Sala Interna" className="bg-black/20 border-white/10" />
+                        </div>
+                    </div>
+                    <DialogFooter className="gap-2">
+                        <Button variant="outline" onClick={() => setIsAddRoomDialogOpen(false)} className="border-white/10">Annulla</Button>
+                        <Button onClick={handleAddRoom} className="bg-amber-500 hover:bg-amber-400 text-black font-bold">Crea Sala</Button>
+                    </DialogFooter>
+                </DialogContent>
+            </Dialog>
+
+            {/* Edit Room Dialog */}
+            <Dialog open={isEditRoomDialogOpen} onOpenChange={setIsEditRoomDialogOpen}>
+                <DialogContent className="sm:max-w-md bg-zinc-950 border-zinc-800 text-zinc-100">
+                    <DialogHeader>
+                        <DialogTitle className="text-xl font-bold">Modifica Sala</DialogTitle>
+                    </DialogHeader>
+                    <div className="space-y-4 py-4">
+                        <div className="space-y-2">
+                            <Label>Nome Sala</Label>
+                            <Input value={newRoomName} onChange={(e) => setNewRoomName(e.target.value)} className="bg-black/20 border-white/10" />
+                        </div>
+                    </div>
+                    <DialogFooter className="flex justify-between gap-2">
+                        <Button variant="destructive" onClick={() => roomToEdit && handleDeleteRoom(roomToEdit.id)} className="mr-auto">
+                            <Trash size={16} className="mr-1" /> Elimina
+                        </Button>
+                        <Button variant="outline" onClick={() => setIsEditRoomDialogOpen(false)} className="border-white/10">Annulla</Button>
+                        <Button onClick={handleEditRoom} className="bg-amber-500 hover:bg-amber-400 text-black font-bold">Salva</Button>
+                    </DialogFooter>
                 </DialogContent>
             </Dialog>
         </div>

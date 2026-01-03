@@ -19,6 +19,7 @@ interface AnalyticsChartsProps {
   completedOrders: Order[]
   dishes: Dish[]
   categories: Category[]
+  restaurantName?: string
 }
 
 type DateFilter = 'today' | 'yesterday' | 'week' | '2weeks' | 'month' | '3months' | 'custom'
@@ -61,7 +62,7 @@ interface HourlyData {
 
 type FilteredOrder = Order & { filteredItems?: OrderItem[]; filteredAmount?: number }
 
-export default function AnalyticsCharts({ orders, completedOrders, dishes, categories }: AnalyticsChartsProps) {
+export default function AnalyticsCharts({ orders, completedOrders, dishes, categories, restaurantName = 'Ristorante' }: AnalyticsChartsProps) {
   const [dateFilter, setDateFilter] = useState<DateFilter>('week')
   const [customStartDate, setCustomStartDate] = useState('')
   const [customEndDate, setCustomEndDate] = useState('')
@@ -262,7 +263,7 @@ export default function AnalyticsCharts({ orders, completedOrders, dishes, categ
     }
   }, [categoryFilteredOrders, orders, categories, dishes, dateFilter, start, end, activeCategoryIds, categoryMetric])
 
-  // EXPORT ANALYTICS FUNCTION (B&W OPTIMIZED)
+  // EXPORT ANALYTICS FUNCTION - PROFESSIONAL PDF
   const handleExportAnalytics = () => {
     const doc = new jsPDF({
       orientation: 'portrait',
@@ -270,84 +271,246 @@ export default function AnalyticsCharts({ orders, completedOrders, dishes, categ
       format: 'a4'
     })
 
-    // Title
-    doc.setFontSize(18)
-    doc.setFont('helvetica', 'bold')
-    doc.text('REPORT ANALITICO', 14, 20)
+    const pageWidth = 210
+    const pageHeight = 297
+    const margin = 14
 
+    // Header with amber accent bar
+    doc.setFillColor(251, 191, 36) // amber-400
+    doc.rect(0, 0, pageWidth, 35, 'F')
+
+    // Title
+    doc.setFontSize(24)
+    doc.setFont('helvetica', 'bold')
+    doc.setTextColor(0, 0, 0)
+    doc.text('REPORT ANALITICO', margin, 18)
+
+    // Restaurant name
+    doc.setFontSize(14)
+    doc.setFont('helvetica', 'normal')
+    doc.text(restaurantName.toUpperCase(), margin, 28)
+
+    // Date info on right side
     const dateText = dateFilter === 'custom' && customStartDate && customEndDate
-      ? `Periodo: ${new Date(customStartDate).toLocaleDateString()} - ${new Date(customEndDate).toLocaleDateString()}`
-      : `Periodo: ${dateFilters.find(f => f.value === dateFilter)?.label || 'Settimana Corrente'}`
+      ? `${new Date(customStartDate).toLocaleDateString('it-IT')} - ${new Date(customEndDate).toLocaleDateString('it-IT')}`
+      : dateFilters.find(f => f.value === dateFilter)?.label || 'Ultima Settimana'
 
     doc.setFontSize(10)
-    doc.setFont('helvetica', 'normal')
-    doc.text(dateText, 14, 28)
-    doc.text(`Generato il: ${new Date().toLocaleString('it-IT')}`, 14, 33)
+    doc.setFont('helvetica', 'bold')
+    doc.text(dateText, pageWidth - margin, 18, { align: 'right' })
 
-    // Summary Data
+    doc.setFontSize(8)
+    doc.setFont('helvetica', 'normal')
+    doc.text(`Generato il: ${new Date().toLocaleString('it-IT')}`, pageWidth - margin, 26, { align: 'right' })
+
+    // Summary Cards Section
+    let currentY = 45
+    doc.setFontSize(12)
+    doc.setFont('helvetica', 'bold')
+    doc.setTextColor(60, 60, 60)
+    doc.text('RIEPILOGO METRICHE', margin, currentY)
+    currentY += 5
+
     const summaryData = [
       ['Totale Ordini', analytics.totalOrders.toString()],
       ['Totale Ricavi', `€ ${analytics.totalRevenue.toFixed(2)}`],
       ['Scontrino Medio', `€ ${analytics.averageOrderValue.toFixed(2)}`],
       ['Ordini Attivi', analytics.activeOrders.toString()]
-    ];
+    ]
 
     autoTable(doc, {
-      startY: 40,
+      startY: currentY,
       head: [['Metrica', 'Valore']],
       body: summaryData,
-      theme: 'grid', // Grid theme provides borders
+      theme: 'grid',
       headStyles: {
-        fillColor: [255, 255, 255],
-        textColor: [0, 0, 0],
-        lineWidth: 0.1,
-        lineColor: [0, 0, 0],
-        fontStyle: 'bold'
+        fillColor: [39, 39, 42], // zinc-800
+        textColor: [255, 255, 255],
+        fontStyle: 'bold',
+        fontSize: 9,
+        cellPadding: 4
       },
       styles: {
-        textColor: [0, 0, 0],
-        lineColor: [0, 0, 0],
+        textColor: [50, 50, 50],
+        fontSize: 10,
+        cellPadding: 4,
+        lineColor: [200, 200, 200],
         lineWidth: 0.1
       },
       columnStyles: {
         0: { fontStyle: 'bold', cellWidth: 80 },
-        1: { cellWidth: 40 }
-      }
-    });
+        1: { cellWidth: 50, halign: 'right' }
+      },
+      margin: { left: margin, right: margin }
+    })
 
-    // Category Performance
-    const catY = (doc as any).lastAutoTable.finalY + 15;
-    doc.setFontSize(14)
+    // Category Performance Section
+    currentY = (doc as any).lastAutoTable.finalY + 12
+    doc.setFontSize(12)
     doc.setFont('helvetica', 'bold')
-    doc.text('Performance per Categoria', 14, catY)
+    doc.setTextColor(60, 60, 60)
+    doc.text('PERFORMANCE CATEGORIE', margin, currentY)
+    currentY += 5
 
-    const categoryData = analytics.categoryStats.map(c => [
+    const categoryData = analytics.categoryStats.slice(0, 10).map(c => [
       c.name,
       c.quantity.toString(),
       `€ ${c.revenue.toFixed(2)}`,
       `${c.percentage.toFixed(1)}%`
-    ]);
+    ])
 
-    autoTable(doc, {
-      startY: catY + 5,
-      head: [['Categoria', 'Quantità', 'Ricavi', '% Ordini']],
-      body: categoryData,
-      theme: 'grid',
-      headStyles: {
-        fillColor: [255, 255, 255],
-        textColor: [0, 0, 0],
-        lineWidth: 0.1,
-        lineColor: [0, 0, 0],
-        fontStyle: 'bold'
-      },
-      styles: {
-        textColor: [0, 0, 0],
-        lineColor: [0, 0, 0],
-        lineWidth: 0.1
-      },
-    });
+    if (categoryData.length > 0) {
+      autoTable(doc, {
+        startY: currentY,
+        head: [['Categoria', 'Quantità', 'Ricavi', '% Ordini']],
+        body: categoryData,
+        theme: 'grid',
+        headStyles: {
+          fillColor: [39, 39, 42],
+          textColor: [255, 255, 255],
+          fontStyle: 'bold',
+          fontSize: 9,
+          cellPadding: 4
+        },
+        styles: {
+          textColor: [50, 50, 50],
+          fontSize: 9,
+          cellPadding: 3,
+          lineColor: [200, 200, 200],
+          lineWidth: 0.1
+        },
+        alternateRowStyles: {
+          fillColor: [249, 250, 251]
+        },
+        columnStyles: {
+          0: { cellWidth: 60 },
+          1: { cellWidth: 30, halign: 'center' },
+          2: { cellWidth: 40, halign: 'right' },
+          3: { cellWidth: 30, halign: 'right' }
+        },
+        margin: { left: margin, right: margin }
+      })
+    }
 
-    doc.save(`Analisi_Vendite_${new Date().toISOString().split('T')[0]}.pdf`)
+    // Top Dishes Section
+    currentY = (doc as any).lastAutoTable.finalY + 12
+    doc.setFontSize(12)
+    doc.setFont('helvetica', 'bold')
+    doc.setTextColor(60, 60, 60)
+    doc.text('TOP 10 PIATTI PIÙ VENDUTI', margin, currentY)
+    currentY += 5
+
+    const topDishes = analytics.dishStats.slice(0, 10).map((d, i) => [
+      `${i + 1}`,
+      d.name,
+      d.category,
+      d.quantity.toString(),
+      `€ ${d.revenue.toFixed(2)}`
+    ])
+
+    if (topDishes.length > 0) {
+      autoTable(doc, {
+        startY: currentY,
+        head: [['#', 'Piatto', 'Categoria', 'Venduti', 'Ricavi']],
+        body: topDishes,
+        theme: 'grid',
+        headStyles: {
+          fillColor: [39, 39, 42],
+          textColor: [255, 255, 255],
+          fontStyle: 'bold',
+          fontSize: 9,
+          cellPadding: 4
+        },
+        styles: {
+          textColor: [50, 50, 50],
+          fontSize: 9,
+          cellPadding: 3,
+          lineColor: [200, 200, 200],
+          lineWidth: 0.1
+        },
+        alternateRowStyles: {
+          fillColor: [249, 250, 251]
+        },
+        columnStyles: {
+          0: { cellWidth: 12, halign: 'center', fontStyle: 'bold' },
+          1: { cellWidth: 55 },
+          2: { cellWidth: 40 },
+          3: { cellWidth: 25, halign: 'center' },
+          4: { cellWidth: 35, halign: 'right' }
+        },
+        margin: { left: margin, right: margin }
+      })
+    }
+
+    // Inventory Analysis Section (if there's data)
+    if (inventoryData.dishes.length > 0) {
+      currentY = (doc as any).lastAutoTable.finalY + 12
+
+      // Check if we need a new page
+      if (currentY > pageHeight - 80) {
+        doc.addPage()
+        currentY = 20
+      }
+
+      doc.setFontSize(12)
+      doc.setFont('helvetica', 'bold')
+      doc.setTextColor(60, 60, 60)
+      doc.text('ANALISI MAGAZZINO - TREND VENDITE', margin, currentY)
+      currentY += 5
+
+      const inventoryTableData = inventoryData.dishes.slice(0, 15).map(d => [
+        d.name,
+        d.category,
+        d.periodQuantity.toString(),
+        d.periodAvgPerDay.toString(),
+        `${d.percentageChange >= 0 ? '+' : ''}${d.percentageChange}%`
+      ])
+
+      autoTable(doc, {
+        startY: currentY,
+        head: [['Piatto', 'Categoria', 'Venduti', 'Media/GG', 'Trend']],
+        body: inventoryTableData,
+        theme: 'grid',
+        headStyles: {
+          fillColor: [39, 39, 42],
+          textColor: [255, 255, 255],
+          fontStyle: 'bold',
+          fontSize: 9,
+          cellPadding: 4
+        },
+        styles: {
+          textColor: [50, 50, 50],
+          fontSize: 8,
+          cellPadding: 3,
+          lineColor: [200, 200, 200],
+          lineWidth: 0.1
+        },
+        alternateRowStyles: {
+          fillColor: [249, 250, 251]
+        },
+        columnStyles: {
+          0: { cellWidth: 50 },
+          1: { cellWidth: 40 },
+          2: { cellWidth: 25, halign: 'center' },
+          3: { cellWidth: 25, halign: 'center' },
+          4: { cellWidth: 25, halign: 'right' }
+        },
+        margin: { left: margin, right: margin }
+      })
+    }
+
+    // Footer on all pages
+    const totalPages = doc.getNumberOfPages()
+    for (let i = 1; i <= totalPages; i++) {
+      doc.setPage(i)
+      doc.setFontSize(9)
+      doc.setTextColor(150, 150, 150)
+      doc.setFont('helvetica', 'normal')
+      doc.text('Powered by Easyfood', pageWidth / 2, pageHeight - 10, { align: 'center' })
+      doc.text(`Pagina ${i} di ${totalPages}`, pageWidth - margin, pageHeight - 10, { align: 'right' })
+    }
+
+    doc.save(`Report_Analitico_${restaurantName.replace(/\s+/g, '_')}_${new Date().toISOString().split('T')[0]}.pdf`)
   }
 
   // Inventory (Magazzino) calculations - NOW USES MAIN DATE FILTER
@@ -456,7 +619,7 @@ export default function AnalyticsCharts({ orders, completedOrders, dishes, categ
       <div className="space-y-8">
         {/* Filter Controls - Enhanced Glassmorphism */}
         <div className="flex items-center justify-between flex-wrap gap-4 bg-zinc-900/60 p-4 rounded-xl border border-white/5 shadow-lg backdrop-blur-xl">
-          <h2 className="text-2xl font-bold bg-gradient-to-r from-white to-zinc-400 bg-clip-text text-transparent">Analitiche</h2>
+          <h2 className="text-2xl font-light text-white tracking-tight">Gestione <span className="font-bold text-amber-500">Analitiche</span></h2>
           <div className="flex items-center gap-3">
             <Popover>
               <PopoverTrigger asChild>

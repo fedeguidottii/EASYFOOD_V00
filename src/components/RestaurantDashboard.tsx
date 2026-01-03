@@ -45,6 +45,31 @@ interface RestaurantDashboardProps {
   onLogout: () => void
 }
 
+// Helper function to fix oklch colors that html2canvas doesn't support
+const fixOklchColors = (clonedDoc: Document) => {
+  const allElements = clonedDoc.querySelectorAll('*')
+  allElements.forEach(el => {
+    const computed = getComputedStyle(el)
+    const props = ['color', 'backgroundColor', 'borderColor', 'borderTopColor', 'borderBottomColor', 'borderLeftColor', 'borderRightColor', 'outlineColor', 'fill', 'stroke']
+    props.forEach(prop => {
+      const value = computed.getPropertyValue(prop)
+      if (value && value.includes('oklch')) {
+        // Replace with fallback - transparent or inherit based on property
+        (el as HTMLElement).style.setProperty(prop, prop === 'backgroundColor' ? 'transparent' : 'inherit', 'important')
+      }
+    })
+    // Also check CSS variables
+    const style = (el as HTMLElement).style
+    for (let i = 0; i < style.length; i++) {
+      const propName = style[i]
+      const value = style.getPropertyValue(propName)
+      if (value && value.includes('oklch')) {
+        style.setProperty(propName, 'transparent', 'important')
+      }
+    }
+  })
+}
+
 const RestaurantDashboard = ({ user, onLogout }: RestaurantDashboardProps) => {
   const navigate = useNavigate()
   // Check both root level (from our custom login) and metadata (from Supabase Auth if used directly)
@@ -278,7 +303,8 @@ const RestaurantDashboard = ({ user, onLogout }: RestaurantDashboardProps) => {
         scale: 2, // High res
         useCORS: true, // For images
         backgroundColor: '#18181b', // zinc-950
-        logging: false
+        logging: false,
+        onclone: (clonedDoc) => fixOklchColors(clonedDoc)
       })
 
       input.style.display = 'none'
@@ -370,7 +396,8 @@ const RestaurantDashboard = ({ user, onLogout }: RestaurantDashboardProps) => {
         scale: 2,
         useCORS: true,
         backgroundColor: '#09090b', // Zinc 950
-        allowTaint: true
+        allowTaint: true,
+        onclone: (clonedDoc) => fixOklchColors(clonedDoc)
       });
 
       element.style.display = 'none';
@@ -2601,6 +2628,7 @@ const RestaurantDashboard = ({ user, onLogout }: RestaurantDashboardProps) => {
                 dishes={restaurantDishes}
                 categories={restaurantCategories}
                 completedOrders={pastOrders}
+                restaurantName={restaurantName}
               />
             </TabsContent >
 
@@ -3084,7 +3112,8 @@ const RestaurantDashboard = ({ user, onLogout }: RestaurantDashboardProps) => {
                       const canvas = await html2canvas(qrContent, {
                         scale: 2,
                         backgroundColor: '#09090b',
-                        useCORS: true
+                        useCORS: true,
+                        onclone: (clonedDoc) => fixOklchColors(clonedDoc)
                       })
 
                       qrContent.style.display = originalDisplay
