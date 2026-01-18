@@ -14,6 +14,7 @@ import { Badge } from './ui/badge'
 import { Separator } from './ui/separator'
 import { ScrollArea } from './ui/scroll-area'
 import { Textarea } from './ui/textarea'
+import { DishPlaceholder } from './ui/DishPlaceholder'
 import { Popover, PopoverContent, PopoverTrigger } from './ui/popover'
 import {
   SignOut,
@@ -2353,9 +2354,7 @@ const RestaurantDashboard = ({ user, onLogout }: RestaurantDashboardProps) => {
                                   className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105"
                                 />
                               ) : (
-                                <div className="w-full h-full flex items-center justify-center bg-gradient-to-br from-zinc-800 to-zinc-900">
-                                  <ForkKnife size={40} weight="duotone" className="text-zinc-700" />
-                                </div>
+                                <DishPlaceholder className="group-hover:scale-105 transition-transform duration-500" iconSize={48} />
                               )}
 
                               {/* Price Badge */}
@@ -3235,9 +3234,7 @@ const RestaurantDashboard = ({ user, onLogout }: RestaurantDashboardProps) => {
                           {dish.image_url ? (
                             <img src={dish.image_url} alt={dish.name} className="w-full h-full object-cover opacity-90 group-hover:opacity-100 transition-opacity" />
                           ) : (
-                            <div className="w-full h-full flex items-center justify-center bg-zinc-800/50">
-                              <ForkKnife className="text-zinc-700" size={24} weight="light" />
-                            </div>
+                            <DishPlaceholder iconSize={24} />
                           )}
                         </div>
 
