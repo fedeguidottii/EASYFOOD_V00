@@ -1,5 +1,6 @@
 import { useState, useMemo, useEffect } from 'react'
 import { generatePdfFromElement } from '../utils/pdfUtils'
+import { toast } from 'sonner'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { Badge } from '@/components/ui/badge'
@@ -266,10 +267,21 @@ export default function AnalyticsCharts({ orders, completedOrders, dishes, categ
 
   // EXPORT ANALYTICS FUNCTION - VISUAL PDF
   const handleExportAnalytics = async () => {
-    await generatePdfFromElement('analytics-export-container', {
-      fileName: `report-analitico-${restaurantName.toLowerCase().replace(/\s+/g, '-')}-${new Date().toISOString().split('T')[0]}.pdf`,
-      orientation: 'portrait',
-    })
+    const toastId = toast.loading('Generazione PDF in corso...')
+    try {
+      await generatePdfFromElement('analytics-export-container', {
+        fileName: `report-analitico-${restaurantName.toLowerCase().replace(/\s+/g, '-')}-${new Date().toISOString().split('T')[0]}.pdf`,
+        orientation: 'portrait',
+        backgroundColor: '#09090b', // Force dark background
+        margin: 10
+      })
+      toast.success('Report esportato con successo')
+    } catch (e) {
+      console.error(e)
+      toast.error('Errore export PDF')
+    } finally {
+      toast.dismiss(toastId)
+    }
   }
 
   // Inventory (Magazzino) calculations - NOW USES MAIN DATE FILTER
