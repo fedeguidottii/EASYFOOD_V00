@@ -2016,13 +2016,16 @@ const RestaurantDashboard = ({ user, onLogout }: RestaurantDashboardProps) => {
                         <Card
                           key={table.id}
                           className={`relative overflow-hidden transition-all duration-300 group cursor-pointer ${isTableMarkedInactive
-                            ? 'opacity-30 grayscale pointer-events-none'
+                            ? 'opacity-60 grayscale'
                             : isActive
                               ? 'bg-amber-950/20 border-amber-500/50 shadow-[0_0_15px_-5px_rgba(245,158,11,0.3)]'
                               : 'bg-black/40 border-emerald-500/20 shadow-[0_0_15px_-5px_rgba(16,185,129,0.1)] hover:border-emerald-500/40'
                             }`}
                           onClick={() => {
-                            if (isTableMarkedInactive) return
+                            if (isTableMarkedInactive) {
+                              handleEditTable(table)
+                              return
+                            }
                             if (isActive) {
                               setPendingAutoOrderTableId(table.id)
                               handleToggleTable(table.id)

@@ -498,53 +498,7 @@ export default function ReservationsManager({ user, restaurantId, tables, rooms,
     <div className="space-y-6">
       {/* Header with Timeline */}
       <div className="space-y-4">
-        <div className="flex flex-col md:flex-row items-start md:items-center justify-between mb-6 gap-4 pb-4 border-b border-white/10">
-          <div>
-            <h2 className="text-2xl font-light text-white tracking-tight">Gestione <span className="font-bold text-amber-500">Prenotazioni</span></h2>
-            <p className="text-sm text-zinc-400 mt-1 uppercase tracking-wider font-medium">
-              {selectedDate.toLocaleDateString('it-IT', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })}
-            </p>
-          </div>
-          <div className="flex gap-2 flex-wrap">
-            <Button
-              className="bg-amber-500 hover:bg-amber-600 text-black font-bold gap-2 shadow-[0_0_15px_rgba(245,158,11,0.2)] transition-all active:scale-95"
-              onClick={() => setShowQrDialog(true)}
-            >
-              <QrCode size={18} weight="bold" />
-              QR Prenotazioni (Pubblico)
-            </Button>
-            <Select value={selectedRoomId} onValueChange={setSelectedRoomId}>
-              <SelectTrigger className="w-[180px]">
-                <SelectValue placeholder="Filtra per Sala" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">Tutte le Sale</SelectItem>
-                {rooms.map(room => (
-                  <SelectItem key={room.id} value={room.id}>{room.name}</SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-            <Button
-              variant="outline"
-              onClick={() => setShowHistoryDialog(true)}
-            >
-              Storico Prenotazioni
-            </Button>
-            <Button
-              variant="outline"
-              className="gap-2"
-              onClick={() => {
-                setExportStartDate(selectedDate.toISOString().split('T')[0])
-                setExportEndDate(selectedDate.toISOString().split('T')[0])
-                setExportSelectedRooms(['all'])
-                setShowExportDialog(true)
-              }}
-            >
-              <DownloadSimple size={18} weight="bold" />
-              Esporta Tabella
-            </Button>
-          </div>
-        </div>
+        %SAME%
 
         {/* Timeline Component */}
         <div id="timeline-export-container">
