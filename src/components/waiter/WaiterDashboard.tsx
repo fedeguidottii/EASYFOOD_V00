@@ -1,9 +1,9 @@
 import React, { useState, useEffect, useRef } from 'react'
 import { supabase } from '../../lib/supabase'
 import { DatabaseService } from '../../services/DatabaseService'
-import { Table, Order, TableSession, Restaurant, Room } from '../../services/types'
+import { Table, Order, TableSession, Restaurant, Room, Dish, Category } from '../../services/types'
 import { toast } from 'sonner'
-import { SignOut, User, CheckCircle, ArrowsClockwise, Receipt, Trash, Plus, BellRinging, Clock, Pencil, House, Funnel, GearSix } from '@phosphor-icons/react'
+import { SignOut, User, CheckCircle, ArrowsClockwise, Receipt, Trash, Plus, BellRinging, Clock, Pencil, House, Funnel, GearSix, MagnifyingGlass } from '@phosphor-icons/react'
 import { Button } from '../ui/button'
 import { Card, CardContent } from '../ui/card'
 import { Badge } from '../ui/badge'
@@ -59,6 +59,11 @@ const WaiterDashboard = ({ user, onLogout }: WaiterDashboardProps) => {
     // Quick Order State
     const [isQuickOrderDialogOpen, setIsQuickOrderDialogOpen] = useState(false)
     const [selectedTableForQuickOrder, setSelectedTableForQuickOrder] = useState<Table | null>(null)
+    const [dishes, setDishes] = useState<Dish[]>([])
+    const [categories, setCategories] = useState<Category[]>([])
+    const [quickOrderSearch, setQuickOrderSearch] = useState('')
+    const [quickOrderSelectedCategory, setQuickOrderSelectedCategory] = useState<string>('all')
+    const [newQuickOrderItems, setNewQuickOrderItems] = useState<{ dishId: string, quantity: number, notes: string }[]>([])
 
     // Ready Items View Mode (like gestione ordini)
     const [readyViewMode, setReadyViewMode] = useState<'table' | 'dish'>('table')
@@ -117,6 +122,12 @@ const WaiterDashboard = ({ user, onLogout }: WaiterDashboardProps) => {
                 const rms = await DatabaseService.getRooms(rId)
                 setRooms(rms)
 
+                // Fetch dishes and categories for Quick Order
+                const ds = await DatabaseService.getDishes(rId)
+                setDishes(ds)
+                const cats = await DatabaseService.getCategories(rId)
+                setCategories(cats)
+
                 const { data: sess } = await supabase
                     .from('table_sessions')
                     .select('*')
@@ -127,9 +138,9 @@ const WaiterDashboard = ({ user, onLogout }: WaiterDashboardProps) => {
                 // FIX: Added 'OPEN' to the status list so new orders are counted!
                 const { data: ords } = await supabase
                     .from('orders')
-                    .select('*, items:order_items(*)')
+                    .select('*, items:order_items(*, dish:dishes(*))')
                     .eq('restaurant_id', rId)
-                    .in('status', ['OPEN', 'pending', 'preparing', 'ready', 'served', 'CANCELLED'])
+                    .in('status', ['OPEN', 'pending', 'preparing', 'ready', 'served', 'completed', 'CANCELLED'])
                 if (ords) setActiveOrders(ords)
 
             } catch (error) {
@@ -163,8 +174,8 @@ const WaiterDashboard = ({ user, onLogout }: WaiterDashboardProps) => {
         const { data: sess } = await supabase.from('table_sessions').select('*').eq('restaurant_id', restaurantId).eq('status', 'OPEN')
         if (sess) setSessions(sess)
 
-        // FIX: Added 'OPEN' here too
-        const { data: ords } = await supabase.from('orders').select('*, items:order_items(*)').eq('restaurant_id', restaurantId).in('status', ['OPEN', 'pending', 'preparing', 'ready', 'served'])
+        // FIX: Added 'OPEN' and 'completed' here too, and synced query with initDashboard
+        const { data: ords } = await supabase.from('orders').select('*, items:order_items(*, dish:dishes(*))').eq('restaurant_id', restaurantId).in('status', ['OPEN', 'pending', 'preparing', 'ready', 'served', 'completed', 'CANCELLED'])
         if (ords) setActiveOrders(ords)
     }
 
@@ -251,9 +262,24 @@ const WaiterDashboard = ({ user, onLogout }: WaiterDashboardProps) => {
         toast.success('Piatto segnato come servito')
     }
 
-    const readyItems = activeOrders.flatMap(o =>
-        o.items?.filter(i => i.status?.toLowerCase() === 'ready').map(i => ({ ...i, tableId: sessions.find(s => s.id === o.table_session_id)?.table_id, order_id: o.id }))
-    ).filter(i => i !== undefined) as any[]
+    const readyItems = activeOrders.flatMap(o => {
+        const session = sessions.find(s => s.id === o.table_session_id)
+        // Only show ready items for OPEN sessions
+        if (!session) return []
+
+        const table = tables.find(t => t.id === session.table_id)
+        if (!table) return []
+
+        return (o.items || [])
+            .filter(i => ['ready', 'completed'].includes(i.status?.toLowerCase() || ''))
+            .map(i => ({
+                ...i,
+                tableId: table.id,
+                order_id: o.id,
+                // Ensure dish is available (either from join or state lookup)
+                dish: i.dish || dishes.find(d => d.id === i.dish_id)
+            }))
+    }).sort((a, b) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime())
 
     const sortTables = (tables: Table[]) => {
         return [...tables].sort((a, b) => {
@@ -499,112 +525,121 @@ const WaiterDashboard = ({ user, onLogout }: WaiterDashboardProps) => {
     const sortedTables = sortTables(filteredTables)
     const readyCount = readyItems.length
 
-    // Helper function to render a table card
+    // Helper function to render a table card - MATCHING ADMIN DASHBOARD GRAPHICS
     const renderTableCard = (table: Table) => {
-        const statusInfo = getDetailedTableStatus(table.id)
         const session = sessions.find(s => s.table_id === table.id)
+        const isActive = !!session
+        const statusInfo = getDetailedTableStatus(table.id)
+        const activeOrder = activeOrders.find(o => o.table_session_id === session?.id && o.status !== 'CANCELLED' && o.status !== 'PAID')
 
         return (
             <Card
                 key={table.id}
-                className={`
-                    group cursor-pointer transition-all duration-500 relative overflow-hidden border
-                    ${statusInfo.color}
-                    ${statusInfo.step === 'free'
-                        ? 'hover:border-amber-500/30 hover:bg-zinc-900/60 hover:shadow-lg hover:shadow-amber-500/5'
-                        : 'hover:scale-[1.02] hover:shadow-2xl hover:shadow-black/50'}
-                `}
+                className={`relative overflow-hidden transition-all duration-300 group cursor-pointer border
+                ${isActive
+                        ? 'bg-amber-950/20 border-amber-500/50 shadow-[0_0_15px_-5px_rgba(245,158,11,0.3)]'
+                        : 'bg-black/40 border-emerald-500/20 shadow-[0_0_15px_-5px_rgba(16,185,129,0.1)] hover:border-emerald-500/40'
+                    }`}
                 onClick={() => handleTableClick(table)}
             >
+                {isActive && (
+                    <div className="absolute top-0 right-0 w-16 h-16 bg-amber-500/10 blur-xl rounded-full -mr-8 -mt-8 pointer-events-none"></div>
+                )}
+                {!isActive && (
+                    <div className="absolute top-0 right-0 w-16 h-16 bg-emerald-500/5 blur-xl rounded-full -mr-8 -mt-8 pointer-events-none"></div>
+                )}
+
                 <CardContent className="p-0 flex flex-col h-full min-h-[160px]">
                     {/* Header */}
-                    <div className="p-4 flex items-start justify-between z-10 relative">
-                        <div className="flex flex-col">
-                            <div className="flex items-center gap-2">
-                                <span className="text-3xl font-bold text-white leading-none tracking-tight font-serif">
-                                    {table.number}
-                                </span>
-                                {statusInfo.step !== 'free' && (
-                                    <div className="h-2 w-2 rounded-full bg-current opacity-50 animate-pulse"></div>
-                                )}
-                            </div>
-                            <span className="text-xs text-zinc-500 font-medium mt-1 flex items-center gap-1">
-                                <User size={12} weight="fill" />
-                                {table.seats || 4} Posti
+                    <div className="p-4 flex flex-wrap items-center justify-between gap-2 border-b border-white/5 z-10 relative">
+                        <div className="flex items-center gap-3">
+                            <span className={`text-2xl font-bold tracking-tight whitespace-nowrap ${isActive ? 'text-amber-500' : 'text-zinc-100'}`}>
+                                {table.number}
                             </span>
+                            <div className="flex items-center gap-1.5 text-zinc-400 bg-white/5 px-3 py-1 rounded-full">
+                                <User size={14} weight="bold" />
+                                <span className="text-xs font-bold">{table.seats || 4}</span>
+                            </div>
                         </div>
-
-                        {/* Status Badge */}
-                        <div className={`
-                            px-2.5 py-1 rounded-lg text-[10px] font-bold uppercase tracking-wider shadow-sm border backdrop-blur-md
-                            ${statusInfo.step === 'free' ? 'text-zinc-500 bg-zinc-900/80 border-white/5' :
-                                statusInfo.step === 'waiting' ? 'text-amber-400 bg-amber-500/10 border-amber-500/20' :
-                                    statusInfo.step === 'seated' ? 'text-blue-400 bg-blue-500/10 border-blue-500/20' :
-                                        'text-emerald-400 bg-emerald-500/10 border-emerald-500/20'
-                            }
-                        `}>
-                            {statusInfo.step === 'free' ? 'Libero' : (
-                                <div className="flex items-center gap-1">
-                                    <Clock size={12} weight="bold" />
-                                    {statusInfo.time}
-                                </div>
-                            )}
-                        </div>
+                        <Badge
+                            variant={isActive ? 'default' : 'outline'}
+                            className={`text-[10px] uppercase tracking-wider font-bold ${isActive ? 'bg-amber-500 text-black border-none' : 'bg-transparent text-zinc-500 border-zinc-700'}`}
+                        >
+                            {isActive ? (statusInfo.step === 'eating' ? 'Mangiando' : statusInfo.step === 'waiting' ? 'Attesa' : 'Occupato') : 'Libero'}
+                        </Badge>
                     </div>
 
-                    {/* Content Logic for Timeline */}
-                    <div className="flex-1 px-4 pb-4 flex flex-col justify-end gap-3 z-10 relative">
-                        {session ? (
+                    {/* Center Content */}
+                    <div className="flex-1 p-5 flex flex-col items-center justify-center gap-3 z-10 relative">
+                        {isActive ? (
                             <>
-                                {/* PIN Display */}
-                                <div className="absolute top-0 right-4 text-xs font-mono text-amber-500/70 bg-black/30 px-2 py-1 rounded-lg border border-amber-500/20">
-                                    PIN: {session.session_pin || '----'}
+                                <div className="text-center">
+                                    <p className="text-[9px] text-amber-500/70 mb-1 uppercase tracking-[0.2em] font-semibold">PIN</p>
+                                    <div className="bg-black/40 px-4 py-2 rounded-xl border border-amber-500/20 shadow-inner min-w-[100px]">
+                                        <span className="text-2xl font-mono font-bold tracking-widest text-amber-500 whitespace-nowrap">
+                                            {session?.session_pin || '...'}
+                                        </span>
+                                    </div>
                                 </div>
-
-                                {/* Status Steps Visualization */}
-                                <div className="flex items-center gap-1 mt-auto">
-                                    <div className={`h-1 flex-1 rounded-full transition-all duration-500 ${['seated', 'waiting', 'eating'].includes(statusInfo.step) ? 'bg-blue-500 shadow-[0_0_8px_rgba(59,130,246,0.5)]' : 'bg-zinc-800'}`}></div>
-                                    <div className={`h-1 flex-1 rounded-full transition-all duration-500 ${['waiting', 'eating'].includes(statusInfo.step) ? 'bg-amber-500 shadow-[0_0_8px_rgba(245,158,11,0.5)]' : 'bg-zinc-800'}`}></div>
-                                    <div className={`h-1 flex-1 rounded-full transition-all duration-500 ${statusInfo.step === 'eating' ? 'bg-emerald-500 shadow-[0_0_8px_rgba(16,185,129,0.5)]' : 'bg-zinc-800'}`}></div>
-                                </div>
-
-                                {/* Action Buttons */}
-                                <div className="flex gap-2 mt-2">
-                                    <Button
-                                        size="sm"
-                                        variant="ghost"
-                                        className="flex-1 h-9 text-xs font-bold border border-blue-500/30 bg-blue-500/10 text-blue-400 hover:bg-blue-500 hover:text-white hover:border-blue-500 transition-all rounded-xl"
-                                        onClick={(e) => {
-                                            e.stopPropagation()
-                                            setSelectedTableForQuickOrder(table)
-                                            setIsQuickOrderDialogOpen(true)
-                                        }}
-                                    >
-                                        <Plus size={14} className="mr-1" />
-                                        Ordina
-                                    </Button>
-                                    {restaurant?.allow_waiter_payments && (
-                                        <Button
-                                            size="sm"
-                                            variant="ghost"
-                                            className="flex-1 h-9 text-xs font-bold border border-white/10 bg-black/20 hover:bg-amber-500 hover:text-black hover:border-amber-500 transition-all rounded-xl"
-                                            onClick={(e) => {
-                                                e.stopPropagation()
-                                                openPaymentDialog(e, table)
-                                            }}
-                                        >
-                                            <Receipt size={14} className="mr-1" />
-                                            Conto
-                                        </Button>
-                                    )}
-                                </div>
+                                {activeOrder && (
+                                    <Badge variant="outline" className="text-[9px] bg-black/40 border-amber-500/30 text-amber-200">
+                                        <CheckCircle size={10} className="mr-1" weight="fill" />
+                                        {activeOrder.items?.filter(i => i.status === 'served').length || 0} serviti
+                                    </Badge>
+                                )}
                             </>
                         ) : (
-                            <div className="flex items-end justify-end h-full opacity-0 group-hover:opacity-100 transition-opacity duration-300">
-                                <div className="bg-amber-500 text-black p-2 rounded-full shadow-lg shadow-amber-500/20 transform group-hover:scale-110 transition-transform">
-                                    <Plus size={20} weight="bold" />
-                                </div>
+                            <div className="text-center text-zinc-700 group-hover:text-zinc-500 transition-all duration-300">
+                                <Plus size={32} className="mx-auto mb-1" weight="duotone" />
+                                <p className="text-xs font-medium">Clicca per Attivare</p>
                             </div>
+                        )}
+                    </div>
+
+                    {/* Footer Actions */}
+                    <div className="p-3 bg-gradient-to-t from-zinc-900/50 to-transparent border-t border-white/5 grid gap-2 z-10 relative">
+                        {isActive ? (
+                            <div className="grid grid-cols-2 gap-2">
+                                <Button
+                                    variant="outline"
+                                    size="sm"
+                                    className="shadow-sm hover:shadow transition-shadow h-8 text-xs border-white/10 text-zinc-300 hover:text-white hover:bg-white/5"
+                                    onClick={(e) => {
+                                        e.stopPropagation()
+                                        setSelectedTableForQuickOrder(table)
+                                        setNewQuickOrderItems([])
+                                        setIsQuickOrderDialogOpen(true)
+                                    }}
+                                >
+                                    <Plus size={14} className="mr-1.5" />
+                                    Ordina
+                                </Button>
+                                {restaurant?.allow_waiter_payments && (
+                                    <Button
+                                        className="bg-amber-500 text-black hover:bg-amber-400 shadow-sm hover:shadow transition-all h-8 text-xs font-bold"
+                                        size="sm"
+                                        onClick={(e) => {
+                                            e.stopPropagation()
+                                            openPaymentDialog(e, table)
+                                        }}
+                                    >
+                                        <Receipt size={14} className="mr-1.5" />
+                                        Conto
+                                    </Button>
+                                )}
+                            </div>
+                        ) : (
+                            <Button
+                                className="w-full shadow-sm hover:shadow transition-shadow h-8 text-xs bg-zinc-800 hover:bg-zinc-700 text-zinc-300"
+                                size="sm"
+                                onClick={(e) => {
+                                    e.stopPropagation()
+                                    activateTable(table)
+                                }}
+                            >
+                                <Plus size={14} className="mr-1.5" />
+                                Attiva Tavolo
+                            </Button>
                         )}
                     </div>
                 </CardContent>
@@ -1347,6 +1382,246 @@ const WaiterDashboard = ({ user, onLogout }: WaiterDashboardProps) => {
                         <Button variant="outline" onClick={() => setIsEditRoomDialogOpen(false)} className="border-white/10">Annulla</Button>
                         <Button onClick={handleEditRoom} className="bg-amber-500 hover:bg-amber-400 text-black font-bold">Salva</Button>
                     </DialogFooter>
+                </DialogContent>
+            </Dialog>
+
+            {/* Quick Order Dialog */}
+            <Dialog open={isQuickOrderDialogOpen} onOpenChange={setIsQuickOrderDialogOpen}>
+                <DialogContent className="sm:max-w-3xl bg-zinc-950 border-zinc-800 text-zinc-100 h-[90vh] flex flex-col p-0 overflow-hidden">
+                    <DialogHeader className="p-6 pb-4 border-b border-white/5 bg-zinc-900/50 shrink-0">
+                        <DialogTitle className="text-xl font-bold flex items-center gap-3">
+                            <div className="bg-amber-500 text-black p-1.5 rounded-lg">
+                                <Plus size={20} weight="bold" />
+                            </div>
+                            <div>
+                                <span className="block text-white">Nuovo Ordine</span>
+                                <span className="text-sm font-normal text-zinc-400">Tavolo {selectedTableForQuickOrder?.number}</span>
+                            </div>
+                        </DialogTitle>
+                    </DialogHeader>
+
+                    <div className="flex-1 flex overflow-hidden">
+                        {/* Menu Section */}
+                        <div className="flex-1 flex flex-col border-r border-white/5">
+                            {/* Search and Filter */}
+                            <div className="p-4 border-b border-white/5 space-y-3">
+                                <div className="relative">
+                                    <MagnifyingGlass className="absolute left-3 top-1/2 -translate-y-1/2 text-zinc-500" size={16} />
+                                    <Input
+                                        placeholder="Cerca piatto..."
+                                        value={quickOrderSearch}
+                                        onChange={(e) => setQuickOrderSearch(e.target.value)}
+                                        className="pl-9 bg-black/20 border-white/10 h-10 rounded-xl"
+                                    />
+                                </div>
+                                <div className="flex gap-2 overflow-x-auto pb-1 scrollbar-hide">
+                                    <Button
+                                        size="sm"
+                                        variant={quickOrderSelectedCategory === 'all' ? 'default' : 'outline'}
+                                        onClick={() => setQuickOrderSelectedCategory('all')}
+                                        className={`rounded-xl h-8 text-xs ${quickOrderSelectedCategory === 'all' ? 'bg-amber-500 text-black hover:bg-amber-400 border-transparent' : 'border-white/10 text-zinc-400'}`}
+                                    >
+                                        Tutti
+                                    </Button>
+                                    {categories.map(cat => (
+                                        <Button
+                                            key={cat.id}
+                                            size="sm"
+                                            variant={quickOrderSelectedCategory === cat.id ? 'default' : 'outline'}
+                                            onClick={() => setQuickOrderSelectedCategory(cat.id)}
+                                            className={`rounded-xl h-8 text-xs whitespace-nowrap ${quickOrderSelectedCategory === cat.id ? 'bg-amber-500 text-black hover:bg-amber-400 border-transparent' : 'border-white/10 text-zinc-400'}`}
+                                        >
+                                            {cat.name}
+                                        </Button>
+                                    ))}
+                                </div>
+                            </div>
+
+                            {/* Dishes Grid */}
+                            <ScrollArea className="flex-1 p-4">
+                                <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
+                                    {dishes
+                                        .filter(d => d.is_active)
+                                        .filter(d => quickOrderSelectedCategory === 'all' || d.category_id === quickOrderSelectedCategory)
+                                        .filter(d => d.name.toLowerCase().includes(quickOrderSearch.toLowerCase()))
+                                        .map(dish => (
+                                            <div
+                                                key={dish.id}
+                                                className="bg-zinc-900/50 border border-white/5 rounded-xl overflow-hidden hover:border-amber-500/30 cursor-pointer group active:scale-95 transition-all"
+                                                onClick={() => {
+                                                    setNewQuickOrderItems(prev => {
+                                                        const existing = prev.find(i => i.dishId === dish.id)
+                                                        if (existing) {
+                                                            return prev.map(i => i.dishId === dish.id ? { ...i, quantity: i.quantity + 1 } : i)
+                                                        }
+                                                        return [...prev, { dishId: dish.id, quantity: 1, notes: '' }]
+                                                    })
+                                                    toast.success(`Aggiunto: ${dish.name}`, { duration: 1000, position: 'bottom-center' })
+                                                }}
+                                            >
+                                                <div className="p-3">
+                                                    <div className="flex justify-between items-start mb-2">
+                                                        <h4 className="font-bold text-sm text-white line-clamp-2 leading-tight">{dish.name}</h4>
+                                                        <span className="bg-white/5 text-zinc-300 text-xs px-1.5 py-0.5 rounded font-mono">
+                                                            €{dish.price}
+                                                        </span>
+                                                    </div>
+                                                    <p className="text-[10px] text-zinc-500 line-clamp-2">{dish.description}</p>
+                                                </div>
+                                            </div>
+                                        ))}
+                                </div>
+                            </ScrollArea>
+                        </div>
+
+                        {/* Order Summary Sidebar */}
+                        <div className="w-[300px] bg-zinc-900/30 flex flex-col shrink-0">
+                            <div className="p-4 border-b border-white/5 bg-zinc-900/50">
+                                <h3 className="font-bold text-white text-sm uppercase tracking-wider">Riepilogo</h3>
+                            </div>
+                            <ScrollArea className="flex-1 p-4">
+                                {newQuickOrderItems.length === 0 ? (
+                                    <div className="h-full flex flex-col items-center justify-center text-zinc-500 opacity-50">
+                                        <Receipt size={48} className="mb-2" />
+                                        <p className="text-xs">Nessun piatto selezionato</p>
+                                    </div>
+                                ) : (
+                                    <div className="space-y-3">
+                                        {newQuickOrderItems.map((item, idx) => {
+                                            const dish = dishes.find(d => d.id === item.dishId)
+                                            if (!dish) return null
+                                            return (
+                                                <div key={idx} className="bg-black/40 rounded-xl p-3 border border-white/5 relative group">
+                                                    <div className="flex justify-between items-start mb-2">
+                                                        <span className="font-bold text-sm text-white">{dish.name}</span>
+                                                        <span className="text-xs text-amber-500 font-mono">€{(dish.price * item.quantity).toFixed(2)}</span>
+                                                    </div>
+                                                    <div className="flex items-center gap-2">
+                                                        <Button
+                                                            size="sm"
+                                                            variant="ghost"
+                                                            className="h-6 w-6 p-0 rounded-full bg-white/5 hover:bg-white/10"
+                                                            onClick={(e) => {
+                                                                e.stopPropagation()
+                                                                setNewQuickOrderItems(prev => prev.map((i, index) => index === idx ? { ...i, quantity: Math.max(1, i.quantity - 1) } : i))
+                                                            }}
+                                                        >
+                                                            -
+                                                        </Button>
+                                                        <span className="text-sm font-bold w-6 text-center">{item.quantity}</span>
+                                                        <Button
+                                                            size="sm"
+                                                            variant="ghost"
+                                                            className="h-6 w-6 p-0 rounded-full bg-white/5 hover:bg-white/10"
+                                                            onClick={(e) => {
+                                                                e.stopPropagation()
+                                                                setNewQuickOrderItems(prev => prev.map((i, index) => index === idx ? { ...i, quantity: i.quantity + 1 } : i))
+                                                            }}
+                                                        >
+                                                            +
+                                                        </Button>
+                                                        <Button
+                                                            size="sm"
+                                                            variant="ghost"
+                                                            className="h-6 w-6 p-0 rounded-full text-red-400 hover:bg-red-500/10 ml-auto"
+                                                            onClick={(e) => {
+                                                                e.stopPropagation()
+                                                                setNewQuickOrderItems(prev => prev.filter((_, index) => index !== idx))
+                                                            }}
+                                                        >
+                                                            <Trash size={12} />
+                                                        </Button>
+                                                    </div>
+                                                    <Input
+                                                        className="mt-2 h-7 text-[10px] bg-transparent border-white/5 focus:border-amber-500/50"
+                                                        placeholder="Note (es. ben cotto)"
+                                                        value={item.notes}
+                                                        onChange={(e) => setNewQuickOrderItems(prev => prev.map((i, index) => index === idx ? { ...i, notes: e.target.value } : i))}
+                                                    />
+                                                </div>
+                                            )
+                                        })}
+                                    </div>
+                                )}
+                            </ScrollArea>
+                            <div className="p-4 border-t border-white/5 bg-zinc-900/80">
+                                <div className="flex justify-between items-center mb-4">
+                                    <span className="text-zinc-400 text-xs uppercase font-bold">Totale</span>
+                                    <span className="text-xl font-bold text-amber-500">
+                                        €{newQuickOrderItems.reduce((sum, item) => {
+                                            const dish = dishes.find(d => d.id === item.dishId)
+                                            return sum + (dish ? dish.price * item.quantity : 0)
+                                        }, 0).toFixed(2)}
+                                    </span>
+                                </div>
+                                <Button
+                                    className="w-full bg-amber-500 text-black hover:bg-amber-400 font-bold h-12 rounded-xl"
+                                    disabled={newQuickOrderItems.length === 0}
+                                    onClick={async () => {
+                                        if (!selectedTableForQuickOrder || !restaurantId) return
+
+                                        // Find Open Session
+                                        const session = sessions.find(s => s.table_id === selectedTableForQuickOrder.id)
+                                        if (!session) {
+                                            toast.error('Sessione non trovata per questo tavolo')
+                                            return
+                                        }
+
+                                        try {
+                                            const totalAmount = newQuickOrderItems.reduce((sum, item) => {
+                                                const dish = dishes.find(d => d.id === item.dishId)
+                                                return sum + (dish ? dish.price * item.quantity : 0)
+                                            }, 0)
+
+                                            // Create Order
+                                            const { data: orderData, error: orderError } = await supabase
+                                                .from('orders')
+                                                .insert({
+                                                    restaurant_id: restaurantId,
+                                                    table_session_id: session.id,
+                                                    status: 'pending', // Send to kitchen immediately
+                                                    total_amount: totalAmount,
+                                                    notes: ''
+                                                })
+                                                .select()
+                                                .single()
+
+                                            if (orderError) throw orderError
+
+                                            // Create Order Items
+                                            const orderItems = newQuickOrderItems.map(item => {
+                                                const dish = dishes.find(d => d.id === item.dishId)
+                                                return {
+                                                    order_id: orderData.id,
+                                                    dish_id: item.dishId,
+                                                    quantity: item.quantity,
+                                                    price_at_time: dish?.price || 0,
+                                                    notes: item.notes,
+                                                    status: 'pending'
+                                                }
+                                            })
+
+                                            const { error: itemsError } = await supabase
+                                                .from('order_items')
+                                                .insert(orderItems)
+
+                                            if (itemsError) throw itemsError
+
+                                            toast.success('Ordine inviato in cucina!')
+                                            setNewQuickOrderItems([])
+                                            setIsQuickOrderDialogOpen(false)
+                                            refreshData()
+                                        } catch (err) {
+                                            console.error(err)
+                                            toast.error('Errore invio ordine')
+                                        }
+                                    }}
+                                >
+                                    Invia Ordine
+                                </Button>
+                            </div>
+                        </div>
+                    </div>
                 </DialogContent>
             </Dialog>
         </div>

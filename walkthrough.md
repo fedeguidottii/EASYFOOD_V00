@@ -85,3 +85,33 @@ Puoi usare servizi gratuiti come **Vercel** o **Netlify**.
 - `src/services/types.ts`: Added `password` field to `User`.
 - `src/services/DataInitializer.tsx`: Added default passwords.
 - `src/components/LoginPage.tsx`: Implemented dynamic user lookup and validation.
+
+# Waiter Dashboard Refactoring
+
+## Overview
+The Waiter Dashboard has been significantly refactored to improve usability and visual consistency with the Restaurant Admin Dashboard.
+
+### Key Features Added
+1.  **Visual Overhaul**: Table cards now match the premium dark/amber aesthetic of the main dashboard, with clear status indicators (Seduti, In Attesa, Mangiando) and PIN display.
+2.  **Quick Order Dialog**: A new streamlined interface for waiters to quickly take orders.
+    *   Searchable menu with category filters.
+    *   Quick quantity adjustments and notes.
+    *   Instant submission to the kitchen.
+3.  **Improved "Piatti Pronti"**: The "Ready to Serve" logic is now more robust.
+    *   Filters items based on *active* sessions (ignoring closed tables).
+    *   Correctly displays dish names (fetched via Supabase join).
+    *   Allows marking items as served individually or by table/dish.
+
+### Technical Improvements
+-   **Data Fetching**: Updated queries to fetch `dish` details directly with orders (`items:order_items(*, dish:dishes(*))`).
+-   **Status Handling**: Consistent handling of `CANCELLED` orders across the dashboard.
+-   **Linting**: Installed missing type definitions for `@phosphor-icons/react` and `sonner`.
+
+### Verification Steps
+1.  **Login as Waiter/Restaurant**.
+2.  **Open Waiter Dashboard**.
+3.  **Check Table Cards**: Verify they look like the admin dashboard cards.
+4.  **Quick Order**: Click "Ordina" on an active table, add items, and submit. Check if they appear in the order list.
+5.  **Kitchen Interaction**: Mark items as "Ready" in Kitchen View (simulated or real).
+6.  **Piatti Pronti**: Verify the "Pronti" button counts up and the drawer shows the correct items with dish names.
+
