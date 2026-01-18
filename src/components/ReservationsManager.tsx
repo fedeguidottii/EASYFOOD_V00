@@ -11,7 +11,7 @@ import { Badge } from '@/components/ui/badge'
 import { Separator } from '@/components/ui/separator'
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover'
 import { toast } from 'sonner'
-import { Calendar, Clock, Users, PencilSimple, Trash, Phone, User as UserIcon, CalendarBlank, ArrowsLeftRight, QrCode, DownloadSimple, Table as TableIcon, Copy, MagnifyingGlass, X, CheckCircle, XCircle } from '@phosphor-icons/react'
+import { Calendar, Clock, Users, PencilSimple, Trash, Phone, User as UserIcon, CalendarBlank, ArrowsLeftRight, QrCode, DownloadSimple, Table as TableIcon, Copy, MagnifyingGlass, X, CheckCircle, XCircle, Plus, History } from '@phosphor-icons/react'
 import { Checkbox } from '@/components/ui/checkbox'
 import type { User, Booking, Table, Room } from '../services/types'
 import TimelineReservations from './TimelineReservations'
@@ -498,7 +498,54 @@ export default function ReservationsManager({ user, restaurantId, tables, rooms,
     <div className="space-y-6">
       {/* Header with Timeline */}
       <div className="space-y-4">
-        %SAME%
+        {/* Section Header */}
+        <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-4 pb-4 border-b border-white/10">
+          <div>
+            <h2 className="text-2xl font-light text-white tracking-tight">Gestione <span className="font-bold text-amber-500">Prenotazioni</span></h2>
+            <p className="text-sm text-zinc-400 mt-1 uppercase tracking-wider font-medium">Visualizza e gestisci le prenotazioni</p>
+          </div>
+          <div className="flex gap-2">
+            <Button variant="outline" onClick={() => setShowHistoryDialog(true)} className="border-dashed border-zinc-700 hover:border-amber-500 hover:bg-amber-500/10 hover:text-amber-500 text-zinc-400">
+              <History size={16} className="mr-2" />
+              Storico
+            </Button>
+            <Button variant="outline" onClick={() => setShowQrDialog(true)}>
+              <QrCode size={16} className="mr-2" />
+              QR Prenotazioni
+            </Button>
+            <Button className="bg-amber-600 hover:bg-amber-700 text-white" onClick={() => { /* Add New Reservation Logic */ }}>
+              <Plus size={16} className="mr-2" />
+              Nuova Prenotazione
+            </Button>
+          </div>
+        </div>
+
+        {/* Date and Room Filters - RESTORED */}
+        <div className="flex flex-col sm:flex-row items-center justify-between gap-4 bg-zinc-900/50 p-4 rounded-xl border border-white/5">
+          <div className="flex items-center gap-4">
+            {/* Room Filter */}
+            <div className="flex items-center gap-2">
+              <span className="text-zinc-500 text-sm font-medium">Sala:</span>
+              <div className="flex bg-zinc-950 rounded-lg p-1 border border-zinc-800">
+                <button
+                  onClick={() => setSelectedRoomId('all')}
+                  className={`px-3 py-1.5 text-xs font-medium rounded-md transition-all ${selectedRoomId === 'all' ? 'bg-zinc-800 text-white shadow-sm' : 'text-zinc-500 hover:text-zinc-300'}`}
+                >
+                  Tutte
+                </button>
+                {rooms.map(room => (
+                  <button
+                    key={room.id}
+                    onClick={() => setSelectedRoomId(room.id)}
+                    className={`px-3 py-1.5 text-xs font-medium rounded-md transition-all ${selectedRoomId === room.id ? 'bg-zinc-800 text-white shadow-sm' : 'text-zinc-500 hover:text-zinc-300'}`}
+                  >
+                    {room.name}
+                  </button>
+                ))}
+              </div>
+            </div>
+          </div>
+        </div>
 
         {/* Timeline Component */}
         <div id="timeline-export-container">

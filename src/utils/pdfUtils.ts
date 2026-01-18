@@ -8,29 +8,69 @@ import { toast } from 'sonner'
  * Iterates through all elements in the cloned document and replaces oklch colors
  * with fallback values (transparent for bg, inherit for text)
  */
+// Helper to map simplified oklch/variable colors to hex for PDF safety
+const colorMap: Record<string, string> = {
+    'amber-500': '#f59e0b',
+    'amber-400': '#fbbf24',
+    'amber-600': '#d97706',
+    'zinc-950': '#09090b',
+    'zinc-900': '#18181b',
+    'zinc-800': '#27272a',
+    'zinc-700': '#3f3f46',
+    'zinc-500': '#71717a',
+    'zinc-400': '#a1a1aa',
+    'zinc-100': '#f4f4f5',
+    'white': '#ffffff',
+    'black': '#000000',
+    'emerald-500': '#10b981',
+    'rose-500': '#f43f5e',
+    'transparent': 'transparent'
+}
+
+/**
+ * Helper function to fix oklch colors that html2canvas doesn't support
+ * Iterates through all elements in the cloned document and replaces oklch colors
+ * with fallback hex values
+ */
 export const fixOklchColors = (clonedDoc: Document) => {
     const allElements = clonedDoc.querySelectorAll('*')
     allElements.forEach(el => {
-        // Check computed styles
-        const computed = getComputedStyle(el)
-        const props = ['color', 'backgroundColor', 'borderColor', 'borderTopColor', 'borderBottomColor', 'borderLeftColor', 'borderRightColor', 'outlineColor', 'fill', 'stroke']
-
-        props.forEach(prop => {
-            const value = computed.getPropertyValue(prop)
-            if (value && value.includes('oklch')) {
-                (el as HTMLElement).style.setProperty(prop, prop === 'backgroundColor' ? 'transparent' : 'inherit', 'important')
-            }
-        })
-
-        // Check inline styles
         const style = (el as HTMLElement).style
-        for (let i = 0; i < style.length; i++) {
-            const propName = style[i]
-            const value = style.getPropertyValue(propName)
-            if (value && value.includes('oklch')) {
-                style.setProperty(propName, 'transparent', 'important')
+
+        // Helper to replace oklch in a specific property
+        const replaceColor = (prop: string) => {
+            const val = style.getPropertyValue(prop)
+            if (val && (val.includes('oklch') || val.startsWith('var('))) {
+                // Heuristic: try to find common color names in classNames or style to guess the fallback
+                // This is a rough fallback for oklch issues
+                let fallback = '#000000' // default text
+
+                if (prop === 'color') {
+                    fallback = '#ffffff' // assume light text on dark bg usually
+                    if (el.className.includes('zinc-400')) fallback = colorMap['zinc-400']
+                    if (el.className.includes('zinc-500')) fallback = colorMap['zinc-500']
+                    if (el.className.includes('amber')) fallback = colorMap['amber-500']
+                    if (el.className.includes('black')) fallback = '#000000'
+                } else if (prop.includes('background')) {
+                    fallback = 'transparent' // safe default for bg
+                    if (el.className.includes('zinc-950')) fallback = colorMap['zinc-950']
+                    if (el.className.includes('zinc-900')) fallback = colorMap['zinc-900']
+                    if (el.className.includes('zinc-800')) fallback = colorMap['zinc-800']
+                    if (el.className.includes('amber')) fallback = colorMap['amber-500']
+                    if (el.className.includes('emerald')) fallback = colorMap['emerald-500']
+                    if (el.className.includes('rose')) fallback = colorMap['rose-500']
+                    if (el.className.includes('white')) fallback = '#ffffff'
+                } else if (prop.includes('border')) {
+                    fallback = 'transparent'
+                    if (el.className.includes('zinc-800')) fallback = colorMap['zinc-800']
+                    if (el.className.includes('amber')) fallback = colorMap['amber-500']
+                }
+
+                style.setProperty(prop, fallback, 'important')
             }
         }
+
+        ['color', 'backgroundColor', 'borderColor', 'outlineColor', 'fill', 'stroke'].forEach(replaceColor)
     })
 }
 
