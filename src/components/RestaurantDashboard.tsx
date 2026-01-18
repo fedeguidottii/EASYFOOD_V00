@@ -7,6 +7,8 @@ import { Input } from './ui/input'
 import { Label } from './ui/label'
 import { Switch } from './ui/switch'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from './ui/select'
+import { Checkbox } from './ui/checkbox'
+import { RadioGroup, RadioGroupItem } from './ui/radio-group'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from './ui/card'
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger, VisuallyHidden } from './ui/dialog'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from './ui/tabs'
@@ -98,12 +100,37 @@ const RestaurantDashboard = ({ user, onLogout }: RestaurantDashboardProps) => {
   // Orders state initialized with explicit type to prevent 'never' inference
   const [orders, setOrders] = useState<Order[]>([])
   const [pastOrders, setPastOrders] = useState<Order[]>([])
+
+  // Export Menu State
+  const [showExportMenuDialog, setShowExportMenuDialog] = useState(false)
+  const [exportMode, setExportMode] = useState<'full' | 'custom'>('full')
+  const [exportSelectedCategories, setExportSelectedCategories] = useState<string[]>([])
+  const [availableCustomMenus, setAvailableCustomMenus] = useState<any[]>([])
+  const [selectedCustomMenuId, setSelectedCustomMenuId] = useState<string>('')
+  const [isExportingMenu, setIsExportingMenu] = useState(false)
+  const [exportPreviewData, setExportPreviewData] = useState<{ title: string, subtitle?: string, sections: { id: string, title: string, dishes: Dish[] }[] } | null>(null)
   const [dishes, , refreshDishes, setDishes] = useSupabaseData<Dish>('dishes', [], { column: 'restaurant_id', value: restaurantId })
   const [tables, , , setTables] = useSupabaseData<Table>('tables', [], { column: 'restaurant_id', value: restaurantId })
   const [categories, , , setCategories] = useSupabaseData<Category>('categories', [], { column: 'restaurant_id', value: restaurantId })
   const [bookings, , refreshBookings] = useSupabaseData<Booking>('bookings', [], { column: 'restaurant_id', value: restaurantId })
   const [sessions, , refreshSessions] = useSupabaseData<TableSession>('table_sessions', [], { column: 'restaurant_id', value: restaurantId })
   const [rooms, , refreshRooms, setRooms] = useSupabaseData<Room>('rooms', [], { column: 'restaurant_id', value: restaurantId })
+
+  // Initialize selected categories when available
+  useEffect(() => {
+    if (categories && categories.length > 0 && exportSelectedCategories.length === 0) {
+      setExportSelectedCategories(categories.map(c => c.id))
+    }
+  }, [categories])
+
+  // Fetch custom menus when dialog opens
+  useEffect(() => {
+    if (showExportMenuDialog && restaurantId) {
+      DatabaseService.getCustomMenus(restaurantId)
+        .then(menus => setAvailableCustomMenus(menus || []))
+        .catch(console.error)
+    }
+  }, [showExportMenuDialog, restaurantId])
 
   const [restaurants, , refreshRestaurants] = useSupabaseData<Restaurant>('restaurants', [], { column: 'id', value: restaurantId })
   const currentRestaurant = restaurants?.[0]
@@ -295,39 +322,96 @@ const RestaurantDashboard = ({ user, onLogout }: RestaurantDashboardProps) => {
 
   // Export Menu Function
   // Export Menu Function
-  const handleExportMenu = async () => {
-    const element = document.getElementById('menu-print-view')
-    if (!element) {
-      toast.error('Errore durante la generazione del menu')
-      return
-    }
-
-    const toastId = toast.loading('Generazione PDF in corso...')
+  // Execute Menu Export
+  const executeExport = async () => {
+    const toastId = toast.loading('Preparazione PDF...')
 
     try {
-      element.style.display = 'block'
+      let dataToExport: { title: string, subtitle?: string, sections: { id: string, title: string, dishes: Dish[] }[] }
 
-      await generatePdfFromElement('menu-print-view', {
-        fileName: `Menu_${restaurantSlug}_${new Date().toISOString().split('T')[0]}.pdf`,
-        scale: 2,
-        backgroundColor: '#09090b',
-        orientation: 'portrait',
-        onClone: (doc) => {
-          const el = doc.getElementById('menu-print-view')
-          if (el) {
-            el.style.backgroundColor = '#09090b'
-            el.style.padding = '20px'
-          }
+      if (exportMode === 'full') {
+        const selectedCats = categories.filter(c => exportSelectedCategories.includes(c.id))
+        if (selectedCats.length === 0) {
+          toast.error('Seleziona almeno una categoria')
+          toast.dismiss(toastId)
+          return
         }
-      })
 
-      toast.success('Menu scaricato con successo!')
-    } catch (err) {
-      console.error(err)
-      toast.error('Errore creazione PDF')
-    } finally {
+        dataToExport = {
+          title: restaurantName,
+          subtitle: 'Menu alla Carta',
+          sections: selectedCats.map(c => ({
+            id: c.id,
+            title: c.name,
+            dishes: restaurantDishes.filter(d => d.category_id === c.id && d.is_active)
+          })).filter(s => s.dishes.length > 0)
+        }
+      } else {
+        if (!selectedCustomMenuId) {
+          toast.error('Seleziona un menu personalizzato')
+          toast.dismiss(toastId)
+          return
+        }
+
+        const menuDetails = await DatabaseService.getCustomMenuWithDishes(selectedCustomMenuId)
+        if (!menuDetails) {
+          toast.error('Menu non trovato')
+          toast.dismiss(toastId)
+          return
+        }
+
+        dataToExport = {
+          title: menuDetails.name,
+          subtitle: 'Menu Speciale',
+          sections: [{
+            id: 'custom',
+            title: '',
+            dishes: menuDetails.dishes.map((d: any) => d.dish).filter((d: any) => !!d)
+          }]
+        }
+      }
+
+      setExportPreviewData(dataToExport)
+
+      // Wait for render
+      setTimeout(async () => {
+        const element = document.getElementById('menu-print-view')
+        if (!element) {
+          toast.error('Errore generazione PDF')
+          return
+        }
+
+        try {
+          element.style.display = 'block'
+          await generatePdfFromElement('menu-print-view', {
+            fileName: `Menu_${restaurantSlug}_${exportMode}_${new Date().toISOString().split('T')[0]}.pdf`,
+            scale: 2,
+            backgroundColor: '#09090b',
+            orientation: 'portrait',
+            onClone: (doc) => {
+              const el = doc.getElementById('menu-print-view')
+              if (el) {
+                el.style.backgroundColor = '#09090b'
+                el.style.padding = '20px'
+              }
+            }
+          })
+          toast.success('Menu scaricato con successo!')
+          setShowExportMenuDialog(false)
+        } catch (err) {
+          console.error(err)
+          toast.error('Errore creazione PDF')
+        } finally {
+          element.style.display = 'none'
+          setExportPreviewData(null)
+          toast.dismiss(toastId)
+        }
+      }, 500)
+
+    } catch (error) {
+      console.error(error)
+      toast.error('Errore durante l\'export')
       toast.dismiss(toastId)
-      if (element) element.style.display = 'none'
     }
   }
 
@@ -2165,10 +2249,115 @@ const RestaurantDashboard = ({ user, onLogout }: RestaurantDashboardProps) => {
                     </DialogContent>
                   </Dialog>
 
-                  <Button variant="outline" className="border-zinc-700 hover:border-amber-500 hover:text-amber-500" onClick={handleExportMenu}>
-                    <DownloadSimple size={16} className="mr-2" />
-                    Esporta Menu
-                  </Button>
+                  <Dialog open={showExportMenuDialog} onOpenChange={setShowExportMenuDialog}>
+                    <DialogTrigger asChild>
+                      <Button variant="outline" className="border-zinc-700 hover:border-amber-500 hover:text-amber-500">
+                        <DownloadSimple size={16} className="mr-2" />
+                        Esporta Menu
+                      </Button>
+                    </DialogTrigger>
+                    <DialogContent className="max-w-md bg-zinc-950 border-zinc-800 text-zinc-100">
+                      <DialogHeader>
+                        <DialogTitle>Esporta Menu PDF</DialogTitle>
+                        <DialogDescription>
+                          Scegli cosa includere nel menu da stampare.
+                        </DialogDescription>
+                      </DialogHeader>
+
+                      <div className="space-y-6 py-4">
+                        <RadioGroup value={exportMode} onValueChange={(v: 'full' | 'custom') => setExportMode(v)} className="grid grid-cols-2 gap-4">
+                          <div>
+                            <RadioGroupItem value="full" id="export-full" className="peer sr-only" />
+                            <Label
+                              htmlFor="export-full"
+                              className="flex flex-col items-center justify-between rounded-xl border-2 border-zinc-800 bg-zinc-900/50 p-4 hover:bg-zinc-900 hover:text-zinc-100 peer-data-[state=checked]:border-amber-500 peer-data-[state=checked]:text-amber-500 cursor-pointer transition-all"
+                            >
+                              <BookOpen size={24} className="mb-2" />
+                              <span className="font-semibold">Menu Completo</span>
+                            </Label>
+                          </div>
+                          <div>
+                            <RadioGroupItem value="custom" id="export-custom" className="peer sr-only" />
+                            <Label
+                              htmlFor="export-custom"
+                              className="flex flex-col items-center justify-between rounded-xl border-2 border-zinc-800 bg-zinc-900/50 p-4 hover:bg-zinc-900 hover:text-zinc-100 peer-data-[state=checked]:border-amber-500 peer-data-[state=checked]:text-amber-500 cursor-pointer transition-all"
+                            >
+                              <Sparkle size={24} className="mb-2" />
+                              <span className="font-semibold">Menu Personalizzato</span>
+                            </Label>
+                          </div>
+                        </RadioGroup>
+
+                        {exportMode === 'full' ? (
+                          <div className="space-y-3">
+                            <div className="flex items-center justify-between pb-2 border-b border-zinc-800">
+                              <span className="text-sm font-medium">Categorie Incluse</span>
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                className="h-auto py-1 text-xs text-amber-500"
+                                onClick={() => setExportSelectedCategories(categories.map(c => c.id))}
+                              >
+                                Seleziona Tutte
+                              </Button>
+                            </div>
+                            <ScrollArea className="h-[200px] pr-4">
+                              <div className="space-y-2">
+                                {restaurantCategories.map(cat => (
+                                  <div key={cat.id} className="flex items-center space-x-2 p-2 rounded hover:bg-zinc-900/50">
+                                    <Checkbox
+                                      id={`cat-${cat.id}`}
+                                      checked={exportSelectedCategories.includes(cat.id)}
+                                      onCheckedChange={(checked) => {
+                                        if (checked) {
+                                          setExportSelectedCategories([...exportSelectedCategories, cat.id])
+                                        } else {
+                                          setExportSelectedCategories(exportSelectedCategories.filter(id => id !== cat.id))
+                                        }
+                                      }}
+                                    />
+                                    <Label htmlFor={`cat-${cat.id}`} className="flex-1 cursor-pointer font-normal text-zinc-300">
+                                      {cat.name}
+                                    </Label>
+                                  </div>
+                                ))}
+                              </div>
+                            </ScrollArea>
+                          </div>
+                        ) : (
+                          <div className="space-y-4">
+                            <div className="space-y-2">
+                              <Label>Seleziona Menu</Label>
+                              <Select value={selectedCustomMenuId} onValueChange={setSelectedCustomMenuId}>
+                                <SelectTrigger>
+                                  <SelectValue placeholder="Scegli un menu..." />
+                                </SelectTrigger>
+                                <SelectContent>
+                                  {availableCustomMenus.map(menu => (
+                                    <SelectItem key={menu.id} value={menu.id}>
+                                      {menu.name}
+                                    </SelectItem>
+                                  ))}
+                                </SelectContent>
+                              </Select>
+                            </div>
+                            {availableCustomMenus.length === 0 && (
+                              <p className="text-sm text-yellow-500/80 bg-yellow-500/10 p-3 rounded-lg border border-yellow-500/20">
+                                Non hai ancora creato menu personalizzati.
+                              </p>
+                            )}
+                          </div>
+                        )}
+                      </div>
+
+                      <div className="flex justify-end gap-2 pt-2">
+                        <Button variant="ghost" onClick={() => setShowExportMenuDialog(false)}>Annulla</Button>
+                        <Button className="bg-amber-500 hover:bg-amber-600 text-black font-semibold" onClick={executeExport}>
+                          Genera PDF
+                        </Button>
+                      </div>
+                    </DialogContent>
+                  </Dialog>
 
                   <Dialog open={isAddItemDialogOpen} onOpenChange={setIsAddItemDialogOpen}>
                     <DialogTrigger asChild>
@@ -3208,13 +3397,58 @@ const RestaurantDashboard = ({ user, onLogout }: RestaurantDashboardProps) => {
         {/* Header */}
         <div className="text-center mb-10 border-b border-white/10 pb-6 relative">
           <div className="absolute top-0 left-1/2 -translate-x-1/2 w-24 h-1 bg-gradient-to-r from-transparent via-amber-500 to-transparent opacity-50"></div>
-          <h1 className="text-5xl font-light tracking-[0.2em] text-white mb-2 uppercase">{currentRestaurant?.name || 'Menu'}</h1>
+          <h1 className="text-5xl font-light tracking-[0.2em] text-white mb-2 uppercase">{exportPreviewData?.title || currentRestaurant?.name || 'Menu'}</h1>
+          {exportPreviewData?.subtitle && <p className="text-amber-500 text-xl tracking-[0.15em] font-light mt-2 mb-2">{exportPreviewData.subtitle}</p>}
           <p className="text-amber-500/80 text-sm italic tracking-widest font-light">Fine Dining Experience</p>
         </div>
 
         {/* Content */}
+        {/* Content */}
         <div className="space-y-10">
-          {
+          {exportPreviewData ? (
+            // Render from Preview Data
+            exportPreviewData.sections.map(section => (
+              <div key={section.id} className="break-inside-avoid mb-8">
+                {section.title && (
+                  <div className="flex items-center gap-4 mb-6">
+                    <h2 className="text-2xl font-light text-amber-500 uppercase tracking-[0.15em]">{section.title}</h2>
+                    <div className="h-px flex-1 bg-gradient-to-r from-amber-500/30 to-transparent"></div>
+                  </div>
+                )}
+
+                <div className="grid grid-cols-1 gap-6">
+                  {section.dishes.map(dish => (
+                    <div key={dish.id} className="flex gap-6 items-start break-inside-avoid group relative">
+                      {/* Image or Elegant Placeholder */}
+                      <div className="w-24 h-24 shrink-0 rounded-lg overflow-hidden border border-white/5 shadow-lg bg-zinc-900 relative">
+                        {dish.image_url ? (
+                          <img src={dish.image_url} alt={dish.name} className="w-full h-full object-cover opacity-90 group-hover:opacity-100 transition-opacity" />
+                        ) : (
+                          <DishPlaceholder iconSize={24} />
+                        )}
+                      </div>
+
+                      <div className="flex-1 pt-1">
+                        <div className="flex justify-between items-baseline mb-2 border-b border-dotted border-white/10 pb-2 relative">
+                          <h3 className="text-xl font-medium text-zinc-100 tracking-wide">{dish.name}</h3>
+                          <span className="text-lg font-light text-amber-400 whitespace-nowrap ml-4">€ {dish.price.toFixed(2)}</span>
+                          <div className="absolute bottom-0 left-0 w-full h-px bg-gradient-to-r from-transparent via-white/5 to-transparent"></div>
+                        </div>
+                        {dish.description && <p className="text-zinc-400 text-sm font-light leading-relaxed italic">{dish.description}</p>}
+                        {dish.allergens && dish.allergens.length > 0 && (
+                          <div className="flex items-center gap-2 mt-2">
+                            <WarningCircle size={12} className="text-amber-500/50" />
+                            <p className="text-[10px] text-zinc-600 uppercase tracking-wider">Contains: {dish.allergens.join(', ')}</p>
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            ))
+          ) : (
+            // Default Render (Fallback)
             restaurantCategories.map(category => {
               const categoryDishes = restaurantDishes
                 .filter(d => d.category_id === category.id && d.is_active)
@@ -3261,7 +3495,7 @@ const RestaurantDashboard = ({ user, onLogout }: RestaurantDashboardProps) => {
                 </div>
               )
             })
-          }
+          )}
         </div>
 
         {/* Footer */}

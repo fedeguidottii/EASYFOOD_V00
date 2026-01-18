@@ -113,7 +113,7 @@ const DishCard = ({
       {dish.image_url ? (
         <img src={dish.image_url} alt={dish.name} className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-110" loading="lazy" />
       ) : (
-        <DishPlaceholder className="group-hover:scale-110 transition-transform duration-700" iconSize={24} icon="utensils" />
+        <DishPlaceholder className="group-hover:scale-110 transition-transform duration-700" iconSize={24} variant="pot" />
       )}
       {dish.allergens && dish.allergens.length > 0 && (
         <div className="absolute bottom-1 right-1 bg-zinc-900/90 p-0.5 rounded-full shadow-sm border border-amber-500/20">
@@ -1178,7 +1178,7 @@ function AuthorizedMenuContent({ restaurantId, tableId, sessionId, activeSession
                           <img src={item.image_url} alt={item.name} className="w-14 h-14 rounded-xl object-cover shadow-sm" />
                         ) : (
                           <div className="w-14 h-14 rounded-lg overflow-hidden shrink-0 shadow-inner border border-white/5">
-                            <DishPlaceholder iconSize={20} icon="utensils" />
+                            <DishPlaceholder iconSize={20} variant="pot" />
                           </div>
                         )}
                         <div className="flex-1 min-w-0">
@@ -1421,7 +1421,7 @@ function AuthorizedMenuContent({ restaurantId, tableId, sessionId, activeSession
                   </div>
                 ) : (
                   <div className="relative h-48 w-full">
-                    <DishPlaceholder iconSize={48} icon="utensils" />
+                    <DishPlaceholder iconSize={48} variant="pot" />
                     <div className="absolute inset-0 bg-gradient-to-t from-zinc-950/80 to-transparent" />
                   </div>
                 )}

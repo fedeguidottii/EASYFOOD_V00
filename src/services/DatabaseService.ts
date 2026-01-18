@@ -692,5 +692,27 @@ export const DatabaseService = {
             .single()
         if (error) return null
         return data as TableSession
+    },
+
+    // Custom Menus
+    async getCustomMenus(restaurantId: string) {
+        const { data, error } = await supabase
+            .from('custom_menus')
+            .select('*')
+            .eq('restaurant_id', restaurantId)
+            .eq('is_active', true)
+        if (error) throw error
+        return data as any[]
+    },
+
+    async getCustomMenuWithDishes(menuId: string) {
+        const { data, error } = await supabase
+            .from('custom_menus')
+            .select('*, dishes:custom_menu_dishes(*, dish:dishes(*))')
+            .eq('id', menuId)
+            .single()
+
+        if (error) throw error
+        return data
     }
 }
