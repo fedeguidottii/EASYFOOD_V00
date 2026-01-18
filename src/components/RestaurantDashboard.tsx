@@ -38,8 +38,22 @@ import {
   DownloadSimple,
   QrCode,
   ForkKnife,
-  WarningCircle
+  WarningCircle,
+  Clock,
+  MapPin,
+  BookOpen,
+  Calendar,
+  ChartBar,
+  Check,
+  Minus,
+  ClockCounterClockwise,
+  Users,
+  Receipt,
+  Sparkle,
+  DotsSixVertical,
+  Tag
 } from '@phosphor-icons/react'
+import { ChefHat } from 'lucide-react'
 import jsPDF from 'jspdf'
 import html2canvas from 'html2canvas'
 import { generatePdfFromElement } from '../utils/pdfUtils'
