@@ -15,6 +15,10 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '.
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '../ui/tabs'
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger } from '../ui/dropdown-menu'
 import { DotsThreeVertical } from '@phosphor-icons/react'
+import { DndContext, closestCenter, KeyboardSensor, PointerSensor, useSensor, useSensors, DragOverlay, defaultDropAnimationSideEffects, DragStartEvent, DragEndEvent } from '@dnd-kit/core'
+import { arrayMove, SortableContext, sortableKeyboardCoordinates, verticalListSortingStrategy, useSortable } from '@dnd-kit/sortable'
+import { CSS } from '@dnd-kit/utilities'
+import { SortableItem } from './SortableItem'
 
 interface WaiterDashboardProps {
     user: any
@@ -168,6 +172,79 @@ const WaiterDashboard = ({ user, onLogout }: WaiterDashboardProps) => {
 
         initDashboard()
     }, [user])
+
+    // Dnd Sensors
+    const sensors = useSensors(
+        useSensor(PointerSensor, { activationConstraint: { distance: 8 } }), // Distance prevents accidental drags
+        useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates })
+    )
+    const [activeId, setActiveId] = useState<string | null>(null)
+
+    const handleDragEnd = (event: DragEndEvent) => {
+        const { active, over } = event
+
+        if (!over) {
+            setActiveId(null)
+            return
+        }
+
+        const activeIdStr = active.id as string
+        const [dishId, currentCourseStr, originalIdx] = activeIdStr.split('-')
+        const currentCourse = parseInt(currentCourseStr)
+
+        // Identify target course
+        const overIdStr = over.id as string
+        let targetCourse: number
+
+        if (overIdStr.startsWith('course-')) {
+            // Dropped on container
+            targetCourse = parseInt(overIdStr.replace('course-', ''))
+        } else {
+            // Dropped on item
+            // Try catch for safety if ID format is different
+            try {
+                const parts = overIdStr.split('-')
+                // Assuming format dishId-courseNumber-index
+                // courseNumber is the second part
+                targetCourse = parseInt(parts[parts.length - 2]) || currentCourse
+            } catch (e) {
+                targetCourse = currentCourse
+            }
+        }
+
+        // Ensure valid target course
+        if (isNaN(targetCourse)) targetCourse = currentCourse
+
+        if (currentCourse !== targetCourse) {
+            setNewQuickOrderItems(items => {
+                const newItems = [...items]
+                // We need to find the specific item instance. 
+                // Since we have index in ID, let use that if reliable, otherwise fallback to finding matching item.
+                const index = parseInt(originalIdx)
+
+                if (index >= 0 && index < newItems.length &&
+                    newItems[index].dishId === dishId &&
+                    (newItems[index].courseNumber || 1) === currentCourse) {
+
+                    newItems[index] = { ...newItems[index], courseNumber: targetCourse }
+                    return newItems
+                }
+
+                return items
+            })
+        }
+
+        setActiveId(null)
+    }
+
+    const removeFromQuickOrder = (index: number) => {
+        setNewQuickOrderItems(prev => {
+            const newItems = [...prev]
+            newItems.splice(index, 1)
+            return newItems
+        })
+    }
+
 
     // Realtime Subscriptions
     useEffect(() => {
@@ -468,7 +545,7 @@ const WaiterDashboard = ({ user, onLogout }: WaiterDashboardProps) => {
                 .insert({
                     restaurant_id: restaurantId,
                     table_session_id: session.id,
-                    status: 'pending', // Send to kitchen immediately
+                    status: 'OPEN', // Send to kitchen immediately
                     total_amount: totalAmount
                     // notes: '' // REMOVED: Column does not exist on orders table
                 })
@@ -486,7 +563,7 @@ const WaiterDashboard = ({ user, onLogout }: WaiterDashboardProps) => {
                     quantity: item.quantity,
                     price_at_time: dish?.price || 0,
                     note: item.notes || '',
-                    status: 'pending',
+                    status: 'PENDING',
                     course_number: courseSplittingEnabled ? item.courseNumber : undefined
                 }
             })
@@ -779,8 +856,6 @@ const WaiterDashboard = ({ user, onLogout }: WaiterDashboardProps) => {
                                         </DropdownMenuTrigger>
                                         <DropdownMenuContent align="end" className="w-48 bg-zinc-900 border-zinc-800 text-zinc-200">
                                             <DropdownMenuLabel>Azioni Conto</DropdownMenuLabel>
-                                            <DropdownMenuSeparator className="bg-white/10" />
-
                                             {restaurant?.allow_waiter_payments ? (
                                                 <>
                                                     <DropdownMenuItem
@@ -806,10 +881,19 @@ const WaiterDashboard = ({ user, onLogout }: WaiterDashboardProps) => {
                                                     </DropdownMenuItem>
                                                 </>
                                             ) : (
-                                                <div className="px-2 py-1.5 text-xs text-zinc-500 italic">
-                                                    Pagamenti disabilitati
-                                                </div>
+                                                <DropdownMenuItem
+                                                    onClick={(e) => {
+                                                        e.stopPropagation()
+                                                        openPaymentDialog(e, table)
+                                                    }}
+                                                    className="focus:bg-zinc-800 focus:text-zinc-200 cursor-pointer"
+                                                >
+                                                    <Receipt className="mr-2 h-4 w-4" />
+                                                    Visualizza Conto
+                                                </DropdownMenuItem>
                                             )}
+
+
                                         </DropdownMenuContent>
                                     </DropdownMenu>
                                 ) : (
@@ -1701,10 +1785,11 @@ const WaiterDashboard = ({ user, onLogout }: WaiterDashboardProps) => {
                     {/* Tabs Navigation */}
                     <Tabs value={quickOrderTab} onValueChange={(v) => setQuickOrderTab(v as any)} className="flex-1 flex flex-col overflow-hidden">
                         {/* Hide TabsList if in 'courses' mode to force selection, OR show simplified nav */}
-                        {quickOrderTab !== 'courses' && (
+                        {quickOrderTab !== 'courses' ? (
                             <div className="px-4 pt-2 bg-zinc-900/50 border-b border-white/5 shrink-0">
-                                <TabsList className="grid w-full grid-cols-3 bg-zinc-900 border border-white/10">
+                                <TabsList className="grid w-full grid-cols-4 bg-zinc-900 border border-white/10">
                                     <TabsTrigger value="menu">Menu</TabsTrigger>
+                                    <TabsTrigger value="courses">Portate</TabsTrigger>
                                     <TabsTrigger value="cart" className="relative gap-2">
                                         Carrello
                                         {newQuickOrderItems.length > 0 && (
@@ -1716,7 +1801,106 @@ const WaiterDashboard = ({ user, onLogout }: WaiterDashboardProps) => {
                                     <TabsTrigger value="history">Storico</TabsTrigger>
                                 </TabsList>
                             </div>
+                        ) : (
+                            <div className="px-4 py-2 bg-zinc-900/50 border-b border-white/5 shrink-0 flex items-center justify-between">
+                                <h3 className="font-bold text-lg">Gestione Portate</h3>
+                                <Button size="sm" variant="ghost" onClick={() => setQuickOrderTab('menu')}>
+                                    Chiudi
+                                </Button>
+                            </div>
                         )}
+
+                        {/* COURSES TAB (New Workflow with DnD) */}
+                        <TabsContent value="courses" className="flex-1 flex flex-col overflow-hidden data-[state=inactive]:hidden mt-0">
+                            <DndContext
+                                sensors={sensors}
+                                collisionDetection={closestCenter}
+                                onDragEnd={handleDragEnd}
+                                onDragStart={(event) => setActiveId(event.active.id as string)}
+                            >
+                                <div className="flex-1 overflow-x-auto p-4 flex gap-4">
+                                    {/* Render columns for each course */}
+                                    {Array.from({ length: maxCourse }, (_, i) => i + 1).map(courseNum => (
+                                        <div key={courseNum} className="min-w-[280px] flex flex-col bg-zinc-900/50 border border-white/5 rounded-xl h-full">
+                                            <div className="p-3 border-b border-white/5 flex justify-between items-center bg-zinc-900 rounded-t-xl sticky top-0 z-10">
+                                                <h4 className="font-bold text-amber-500">Portata {courseNum}</h4>
+                                                <Button
+                                                    size="icon"
+                                                    variant="ghost"
+                                                    className="h-6 w-6"
+                                                    onClick={() => {
+                                                        setSelectedCourse(courseNum);
+                                                        setQuickOrderTab('menu');
+                                                    }}
+                                                >
+                                                    <Plus size={14} />
+                                                </Button>
+                                            </div>
+                                            <div className="flex-1 p-2 overflow-y-auto">
+                                                <SortableContext
+                                                    id={`course-${courseNum}`}
+                                                    items={newQuickOrderItems
+                                                        .filter(item => (item.courseNumber || 1) === courseNum)
+                                                        .map(item => `${item.dishId}-${item.courseNumber}-${newQuickOrderItems.indexOf(item)}`)} // Unique IDs
+                                                    strategy={verticalListSortingStrategy}
+                                                >
+                                                    {newQuickOrderItems
+                                                        .filter(item => (item.courseNumber || 1) === courseNum)
+                                                        .map((item, idx) => {
+                                                            const uniqueId = `${item.dishId}-${item.courseNumber}-${newQuickOrderItems.indexOf(item)}`;
+                                                            const dish = dishes.find(d => d.id === item.dishId);
+                                                            return (
+                                                                <SortableItem
+                                                                    key={uniqueId}
+                                                                    id={uniqueId}
+                                                                    item={item}
+                                                                    dish={dish}
+                                                                    onRemove={() => removeFromQuickOrder(newQuickOrderItems.indexOf(item))}
+                                                                    onEditNote={() => {
+                                                                        // Simple prompt implementation for MVP
+                                                                        const note = prompt('Inserisci nota:', item.notes);
+                                                                        if (note !== null) {
+                                                                            setNewQuickOrderItems(prev => prev.map((pi, pidx) =>
+                                                                                pidx === newQuickOrderItems.indexOf(item) ? { ...pi, notes: note } : pi
+                                                                            ));
+                                                                        }
+                                                                    }}
+                                                                />
+                                                            );
+                                                        })}
+                                                </SortableContext>
+                                                {newQuickOrderItems.filter(item => (item.courseNumber || 1) === courseNum).length === 0 && (
+                                                    <div className="text-center py-8 text-zinc-600 border-2 border-dashed border-zinc-800 rounded-lg mx-2">
+                                                        <p className="text-xs">Trascina qui</p>
+                                                    </div>
+                                                )}
+                                            </div>
+                                        </div>
+                                    ))}
+
+                                    {/* Add Course Button Column */}
+                                    <div className="min-w-[100px] flex items-center justify-center">
+                                        <Button
+                                            variant="outline"
+                                            className="h-12 w-12 rounded-full border-dashed border-2 border-zinc-700 text-zinc-500 hover:text-white hover:border-white hover:bg-zinc-800"
+                                            onClick={() => setMaxCourse(prev => prev + 1)}
+                                        >
+                                            <Plus size={24} />
+                                        </Button>
+                                    </div>
+
+                                </div>
+                                <DragOverlay>
+                                    {activeId ? (
+                                        <div className="bg-zinc-800 p-2 rounded-lg border border-amber-500 shadow-xl opacity-90 w-[250px]">
+                                            <div className="flex justify-between items-start">
+                                                <span className="font-medium text-sm text-zinc-200">Spostamento...</span>
+                                            </div>
+                                        </div>
+                                    ) : null}
+                                </DragOverlay>
+                            </DndContext>
+                        </TabsContent>
 
                         {/* COURSES TAB (New Workflow) */}
                         <TabsContent value="courses" className="flex-1 flex flex-col p-4 data-[state=inactive]:hidden mt-0">
