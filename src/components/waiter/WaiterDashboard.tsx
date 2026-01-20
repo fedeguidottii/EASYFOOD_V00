@@ -12,6 +12,9 @@ import { ScrollArea } from '../ui/scroll-area'
 import { Input } from '../ui/input'
 import { Label } from '../ui/label'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../ui/select'
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '../ui/tabs'
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger } from '../ui/dropdown-menu'
+import { DotsThreeVertical } from '@phosphor-icons/react'
 
 interface WaiterDashboardProps {
     user: any
@@ -759,19 +762,80 @@ const WaiterDashboard = ({ user, onLogout }: WaiterDashboardProps) => {
                                     <Plus size={14} className="mr-1.5" />
                                     Ordina
                                 </Button>
-                                {restaurant?.allow_waiter_payments && (
-                                    <Button
-                                        className="bg-amber-500 text-black hover:bg-amber-400 shadow-sm hover:shadow transition-all h-8 text-xs font-bold"
-                                        size="sm"
-                                        onClick={(e) => {
-                                            e.stopPropagation()
-                                            openPaymentDialog(e, table)
-                                        }}
-                                    >
-                                        <Receipt size={14} className="mr-1.5" />
-                                        Conto
-                                    </Button>
-                                )}
+
+                                <DropdownMenu>
+                                    <DropdownMenuTrigger asChild>
+                                        <Button
+                                            variant="secondary"
+                                            size="sm"
+                                            className="h-8 w-8 p-0 rounded-xl bg-zinc-800 text-zinc-400 border border-white/5 hover:bg-zinc-700 hover:text-white"
+                                            onClick={(e) => e.stopPropagation()}
+                                        >
+                                            <DotsThreeVertical size={16} weight="bold" />
+                                        </Button>
+                                    </DropdownMenuTrigger>
+                                    <DropdownMenuContent align="end" className="w-48 bg-zinc-900 border-zinc-800 text-zinc-200">
+                                        <DropdownMenuLabel>Azioni Tavolo</DropdownMenuLabel>
+                                        <DropdownMenuSeparator className="bg-white/10" />
+
+                                        {/* Permission Gated Actions */}
+                                        {restaurant?.allow_waiter_payments ? (
+                                            <>
+                                                <DropdownMenuItem
+                                                    onClick={(e) => {
+                                                        e.stopPropagation()
+                                                        openPaymentDialog(e, table)
+                                                    }}
+                                                    className="focus:bg-amber-500/10 focus:text-amber-500 cursor-pointer"
+                                                >
+                                                    <Receipt className="mr-2 h-4 w-4" />
+                                                    Paga Tutto
+                                                </DropdownMenuItem>
+                                                <DropdownMenuItem
+                                                    onClick={(e) => {
+                                                        e.stopPropagation()
+                                                        // Open payment dialog but trigger split mode directly if possible
+                                                        // or let them switch inside. For now, open dialog.
+                                                        setIsSplitMode(true)
+                                                        openPaymentDialog(e, table)
+                                                    }}
+                                                    className="focus:bg-amber-500/10 focus:text-amber-500 cursor-pointer"
+                                                >
+                                                    <ArrowsClockwise className="mr-2 h-4 w-4" />
+                                                    Dividi Conto
+                                                </DropdownMenuItem>
+                                                <DropdownMenuSeparator className="bg-white/10" />
+                                                <DropdownMenuItem
+                                                    onClick={(e) => {
+                                                        e.stopPropagation()
+                                                        handleCloseTable(false)
+                                                    }}
+                                                    className="focus:bg-red-500/10 focus:text-red-500 text-red-400 cursor-pointer"
+                                                >
+                                                    <Trash className="mr-2 h-4 w-4" />
+                                                    Svuota Tavolo
+                                                </DropdownMenuItem>
+                                            </>
+                                        ) : (
+                                            <div className="px-2 py-1.5 text-xs text-zinc-500 italic">
+                                                Pagamenti disabilitati
+                                            </div>
+                                        )}
+
+                                        <DropdownMenuSeparator className="bg-white/10" />
+                                        <DropdownMenuItem
+                                            onClick={(e) => {
+                                                e.stopPropagation()
+                                                // Show details implementation (or just open modal)
+                                                handleTableClick(table)
+                                            }}
+                                            className="cursor-pointer"
+                                        >
+                                            <MagnifyingGlass className="mr-2 h-4 w-4" />
+                                            Dettagli Tavolo
+                                        </DropdownMenuItem>
+                                    </DropdownMenuContent>
+                                </DropdownMenu>
                             </div>
                         ) : (
                             <Button
@@ -788,7 +852,7 @@ const WaiterDashboard = ({ user, onLogout }: WaiterDashboardProps) => {
                         )}
                     </div>
                 </CardContent>
-            </Card>
+            </Card >
         )
     }
 
@@ -1624,7 +1688,6 @@ const WaiterDashboard = ({ user, onLogout }: WaiterDashboardProps) => {
                 }
             }}>
                 <DialogContent className="w-[95vw] max-w-[100vw] sm:max-w-5xl bg-zinc-950 border-zinc-800 text-zinc-100 h-[90dvh] flex flex-col p-0 overflow-hidden rounded-xl">
-
                     <DialogHeader className="p-4 border-b border-white/5 bg-zinc-900/50 shrink-0">
                         <DialogTitle className="text-lg font-bold flex items-center gap-3">
                             <div className="bg-amber-500 text-black p-1.5 rounded-lg">
@@ -1642,84 +1705,69 @@ const WaiterDashboard = ({ user, onLogout }: WaiterDashboardProps) => {
                         </DialogTitle>
                     </DialogHeader>
 
-                    {/* Mobile Tabs Navigation */}
-                    <div className="lg:hidden flex border-b border-white/5 bg-zinc-900/30 shrink-0">
-                        <button
-                            onClick={() => setQuickOrderTab('menu')}
-                            className={`flex-1 py-3 text-sm font-medium flex items-center justify-center gap-2 transition-colors relative ${quickOrderTab === 'menu' ? 'text-amber-500' : 'text-zinc-400'}`}
-                        >
-                            <BookOpen size={18} />
-                            Menu
-                            {quickOrderTab === 'menu' && <div className="absolute bottom-0 left-0 right-0 h-0.5 bg-amber-500" />}
-                        </button>
-                        <button
-                            onClick={() => setQuickOrderTab('cart')}
-                            className={`flex-1 py-3 text-sm font-medium flex items-center justify-center gap-2 transition-colors relative ${quickOrderTab === 'cart' ? 'text-amber-500' : 'text-zinc-400'}`}
-                        >
-                            <ShoppingCart size={18} />
-                            Carrello
-                            {newQuickOrderItems.length > 0 && (
-                                <span className="bg-amber-500 text-black text-[10px] px-1.5 rounded-full font-bold">
-                                    {newQuickOrderItems.reduce((sum, i) => sum + i.quantity, 0)}
-                                </span>
-                            )}
-                            {quickOrderTab === 'cart' && <div className="absolute bottom-0 left-0 right-0 h-0.5 bg-amber-500" />}
-                        </button>
-                        <button
-                            onClick={() => setQuickOrderTab('history')}
-                            className={`flex-1 py-3 text-sm font-medium flex items-center justify-center gap-2 transition-colors relative ${quickOrderTab === 'history' ? 'text-amber-500' : 'text-zinc-400'}`}
-                        >
-                            <ClockCounterClockwise size={18} />
-                            Storico
-                            {quickOrderTab === 'history' && <div className="absolute bottom-0 left-0 right-0 h-0.5 bg-amber-500" />}
-                        </button>
-                    </div>
+                    {/* Tabs Navigation */}
+                    <Tabs value={quickOrderTab} onValueChange={(v) => setQuickOrderTab(v as any)} className="flex-1 flex flex-col overflow-hidden">
+                        <div className="px-4 pt-2 bg-zinc-900/50 border-b border-white/5 shrink-0">
+                            <TabsList className="grid w-full grid-cols-3 bg-zinc-900 border border-white/10">
+                                <TabsTrigger value="menu">Menu</TabsTrigger>
+                                <TabsTrigger value="cart" className="relative gap-2">
+                                    Carrello
+                                    {newQuickOrderItems.length > 0 && (
+                                        <Badge className="h-5 px-1.5 bg-amber-500 text-black text-[10px] font-bold">
+                                            {newQuickOrderItems.reduce((acc, item) => acc + item.quantity, 0)}
+                                        </Badge>
+                                    )}
+                                </TabsTrigger>
+                                <TabsTrigger value="history">Storico</TabsTrigger>
+                            </TabsList>
+                        </div>
 
-                    <div className="flex-1 flex overflow-hidden relative">
-                        {/* Menu Section - Visible if tab is 'menu' OR screen is large */}
-                        <div className={`flex-1 flex flex-col border-r border-white/5 ${quickOrderTab === 'menu' ? 'flex' : 'hidden lg:flex'}`}>
-                            {/* Search, Filter, and Course Selection */}
-                            <div className="p-3 border-b border-white/5 space-y-3 shrink-0 backdrop-blur-sm bg-zinc-950/50 z-10">
-                                {/* Course Selection */}
-                                {courseSplittingEnabled && (
-                                    <div className="flex items-center gap-2 overflow-x-auto pb-2 scrollbar-hide -mx-1 px-1">
-                                        <span className="text-[10px] text-zinc-500 uppercase tracking-wider font-bold shrink-0">Portata:</span>
-                                        {Array.from({ length: maxCourse }, (_, i) => i + 1).map(num => (
+                        {/* MENU TAB */}
+                        <TabsContent value="menu" className="flex-1 flex flex-col overflow-hidden data-[state=inactive]:hidden mt-0">
+                            <div className="p-3 border-b border-white/5 space-y-3 shrink-0 bg-zinc-950/50 z-10">
+                                <div className="flex gap-2">
+                                    {courseSplittingEnabled && (
+                                        <div className="flex items-center bg-black/40 rounded-xl p-1 border border-white/5 shrink-0">
                                             <Button
-                                                key={num}
                                                 size="sm"
-                                                variant={selectedCourse === num ? 'default' : 'outline'}
-                                                onClick={() => setSelectedCourse(num)}
-                                                className={`rounded-lg h-7 text-xs shrink-0 ${selectedCourse === num ? 'bg-amber-500 text-black hover:bg-amber-400 border-transparent' : 'border-white/10 text-zinc-400'}`}
+                                                variant="ghost"
+                                                onClick={() => setSelectedCourse(Math.max(1, selectedCourse - 1))}
+                                                disabled={selectedCourse <= 1}
+                                                className="h-8 w-8 p-0 text-zinc-400 hover:text-white"
                                             >
-                                                Uscita {num}
+                                                <Minus size={14} />
                                             </Button>
-                                        ))}
-                                        <Button
-                                            size="sm"
-                                            variant="outline"
-                                            onClick={() => {
-                                                const newCourse = maxCourse + 1
-                                                setMaxCourse(newCourse)
-                                                setSelectedCourse(newCourse)
-                                            }}
-                                            className="rounded-lg h-7 text-xs border-dashed border-amber-500/30 text-amber-500 hover:bg-amber-500/10 shrink-0"
-                                        >
-                                            <Plus size={14} className="mr-1" />
-                                            Nuova
-                                        </Button>
+                                            <div className="px-2 text-center min-w-[3rem]">
+                                                <span className="text-[10px] uppercase text-zinc-500 block leading-none mb-0.5">Uscita</span>
+                                                <span className="font-bold text-amber-500 leading-none">{selectedCourse}</span>
+                                            </div>
+                                            <Button
+                                                size="sm"
+                                                variant="ghost"
+                                                onClick={() => {
+                                                    const next = selectedCourse + 1
+                                                    setSelectedCourse(next)
+                                                    if (next > maxCourse) setMaxCourse(next)
+                                                }}
+                                                className="h-8 w-8 p-0 text-zinc-400 hover:text-white"
+                                            >
+                                                <Plus size={14} />
+                                            </Button>
+                                        </div>
+                                    )}
+
+                                    <div className="relative flex-1">
+                                        <MagnifyingGlass className="absolute left-3 top-1/2 -translate-y-1/2 text-zinc-500" size={16} />
+                                        <Input
+                                            placeholder="Cerca piatto..."
+                                            value={quickOrderSearch}
+                                            onChange={(e) => setQuickOrderSearch(e.target.value)}
+                                            className="pl-9 bg-black/20 border-white/10 h-10 rounded-xl w-full"
+                                        />
                                     </div>
-                                )}
-                                <div className="relative">
-                                    <MagnifyingGlass className="absolute left-3 top-1/2 -translate-y-1/2 text-zinc-500" size={16} />
-                                    <Input
-                                        placeholder="Cerca piatto..."
-                                        value={quickOrderSearch}
-                                        onChange={(e) => setQuickOrderSearch(e.target.value)}
-                                        className="pl-9 bg-black/20 border-white/10 h-10 rounded-xl w-full"
-                                    />
                                 </div>
-                                <div className="flex gap-2 overflow-x-auto pb-2 no-scrollbar touch-pan-x snap-x -mx-1 px-1">
+
+                                <div className="flex gap-2 overflow-x-auto whitespace-nowrap pb-2 no-scrollbar touch-pan-x snap-x -mx-1 px-1">
                                     <Button
                                         size="sm"
                                         variant={quickOrderSelectedCategory === 'all' ? 'default' : 'outline'}
@@ -1742,9 +1790,8 @@ const WaiterDashboard = ({ user, onLogout }: WaiterDashboardProps) => {
                                 </div>
                             </div>
 
-                            {/* Dishes List */}
                             <ScrollArea className="flex-1 p-3">
-                                <div className="flex flex-col gap-2 pb-20 lg:pb-0">
+                                <div className="flex flex-col gap-2 pb-4">
                                     {dishes
                                         .filter(d => d.is_active)
                                         .filter(d => quickOrderSelectedCategory === 'all' || d.category_id === quickOrderSelectedCategory)
@@ -1799,240 +1846,163 @@ const WaiterDashboard = ({ user, onLogout }: WaiterDashboardProps) => {
                                         })}
                                 </div>
                             </ScrollArea>
-                        </div>
+                        </TabsContent>
 
-                        {/* Order Summary Sidebar - Desktop: Always visible (1/3 width), Mobile: Only if activeTab is not 'menu' */}
-                        <div className={`lg:w-[320px] lg:flex flex-col border-l border-white/5 bg-zinc-900/30 ${quickOrderTab === 'menu' ? 'hidden' : 'flex w-full absolute inset-0 bg-zinc-950 z-20'}`}>
-
-                            {/* Mobile Header for Cart sections */}
-                            <div className="lg:hidden p-4 border-b border-white/5 bg-zinc-900/50 flex items-center gap-2">
-                                <Button variant="ghost" size="icon" onClick={() => setQuickOrderTab('menu')} className="h-8 w-8 -ml-2 text-zinc-400">
-                                    <ArrowLeft size={18} />
-                                </Button>
-                                <h3 className="font-bold text-white text-sm uppercase tracking-wider">
-                                    {quickOrderTab === 'cart' ? 'Carrello Corrente' : 'Storico Ordini'}
-                                </h3>
-                            </div>
-
-                            {/* Desktop Header */}
-                            <div className="hidden lg:block p-4 border-b border-white/5 bg-zinc-900/50">
-                                <h3 className="font-bold text-white text-sm uppercase tracking-wider">Riepilogo Ordine</h3>
-                            </div>
-
+                        {/* CART TAB */}
+                        <TabsContent value="cart" className="flex-1 flex flex-col overflow-hidden data-[state=inactive]:hidden mt-0">
                             <ScrollArea className="flex-1 p-4">
-                                {/* CART CONTENT */}
-                                {(quickOrderTab === 'cart' || (window.innerWidth >= 1024)) && (
-                                    <div className="mb-6">
-                                        <div className="flex items-center justify-between mb-4 lg:hidden">
-                                            <h4 className="text-xs font-bold text-zinc-500 uppercase">Nuovo Ordine</h4>
-                                        </div>
-
-                                        {newQuickOrderItems.length === 0 ? (
-                                            <div className="flex flex-col items-center justify-center text-zinc-500 opacity-50 py-8 border-2 border-dashed border-white/5 rounded-xl">
-                                                <Receipt size={32} className="mb-2" />
-                                                <p className="text-xs">Carrello vuoto</p>
-                                                <p className="text-[10px] text-zinc-600 mt-1">Aggiungi piatti dal menu</p>
-                                            </div>
-                                        ) : (
-                                            <div className="space-y-4">
-                                                {/* Group Items Logic */}
-                                                {(courseSplittingEnabled
-                                                    ? Array.from({ length: maxCourse }, (_, i) => i + 1)
-                                                    : [1]
-                                                ).map(courseNum => {
-                                                    const courseItems = newQuickOrderItems.filter(i => courseSplittingEnabled ? i.courseNumber === courseNum : true)
-                                                    if (courseItems.length === 0) return null
-                                                    return (
-                                                        <div key={courseNum}>
-                                                            {courseSplittingEnabled && (
-                                                                <div className="flex items-center gap-2 mb-2">
-                                                                    <Badge className="bg-amber-500/20 text-amber-400 text-[10px]">Uscita {courseNum}</Badge>
-                                                                    <div className="flex-1 h-px bg-white/5" />
-                                                                </div>
-                                                            )}
-                                                            <div className="space-y-2">
-                                                                {courseItems.map((item, idx) => {
-                                                                    const dish = dishes.find(d => d.id === item.dishId)
-                                                                    const itemIndex = newQuickOrderItems.indexOf(item)
-                                                                    if (!dish) return null
-                                                                    return (
-                                                                        <div key={idx} className="bg-black/40 rounded-xl p-3 border border-white/5 relative group pr-10">
-                                                                            <Button
-                                                                                size="icon"
-                                                                                variant="ghost"
-                                                                                className="absolute top-2 right-2 h-8 w-8 text-zinc-500 hover:text-red-500 hover:bg-red-500/10 rounded-full transition-colors"
-                                                                                onClick={(e) => {
-                                                                                    e.stopPropagation()
-                                                                                    setNewQuickOrderItems(prev => prev.filter((_, index) => index !== itemIndex))
-                                                                                }}
-                                                                            >
-                                                                                <X size={18} weight="bold" />
-                                                                            </Button>
-                                                                            <div className="flex justify-between items-start mb-2">
-                                                                                <span className="font-bold text-sm text-white pr-4">{dish.name}</span>
-                                                                                <span className="text-xs text-amber-500 font-mono">€{(dish.price * item.quantity).toFixed(2)}</span>
-                                                                            </div>
-                                                                            <div className="flex items-center justify-between">
-                                                                                <div className="flex items-center gap-3 bg-white/5 rounded-lg p-1">
-                                                                                    <Button
-                                                                                        size="sm"
-                                                                                        variant="ghost"
-                                                                                        className="h-6 w-6 p-0 rounded-md hover:bg-white/10 text-zinc-400 hover:text-white"
-                                                                                        onClick={(e) => {
-                                                                                            e.stopPropagation()
-                                                                                            if (item.quantity <= 1) {
-                                                                                                setNewQuickOrderItems(prev => prev.filter((_, index) => index !== itemIndex))
-                                                                                            } else {
-                                                                                                setNewQuickOrderItems(prev => prev.map((i, index) => index === itemIndex ? { ...i, quantity: i.quantity - 1 } : i))
-                                                                                            }
-                                                                                        }}
-                                                                                    >
-                                                                                        <Minus size={12} />
-                                                                                    </Button>
-                                                                                    <span className="text-sm font-bold w-4 text-center">{item.quantity}</span>
-                                                                                    <Button
-                                                                                        size="sm"
-                                                                                        variant="ghost"
-                                                                                        className="h-6 w-6 p-0 rounded-md hover:bg-white/10 text-zinc-400 hover:text-white"
-                                                                                        onClick={(e) => {
-                                                                                            e.stopPropagation()
-                                                                                            setNewQuickOrderItems(prev => prev.map((i, index) => index === itemIndex ? { ...i, quantity: i.quantity + 1 } : i))
-                                                                                        }}
-                                                                                    >
-                                                                                        <Plus size={12} />
-                                                                                    </Button>
-                                                                                </div>
-
-                                                                                {/* Move Course Buttons */}
-                                                                                {courseSplittingEnabled && (
-                                                                                    <div className="flex items-center gap-1">
-                                                                                        {courseNum > 1 && (
-                                                                                            <Button
-                                                                                                size="sm"
-                                                                                                variant="ghost"
-                                                                                                className="h-6 px-1.5 text-[10px] text-zinc-500 hover:text-amber-400 bg-white/5 hover:bg-white/10 rounded-md"
-                                                                                                onClick={(e) => {
-                                                                                                    e.stopPropagation()
-                                                                                                    setNewQuickOrderItems(prev => prev.map((i, index) => index === itemIndex ? { ...i, courseNumber: courseNum - 1 } : i))
-                                                                                                }}
-                                                                                            >
-                                                                                                ← {courseNum - 1}
-                                                                                            </Button>
-                                                                                        )}
-                                                                                        {courseNum < maxCourse && (
-                                                                                            <Button
-                                                                                                size="sm"
-                                                                                                variant="ghost"
-                                                                                                className="h-6 px-1.5 text-[10px] text-zinc-500 hover:text-amber-400 bg-white/5 hover:bg-white/10 rounded-md"
-                                                                                                onClick={(e) => {
-                                                                                                    e.stopPropagation()
-                                                                                                    setNewQuickOrderItems(prev => prev.map((i, index) => index === itemIndex ? { ...i, courseNumber: courseNum + 1 } : i))
-                                                                                                }}
-                                                                                            >
-                                                                                                {courseNum + 1} →
-                                                                                            </Button>
-                                                                                        )}
-                                                                                    </div>
-                                                                                )}
-                                                                            </div>
-                                                                        </div>
-                                                                    )
-                                                                })}
-                                                            </div>
-                                                        </div>
-                                                    )
-                                                })}
-                                            </div>
-                                        )}
+                                {newQuickOrderItems.length === 0 ? (
+                                    <div className="flex flex-col items-center justify-center text-zinc-500 opacity-50 py-12 border-2 border-dashed border-white/5 rounded-xl mt-4">
+                                        <ShoppingCart size={48} className="mb-4 text-zinc-700" />
+                                        <p className="font-bold">Carrello vuoto</p>
+                                        <p className="text-sm text-zinc-600 mt-1">Aggiungi piatti dal menu</p>
+                                        <Button variant="outline" className="mt-4 border-white/10" onClick={() => setQuickOrderTab('menu')}>
+                                            Vai al Menu
+                                        </Button>
                                     </div>
-                                )}
-
-                                {/* PAST ORDERS CONTENT */}
-                                {(quickOrderTab === 'history' || (window.innerWidth >= 1024)) && (
-                                    <div className={`mt-6 ${quickOrderTab === 'history' ? 'mt-0' : 'pt-6 border-t border-white/5'}`}>
-                                        <div className="flex items-center justify-between mb-4">
-                                            <h4 className="text-xs font-bold text-zinc-500 uppercase flex items-center gap-2">
-                                                <ClockCounterClockwise size={14} />
-                                                Ordini Precedenti
-                                            </h4>
-                                        </div>
-                                        {(() => {
-                                            const tableOrders = activeOrders.filter(o =>
-                                                (o as any).table_number === selectedTableForQuickOrder?.number &&
-                                                o.status !== 'completed' &&
-                                                (o.status as string) !== 'cooked' &&
-                                                (o.status as string) !== 'cancelled' &&
-                                                (o.status as string) !== 'served'
-                                            ).sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime())
-
-                                            if (tableOrders.length === 0) {
-                                                return (
-                                                    <div className="text-center py-6">
-                                                        <p className="text-[10px] text-zinc-600">Nessun ordine precedente attivo</p>
-                                                    </div>
-                                                )
-                                            }
-
+                                ) : (
+                                    <div className="space-y-4">
+                                        {(courseSplittingEnabled
+                                            ? Array.from({ length: maxCourse }, (_, i) => i + 1)
+                                            : [1]
+                                        ).map(courseNum => {
+                                            const courseItems = newQuickOrderItems.filter(i => courseSplittingEnabled ? i.courseNumber === courseNum : true)
+                                            if (courseItems.length === 0) return null
                                             return (
-                                                <div className="space-y-3">
-                                                    {tableOrders.map(order => (
-                                                        <div key={order.id} className="bg-zinc-900/50 rounded-lg p-2.5 border border-white/5">
-                                                            <div className="flex justify-between items-center mb-2">
-                                                                <span className="text-[10px] text-zinc-500">
-                                                                    {new Date(order.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
-                                                                </span>
-                                                                <Badge className={`text-[10px] h-5 ${order.status === 'ready' ? 'bg-green-500/20 text-green-400' :
-                                                                    order.status === 'pending' ? 'bg-yellow-500/20 text-yellow-400' :
-                                                                        'bg-blue-500/20 text-blue-400'
-                                                                    }`}>
-                                                                    {order.status === 'ready' ? 'Pronto' :
-                                                                        order.status === 'pending' ? 'In Attesa' :
-                                                                            'In Preparazione'}
-                                                                </Badge>
-                                                            </div>
-                                                            <div className="space-y-1">
-                                                                {order.items.map((item: any, idx: number) => (
-                                                                    <div key={idx} className="flex justify-between text-xs text-zinc-300">
-                                                                        <span>{item.quantity}x {item.dish_name}</span>
-                                                                        {item.course_number && courseSplittingEnabled && (
-                                                                            <span className="text-[10px] text-zinc-600 bg-zinc-900 px-1 rounded">U{item.course_number}</span>
-                                                                        )}
-                                                                    </div>
-                                                                ))}
-                                                            </div>
+                                                <div key={courseNum} className="space-y-2">
+                                                    {courseSplittingEnabled && (
+                                                        <div className="flex items-center gap-2 sticky top-0 bg-zinc-950/80 backdrop-blur-sm z-10 py-2">
+                                                            <Badge className="bg-amber-500/20 text-amber-400 text-[10px]">Uscita {courseNum}</Badge>
+                                                            <div className="flex-1 h-px bg-white/5" />
                                                         </div>
-                                                    ))}
+                                                    )}
+                                                    {courseItems.map((item, idx) => {
+                                                        const dish = dishes.find(d => d.id === item.dishId)
+                                                        const itemIndex = newQuickOrderItems.indexOf(item)
+                                                        if (!dish) return null
+                                                        return (
+                                                            <div key={idx} className="bg-zinc-900/50 rounded-xl p-3 border border-white/5 relative group pr-2">
+                                                                <div className="flex justify-between items-start mb-2">
+                                                                    <span className="font-bold text-sm text-white pr-8">{dish.name}</span>
+                                                                    <span className="text-xs text-amber-500 font-mono">€{(dish.price * item.quantity).toFixed(2)}</span>
+                                                                </div>
+                                                                <div className="flex items-center justify-between">
+                                                                    <div className="flex items-center gap-3 bg-black/40 rounded-lg p-1 border border-white/5">
+                                                                        <Button
+                                                                            size="sm"
+                                                                            variant="ghost"
+                                                                            className="h-7 w-7 p-0 rounded-md hover:bg-white/10 text-zinc-400 hover:text-white"
+                                                                            onClick={(e) => {
+                                                                                e.stopPropagation()
+                                                                                if (item.quantity <= 1) {
+                                                                                    setNewQuickOrderItems(prev => prev.filter((_, index) => index !== itemIndex))
+                                                                                } else {
+                                                                                    setNewQuickOrderItems(prev => prev.map((i, index) => index === itemIndex ? { ...i, quantity: i.quantity - 1 } : i))
+                                                                                }
+                                                                            }}
+                                                                        >
+                                                                            <Minus size={14} />
+                                                                        </Button>
+                                                                        <span className="text-sm font-bold w-6 text-center">{item.quantity}</span>
+                                                                        <Button
+                                                                            size="sm"
+                                                                            variant="ghost"
+                                                                            className="h-7 w-7 p-0 rounded-md hover:bg-white/10 text-zinc-400 hover:text-white"
+                                                                            onClick={(e) => {
+                                                                                e.stopPropagation()
+                                                                                setNewQuickOrderItems(prev => prev.map((i, index) => index === itemIndex ? { ...i, quantity: i.quantity + 1 } : i))
+                                                                            }}
+                                                                        >
+                                                                            <Plus size={14} />
+                                                                        </Button>
+                                                                    </div>
+
+                                                                    <Button
+                                                                        size="sm"
+                                                                        variant="ghost"
+                                                                        className="h-8 px-2 text-red-400 hover:text-red-300 hover:bg-red-500/10"
+                                                                        onClick={() => setNewQuickOrderItems(prev => prev.filter((_, index) => index !== itemIndex))}
+                                                                    >
+                                                                        <Trash size={16} />
+                                                                    </Button>
+                                                                </div>
+                                                            </div>
+                                                        )
+                                                    })}
                                                 </div>
                                             )
-                                        })()}
+                                        })}
                                     </div>
                                 )}
                             </ScrollArea>
 
-                            {/* Total & Action Button - Show in Cart Tab or Desktop */}
-                            {(quickOrderTab === 'cart' || (window.innerWidth >= 1024)) && (
-                                <div className="p-4 border-t border-white/5 bg-zinc-900/50 shrink-0">
-                                    <div className="flex justify-between items-center mb-4">
-                                        <span className="text-zinc-400">Totale</span>
-                                        <span className="text-xl font-bold text-white">
-                                            €{newQuickOrderItems.reduce((sum, item) => {
-                                                const dish = dishes.find(d => d.id === item.dishId)
-                                                return sum + (dish ? dish.price * item.quantity : 0)
-                                            }, 0).toFixed(2)}
-                                        </span>
-                                    </div>
-                                    <Button
-                                        className="w-full bg-amber-500 hover:bg-amber-400 text-black font-bold h-12 text-lg rounded-xl shadow-lg shadow-amber-500/20"
-                                        disabled={newQuickOrderItems.length === 0}
-                                        onClick={handleSendQuickOrder}
-                                    >
-                                        Invia Ordine
-                                    </Button>
+                            <div className="p-4 border-t border-white/5 bg-zinc-900/50 shrink-0">
+                                <div className="flex justify-between items-center mb-4">
+                                    <span className="text-zinc-400">Totale</span>
+                                    <span className="text-xl font-bold text-white">
+                                        €{newQuickOrderItems.reduce((sum, item) => {
+                                            const dish = dishes.find(d => d.id === item.dishId)
+                                            return sum + (dish ? dish.price * item.quantity : 0)
+                                        }, 0).toFixed(2)}
+                                    </span>
                                 </div>
-                            )}
-                        </div>
-                    </div>
-                </DialogContent >
+                                <Button
+                                    className="w-full bg-amber-500 hover:bg-amber-400 text-black font-bold h-12 text-lg rounded-xl shadow-lg shadow-amber-500/20"
+                                    disabled={newQuickOrderItems.length === 0}
+                                    onClick={handleSendQuickOrder}
+                                >
+                                    Invia Ordine 🚀
+                                </Button>
+                            </div>
+                        </TabsContent>
+
+                        {/* HISTORY TAB */}
+                        <TabsContent value="history" className="flex-1 flex flex-col overflow-hidden data-[state=inactive]:hidden mt-0">
+                            <ScrollArea className="flex-1 p-4">
+                                <div className="space-y-4">
+                                    {activeOrders.filter(o =>
+                                        (o as any).table_number === selectedTableForQuickOrder?.number &&
+                                        !['completed', 'cooked', 'cancelled', 'served'].includes(o.status as string)
+                                    ).length === 0 ? (
+                                        <div className="text-center py-12 text-zinc-500">
+                                            <ClockCounterClockwise size={48} className="mx-auto mb-4 opacity-50" />
+                                            <p>Nessun ordine attivo</p>
+                                        </div>
+                                    ) : (
+                                        activeOrders
+                                            .filter(o => (o as any).table_number === selectedTableForQuickOrder?.number && !['completed', 'cooked', 'cancelled', 'served'].includes(o.status as string))
+                                            .sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime())
+                                            .map(order => (
+                                                <div key={order.id} className="bg-zinc-900/50 rounded-xl p-4 border border-white/5">
+                                                    <div className="flex justify-between items-center mb-3">
+                                                        <span className="text-xs text-zinc-500 font-mono">
+                                                            {new Date(order.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                                                        </span>
+                                                        <Badge variant="outline" className={`text-[10px] ${order.status === 'ready' ? 'text-green-400 border-green-500/30' :
+                                                                order.status === 'pending' ? 'text-amber-400 border-amber-500/30' :
+                                                                    'text-blue-400 border-blue-500/30'
+                                                            }`}>
+                                                            {order.status === 'ready' ? 'Pronto' : order.status === 'pending' ? 'In Attesa' : 'In Preparazione'}
+                                                        </Badge>
+                                                    </div>
+                                                    <div className="space-y-2">
+                                                        {order.items?.map((item: any, idx) => (
+                                                            <div key={idx} className="flex justify-between text-sm">
+                                                                <span className="text-zinc-300"><span className="font-bold text-white">{item.quantity}x</span> {item.dish?.name}</span>
+                                                                {item.course_number && courseSplittingEnabled && (
+                                                                    <span className="text-[10px] text-zinc-500 bg-zinc-950 px-1.5 py-0.5 rounded border border-white/5">U{item.course_number}</span>
+                                                                )}
+                                                            </div>
+                                                        ))}
+                                                    </div>
+                                                </div>
+                                            ))
+                                    )}
+                                </div>
+                            </ScrollArea>
+                        </TabsContent>
+                    </Tabs>
+                </DialogContent>
             </Dialog>
         </div >
     )
