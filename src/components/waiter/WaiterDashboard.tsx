@@ -1677,11 +1677,11 @@ const WaiterDashboard = ({ user, onLogout }: WaiterDashboardProps) => {
                     setQuickOrderTab('menu') // Reset tab on close
                 }
             }}>
-                <DialogContent aria-describedby="quick-order-desc" className="w-[95vw] max-w-[100vw] sm:max-w-5xl bg-zinc-950 border-zinc-800 text-zinc-100 h-[90dvh] flex flex-col p-0 overflow-hidden rounded-xl">
-                    <div id="quick-order-desc" className="sr-only">
-                        Finestra per l'inserimento di un nuovo ordine rapido
-                    </div>
+                <DialogContent className="w-[95vw] max-w-[100vw] sm:max-w-5xl bg-zinc-950 border-zinc-800 text-zinc-100 h-[90dvh] flex flex-col p-0 overflow-hidden rounded-xl">
                     <DialogHeader className="p-4 border-b border-white/5 bg-zinc-900/50 shrink-0">
+                        <DialogDescription className="sr-only">
+                            Finestra per l'inserimento di un nuovo ordine rapido
+                        </DialogDescription>
                         <DialogTitle className="text-lg font-bold flex items-center gap-3">
                             <div className="bg-amber-500 text-black p-1.5 rounded-lg">
                                 <Plus size={18} weight="bold" />
