@@ -63,7 +63,13 @@ const WaiterDashboard = ({ user, onLogout }: WaiterDashboardProps) => {
     const [categories, setCategories] = useState<Category[]>([])
     const [quickOrderSearch, setQuickOrderSearch] = useState('')
     const [quickOrderSelectedCategory, setQuickOrderSelectedCategory] = useState<string>('all')
-    const [newQuickOrderItems, setNewQuickOrderItems] = useState<{ dishId: string, quantity: number, notes: string }[]>([])
+    const [newQuickOrderItems, setNewQuickOrderItems] = useState<{ dishId: string, quantity: number, notes: string, courseNumber: number }[]>([])
+
+    // Course Splitting State
+    const [courseSplittingEnabled, setCourseSplittingEnabled] = useState(false)
+    const [selectedCourse, setSelectedCourse] = useState(1)
+    const [maxCourse, setMaxCourse] = useState(1)
+    const [lastAddedDishId, setLastAddedDishId] = useState<string | null>(null)
 
     // Ready Items View Mode (like gestione ordini)
     const [readyViewMode, setReadyViewMode] = useState<'table' | 'dish'>('table')
@@ -108,11 +114,12 @@ const WaiterDashboard = ({ user, onLogout }: WaiterDashboardProps) => {
 
                 const { data: restMeta } = await supabase
                     .from('restaurants')
-                    .select('waiter_mode_enabled, allow_waiter_payments')
+                    .select('waiter_mode_enabled, allow_waiter_payments, enable_course_splitting')
                     .eq('id', rId)
                     .single()
                 if (restMeta) {
                     setRestaurant(restMeta as Restaurant)
+                    setCourseSplittingEnabled(restMeta.enable_course_splitting || false)
                 }
 
                 const tbs = await DatabaseService.getTables(rId)
@@ -1386,8 +1393,15 @@ const WaiterDashboard = ({ user, onLogout }: WaiterDashboardProps) => {
             </Dialog>
 
             {/* Quick Order Dialog */}
-            <Dialog open={isQuickOrderDialogOpen} onOpenChange={setIsQuickOrderDialogOpen}>
-                <DialogContent className="sm:max-w-3xl bg-zinc-950 border-zinc-800 text-zinc-100 h-[90vh] flex flex-col p-0 overflow-hidden">
+            <Dialog open={isQuickOrderDialogOpen} onOpenChange={(open) => {
+                setIsQuickOrderDialogOpen(open)
+                if (!open) {
+                    setSelectedCourse(1)
+                    setMaxCourse(1)
+                    setLastAddedDishId(null)
+                }
+            }}>
+                <DialogContent className="sm:max-w-4xl bg-zinc-950 border-zinc-800 text-zinc-100 h-[90vh] flex flex-col p-0 overflow-hidden">
                     <DialogHeader className="p-6 pb-4 border-b border-white/5 bg-zinc-900/50 shrink-0">
                         <DialogTitle className="text-xl font-bold flex items-center gap-3">
                             <div className="bg-amber-500 text-black p-1.5 rounded-lg">
@@ -1397,14 +1411,49 @@ const WaiterDashboard = ({ user, onLogout }: WaiterDashboardProps) => {
                                 <span className="block text-white">Nuovo Ordine</span>
                                 <span className="text-sm font-normal text-zinc-400">Tavolo {selectedTableForQuickOrder?.number}</span>
                             </div>
+                            {newQuickOrderItems.length > 0 && (
+                                <Badge className="ml-auto bg-amber-500 text-black animate-pulse">
+                                    {newQuickOrderItems.reduce((sum, i) => sum + i.quantity, 0)} piatti
+                                </Badge>
+                            )}
                         </DialogTitle>
                     </DialogHeader>
 
                     <div className="flex-1 flex overflow-hidden">
                         {/* Menu Section */}
                         <div className="flex-1 flex flex-col border-r border-white/5">
-                            {/* Search and Filter */}
+                            {/* Search, Filter, and Course Selection */}
                             <div className="p-4 border-b border-white/5 space-y-3">
+                                {/* Course Selection - Only when enabled */}
+                                {courseSplittingEnabled && (
+                                    <div className="flex items-center gap-2 overflow-x-auto pb-1 scrollbar-hide">
+                                        <span className="text-xs text-zinc-500 uppercase tracking-wider font-bold shrink-0">Portata:</span>
+                                        {Array.from({ length: maxCourse }, (_, i) => i + 1).map(num => (
+                                            <Button
+                                                key={num}
+                                                size="sm"
+                                                variant={selectedCourse === num ? 'default' : 'outline'}
+                                                onClick={() => setSelectedCourse(num)}
+                                                className={`rounded-lg h-8 text-xs ${selectedCourse === num ? 'bg-amber-500 text-black hover:bg-amber-400 border-transparent' : 'border-white/10 text-zinc-400'}`}
+                                            >
+                                                Uscita {num}
+                                            </Button>
+                                        ))}
+                                        <Button
+                                            size="sm"
+                                            variant="outline"
+                                            onClick={() => {
+                                                const newCourse = maxCourse + 1
+                                                setMaxCourse(newCourse)
+                                                setSelectedCourse(newCourse)
+                                            }}
+                                            className="rounded-lg h-8 text-xs border-dashed border-amber-500/30 text-amber-500 hover:bg-amber-500/10 shrink-0"
+                                        >
+                                            <Plus size={14} className="mr-1" />
+                                            Nuova Uscita
+                                        </Button>
+                                    </div>
+                                )}
                                 <div className="relative">
                                     <MagnifyingGlass className="absolute left-3 top-1/2 -translate-y-1/2 text-zinc-500" size={16} />
                                     <Input
@@ -1437,55 +1486,184 @@ const WaiterDashboard = ({ user, onLogout }: WaiterDashboardProps) => {
                                 </div>
                             </div>
 
-                            {/* Dishes Grid */}
+                            {/* Dishes List - VERTICAL LAYOUT */}
                             <ScrollArea className="flex-1 p-4">
-                                <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
+                                <div className="flex flex-col gap-2">
                                     {dishes
                                         .filter(d => d.is_active)
                                         .filter(d => quickOrderSelectedCategory === 'all' || d.category_id === quickOrderSelectedCategory)
                                         .filter(d => d.name.toLowerCase().includes(quickOrderSearch.toLowerCase()))
-                                        .map(dish => (
-                                            <div
-                                                key={dish.id}
-                                                className="bg-zinc-900/50 border border-white/5 rounded-xl overflow-hidden hover:border-amber-500/30 cursor-pointer group active:scale-95 transition-all"
-                                                onClick={() => {
-                                                    setNewQuickOrderItems(prev => {
-                                                        const existing = prev.find(i => i.dishId === dish.id)
-                                                        if (existing) {
-                                                            return prev.map(i => i.dishId === dish.id ? { ...i, quantity: i.quantity + 1 } : i)
-                                                        }
-                                                        return [...prev, { dishId: dish.id, quantity: 1, notes: '' }]
-                                                    })
-                                                    toast.success(`Aggiunto: ${dish.name}`, { duration: 1000, position: 'bottom-center' })
-                                                }}
-                                            >
-                                                <div className="p-3">
-                                                    <div className="flex justify-between items-start mb-2">
-                                                        <h4 className="font-bold text-sm text-white line-clamp-2 leading-tight">{dish.name}</h4>
-                                                        <span className="bg-white/5 text-zinc-300 text-xs px-1.5 py-0.5 rounded font-mono">
+                                        .map(dish => {
+                                            const isJustAdded = lastAddedDishId === dish.id
+                                            return (
+                                                <div
+                                                    key={dish.id}
+                                                    className={`flex items-center justify-between p-3 bg-zinc-900/50 border rounded-xl cursor-pointer group transition-all duration-300 ${isJustAdded
+                                                        ? 'border-amber-500 bg-amber-500/10 scale-[1.02] shadow-lg shadow-amber-500/20'
+                                                        : 'border-white/5 hover:border-amber-500/30 hover:bg-zinc-800/50'
+                                                        }`}
+                                                    onClick={() => {
+                                                        setNewQuickOrderItems(prev => {
+                                                            const existing = prev.find(i => i.dishId === dish.id && i.courseNumber === selectedCourse)
+                                                            if (existing) {
+                                                                return prev.map(i => i.dishId === dish.id && i.courseNumber === selectedCourse ? { ...i, quantity: i.quantity + 1 } : i)
+                                                            }
+                                                            return [...prev, { dishId: dish.id, quantity: 1, notes: '', courseNumber: selectedCourse }]
+                                                        })
+                                                        // Animation trigger
+                                                        setLastAddedDishId(dish.id)
+                                                        setTimeout(() => setLastAddedDishId(null), 500)
+                                                        toast.success(
+                                                            <div className="flex items-center gap-2">
+                                                                <CheckCircle size={18} weight="fill" className="text-green-400" />
+                                                                <span>{dish.name}</span>
+                                                                {courseSplittingEnabled && <Badge className="bg-amber-500/20 text-amber-400 text-[10px]">Uscita {selectedCourse}</Badge>}
+                                                            </div>,
+                                                            { duration: 1500, position: 'bottom-center' }
+                                                        )
+                                                    }}
+                                                >
+                                                    <div className="flex-1 min-w-0">
+                                                        <h4 className="font-bold text-sm text-white truncate">{dish.name}</h4>
+                                                        {dish.description && <p className="text-[10px] text-zinc-500 truncate">{dish.description}</p>}
+                                                    </div>
+                                                    <div className="flex items-center gap-3 shrink-0">
+                                                        <span className="bg-white/5 text-zinc-300 text-sm px-2.5 py-1 rounded-lg font-mono font-bold">
                                                             €{dish.price}
                                                         </span>
+                                                        <div className={`w-8 h-8 rounded-full flex items-center justify-center transition-all ${isJustAdded
+                                                            ? 'bg-amber-500 text-black scale-110'
+                                                            : 'bg-amber-500/10 text-amber-500 group-hover:bg-amber-500 group-hover:text-black'
+                                                            }`}>
+                                                            <Plus size={16} weight="bold" />
+                                                        </div>
                                                     </div>
-                                                    <p className="text-[10px] text-zinc-500 line-clamp-2">{dish.description}</p>
                                                 </div>
-                                            </div>
-                                        ))}
+                                            )
+                                        })}
                                 </div>
                             </ScrollArea>
                         </div>
 
                         {/* Order Summary Sidebar */}
-                        <div className="w-[300px] bg-zinc-900/30 flex flex-col shrink-0">
+                        <div className="w-[320px] bg-zinc-900/30 flex flex-col shrink-0">
                             <div className="p-4 border-b border-white/5 bg-zinc-900/50">
-                                <h3 className="font-bold text-white text-sm uppercase tracking-wider">Riepilogo</h3>
+                                <h3 className="font-bold text-white text-sm uppercase tracking-wider">Carrello</h3>
                             </div>
                             <ScrollArea className="flex-1 p-4">
                                 {newQuickOrderItems.length === 0 ? (
-                                    <div className="h-full flex flex-col items-center justify-center text-zinc-500 opacity-50">
+                                    <div className="h-full flex flex-col items-center justify-center text-zinc-500 opacity-50 py-12">
                                         <Receipt size={48} className="mb-2" />
                                         <p className="text-xs">Nessun piatto selezionato</p>
+                                        <p className="text-[10px] text-zinc-600 mt-1">Clicca sui piatti per aggiungerli</p>
+                                    </div>
+                                ) : courseSplittingEnabled ? (
+                                    // Group by course
+                                    <div className="space-y-4">
+                                        {Array.from({ length: maxCourse }, (_, i) => i + 1).map(courseNum => {
+                                            const courseItems = newQuickOrderItems.filter(i => i.courseNumber === courseNum)
+                                            if (courseItems.length === 0) return null
+                                            return (
+                                                <div key={courseNum}>
+                                                    <div className="flex items-center gap-2 mb-2">
+                                                        <Badge className="bg-amber-500/20 text-amber-400 text-[10px]">Uscita {courseNum}</Badge>
+                                                        <div className="flex-1 h-px bg-white/5" />
+                                                    </div>
+                                                    <div className="space-y-2">
+                                                        {courseItems.map((item, idx) => {
+                                                            const dish = dishes.find(d => d.id === item.dishId)
+                                                            const itemIndex = newQuickOrderItems.indexOf(item)
+                                                            if (!dish) return null
+                                                            return (
+                                                                <div key={idx} className="bg-black/40 rounded-xl p-3 border border-white/5 relative group">
+                                                                    <div className="flex justify-between items-start mb-2">
+                                                                        <span className="font-bold text-sm text-white">{dish.name}</span>
+                                                                        <span className="text-xs text-amber-500 font-mono">€{(dish.price * item.quantity).toFixed(2)}</span>
+                                                                    </div>
+                                                                    <div className="flex items-center gap-2">
+                                                                        <Button
+                                                                            size="sm"
+                                                                            variant="ghost"
+                                                                            className="h-6 w-6 p-0 rounded-full bg-white/5 hover:bg-white/10"
+                                                                            onClick={(e) => {
+                                                                                e.stopPropagation()
+                                                                                if (item.quantity <= 1) {
+                                                                                    setNewQuickOrderItems(prev => prev.filter((_, index) => index !== itemIndex))
+                                                                                } else {
+                                                                                    setNewQuickOrderItems(prev => prev.map((i, index) => index === itemIndex ? { ...i, quantity: i.quantity - 1 } : i))
+                                                                                }
+                                                                            }}
+                                                                        >
+                                                                            -
+                                                                        </Button>
+                                                                        <span className="text-sm font-bold w-6 text-center">{item.quantity}</span>
+                                                                        <Button
+                                                                            size="sm"
+                                                                            variant="ghost"
+                                                                            className="h-6 w-6 p-0 rounded-full bg-white/5 hover:bg-white/10"
+                                                                            onClick={(e) => {
+                                                                                e.stopPropagation()
+                                                                                setNewQuickOrderItems(prev => prev.map((i, index) => index === itemIndex ? { ...i, quantity: i.quantity + 1 } : i))
+                                                                            }}
+                                                                        >
+                                                                            +
+                                                                        </Button>
+                                                                        {/* Move Course Buttons */}
+                                                                        {courseNum > 1 && (
+                                                                            <Button
+                                                                                size="sm"
+                                                                                variant="ghost"
+                                                                                className="h-6 px-2 text-[10px] text-zinc-400 hover:text-amber-400"
+                                                                                onClick={(e) => {
+                                                                                    e.stopPropagation()
+                                                                                    setNewQuickOrderItems(prev => prev.map((i, index) => index === itemIndex ? { ...i, courseNumber: courseNum - 1 } : i))
+                                                                                }}
+                                                                            >
+                                                                                ← {courseNum - 1}
+                                                                            </Button>
+                                                                        )}
+                                                                        {courseNum < maxCourse && (
+                                                                            <Button
+                                                                                size="sm"
+                                                                                variant="ghost"
+                                                                                className="h-6 px-2 text-[10px] text-zinc-400 hover:text-amber-400"
+                                                                                onClick={(e) => {
+                                                                                    e.stopPropagation()
+                                                                                    setNewQuickOrderItems(prev => prev.map((i, index) => index === itemIndex ? { ...i, courseNumber: courseNum + 1 } : i))
+                                                                                }}
+                                                                            >
+                                                                                {courseNum + 1} →
+                                                                            </Button>
+                                                                        )}
+                                                                        <Button
+                                                                            size="sm"
+                                                                            variant="ghost"
+                                                                            className="h-6 w-6 p-0 rounded-full text-red-400 hover:bg-red-500/10 ml-auto"
+                                                                            onClick={(e) => {
+                                                                                e.stopPropagation()
+                                                                                setNewQuickOrderItems(prev => prev.filter((_, index) => index !== itemIndex))
+                                                                            }}
+                                                                        >
+                                                                            <Trash size={12} />
+                                                                        </Button>
+                                                                    </div>
+                                                                    <Input
+                                                                        className="mt-2 h-7 text-[10px] bg-transparent border-white/5 focus:border-amber-500/50"
+                                                                        placeholder="Note (es. ben cotto)"
+                                                                        value={item.notes}
+                                                                        onClick={(e) => e.stopPropagation()}
+                                                                        onChange={(e) => setNewQuickOrderItems(prev => prev.map((i, index) => index === itemIndex ? { ...i, notes: e.target.value } : i))}
+                                                                    />
+                                                                </div>
+                                                            )
+                                                        })}
+                                                    </div>
+                                                </div>
+                                            )
+                                        })}
                                     </div>
                                 ) : (
+                                    // No course splitting - simple list
                                     <div className="space-y-3">
                                         {newQuickOrderItems.map((item, idx) => {
                                             const dish = dishes.find(d => d.id === item.dishId)
@@ -1503,7 +1681,11 @@ const WaiterDashboard = ({ user, onLogout }: WaiterDashboardProps) => {
                                                             className="h-6 w-6 p-0 rounded-full bg-white/5 hover:bg-white/10"
                                                             onClick={(e) => {
                                                                 e.stopPropagation()
-                                                                setNewQuickOrderItems(prev => prev.map((i, index) => index === idx ? { ...i, quantity: Math.max(1, i.quantity - 1) } : i))
+                                                                if (item.quantity <= 1) {
+                                                                    setNewQuickOrderItems(prev => prev.filter((_, index) => index !== idx))
+                                                                } else {
+                                                                    setNewQuickOrderItems(prev => prev.map((i, index) => index === idx ? { ...i, quantity: i.quantity - 1 } : i))
+                                                                }
                                                             }}
                                                         >
                                                             -
@@ -1536,6 +1718,7 @@ const WaiterDashboard = ({ user, onLogout }: WaiterDashboardProps) => {
                                                         className="mt-2 h-7 text-[10px] bg-transparent border-white/5 focus:border-amber-500/50"
                                                         placeholder="Note (es. ben cotto)"
                                                         value={item.notes}
+                                                        onClick={(e) => e.stopPropagation()}
                                                         onChange={(e) => setNewQuickOrderItems(prev => prev.map((i, index) => index === idx ? { ...i, notes: e.target.value } : i))}
                                                     />
                                                 </div>
@@ -1543,6 +1726,41 @@ const WaiterDashboard = ({ user, onLogout }: WaiterDashboardProps) => {
                                         })}
                                     </div>
                                 )}
+
+                                {/* Past Orders for this table */}
+                                {selectedTableForQuickOrder && (() => {
+                                    const session = sessions.find(s => s.table_id === selectedTableForQuickOrder.id)
+                                    const pastOrders = session ? activeOrders.filter(o => o.table_session_id === session.id && o.status !== 'CANCELLED') : []
+                                    if (pastOrders.length === 0) return null
+                                    return (
+                                        <div className="mt-6 pt-4 border-t border-white/10">
+                                            <h4 className="text-xs font-bold text-zinc-500 uppercase tracking-wider mb-3">Ordini Precedenti</h4>
+                                            <div className="space-y-2">
+                                                {pastOrders.map(order => (
+                                                    <div key={order.id} className="bg-zinc-900/50 rounded-lg p-2 border border-white/5">
+                                                        <div className="flex justify-between items-center mb-1">
+                                                            <Badge variant="outline" className={`text-[9px] ${order.status?.toLowerCase() === 'ready' ? 'text-amber-400 border-amber-500/30' :
+                                                                order.status === 'served' ? 'text-emerald-400 border-emerald-500/30' :
+                                                                    'text-blue-400 border-blue-500/30'
+                                                                }`}>
+                                                                {order.status?.toLowerCase() === 'ready' ? 'Pronto' :
+                                                                    order.status === 'served' ? 'Servito' :
+                                                                        order.status === 'preparing' ? 'In Prep' : 'Attesa'}
+                                                            </Badge>
+                                                            <span className="text-[10px] text-zinc-500">
+                                                                {new Date(order.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                                                            </span>
+                                                        </div>
+                                                        <div className="text-[10px] text-zinc-400">
+                                                            {order.items?.slice(0, 3).map(i => `${i.quantity}x ${i.dish?.name || 'Piatto'}`).join(', ')}
+                                                            {(order.items?.length || 0) > 3 && ` +${(order.items?.length || 0) - 3} altro`}
+                                                        </div>
+                                                    </div>
+                                                ))}
+                                            </div>
+                                        </div>
+                                    )
+                                })()}
                             </ScrollArea>
                             <div className="p-4 border-t border-white/5 bg-zinc-900/80">
                                 <div className="flex justify-between items-center mb-4">
@@ -1555,7 +1773,7 @@ const WaiterDashboard = ({ user, onLogout }: WaiterDashboardProps) => {
                                     </span>
                                 </div>
                                 <Button
-                                    className="w-full bg-amber-500 text-black hover:bg-amber-400 font-bold h-12 rounded-xl"
+                                    className="w-full bg-amber-500 text-black hover:bg-amber-400 font-bold h-12 rounded-xl shadow-lg shadow-amber-500/20"
                                     disabled={newQuickOrderItems.length === 0}
                                     onClick={async () => {
                                         if (!selectedTableForQuickOrder || !restaurantId) return
@@ -1588,7 +1806,7 @@ const WaiterDashboard = ({ user, onLogout }: WaiterDashboardProps) => {
 
                                             if (orderError) throw orderError
 
-                                            // Create Order Items
+                                            // Create Order Items with course_number
                                             const orderItems = newQuickOrderItems.map(item => {
                                                 const dish = dishes.find(d => d.id === item.dishId)
                                                 return {
@@ -1596,8 +1814,9 @@ const WaiterDashboard = ({ user, onLogout }: WaiterDashboardProps) => {
                                                     dish_id: item.dishId,
                                                     quantity: item.quantity,
                                                     price_at_time: dish?.price || 0,
-                                                    notes: item.notes,
-                                                    status: 'pending'
+                                                    note: item.notes,
+                                                    status: 'pending',
+                                                    course_number: courseSplittingEnabled ? item.courseNumber : undefined
                                                 }
                                             })
 
@@ -1607,8 +1826,10 @@ const WaiterDashboard = ({ user, onLogout }: WaiterDashboardProps) => {
 
                                             if (itemsError) throw itemsError
 
-                                            toast.success('Ordine inviato in cucina!')
+                                            toast.success('Ordine inviato in cucina!', { icon: '🍽️' })
                                             setNewQuickOrderItems([])
+                                            setSelectedCourse(1)
+                                            setMaxCourse(1)
                                             setIsQuickOrderDialogOpen(false)
                                             refreshData()
                                         } catch (err) {
@@ -1617,7 +1838,8 @@ const WaiterDashboard = ({ user, onLogout }: WaiterDashboardProps) => {
                                         }
                                     }}
                                 >
-                                    Invia Ordine
+                                    <CheckCircle size={20} className="mr-2" weight="fill" />
+                                    Invia Ordine in Cucina
                                 </Button>
                             </div>
                         </div>
