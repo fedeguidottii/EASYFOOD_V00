@@ -73,7 +73,7 @@ const WaiterDashboard = ({ user, onLogout }: WaiterDashboardProps) => {
     const [selectedCourse, setSelectedCourse] = useState(1)
     const [maxCourse, setMaxCourse] = useState(1)
     const [lastAddedDishId, setLastAddedDishId] = useState<string | null>(null)
-    const [quickOrderTab, setQuickOrderTab] = useState<'menu' | 'cart' | 'history'>('menu')
+    const [quickOrderTab, setQuickOrderTab] = useState<'menu' | 'cart' | 'history' | 'courses'>('menu')
 
     // Ready Items View Mode (like gestione ordini)
     const [readyViewMode, setReadyViewMode] = useState<'table' | 'dish'>('table')
@@ -469,8 +469,8 @@ const WaiterDashboard = ({ user, onLogout }: WaiterDashboardProps) => {
                     restaurant_id: restaurantId,
                     table_session_id: session.id,
                     status: 'pending', // Send to kitchen immediately
-                    total_amount: totalAmount,
-                    notes: '' // Order level notes
+                    total_amount: totalAmount
+                    // notes: '' // REMOVED: Column does not exist on orders table
                 })
                 .select()
                 .single()
@@ -763,79 +763,69 @@ const WaiterDashboard = ({ user, onLogout }: WaiterDashboardProps) => {
                                     Ordina
                                 </Button>
 
-                                <DropdownMenu>
-                                    <DropdownMenuTrigger asChild>
-                                        <Button
-                                            variant="secondary"
-                                            size="sm"
-                                            className="h-8 w-8 p-0 rounded-xl bg-zinc-800 text-zinc-400 border border-white/5 hover:bg-zinc-700 hover:text-white"
-                                            onClick={(e) => e.stopPropagation()}
-                                        >
-                                            <DotsThreeVertical size={16} weight="bold" />
-                                        </Button>
-                                    </DropdownMenuTrigger>
-                                    <DropdownMenuContent align="end" className="w-48 bg-zinc-900 border-zinc-800 text-zinc-200">
-                                        <DropdownMenuLabel>Azioni Tavolo</DropdownMenuLabel>
-                                        <DropdownMenuSeparator className="bg-white/10" />
+                                {/* "Conto" Button Logic */}
+                                {courseSplittingEnabled ? (
+                                    <DropdownMenu>
+                                        <DropdownMenuTrigger asChild>
+                                            <Button
+                                                variant="secondary"
+                                                size="sm"
+                                                className="h-8 px-3 rounded-xl bg-zinc-800 text-zinc-200 border border-white/5 hover:bg-zinc-700 hover:text-white"
+                                                onClick={(e) => e.stopPropagation()}
+                                            >
+                                                <Receipt size={14} className="mr-1.5" />
+                                                Conto
+                                            </Button>
+                                        </DropdownMenuTrigger>
+                                        <DropdownMenuContent align="end" className="w-48 bg-zinc-900 border-zinc-800 text-zinc-200">
+                                            <DropdownMenuLabel>Azioni Conto</DropdownMenuLabel>
+                                            <DropdownMenuSeparator className="bg-white/10" />
 
-                                        {/* Permission Gated Actions */}
-                                        {restaurant?.allow_waiter_payments ? (
-                                            <>
-                                                <DropdownMenuItem
-                                                    onClick={(e) => {
-                                                        e.stopPropagation()
-                                                        openPaymentDialog(e, table)
-                                                    }}
-                                                    className="focus:bg-amber-500/10 focus:text-amber-500 cursor-pointer"
-                                                >
-                                                    <Receipt className="mr-2 h-4 w-4" />
-                                                    Paga Tutto
-                                                </DropdownMenuItem>
-                                                <DropdownMenuItem
-                                                    onClick={(e) => {
-                                                        e.stopPropagation()
-                                                        // Open payment dialog but trigger split mode directly if possible
-                                                        // or let them switch inside. For now, open dialog.
-                                                        setIsSplitMode(true)
-                                                        openPaymentDialog(e, table)
-                                                    }}
-                                                    className="focus:bg-amber-500/10 focus:text-amber-500 cursor-pointer"
-                                                >
-                                                    <ArrowsClockwise className="mr-2 h-4 w-4" />
-                                                    Dividi Conto
-                                                </DropdownMenuItem>
-                                                <DropdownMenuSeparator className="bg-white/10" />
-                                                <DropdownMenuItem
-                                                    onClick={(e) => {
-                                                        e.stopPropagation()
-                                                        handleCloseTable(false)
-                                                    }}
-                                                    className="focus:bg-red-500/10 focus:text-red-500 text-red-400 cursor-pointer"
-                                                >
-                                                    <Trash className="mr-2 h-4 w-4" />
-                                                    Svuota Tavolo
-                                                </DropdownMenuItem>
-                                            </>
-                                        ) : (
-                                            <div className="px-2 py-1.5 text-xs text-zinc-500 italic">
-                                                Pagamenti disabilitati
-                                            </div>
-                                        )}
+                                            {restaurant?.allow_waiter_payments ? (
+                                                <>
+                                                    <DropdownMenuItem
+                                                        onClick={(e) => {
+                                                            e.stopPropagation()
+                                                            openPaymentDialog(e, table)
+                                                        }}
+                                                        className="focus:bg-amber-500/10 focus:text-amber-500 cursor-pointer"
+                                                    >
+                                                        <CheckCircle className="mr-2 h-4 w-4" />
+                                                        Segna Pagato
+                                                    </DropdownMenuItem>
 
-                                        <DropdownMenuSeparator className="bg-white/10" />
-                                        <DropdownMenuItem
-                                            onClick={(e) => {
-                                                e.stopPropagation()
-                                                // Show details implementation (or just open modal)
-                                                handleTableClick(table)
-                                            }}
-                                            className="cursor-pointer"
-                                        >
-                                            <MagnifyingGlass className="mr-2 h-4 w-4" />
-                                            Dettagli Tavolo
-                                        </DropdownMenuItem>
-                                    </DropdownMenuContent>
-                                </DropdownMenu>
+                                                    <DropdownMenuItem
+                                                        onClick={(e) => {
+                                                            e.stopPropagation()
+                                                            handleCloseTable(false)
+                                                        }}
+                                                        className="focus:bg-red-500/10 focus:text-red-500 text-red-400 cursor-pointer"
+                                                    >
+                                                        <Trash className="mr-2 h-4 w-4" />
+                                                        Svuota Tavolo
+                                                    </DropdownMenuItem>
+                                                </>
+                                            ) : (
+                                                <div className="px-2 py-1.5 text-xs text-zinc-500 italic">
+                                                    Pagamenti disabilitati
+                                                </div>
+                                            )}
+                                        </DropdownMenuContent>
+                                    </DropdownMenu>
+                                ) : (
+                                    <Button
+                                        variant="secondary"
+                                        size="sm"
+                                        className="h-8 px-3 rounded-xl bg-zinc-800 text-zinc-200 border border-white/5 hover:bg-zinc-700 hover:text-white"
+                                        onClick={(e) => {
+                                            e.stopPropagation()
+                                            openPaymentDialog(e, table)
+                                        }}
+                                    >
+                                        <Receipt size={14} className="mr-1.5" />
+                                        Conto
+                                    </Button>
+                                )}
                             </div>
                         ) : (
                             <Button
@@ -1687,7 +1677,10 @@ const WaiterDashboard = ({ user, onLogout }: WaiterDashboardProps) => {
                     setQuickOrderTab('menu') // Reset tab on close
                 }
             }}>
-                <DialogContent className="w-[95vw] max-w-[100vw] sm:max-w-5xl bg-zinc-950 border-zinc-800 text-zinc-100 h-[90dvh] flex flex-col p-0 overflow-hidden rounded-xl">
+                <DialogContent aria-describedby="quick-order-desc" className="w-[95vw] max-w-[100vw] sm:max-w-5xl bg-zinc-950 border-zinc-800 text-zinc-100 h-[90dvh] flex flex-col p-0 overflow-hidden rounded-xl">
+                    <div id="quick-order-desc" className="sr-only">
+                        Finestra per l'inserimento di un nuovo ordine rapido
+                    </div>
                     <DialogHeader className="p-4 border-b border-white/5 bg-zinc-900/50 shrink-0">
                         <DialogTitle className="text-lg font-bold flex items-center gap-3">
                             <div className="bg-amber-500 text-black p-1.5 rounded-lg">
@@ -1707,54 +1700,85 @@ const WaiterDashboard = ({ user, onLogout }: WaiterDashboardProps) => {
 
                     {/* Tabs Navigation */}
                     <Tabs value={quickOrderTab} onValueChange={(v) => setQuickOrderTab(v as any)} className="flex-1 flex flex-col overflow-hidden">
-                        <div className="px-4 pt-2 bg-zinc-900/50 border-b border-white/5 shrink-0">
-                            <TabsList className="grid w-full grid-cols-3 bg-zinc-900 border border-white/10">
-                                <TabsTrigger value="menu">Menu</TabsTrigger>
-                                <TabsTrigger value="cart" className="relative gap-2">
-                                    Carrello
-                                    {newQuickOrderItems.length > 0 && (
-                                        <Badge className="h-5 px-1.5 bg-amber-500 text-black text-[10px] font-bold">
-                                            {newQuickOrderItems.reduce((acc, item) => acc + item.quantity, 0)}
-                                        </Badge>
-                                    )}
-                                </TabsTrigger>
-                                <TabsTrigger value="history">Storico</TabsTrigger>
-                            </TabsList>
-                        </div>
+                        {/* Hide TabsList if in 'courses' mode to force selection, OR show simplified nav */}
+                        {quickOrderTab !== 'courses' && (
+                            <div className="px-4 pt-2 bg-zinc-900/50 border-b border-white/5 shrink-0">
+                                <TabsList className="grid w-full grid-cols-3 bg-zinc-900 border border-white/10">
+                                    <TabsTrigger value="menu">Menu</TabsTrigger>
+                                    <TabsTrigger value="cart" className="relative gap-2">
+                                        Carrello
+                                        {newQuickOrderItems.length > 0 && (
+                                            <Badge className="h-5 px-1.5 bg-amber-500 text-black text-[10px] font-bold">
+                                                {newQuickOrderItems.reduce((acc, item) => acc + item.quantity, 0)}
+                                            </Badge>
+                                        )}
+                                    </TabsTrigger>
+                                    <TabsTrigger value="history">Storico</TabsTrigger>
+                                </TabsList>
+                            </div>
+                        )}
+
+                        {/* COURSES TAB (New Workflow) */}
+                        <TabsContent value="courses" className="flex-1 flex flex-col p-4 data-[state=inactive]:hidden mt-0">
+                            <div className="text-center mb-6 mt-4">
+                                <h3 className="text-xl font-bold text-white mb-2">Seleziona Portata</h3>
+                                <p className="text-zinc-400 text-sm">Scegli la portata per aggiungere i piatti</p>
+                            </div>
+
+                            <ScrollArea className="flex-1">
+                                <div className="grid grid-cols-2 gap-4 pb-4">
+                                    {Array.from({ length: maxCourse }, (_, i) => i + 1).map(num => {
+                                        const itemsInCourse = newQuickOrderItems.filter(i => i.courseNumber === num).length
+                                        return (
+                                            <Button
+                                                key={num}
+                                                variant="outline"
+                                                className="h-24 flex flex-col items-center justify-center gap-2 border-white/10 bg-zinc-900/50 hover:bg-zinc-800 hover:border-amber-500/50 relative overflow-visible"
+                                                onClick={() => {
+                                                    setSelectedCourse(num)
+                                                    setQuickOrderTab('menu')
+                                                }}
+                                            >
+                                                <span className="text-lg font-bold text-white">Portata {num}</span>
+                                                {itemsInCourse > 0 && (
+                                                    <Badge className="bg-amber-500 text-black text-[10px]">{itemsInCourse} piatti</Badge>
+                                                )}
+                                            </Button>
+                                        )
+                                    })}
+
+                                    <Button
+                                        variant="ghost"
+                                        className="h-24 flex flex-col items-center justify-center gap-2 border border-dashed border-white/10 hover:bg-amber-500/10 hover:border-amber-500/30 hover:text-amber-500 text-zinc-500"
+                                        onClick={() => {
+                                            const next = maxCourse + 1
+                                            setMaxCourse(next)
+                                            setSelectedCourse(next)
+                                            setQuickOrderTab('menu')
+                                        }}
+                                    >
+                                        <Plus size={24} />
+                                        <span>Nuova Portata</span>
+                                    </Button>
+                                </div>
+                            </ScrollArea>
+                        </TabsContent>
 
                         {/* MENU TAB */}
                         <TabsContent value="menu" className="flex-1 flex flex-col overflow-hidden data-[state=inactive]:hidden mt-0">
                             <div className="p-3 border-b border-white/5 space-y-3 shrink-0 bg-zinc-950/50 z-10">
                                 <div className="flex gap-2">
                                     {courseSplittingEnabled && (
-                                        <div className="flex items-center bg-black/40 rounded-xl p-1 border border-white/5 shrink-0">
-                                            <Button
-                                                size="sm"
-                                                variant="ghost"
-                                                onClick={() => setSelectedCourse(Math.max(1, selectedCourse - 1))}
-                                                disabled={selectedCourse <= 1}
-                                                className="h-8 w-8 p-0 text-zinc-400 hover:text-white"
-                                            >
-                                                <Minus size={14} />
-                                            </Button>
-                                            <div className="px-2 text-center min-w-[3rem]">
-                                                <span className="text-[10px] uppercase text-zinc-500 block leading-none mb-0.5">Uscita</span>
-                                                <span className="font-bold text-amber-500 leading-none">{selectedCourse}</span>
-                                            </div>
-                                            <Button
-                                                size="sm"
-                                                variant="ghost"
-                                                onClick={() => {
-                                                    const next = selectedCourse + 1
-                                                    setSelectedCourse(next)
-                                                    if (next > maxCourse) setMaxCourse(next)
-                                                }}
-                                                className="h-8 w-8 p-0 text-zinc-400 hover:text-white"
-                                            >
-                                                <Plus size={14} />
-                                            </Button>
-                                        </div>
+                                        <Button
+                                            variant="secondary"
+                                            onClick={() => setQuickOrderTab('courses')}
+                                            className="px-3 bg-amber-500/10 text-amber-500 hover:bg-amber-500 hover:text-black border border-amber-500/20"
+                                        >
+                                            <span className="text-[10px] uppercase font-bold mr-1">Portata</span>
+                                            <span className="text-lg font-bold leading-none">{selectedCourse}</span>
+                                        </Button>
                                     )}
+
 
                                     <div className="relative flex-1">
                                         <MagnifyingGlass className="absolute left-3 top-1/2 -translate-y-1/2 text-zinc-500" size={16} />
@@ -1979,8 +2003,8 @@ const WaiterDashboard = ({ user, onLogout }: WaiterDashboardProps) => {
                                                             {new Date(order.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
                                                         </span>
                                                         <Badge variant="outline" className={`text-[10px] ${order.status === 'ready' ? 'text-green-400 border-green-500/30' :
-                                                                order.status === 'pending' ? 'text-amber-400 border-amber-500/30' :
-                                                                    'text-blue-400 border-blue-500/30'
+                                                            order.status === 'pending' ? 'text-amber-400 border-amber-500/30' :
+                                                                'text-blue-400 border-blue-500/30'
                                                             }`}>
                                                             {order.status === 'ready' ? 'Pronto' : order.status === 'pending' ? 'In Attesa' : 'In Preparazione'}
                                                         </Badge>
