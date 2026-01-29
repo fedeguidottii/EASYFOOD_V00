@@ -1,97 +1,91 @@
-
 import html2canvas from 'html2canvas'
 import jsPDF from 'jspdf'
 import { toast } from 'sonner'
 
 /**
- * Helper function to fix oklch colors that html2canvas doesn't support
- * Iterates through all elements in the cloned document and replaces oklch colors
- * with fallback values (transparent for bg, inherit for text)
+ * Injects a CSS stylesheet that overrides Tailwind's oklch colors with hex equivalents.
+ * This must run BEFORE html2canvas to prevent parsing errors.
  */
-// Helper to map simplified oklch/variable colors to hex for PDF safety
-const colorMap: Record<string, string> = {
-    'amber-500': '#f59e0b',
-    'amber-400': '#fbbf24',
-    'amber-600': '#d97706',
-    'zinc-950': '#09090b',
-    'zinc-900': '#18181b',
-    'zinc-800': '#27272a',
-    'zinc-700': '#3f3f46',
-    'zinc-500': '#71717a',
-    'zinc-400': '#a1a1aa',
-    'zinc-100': '#f4f4f5',
-    'white': '#ffffff',
-    'black': '#000000',
-    'emerald-500': '#10b981',
-    'rose-500': '#f43f5e',
-    'transparent': 'transparent'
+const injectPdfSafeStyles = (): HTMLStyleElement => {
+    const style = document.createElement('style')
+    style.id = 'pdf-safe-colors'
+    style.textContent = `
+        /* PDF-safe color overrides - replaces oklch with hex */
+        * {
+            --tw-ring-color: #fb923c !important;
+            --tw-border-opacity: 1 !important;
+        }
+
+        /* Force all text colors to hex */
+        [class*="text-zinc-50"], [class*="text-white"] { color: #fafafa !important; }
+        [class*="text-zinc-100"] { color: #f4f4f5 !important; }
+        [class*="text-zinc-200"] { color: #e4e4e7 !important; }
+        [class*="text-zinc-300"] { color: #d4d4d8 !important; }
+        [class*="text-zinc-400"] { color: #a1a1aa !important; }
+        [class*="text-zinc-500"] { color: #71717a !important; }
+        [class*="text-zinc-600"] { color: #52525b !important; }
+        [class*="text-zinc-700"] { color: #3f3f46 !important; }
+        [class*="text-zinc-800"] { color: #27272a !important; }
+        [class*="text-zinc-900"] { color: #18181b !important; }
+        [class*="text-zinc-950"] { color: #09090b !important; }
+        [class*="text-black"] { color: #000000 !important; }
+        [class*="text-amber"] { color: #f59e0b !important; }
+        [class*="text-orange"] { color: #f97316 !important; }
+        [class*="text-red"], [class*="text-rose"] { color: #f43f5e !important; }
+        [class*="text-green"], [class*="text-emerald"] { color: #10b981 !important; }
+        [class*="text-blue"] { color: #3b82f6 !important; }
+        [class*="text-slate-50"] { color: #f8fafc !important; }
+
+        /* Force all background colors to hex */
+        [class*="bg-zinc-50"], [class*="bg-white"] { background-color: #fafafa !important; }
+        [class*="bg-zinc-100"] { background-color: #f4f4f5 !important; }
+        [class*="bg-zinc-200"] { background-color: #e4e4e7 !important; }
+        [class*="bg-zinc-800"] { background-color: #27272a !important; }
+        [class*="bg-zinc-900"] { background-color: #18181b !important; }
+        [class*="bg-zinc-950"] { background-color: #09090b !important; }
+        [class*="bg-black"] { background-color: #000000 !important; }
+        [class*="bg-amber"] { background-color: #f59e0b !important; }
+        [class*="bg-orange"] { background-color: #f97316 !important; }
+        [class*="bg-red"], [class*="bg-rose"] { background-color: #f43f5e !important; }
+        [class*="bg-green"], [class*="bg-emerald"] { background-color: #10b981 !important; }
+        [class*="bg-gradient"] { background-image: none !important; background-color: #09090b !important; }
+
+        /* Force all border colors to hex */
+        [class*="border-zinc-700"] { border-color: #3f3f46 !important; }
+        [class*="border-zinc-800"] { border-color: #27272a !important; }
+        [class*="border-zinc-900"] { border-color: #18181b !important; }
+        [class*="border-amber"] { border-color: #f59e0b !important; }
+        [class*="border-white"] { border-color: #ffffff !important; }
+        [class*="border-transparent"] { border-color: transparent !important; }
+        
+        /* Force ring colors */
+        [class*="ring-amber"] { --tw-ring-color: #f59e0b !important; }
+        [class*="ring-zinc"] { --tw-ring-color: #3f3f46 !important; }
+        
+        /* Fix SVG fills and strokes */
+        svg [class*="fill-"] { fill: currentColor !important; }
+        svg [class*="stroke-"] { stroke: currentColor !important; }
+        [class*="fill-amber"] { fill: #f59e0b !important; }
+        [class*="fill-zinc"] { fill: #71717a !important; }
+        [class*="fill-white"] { fill: #ffffff !important; }
+        [class*="fill-current"] { fill: currentColor !important; }
+        
+        /* Shadow overrides - remove complex shadows that may use oklch */
+        [class*="shadow"] { 
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -2px rgba(0, 0, 0, 0.1) !important; 
+        }
+        
+        /* Disable backdrop-filter which can cause issues */
+        [class*="backdrop"] { backdrop-filter: none !important; -webkit-backdrop-filter: none !important; }
+    `
+    document.head.appendChild(style)
+    return style
 }
 
-/**
- * Helper function to fix oklch colors that html2canvas doesn't support
- * Iterates through all elements in the cloned document and replaces oklch colors
- * with fallback hex values
- */
-export const fixOklchColors = (clonedDoc: Document) => {
-    const allElements = clonedDoc.querySelectorAll('*')
-    allElements.forEach(el => {
-        // Safe access to styles
-        const element = el as HTMLElement;
-        const inlineStyle = element.style;
-        const computedStyle = element.ownerDocument.defaultView?.getComputedStyle(element);
-
-        // Safe class name check that handles SVGs
-        const getClassName = (e: Element): string => {
-            if (typeof e.className === 'string') return e.className;
-            if (e.getAttribute) return e.getAttribute('class') || '';
-            return '';
-        }
-
-        const classNameStr = getClassName(el);
-
-        // Helper to replace oklch
-        const replaceColor = (prop: string) => {
-            // Check computed style first (what html2canvas sees), fallback to inline
-            const val = computedStyle?.getPropertyValue(prop) || inlineStyle.getPropertyValue(prop);
-
-            if (val && (val.includes('oklch') || val.startsWith('var('))) {
-                let fallback = '#000000' // default text
-
-                if (prop === 'color' || prop === 'fill' || prop === 'stroke') {
-                    fallback = '#000000'
-                    // Text/Icon color heuristics
-                    if (classNameStr.includes('text-white') || classNameStr.includes('text-zinc-50')) fallback = '#ffffff';
-                    else if (classNameStr.includes('zinc-400')) fallback = colorMap['zinc-400'];
-                    else if (classNameStr.includes('zinc-500')) fallback = colorMap['zinc-500'];
-                    else if (classNameStr.includes('amber')) fallback = colorMap['amber-500'];
-                    else if (classNameStr.includes('red') || classNameStr.includes('rose')) fallback = colorMap['rose-500'];
-
-                    // Specific fix for dark mode text
-                    if (val.includes('light') || val.includes('white')) fallback = '#ffffff';
-                }
-                else if (prop.includes('background')) {
-                    fallback = 'transparent' // safer default for bg
-                    if (classNameStr.includes('zinc-950')) fallback = colorMap['zinc-950'];
-                    else if (classNameStr.includes('zinc-900')) fallback = colorMap['zinc-900'];
-                    else if (classNameStr.includes('zinc-800')) fallback = colorMap['zinc-800'];
-                    else if (classNameStr.includes('amber')) fallback = colorMap['amber-500'];
-                    else if (classNameStr.includes('emerald')) fallback = colorMap['emerald-500'];
-                    else if (classNameStr.includes('rose')) fallback = colorMap['rose-500'];
-                    else if (classNameStr.includes('white')) fallback = '#ffffff';
-                }
-                else if (prop.includes('border') || prop.includes('outline')) {
-                    fallback = 'transparent'
-                    if (classNameStr.includes('zinc-800')) fallback = colorMap['zinc-800'];
-                    else if (classNameStr.includes('amber')) fallback = colorMap['amber-500'];
-                }
-
-                // Force override inline style
-                inlineStyle.setProperty(prop, fallback, 'important')
-            }
-        }
-
-        ['color', 'backgroundColor', 'borderColor', 'outlineColor', 'fill', 'stroke'].forEach(replaceColor)
-    })
+const removePdfSafeStyles = (style: HTMLStyleElement) => {
+    if (style && style.parentNode) {
+        style.parentNode.removeChild(style)
+    }
 }
 
 interface GeneratePdfOptions {
@@ -111,8 +105,8 @@ export const generatePdfFromElement = async (elementId: string, options: Generat
         fileName = 'document.pdf',
         scale = 2,
         orientation = 'portrait',
-        margin = 0, // Default no margin for full screenshot effect
-        backgroundColor = '#09090b', // Zinc 950 default
+        margin = 0,
+        backgroundColor = '#09090b',
         onClone
     } = options
 
@@ -122,10 +116,8 @@ export const generatePdfFromElement = async (elementId: string, options: Generat
         return false
     }
 
-    // Clone handling for visibility
-    const originalDisplay = element.style.display
-    // Ensure it's visible if hidden (though typically we capture visible elements)
-    // element.style.display = 'block' 
+    // Inject PDF-safe styles BEFORE html2canvas runs
+    const injectedStyle = injectPdfSafeStyles()
 
     try {
         const canvas = await html2canvas(element, {
@@ -135,13 +127,9 @@ export const generatePdfFromElement = async (elementId: string, options: Generat
             logging: false,
             allowTaint: true,
             onclone: (clonedDoc) => {
-                fixOklchColors(clonedDoc)
                 if (onClone) onClone(clonedDoc)
             }
         })
-
-        // Restore original display if changed
-        // element.style.display = originalDisplay
 
         const imgData = canvas.toDataURL('image/png')
         const pdf = new jsPDF({
@@ -156,28 +144,18 @@ export const generatePdfFromElement = async (elementId: string, options: Generat
         const imgWidth = pdfWidth - (margin * 2)
         const imgHeight = (canvas.height * imgWidth) / canvas.width
 
-        // Handle pagination if image is taller than page
         let heightLeft = imgHeight
         let position = margin
 
-        // First page
         pdf.addImage(imgData, 'PNG', margin, position, imgWidth, imgHeight)
         heightLeft -= (pdfHeight - (margin * 2))
 
-        // Subsequent pages
         while (heightLeft > 0) {
-            position = heightLeft - imgHeight // shift up
+            position = heightLeft - imgHeight
             pdf.addPage()
             pdf.addImage(imgData, 'PNG', margin, position, imgWidth, imgHeight)
             heightLeft -= (pdfHeight - (margin * 2))
         }
-
-        // For single page fit (if preferred for dashboards):
-        // if (imgHeight <= pdfHeight) {
-        //   pdf.addImage(imgData, 'PNG', margin, margin, imgWidth, imgHeight)
-        // } else {
-        //   // See above for multi-page loop
-        // }
 
         pdf.save(fileName)
         return true
@@ -186,5 +164,8 @@ export const generatePdfFromElement = async (elementId: string, options: Generat
         console.error('Error generating PDF:', error)
         toast.error('Errore durante la generazione del PDF')
         return false
+    } finally {
+        // Always remove injected styles
+        removePdfSafeStyles(injectedStyle)
     }
 }
