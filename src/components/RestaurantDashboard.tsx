@@ -405,7 +405,10 @@ const RestaurantDashboard = ({ user, onLogout }: RestaurantDashboardProps) => {
         }
 
         try {
+          // Posiziona fuori schermo per evitare flash visibile
           element.style.display = 'block'
+          element.style.left = '-9999px'
+          element.style.visibility = 'hidden'
           await generatePdfFromElement('menu-print-view', {
             fileName: `Menu_${restaurantSlug}_${exportMode}_${new Date().toISOString().split('T')[0]}.pdf`,
             scale: 2,
@@ -426,6 +429,8 @@ const RestaurantDashboard = ({ user, onLogout }: RestaurantDashboardProps) => {
           toast.error('Errore creazione PDF')
         } finally {
           element.style.display = 'none'
+          element.style.left = '0'
+          element.style.visibility = 'visible'
           setExportPreviewData(null)
           toast.dismiss(toastId)
         }
@@ -3444,7 +3449,7 @@ const RestaurantDashboard = ({ user, onLogout }: RestaurantDashboardProps) => {
       </main >
 
       {/* HIDDEN PRINT VIEW FOR MENU EXPORT - ELEGANT DARK MODE */}
-      <div id="menu-print-view" style={{ display: 'none', position: 'fixed', top: 0, left: 0, zIndex: 100, width: '210mm', minHeight: '297mm', background: '#09090b', color: 'white', padding: '15mm', fontFamily: 'Georgia, serif' }}>
+      <div id="menu-print-view" style={{ display: 'none', position: 'fixed', top: 0, left: '-9999px', zIndex: -1, width: '210mm', minHeight: '297mm', background: '#09090b', color: 'white', padding: '15mm', fontFamily: 'Georgia, serif' }}>
         {/* Header */}
         <div className="text-center mb-10 border-b border-white/10 pb-6 relative">
           <div className="absolute top-0 left-1/2 -translate-x-1/2 w-24 h-1 bg-gradient-to-r from-transparent via-amber-500 to-transparent opacity-50"></div>
@@ -3469,15 +3474,13 @@ const RestaurantDashboard = ({ user, onLogout }: RestaurantDashboardProps) => {
 
                 <div className="grid grid-cols-1 gap-6">
                   {section.dishes.map(dish => (
-                    <div key={dish.id} className="flex gap-6 items-start break-inside-avoid group relative">
-                      {/* Image or Elegant Placeholder */}
-                      <div className="w-24 h-24 shrink-0 rounded-lg overflow-hidden border border-white/5 shadow-lg bg-zinc-900 relative">
-                        {dish.image_url ? (
-                          <img src={dish.image_url} alt={dish.name} className="w-full h-full object-cover opacity-90 group-hover:opacity-100 transition-opacity" />
-                        ) : (
-                          <DishPlaceholder iconSize={24} />
-                        )}
-                      </div>
+                    <div key={dish.id} className="flex gap-4 items-start break-inside-avoid group relative">
+                      {/* Image only if available - no placeholder */}
+                      {dish.image_url && (
+                        <div className="w-16 h-16 shrink-0 rounded-md overflow-hidden border border-white/10">
+                          <img src={dish.image_url} alt={dish.name} className="w-full h-full object-cover" />
+                        </div>
+                      )}
 
                       <div className="flex-1 pt-1">
                         <div className="flex justify-between items-baseline mb-2 border-b border-dotted border-white/10 pb-2 relative">
@@ -3516,15 +3519,13 @@ const RestaurantDashboard = ({ user, onLogout }: RestaurantDashboardProps) => {
 
                   <div className="grid grid-cols-1 gap-6">
                     {categoryDishes.map(dish => (
-                      <div key={dish.id} className="flex gap-6 items-start break-inside-avoid group relative">
-                        {/* Image or Elegant Placeholder */}
-                        <div className="w-24 h-24 shrink-0 rounded-lg overflow-hidden border border-white/5 shadow-lg bg-zinc-900 relative">
-                          {dish.image_url ? (
-                            <img src={dish.image_url} alt={dish.name} className="w-full h-full object-cover opacity-90 group-hover:opacity-100 transition-opacity" />
-                          ) : (
-                            <DishPlaceholder iconSize={24} />
-                          )}
-                        </div>
+                      <div key={dish.id} className="flex gap-4 items-start break-inside-avoid group relative">
+                        {/* Image only if available - no placeholder */}
+                        {dish.image_url && (
+                          <div className="w-16 h-16 shrink-0 rounded-md overflow-hidden border border-white/10">
+                            <img src={dish.image_url} alt={dish.name} className="w-full h-full object-cover" />
+                          </div>
+                        )}
 
                         <div className="flex-1 pt-1">
                           <div className="flex justify-between items-baseline mb-2 border-b border-dotted border-white/10 pb-2 relative">
