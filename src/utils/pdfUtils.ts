@@ -2,90 +2,107 @@ import html2canvas from 'html2canvas'
 import jsPDF from 'jspdf'
 import { toast } from 'sonner'
 
-/**
- * Injects a CSS stylesheet that overrides Tailwind's oklch colors with hex equivalents.
- * This must run BEFORE html2canvas to prevent parsing errors.
- */
-const injectPdfSafeStyles = (): HTMLStyleElement => {
-    const style = document.createElement('style')
-    style.id = 'pdf-safe-colors'
-    style.textContent = `
-        /* PDF-safe color overrides - replaces oklch with hex */
-        * {
-            --tw-ring-color: #fb923c !important;
-            --tw-border-opacity: 1 !important;
-        }
-
-        /* Force all text colors to hex */
-        [class*="text-zinc-50"], [class*="text-white"] { color: #fafafa !important; }
-        [class*="text-zinc-100"] { color: #f4f4f5 !important; }
-        [class*="text-zinc-200"] { color: #e4e4e7 !important; }
-        [class*="text-zinc-300"] { color: #d4d4d8 !important; }
-        [class*="text-zinc-400"] { color: #a1a1aa !important; }
-        [class*="text-zinc-500"] { color: #71717a !important; }
-        [class*="text-zinc-600"] { color: #52525b !important; }
-        [class*="text-zinc-700"] { color: #3f3f46 !important; }
-        [class*="text-zinc-800"] { color: #27272a !important; }
-        [class*="text-zinc-900"] { color: #18181b !important; }
-        [class*="text-zinc-950"] { color: #09090b !important; }
-        [class*="text-black"] { color: #000000 !important; }
-        [class*="text-amber"] { color: #f59e0b !important; }
-        [class*="text-orange"] { color: #f97316 !important; }
-        [class*="text-red"], [class*="text-rose"] { color: #f43f5e !important; }
-        [class*="text-green"], [class*="text-emerald"] { color: #10b981 !important; }
-        [class*="text-blue"] { color: #3b82f6 !important; }
-        [class*="text-slate-50"] { color: #f8fafc !important; }
-
-        /* Force all background colors to hex */
-        [class*="bg-zinc-50"], [class*="bg-white"] { background-color: #fafafa !important; }
-        [class*="bg-zinc-100"] { background-color: #f4f4f5 !important; }
-        [class*="bg-zinc-200"] { background-color: #e4e4e7 !important; }
-        [class*="bg-zinc-800"] { background-color: #27272a !important; }
-        [class*="bg-zinc-900"] { background-color: #18181b !important; }
-        [class*="bg-zinc-950"] { background-color: #09090b !important; }
-        [class*="bg-black"] { background-color: #000000 !important; }
-        [class*="bg-amber"] { background-color: #f59e0b !important; }
-        [class*="bg-orange"] { background-color: #f97316 !important; }
-        [class*="bg-red"], [class*="bg-rose"] { background-color: #f43f5e !important; }
-        [class*="bg-green"], [class*="bg-emerald"] { background-color: #10b981 !important; }
-        [class*="bg-gradient"] { background-image: none !important; background-color: #09090b !important; }
-
-        /* Force all border colors to hex */
-        [class*="border-zinc-700"] { border-color: #3f3f46 !important; }
-        [class*="border-zinc-800"] { border-color: #27272a !important; }
-        [class*="border-zinc-900"] { border-color: #18181b !important; }
-        [class*="border-amber"] { border-color: #f59e0b !important; }
-        [class*="border-white"] { border-color: #ffffff !important; }
-        [class*="border-transparent"] { border-color: transparent !important; }
-        
-        /* Force ring colors */
-        [class*="ring-amber"] { --tw-ring-color: #f59e0b !important; }
-        [class*="ring-zinc"] { --tw-ring-color: #3f3f46 !important; }
-        
-        /* Fix SVG fills and strokes */
-        svg [class*="fill-"] { fill: currentColor !important; }
-        svg [class*="stroke-"] { stroke: currentColor !important; }
-        [class*="fill-amber"] { fill: #f59e0b !important; }
-        [class*="fill-zinc"] { fill: #71717a !important; }
-        [class*="fill-white"] { fill: #ffffff !important; }
-        [class*="fill-current"] { fill: currentColor !important; }
-        
-        /* Shadow overrides - remove complex shadows that may use oklch */
-        [class*="shadow"] { 
-            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -2px rgba(0, 0, 0, 0.1) !important; 
-        }
-        
-        /* Disable backdrop-filter which can cause issues */
-        [class*="backdrop"] { backdrop-filter: none !important; -webkit-backdrop-filter: none !important; }
-    `
-    document.head.appendChild(style)
-    return style
+// Color map for oklch replacement
+const colorMap: Record<string, string> = {
+    'zinc-50': '#fafafa', 'zinc-100': '#f4f4f5', 'zinc-200': '#e4e4e7',
+    'zinc-300': '#d4d4d8', 'zinc-400': '#a1a1aa', 'zinc-500': '#71717a',
+    'zinc-600': '#52525b', 'zinc-700': '#3f3f46', 'zinc-800': '#27272a',
+    'zinc-900': '#18181b', 'zinc-950': '#09090b',
+    'amber-400': '#fbbf24', 'amber-500': '#f59e0b', 'amber-600': '#d97706',
+    'orange-500': '#f97316', 'red-500': '#ef4444', 'rose-500': '#f43f5e',
+    'emerald-500': '#10b981', 'green-500': '#22c55e', 'blue-500': '#3b82f6',
+    'white': '#ffffff', 'black': '#000000', 'transparent': 'transparent',
+    'slate-50': '#f8fafc', 'slate-100': '#f1f5f9',
 }
 
-const removePdfSafeStyles = (style: HTMLStyleElement) => {
-    if (style && style.parentNode) {
-        style.parentNode.removeChild(style)
+/**
+ * Recursively applies inline hex colors to an element and all its children
+ * This modifies the actual DOM temporarily to force html2canvas to use hex colors
+ */
+const forceInlineHexColors = (element: HTMLElement): Map<HTMLElement, { [key: string]: string }> => {
+    const originalStyles = new Map<HTMLElement, { [key: string]: string }>()
+
+    const processElement = (el: HTMLElement) => {
+        const computed = window.getComputedStyle(el)
+        const originalInline: { [key: string]: string } = {}
+
+        // Properties that might contain oklch
+        const colorProps = ['color', 'backgroundColor', 'borderColor', 'borderTopColor',
+            'borderRightColor', 'borderBottomColor', 'borderLeftColor', 'outlineColor',
+            'fill', 'stroke', 'caretColor', 'textDecorationColor']
+
+        colorProps.forEach(prop => {
+            const value = computed.getPropertyValue(prop.replace(/([A-Z])/g, '-$1').toLowerCase())
+            if (value && value.includes('oklch')) {
+                // Save original inline style
+                originalInline[prop] = el.style.getPropertyValue(prop.replace(/([A-Z])/g, '-$1').toLowerCase())
+
+                // Determine fallback color based on class names
+                let fallback = '#000000'
+                const className = typeof el.className === 'string' ? el.className : el.getAttribute('class') || ''
+
+                // Find matching color from class name
+                for (const [key, hex] of Object.entries(colorMap)) {
+                    if (className.includes(key)) {
+                        fallback = hex
+                        break
+                    }
+                }
+
+                // Special handling based on property
+                if (prop.includes('background') && fallback === '#000000') fallback = 'transparent'
+                if (prop.includes('border') && fallback === '#000000') fallback = 'transparent'
+                if (prop === 'color' && !className.includes('text-')) fallback = '#ffffff'
+
+                // Force inline style
+                el.style.setProperty(prop.replace(/([A-Z])/g, '-$1').toLowerCase(), fallback, 'important')
+            }
+        })
+
+        // Handle box-shadow
+        const shadow = computed.getPropertyValue('box-shadow')
+        if (shadow && shadow.includes('oklch')) {
+            originalInline['box-shadow'] = el.style.getPropertyValue('box-shadow')
+            el.style.setProperty('box-shadow', 'none', 'important')
+        }
+
+        // Handle caret-color
+        const caret = computed.getPropertyValue('caret-color')
+        if (caret && caret.includes('oklch')) {
+            originalInline['caret-color'] = el.style.getPropertyValue('caret-color')
+            el.style.setProperty('caret-color', 'auto', 'important')
+        }
+
+        if (Object.keys(originalInline).length > 0) {
+            originalStyles.set(el, originalInline)
+        }
     }
+
+    // Process element and all children
+    processElement(element)
+    element.querySelectorAll('*').forEach(child => {
+        if (child instanceof HTMLElement) {
+            processElement(child)
+        }
+    })
+
+    return originalStyles
+}
+
+/**
+ * Restores original inline styles after PDF generation
+ */
+const restoreOriginalStyles = (originalStyles: Map<HTMLElement, { [key: string]: string }>) => {
+    originalStyles.forEach((styles, el) => {
+        Object.entries(styles).forEach(([prop, value]) => {
+            const cssProp = prop.replace(/([A-Z])/g, '-$1').toLowerCase()
+            if (value) {
+                el.style.setProperty(cssProp, value)
+            } else {
+                el.style.removeProperty(cssProp)
+            }
+        })
+    })
 }
 
 interface GeneratePdfOptions {
@@ -116,8 +133,8 @@ export const generatePdfFromElement = async (elementId: string, options: Generat
         return false
     }
 
-    // Inject PDF-safe styles BEFORE html2canvas runs
-    const injectedStyle = injectPdfSafeStyles()
+    // Force inline hex colors on the actual DOM before capture
+    const originalStyles = forceInlineHexColors(element)
 
     try {
         const canvas = await html2canvas(element, {
@@ -165,7 +182,7 @@ export const generatePdfFromElement = async (elementId: string, options: Generat
         toast.error('Errore durante la generazione del PDF')
         return false
     } finally {
-        // Always remove injected styles
-        removePdfSafeStyles(injectedStyle)
+        // Always restore original styles
+        restoreOriginalStyles(originalStyles)
     }
 }
