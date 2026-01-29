@@ -61,7 +61,14 @@ const sanitizeClonedDocument = (clonedDoc: Document): void => {
         }
     })
 
-    // 4. NON sovrascriviamo i colori esistenti - il template ha già stili inline corretti
+    // 4. Inject basic CSS reset to ensure layout works without external stylesheets
+    const resetStyle = clonedDoc.createElement('style')
+    resetStyle.innerHTML = `
+        * { box-sizing: border-box; }
+        html, body { margin: 0; padding: 0; background-color: #09090b; }
+        img { display: block; max-width: 100%; }
+    `
+    clonedDoc.head.appendChild(resetStyle)
 }
 
 interface GeneratePdfOptions {
@@ -107,6 +114,17 @@ export const generatePdfFromElement = async (elementId: string, options: Generat
             onclone: (clonedDoc) => {
                 // PULISCI COMPLETAMENTE il documento da oklch
                 sanitizeClonedDocument(clonedDoc)
+
+                // ASSICURA VISIBILITÀ: Riporta l'elemento nel viewport del clone
+                const clonedElement = clonedDoc.getElementById(elementId)
+                if (clonedElement) {
+                    clonedElement.style.display = 'block'
+                    clonedElement.style.visibility = 'visible'
+                    clonedElement.style.position = 'absolute'
+                    clonedElement.style.left = '0'
+                    clonedElement.style.top = '0'
+                    clonedElement.style.zIndex = '9999'
+                }
 
                 if (onClone) onClone(clonedDoc)
             }
