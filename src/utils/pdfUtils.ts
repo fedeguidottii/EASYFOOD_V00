@@ -37,6 +37,15 @@ export const fixOklchColors = (clonedDoc: Document) => {
     allElements.forEach(el => {
         const style = (el as HTMLElement).style
 
+        // Safe class name check that handles SVGs (where className is an object)
+        const getClassName = (element: Element): string => {
+            if (typeof element.className === 'string') return element.className;
+            if (element.getAttribute) return element.getAttribute('class') || '';
+            return '';
+        }
+
+        const classNameStr = getClassName(el);
+
         // Helper to replace oklch in a specific property
         const replaceColor = (prop: string) => {
             const val = style.getPropertyValue(prop)
@@ -47,23 +56,23 @@ export const fixOklchColors = (clonedDoc: Document) => {
 
                 if (prop === 'color') {
                     fallback = '#ffffff' // assume light text on dark bg usually
-                    if (el.className.includes('zinc-400')) fallback = colorMap['zinc-400']
-                    if (el.className.includes('zinc-500')) fallback = colorMap['zinc-500']
-                    if (el.className.includes('amber')) fallback = colorMap['amber-500']
-                    if (el.className.includes('black')) fallback = '#000000'
+                    if (classNameStr.includes('zinc-400')) fallback = colorMap['zinc-400']
+                    if (classNameStr.includes('zinc-500')) fallback = colorMap['zinc-500']
+                    if (classNameStr.includes('amber')) fallback = colorMap['amber-500']
+                    if (classNameStr.includes('black')) fallback = '#000000'
                 } else if (prop.includes('background')) {
                     fallback = 'transparent' // safe default for bg
-                    if (el.className.includes('zinc-950')) fallback = colorMap['zinc-950']
-                    if (el.className.includes('zinc-900')) fallback = colorMap['zinc-900']
-                    if (el.className.includes('zinc-800')) fallback = colorMap['zinc-800']
-                    if (el.className.includes('amber')) fallback = colorMap['amber-500']
-                    if (el.className.includes('emerald')) fallback = colorMap['emerald-500']
-                    if (el.className.includes('rose')) fallback = colorMap['rose-500']
-                    if (el.className.includes('white')) fallback = '#ffffff'
+                    if (classNameStr.includes('zinc-950')) fallback = colorMap['zinc-950']
+                    if (classNameStr.includes('zinc-900')) fallback = colorMap['zinc-900']
+                    if (classNameStr.includes('zinc-800')) fallback = colorMap['zinc-800']
+                    if (classNameStr.includes('amber')) fallback = colorMap['amber-500']
+                    if (classNameStr.includes('emerald')) fallback = colorMap['emerald-500']
+                    if (classNameStr.includes('rose')) fallback = colorMap['rose-500']
+                    if (classNameStr.includes('white')) fallback = '#ffffff'
                 } else if (prop.includes('border')) {
                     fallback = 'transparent'
-                    if (el.className.includes('zinc-800')) fallback = colorMap['zinc-800']
-                    if (el.className.includes('amber')) fallback = colorMap['amber-500']
+                    if (classNameStr.includes('zinc-800')) fallback = colorMap['zinc-800']
+                    if (classNameStr.includes('amber')) fallback = colorMap['amber-500']
                 }
 
                 style.setProperty(prop, fallback, 'important')
