@@ -5,8 +5,12 @@ import { toast } from 'sonner'
 /**
  * Converte una stringa colore oklch in un hex di fallback basato sulla luminosità
  */
-const oklchToHex = (oklchStr: string): string => {
-    const match = oklchStr.match(/oklch\(\s*([\d.]+%?)\s+([\d.]+)\s+([\d.]+)/)
+/**
+ * Converte una stringa colore oklch/oklab in un hex di fallback basato sulla luminosità
+ */
+const colorFunctionToHex = (colorStr: string): string => {
+    // Gestisce sia oklch(...) che oklab(...)
+    const match = colorStr.match(/okl(?:ch|ab)\(\s*([\d.]+%?)\s+/)
     if (!match) return '#71717a'
 
     let lightness = parseFloat(match[1])
@@ -26,17 +30,17 @@ const oklchToHex = (oklchStr: string): string => {
 }
 
 /**
- * Sostituisce TUTTE le occorrenze di oklch in una stringa
+ * Sostituisce TUTTE le occorrenze di oklch/oklab in una stringa
  */
-const replaceAllOklch = (str: string): string => {
-    return str.replace(/oklch\([^)]+\)/g, (match) => oklchToHex(match))
+const replaceAllUnsupportedColors = (str: string): string => {
+    return str.replace(/okl(?:ch|ab)\([^)]+\)/g, (match) => colorFunctionToHex(match))
 }
 
 /**
- * APPROCCIO DEFINITIVO: Pulisce completamente il documento clonato da oklch
+ * APPROCCIO DEFINITIVO: Pulisce completamente il documento clonato da oklch/oklab
  * 1. Rimuove TUTTI i link ai fogli di stile esterni
- * 2. Sostituisce oklch in TUTTI i tag <style>
- * 3. Sostituisce oklch in TUTTI gli attributi style inline
+ * 2. Sostituisce oklch/oklab in TUTTI i tag <style>
+ * 3. Sostituisce oklch/oklab in TUTTI gli attributi style inline
  * MA preserva gli stili inline già presenti negli elementi
  */
 const sanitizeClonedDocument = (clonedDoc: Document): void => {
@@ -44,31 +48,59 @@ const sanitizeClonedDocument = (clonedDoc: Document): void => {
     const linkElements = clonedDoc.querySelectorAll('link[rel="stylesheet"]')
     linkElements.forEach(link => link.remove())
 
-    // 2. Pulisci TUTTI i tag <style> da oklch
+    // 2. Pulisci TUTTI i tag <style> da oklch/oklab
     const styleElements = clonedDoc.querySelectorAll('style')
     styleElements.forEach(style => {
         if (style.textContent) {
-            style.textContent = replaceAllOklch(style.textContent)
+            style.textContent = replaceAllUnsupportedColors(style.textContent)
         }
     })
 
-    // 3. Pulisci TUTTI gli elementi con attributo style contenente oklch
+    // 3. Pulisci TUTTI gli elementi con attributo style contenente oklch/oklab
     const elementsWithStyle = clonedDoc.querySelectorAll('*[style]')
     elementsWithStyle.forEach(el => {
         const styleAttr = el.getAttribute('style')
-        if (styleAttr && styleAttr.includes('oklch')) {
-            el.setAttribute('style', replaceAllOklch(styleAttr))
+        if (styleAttr && (styleAttr.includes('oklch') || styleAttr.includes('oklab'))) {
+            el.setAttribute('style', replaceAllUnsupportedColors(styleAttr))
         }
     })
 
     // 4. Inject basic CSS reset to ensure layout works without external stylesheets
+    // FORCE LIGHT THEME FOR ALL PDFS
     const resetStyle = clonedDoc.createElement('style')
     resetStyle.innerHTML = `
         * { box-sizing: border-box; }
-        html, body { margin: 0; padding: 0; background-color: #09090b; }
+        html, body { margin: 0; padding: 0; background-color: #ffffff; color: #000000; }
         img { display: block; max-width: 100%; }
     `
     clonedDoc.head.appendChild(resetStyle)
+}
+
+/**
+ * Pre-processa l'elemento originale per convertire colori oklab/oklch in hex inline
+ * Restituisce una funzione per ripristinare gli stili originali
+ */
+const preProcessElementColors = (element: HTMLElement): (() => void) => {
+    const originalStyles: { el: HTMLElement, style: string }[] = []
+
+    const process = (el: HTMLElement) => {
+        const style = el.getAttribute('style')
+        if (style && (style.includes('oklch') || style.includes('oklab'))) {
+            originalStyles.push({ el, style })
+            el.setAttribute('style', replaceAllUnsupportedColors(style))
+        }
+    }
+
+    process(element)
+    element.querySelectorAll('*').forEach(child => {
+        if (child instanceof HTMLElement) process(child)
+    })
+
+    return () => {
+        originalStyles.forEach(({ el, style }) => {
+            el.setAttribute('style', style)
+        })
+    }
 }
 
 interface GeneratePdfOptions {
@@ -86,7 +118,7 @@ export const generatePdfFromElement = async (elementId: string, options: Generat
         scale = 2,
         orientation = 'portrait',
         margin = 0,
-        backgroundColor = '#09090b',
+        backgroundColor = '#ffffff', // Default Light Theme
         onClone
     } = options
 
@@ -95,6 +127,9 @@ export const generatePdfFromElement = async (elementId: string, options: Generat
         toast.error(`Elemento non trovato: ${elementId}`)
         return false
     }
+
+    // Pre-process colors to avoid html2canvas parsing errors
+    const restoreColors = preProcessElementColors(element)
 
     try {
         const canvas = await html2canvas(element, {
@@ -115,6 +150,12 @@ export const generatePdfFromElement = async (elementId: string, options: Generat
                 // PULISCI COMPLETAMENTE il documento da oklch
                 sanitizeClonedDocument(clonedDoc)
 
+                // SMART PAGE BREAKS
+                const mmToPx = 3.7795275591 // 1mm = ~3.78px a 96dpi (standard browser)
+                // Usiamo un'altezza pagina leggermente ridotta per sicurezza (es. 290mm invece di 297mm) 
+                // per tenere conto di margini di errore rendering
+                const pageHeightPx = (297 - (margin * 2)) * mmToPx * scale
+
                 // ASSICURA VISIBILITÀ: Riporta l'elemento nel viewport del clone
                 const clonedElement = clonedDoc.getElementById(elementId)
                 if (clonedElement) {
@@ -124,6 +165,38 @@ export const generatePdfFromElement = async (elementId: string, options: Generat
                     clonedElement.style.left = '0'
                     clonedElement.style.top = '0'
                     clonedElement.style.zIndex = '9999'
+
+                    // Logica per evitare il taglio dei contenuti
+                    const items = clonedElement.querySelectorAll('.break-inside-avoid')
+                    let currentOffset = 0
+
+                    items.forEach((item) => {
+                        if (item instanceof HTMLElement) {
+                            const rect = item.getBoundingClientRect()
+                            // Posizione relativa all'inizio del contenuto
+                            // (Assumendo che clonedElement sia a top:0)
+                            const itemTop = rect.top
+                            const itemBottom = rect.bottom
+                            const itemHeight = rect.height
+
+                            // Calcola in quale pagina cade l'inizio e la fine dell'elemento
+                            const startPage = Math.floor(itemTop / pageHeightPx)
+                            const endPage = Math.floor(itemBottom / pageHeightPx)
+
+                            if (startPage !== endPage) {
+                                // L'elemento attraversa un'interruzione di pagina
+                                // Aggiungi un margine superiore per spingerlo nella pagina successiva
+                                // Calcola quanto spazio manca alla fine della pagina corrente
+                                const spaceRemainingOnPage = ((startPage + 1) * pageHeightPx) - itemTop
+
+                                // Aggiungi spacer
+                                const spacer = document.createElement('div')
+                                spacer.style.height = `${spaceRemainingOnPage + 10}px` // +10px buffer
+                                spacer.style.display = 'block'
+                                item.parentElement?.insertBefore(spacer, item)
+                            }
+                        }
+                    })
                 }
 
                 if (onClone) onClone(clonedDoc)
@@ -148,7 +221,7 @@ export const generatePdfFromElement = async (elementId: string, options: Generat
         pdf.addImage(imgData, 'PNG', margin, position, imgWidth, imgHeight)
         heightLeft -= (pdfHeight - margin * 2)
 
-        while (heightLeft > 0) {
+        while (heightLeft > 5) { // Threshold increased to 5mm to avoid blank pages with tiny artifacts
             position = heightLeft - imgHeight
             pdf.addPage()
             pdf.addImage(imgData, 'PNG', margin, position, imgWidth, imgHeight)
@@ -162,5 +235,7 @@ export const generatePdfFromElement = async (elementId: string, options: Generat
         console.error('Error generating PDF:', error)
         toast.error('Errore generazione PDF')
         return false
+    } finally {
+        restoreColors()
     }
 }

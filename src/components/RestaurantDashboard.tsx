@@ -412,12 +412,12 @@ const RestaurantDashboard = ({ user, onLogout }: RestaurantDashboardProps) => {
           await generatePdfFromElement('menu-print-view', {
             fileName: `Menu_${restaurantSlug}_${exportMode}_${new Date().toISOString().split('T')[0]}.pdf`,
             scale: 2,
-            backgroundColor: '#09090b',
+            backgroundColor: '#ffffff',
             orientation: 'portrait',
             onClone: (doc) => {
               const el = doc.getElementById('menu-print-view')
               if (el) {
-                el.style.backgroundColor = '#09090b'
+                el.style.backgroundColor = '#ffffff'
                 el.style.padding = '20px'
               }
             }
@@ -3464,15 +3464,15 @@ const RestaurantDashboard = ({ user, onLogout }: RestaurantDashboardProps) => {
         boxSizing: 'border-box'
       }}>
         {/* Header */}
-        <div style={{ textAlign: 'center', marginBottom: '40px', borderBottom: '1px solid rgba(255,255,255,0.1)', paddingBottom: '30px' }}>
-          <div style={{ width: '100px', height: '3px', background: 'linear-gradient(to right, transparent, #f59e0b, transparent)', margin: '0 auto 20px auto' }}></div>
-          <h1 style={{ fontSize: '42px', fontWeight: 300, letterSpacing: '0.2em', color: '#ffffff', marginBottom: '10px', textTransform: 'uppercase' }}>
+        <div style={{ textAlign: 'center', marginBottom: '40px', borderBottom: '1px solid rgba(0,0,0,0.1)', paddingBottom: '30px' }}>
+          <div style={{ width: '100px', height: '3px', background: 'linear-gradient(to right, transparent, #d97706, transparent)', margin: '0 auto 20px auto' }}></div>
+          <h1 style={{ fontSize: '42px', fontWeight: 300, letterSpacing: '0.2em', color: '#18181b', marginBottom: '10px', textTransform: 'uppercase' }}>
             {exportPreviewData?.title || currentRestaurant?.name || 'Menu'}
           </h1>
           {exportPreviewData?.subtitle && (
-            <p style={{ color: '#f59e0b', fontSize: '18px', letterSpacing: '0.15em', fontWeight: 300, marginTop: '10px' }}>{exportPreviewData.subtitle}</p>
+            <p style={{ color: '#d97706', fontSize: '18px', letterSpacing: '0.15em', fontWeight: 300, marginTop: '10px' }}>{exportPreviewData.subtitle}</p>
           )}
-          <p style={{ color: '#f59e0b', fontSize: '12px', fontStyle: 'italic', letterSpacing: '0.2em', fontWeight: 300, marginTop: '15px', opacity: 0.8 }}>Fine Dining Experience</p>
+          <p style={{ color: '#d97706', fontSize: '12px', fontStyle: 'italic', letterSpacing: '0.2em', fontWeight: 300, marginTop: '15px', opacity: 0.8 }}>Fine Dining Experience</p>
         </div>
 
         {/* Categories & Dishes */}
@@ -3482,8 +3482,8 @@ const RestaurantDashboard = ({ user, onLogout }: RestaurantDashboardProps) => {
               <div key={section.id} style={{ marginBottom: '20px', pageBreakInside: 'avoid' }}>
                 {section.title && (
                   <div style={{ display: 'flex', alignItems: 'center', gap: '15px', marginBottom: '20px' }}>
-                    <h2 style={{ fontSize: '22px', fontWeight: 300, color: '#f59e0b', textTransform: 'uppercase', letterSpacing: '0.15em', whiteSpace: 'nowrap' }}>{section.title}</h2>
-                    <div style={{ height: '1px', flex: 1, background: 'linear-gradient(to right, rgba(245,158,11,0.4), transparent)' }}></div>
+                    <h2 style={{ fontSize: '22px', fontWeight: 300, color: '#d97706', textTransform: 'uppercase', letterSpacing: '0.15em', whiteSpace: 'nowrap' }}>{section.title}</h2>
+                    <div style={{ height: '1px', flex: 1, background: 'linear-gradient(to right, rgba(217,119,6,0.4), transparent)' }}></div>
                   </div>
                 )}
 
@@ -3491,17 +3491,17 @@ const RestaurantDashboard = ({ user, onLogout }: RestaurantDashboardProps) => {
                   {section.dishes.map(dish => (
                     <div key={dish.id} style={{ display: 'flex', gap: '15px', alignItems: 'flex-start', pageBreakInside: 'avoid' }}>
                       {dish.image_url && (
-                        <div style={{ width: '60px', height: '60px', flexShrink: 0, borderRadius: '6px', overflow: 'hidden', border: '1px solid rgba(255,255,255,0.1)' }}>
+                        <div style={{ width: '60px', height: '60px', flexShrink: 0, borderRadius: '6px', overflow: 'hidden', border: '1px solid rgba(0,0,0,0.1)' }}>
                           <img src={dish.image_url} alt={dish.name} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
                         </div>
                       )}
                       <div style={{ flex: 1 }}>
-                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', marginBottom: '6px', borderBottom: '1px dotted rgba(255,255,255,0.15)', paddingBottom: '6px' }}>
-                          <h3 style={{ fontSize: '17px', fontWeight: 500, color: '#f4f4f5', letterSpacing: '0.02em', margin: 0 }}>{dish.name}</h3>
-                          <span style={{ fontSize: '16px', fontWeight: 300, color: '#fbbf24', whiteSpace: 'nowrap', marginLeft: '15px' }}>€ {dish.price.toFixed(2)}</span>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', marginBottom: '6px', borderBottom: '1px dotted rgba(0,0,0,0.15)', paddingBottom: '6px' }}>
+                          <h3 style={{ fontSize: '17px', fontWeight: 500, color: '#18181b', letterSpacing: '0.02em', margin: 0 }}>{dish.name}</h3>
+                          <span style={{ fontSize: '16px', fontWeight: 300, color: '#b45309', whiteSpace: 'nowrap', marginLeft: '15px' }}>€ {dish.price.toFixed(2)}</span>
                         </div>
                         {dish.description && (
-                          <p style={{ color: '#a1a1aa', fontSize: '12px', fontWeight: 300, lineHeight: 1.5, fontStyle: 'italic', margin: 0 }}>{dish.description}</p>
+                          <p style={{ color: '#52525b', fontSize: '12px', fontWeight: 300, lineHeight: 1.5, fontStyle: 'italic', margin: 0 }}>{dish.description}</p>
                         )}
                         {dish.allergens && dish.allergens.length > 0 && (
                           <p style={{ color: '#71717a', fontSize: '9px', marginTop: '6px', textTransform: 'uppercase', letterSpacing: '0.1em' }}>Allergeni: {dish.allergens.join(', ')}</p>
@@ -3512,52 +3512,11 @@ const RestaurantDashboard = ({ user, onLogout }: RestaurantDashboardProps) => {
                 </div>
               </div>
             ))
-          ) : (
-            restaurantCategories.map(category => {
-              const categoryDishes = restaurantDishes
-                .filter(d => d.category_id === category.id && d.is_active)
-                .sort((a, b) => a.name.localeCompare(b.name));
-
-              if (categoryDishes.length === 0) return null;
-
-              return (
-                <div key={category.id} style={{ marginBottom: '20px', pageBreakInside: 'avoid' }}>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '15px', marginBottom: '20px' }}>
-                    <h2 style={{ fontSize: '22px', fontWeight: 300, color: '#f59e0b', textTransform: 'uppercase', letterSpacing: '0.15em', whiteSpace: 'nowrap' }}>{category.name}</h2>
-                    <div style={{ height: '1px', flex: 1, background: 'linear-gradient(to right, rgba(245,158,11,0.4), transparent)' }}></div>
-                  </div>
-
-                  <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
-                    {categoryDishes.map(dish => (
-                      <div key={dish.id} style={{ display: 'flex', gap: '15px', alignItems: 'flex-start', pageBreakInside: 'avoid' }}>
-                        {dish.image_url && (
-                          <div style={{ width: '60px', height: '60px', flexShrink: 0, borderRadius: '6px', overflow: 'hidden', border: '1px solid rgba(255,255,255,0.1)' }}>
-                            <img src={dish.image_url} alt={dish.name} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
-                          </div>
-                        )}
-                        <div style={{ flex: 1 }}>
-                          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', marginBottom: '6px', borderBottom: '1px dotted rgba(255,255,255,0.15)', paddingBottom: '6px' }}>
-                            <h3 style={{ fontSize: '17px', fontWeight: 500, color: '#f4f4f5', letterSpacing: '0.02em', margin: 0 }}>{dish.name}</h3>
-                            <span style={{ fontSize: '16px', fontWeight: 300, color: '#fbbf24', whiteSpace: 'nowrap', marginLeft: '15px' }}>€ {dish.price.toFixed(2)}</span>
-                          </div>
-                          {dish.description && (
-                            <p style={{ color: '#a1a1aa', fontSize: '12px', fontWeight: 300, lineHeight: 1.5, fontStyle: 'italic', margin: 0 }}>{dish.description}</p>
-                          )}
-                          {dish.allergens && dish.allergens.length > 0 && (
-                            <p style={{ color: '#71717a', fontSize: '9px', marginTop: '6px', textTransform: 'uppercase', letterSpacing: '0.1em' }}>Allergeni: {dish.allergens.join(', ')}</p>
-                          )}
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              )
-            })
-          )}
+          ) : null}
         </div>
 
         {/* Footer */}
-        <div style={{ marginTop: '60px', paddingTop: '20px', borderTop: '1px solid rgba(255,255,255,0.05)', textAlign: 'center' }}>
+        <div style={{ marginTop: '60px', paddingTop: '20px', borderTop: '1px solid rgba(0,0,0,0.05)', textAlign: 'center' }}>
           <p style={{ color: '#52525b', fontSize: '10px', textTransform: 'uppercase', letterSpacing: '0.2em', margin: 0 }}>
             {currentRestaurant?.address || ''} {currentRestaurant?.address && currentRestaurant?.phone ? '•' : ''} {currentRestaurant?.phone || ''}
           </p>
