@@ -3448,52 +3448,63 @@ const RestaurantDashboard = ({ user, onLogout }: RestaurantDashboardProps) => {
         </div >
       </main >
 
-      {/* HIDDEN PRINT VIEW FOR MENU EXPORT - ELEGANT DARK MODE */}
-      <div id="menu-print-view" style={{ display: 'none', position: 'fixed', top: 0, left: '-9999px', zIndex: -1, width: '210mm', minHeight: '297mm', background: '#09090b', color: 'white', padding: '15mm', fontFamily: 'Georgia, serif' }}>
+      {/* HIDDEN PRINT VIEW FOR MENU EXPORT - ALL INLINE STYLES FOR PDF COMPATIBILITY */}
+      <div id="menu-print-view" style={{
+        display: 'none',
+        position: 'fixed',
+        top: 0,
+        left: '-9999px',
+        zIndex: -1,
+        width: '210mm',
+        minHeight: '297mm',
+        backgroundColor: '#09090b',
+        color: '#ffffff',
+        padding: '40px 50px',
+        fontFamily: 'Georgia, serif',
+        boxSizing: 'border-box'
+      }}>
         {/* Header */}
-        <div className="text-center mb-10 border-b border-white/10 pb-6 relative">
-          <div className="absolute top-0 left-1/2 -translate-x-1/2 w-24 h-1 bg-gradient-to-r from-transparent via-amber-500 to-transparent opacity-50"></div>
-          <h1 className="text-5xl font-light tracking-[0.2em] text-white mb-2 uppercase">{exportPreviewData?.title || currentRestaurant?.name || 'Menu'}</h1>
-          {exportPreviewData?.subtitle && <p className="text-amber-500 text-xl tracking-[0.15em] font-light mt-2 mb-2">{exportPreviewData.subtitle}</p>}
-          <p className="text-amber-500/80 text-sm italic tracking-widest font-light">Fine Dining Experience</p>
+        <div style={{ textAlign: 'center', marginBottom: '40px', borderBottom: '1px solid rgba(255,255,255,0.1)', paddingBottom: '30px' }}>
+          <div style={{ width: '100px', height: '3px', background: 'linear-gradient(to right, transparent, #f59e0b, transparent)', margin: '0 auto 20px auto' }}></div>
+          <h1 style={{ fontSize: '42px', fontWeight: 300, letterSpacing: '0.2em', color: '#ffffff', marginBottom: '10px', textTransform: 'uppercase' }}>
+            {exportPreviewData?.title || currentRestaurant?.name || 'Menu'}
+          </h1>
+          {exportPreviewData?.subtitle && (
+            <p style={{ color: '#f59e0b', fontSize: '18px', letterSpacing: '0.15em', fontWeight: 300, marginTop: '10px' }}>{exportPreviewData.subtitle}</p>
+          )}
+          <p style={{ color: '#f59e0b', fontSize: '12px', fontStyle: 'italic', letterSpacing: '0.2em', fontWeight: 300, marginTop: '15px', opacity: 0.8 }}>Fine Dining Experience</p>
         </div>
 
-        {/* Content */}
-        {/* Content */}
-        <div className="space-y-10">
+        {/* Categories & Dishes */}
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '35px' }}>
           {exportPreviewData ? (
-            // Render from Preview Data
             exportPreviewData.sections.map(section => (
-              <div key={section.id} className="break-inside-avoid mb-8">
+              <div key={section.id} style={{ marginBottom: '20px', pageBreakInside: 'avoid' }}>
                 {section.title && (
-                  <div className="flex items-center gap-4 mb-6">
-                    <h2 className="text-2xl font-light text-amber-500 uppercase tracking-[0.15em]">{section.title}</h2>
-                    <div className="h-px flex-1 bg-gradient-to-r from-amber-500/30 to-transparent"></div>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '15px', marginBottom: '20px' }}>
+                    <h2 style={{ fontSize: '22px', fontWeight: 300, color: '#f59e0b', textTransform: 'uppercase', letterSpacing: '0.15em', whiteSpace: 'nowrap' }}>{section.title}</h2>
+                    <div style={{ height: '1px', flex: 1, background: 'linear-gradient(to right, rgba(245,158,11,0.4), transparent)' }}></div>
                   </div>
                 )}
 
-                <div className="grid grid-cols-1 gap-6">
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
                   {section.dishes.map(dish => (
-                    <div key={dish.id} className="flex gap-4 items-start break-inside-avoid group relative">
-                      {/* Image only if available - no placeholder */}
+                    <div key={dish.id} style={{ display: 'flex', gap: '15px', alignItems: 'flex-start', pageBreakInside: 'avoid' }}>
                       {dish.image_url && (
-                        <div className="w-16 h-16 shrink-0 rounded-md overflow-hidden border border-white/10">
-                          <img src={dish.image_url} alt={dish.name} className="w-full h-full object-cover" />
+                        <div style={{ width: '60px', height: '60px', flexShrink: 0, borderRadius: '6px', overflow: 'hidden', border: '1px solid rgba(255,255,255,0.1)' }}>
+                          <img src={dish.image_url} alt={dish.name} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
                         </div>
                       )}
-
-                      <div className="flex-1 pt-1">
-                        <div className="flex justify-between items-baseline mb-2 border-b border-dotted border-white/10 pb-2 relative">
-                          <h3 className="text-xl font-medium text-zinc-100 tracking-wide">{dish.name}</h3>
-                          <span className="text-lg font-light text-amber-400 whitespace-nowrap ml-4">€ {dish.price.toFixed(2)}</span>
-                          <div className="absolute bottom-0 left-0 w-full h-px bg-gradient-to-r from-transparent via-white/5 to-transparent"></div>
+                      <div style={{ flex: 1 }}>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', marginBottom: '6px', borderBottom: '1px dotted rgba(255,255,255,0.15)', paddingBottom: '6px' }}>
+                          <h3 style={{ fontSize: '17px', fontWeight: 500, color: '#f4f4f5', letterSpacing: '0.02em', margin: 0 }}>{dish.name}</h3>
+                          <span style={{ fontSize: '16px', fontWeight: 300, color: '#fbbf24', whiteSpace: 'nowrap', marginLeft: '15px' }}>€ {dish.price.toFixed(2)}</span>
                         </div>
-                        {dish.description && <p className="text-zinc-400 text-sm font-light leading-relaxed italic">{dish.description}</p>}
+                        {dish.description && (
+                          <p style={{ color: '#a1a1aa', fontSize: '12px', fontWeight: 300, lineHeight: 1.5, fontStyle: 'italic', margin: 0 }}>{dish.description}</p>
+                        )}
                         {dish.allergens && dish.allergens.length > 0 && (
-                          <div className="flex items-center gap-2 mt-2">
-                            <WarningCircle size={12} className="text-amber-500/50" />
-                            <p className="text-[10px] text-zinc-600 uppercase tracking-wider">Contains: {dish.allergens.join(', ')}</p>
-                          </div>
+                          <p style={{ color: '#71717a', fontSize: '9px', marginTop: '6px', textTransform: 'uppercase', letterSpacing: '0.1em' }}>Allergeni: {dish.allergens.join(', ')}</p>
                         )}
                       </div>
                     </div>
@@ -3502,7 +3513,6 @@ const RestaurantDashboard = ({ user, onLogout }: RestaurantDashboardProps) => {
               </div>
             ))
           ) : (
-            // Default Render (Fallback)
             restaurantCategories.map(category => {
               const categoryDishes = restaurantDishes
                 .filter(d => d.category_id === category.id && d.is_active)
@@ -3511,34 +3521,30 @@ const RestaurantDashboard = ({ user, onLogout }: RestaurantDashboardProps) => {
               if (categoryDishes.length === 0) return null;
 
               return (
-                <div key={category.id} className="break-inside-avoid mb-8">
-                  <div className="flex items-center gap-4 mb-6">
-                    <h2 className="text-2xl font-light text-amber-500 uppercase tracking-[0.15em]">{category.name}</h2>
-                    <div className="h-px flex-1 bg-gradient-to-r from-amber-500/30 to-transparent"></div>
+                <div key={category.id} style={{ marginBottom: '20px', pageBreakInside: 'avoid' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '15px', marginBottom: '20px' }}>
+                    <h2 style={{ fontSize: '22px', fontWeight: 300, color: '#f59e0b', textTransform: 'uppercase', letterSpacing: '0.15em', whiteSpace: 'nowrap' }}>{category.name}</h2>
+                    <div style={{ height: '1px', flex: 1, background: 'linear-gradient(to right, rgba(245,158,11,0.4), transparent)' }}></div>
                   </div>
 
-                  <div className="grid grid-cols-1 gap-6">
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
                     {categoryDishes.map(dish => (
-                      <div key={dish.id} className="flex gap-4 items-start break-inside-avoid group relative">
-                        {/* Image only if available - no placeholder */}
+                      <div key={dish.id} style={{ display: 'flex', gap: '15px', alignItems: 'flex-start', pageBreakInside: 'avoid' }}>
                         {dish.image_url && (
-                          <div className="w-16 h-16 shrink-0 rounded-md overflow-hidden border border-white/10">
-                            <img src={dish.image_url} alt={dish.name} className="w-full h-full object-cover" />
+                          <div style={{ width: '60px', height: '60px', flexShrink: 0, borderRadius: '6px', overflow: 'hidden', border: '1px solid rgba(255,255,255,0.1)' }}>
+                            <img src={dish.image_url} alt={dish.name} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
                           </div>
                         )}
-
-                        <div className="flex-1 pt-1">
-                          <div className="flex justify-between items-baseline mb-2 border-b border-dotted border-white/10 pb-2 relative">
-                            <h3 className="text-xl font-medium text-zinc-100 tracking-wide">{dish.name}</h3>
-                            <span className="text-lg font-light text-amber-400 whitespace-nowrap ml-4">€ {dish.price.toFixed(2)}</span>
-                            <div className="absolute bottom-0 left-0 w-full h-px bg-gradient-to-r from-transparent via-white/5 to-transparent"></div>
+                        <div style={{ flex: 1 }}>
+                          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', marginBottom: '6px', borderBottom: '1px dotted rgba(255,255,255,0.15)', paddingBottom: '6px' }}>
+                            <h3 style={{ fontSize: '17px', fontWeight: 500, color: '#f4f4f5', letterSpacing: '0.02em', margin: 0 }}>{dish.name}</h3>
+                            <span style={{ fontSize: '16px', fontWeight: 300, color: '#fbbf24', whiteSpace: 'nowrap', marginLeft: '15px' }}>€ {dish.price.toFixed(2)}</span>
                           </div>
-                          {dish.description && <p className="text-zinc-400 text-sm font-light leading-relaxed italic">{dish.description}</p>}
+                          {dish.description && (
+                            <p style={{ color: '#a1a1aa', fontSize: '12px', fontWeight: 300, lineHeight: 1.5, fontStyle: 'italic', margin: 0 }}>{dish.description}</p>
+                          )}
                           {dish.allergens && dish.allergens.length > 0 && (
-                            <div className="flex items-center gap-2 mt-2">
-                              <WarningCircle size={12} className="text-amber-500/50" />
-                              <p className="text-[10px] text-zinc-600 uppercase tracking-wider">Contains: {dish.allergens.join(', ')}</p>
-                            </div>
+                            <p style={{ color: '#71717a', fontSize: '9px', marginTop: '6px', textTransform: 'uppercase', letterSpacing: '0.1em' }}>Allergeni: {dish.allergens.join(', ')}</p>
                           )}
                         </div>
                       </div>
@@ -3551,8 +3557,11 @@ const RestaurantDashboard = ({ user, onLogout }: RestaurantDashboardProps) => {
         </div>
 
         {/* Footer */}
-        <div className="mt-20 pt-8 border-t border-white/5 text-center text-zinc-600 text-[10px] uppercase tracking-[0.3em]">
-          <p>{currentRestaurant?.address || ''} • {currentRestaurant?.phone || ''} • EasyFood</p>
+        <div style={{ marginTop: '60px', paddingTop: '20px', borderTop: '1px solid rgba(255,255,255,0.05)', textAlign: 'center' }}>
+          <p style={{ color: '#52525b', fontSize: '10px', textTransform: 'uppercase', letterSpacing: '0.2em', margin: 0 }}>
+            {currentRestaurant?.address || ''} {currentRestaurant?.address && currentRestaurant?.phone ? '•' : ''} {currentRestaurant?.phone || ''}
+          </p>
+          <p style={{ color: '#3f3f46', fontSize: '9px', marginTop: '8px', letterSpacing: '0.1em' }}>Powered by EasyFood</p>
         </div>
       </div>
     </div >
