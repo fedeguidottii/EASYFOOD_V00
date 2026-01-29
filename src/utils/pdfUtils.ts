@@ -58,7 +58,7 @@ const colorMap: Record<string, string> = {
 
 /**
  * Converts an oklch color string to a fallback hex color
- * Parses the oklch values and maps to closest hex
+ * Parses the oklch values and maps to closest hex based on lightness
  */
 const oklchToHex = (oklchStr: string): string => {
     // Parse oklch(L C H) or oklch(L C H / A)
@@ -83,11 +83,108 @@ const oklchToHex = (oklchStr: string): string => {
 }
 
 /**
- * Force replaces all oklch colors in a cloned document's stylesheets
- * This is necessary because html2canvas cannot parse oklch
+ * Extracts all CSS custom properties (variables) from :root/:html and returns them with oklch converted to hex
+ * This is THE KEY function - it reads all --* variables and converts any oklch values
+ */
+const extractAndCleanCssVariables = (): Record<string, string> => {
+    const cleanedVariables: Record<string, string> = {}
+
+    // Get computed style from document root (html element)
+    const rootElement = document.documentElement
+    const computedStyle = window.getComputedStyle(rootElement)
+
+    // Get all stylesheets and extract CSS variable names
+    const cssVariableNames = new Set<string>()
+
+    // Method 1: Parse all stylesheets to find variable names
+    try {
+        for (const sheet of document.styleSheets) {
+            try {
+                const rules = sheet.cssRules || sheet.rules
+                for (const rule of rules) {
+                    if (rule instanceof CSSStyleRule) {
+                        const cssText = rule.cssText
+                        // Find all --variable-name patterns
+                        const matches = cssText.matchAll(/--[\w-]+/g)
+                        for (const match of matches) {
+                            cssVariableNames.add(match[0])
+                        }
+                    }
+                }
+            } catch {
+                // Cross-origin stylesheets will throw, ignore them
+            }
+        }
+    } catch {
+        // Fallback if stylesheet parsing fails
+    }
+
+    // Method 2: Also check common Tailwind/shadcn CSS variable names
+    const commonVariables = [
+        '--background', '--foreground', '--card', '--card-foreground',
+        '--popover', '--popover-foreground', '--primary', '--primary-foreground',
+        '--secondary', '--secondary-foreground', '--muted', '--muted-foreground',
+        '--accent', '--accent-foreground', '--destructive', '--destructive-foreground',
+        '--border', '--input', '--ring', '--radius',
+        '--tw-ring-color', '--tw-ring-offset-color', '--tw-shadow-color',
+        '--tw-border-opacity', '--tw-bg-opacity', '--tw-text-opacity',
+        '--color-background', '--color-foreground', '--color-card', '--color-card-foreground',
+        '--color-popover', '--color-popover-foreground', '--color-primary', '--color-primary-foreground',
+        '--color-secondary', '--color-secondary-foreground', '--color-muted', '--color-muted-foreground',
+        '--color-accent', '--color-accent-foreground', '--color-destructive', '--color-destructive-foreground',
+        '--color-border', '--color-input', '--color-ring',
+    ]
+    commonVariables.forEach(v => cssVariableNames.add(v))
+
+    // Now get the computed value of each variable and clean oklch
+    for (const varName of cssVariableNames) {
+        const value = computedStyle.getPropertyValue(varName).trim()
+        if (value) {
+            if (value.includes('oklch')) {
+                // Convert oklch to hex
+                cleanedVariables[varName] = value.replace(/oklch\([^)]+\)/g, (match) => oklchToHex(match))
+            } else {
+                // Keep original value
+                cleanedVariables[varName] = value
+            }
+        }
+    }
+
+    return cleanedVariables
+}
+
+/**
+ * Applies cleaned CSS variables to the cloned document's html element
+ * This overrides all :root variables with hex-safe versions
+ */
+const applyCssVariablesToClonedDocument = (clonedDoc: Document, cleanedVariables: Record<string, string>): void => {
+    const clonedHtml = clonedDoc.documentElement
+    const clonedBody = clonedDoc.body
+
+    // Build inline style string with all cleaned variables
+    let inlineVars = ''
+    for (const [varName, value] of Object.entries(cleanedVariables)) {
+        inlineVars += `${varName}: ${value} !important; `
+    }
+
+    // Apply to html element
+    if (clonedHtml) {
+        const existingStyle = clonedHtml.getAttribute('style') || ''
+        clonedHtml.setAttribute('style', existingStyle + inlineVars)
+    }
+
+    // Also apply to body for good measure
+    if (clonedBody) {
+        const existingStyle = clonedBody.getAttribute('style') || ''
+        clonedBody.setAttribute('style', existingStyle + inlineVars)
+    }
+}
+
+/**
+ * Force replaces all oklch colors in a cloned document's stylesheets and inline styles
  */
 const replaceOklchInClonedDocument = (doc: Document): void => {
-    // Process all style elements
+    // Process all style elements - replace oklch in actual CSS text
     const styleElements = doc.querySelectorAll('style')
     styleElements.forEach(style => {
         if (style.textContent && style.textContent.includes('oklch')) {
@@ -98,14 +195,26 @@ const replaceOklchInClonedDocument = (doc: Document): void => {
         }
     })
 
-    // Process all elements with inline styles
+    // Process all elements with inline styles containing oklch
     const allElements = doc.querySelectorAll('*')
     allElements.forEach(el => {
-        if (el instanceof HTMLElement && el.style.cssText.includes('oklch')) {
-            el.style.cssText = el.style.cssText.replace(
-                /oklch\([^)]+\)/g,
-                (match) => oklchToHex(match)
-            )
+        if (el instanceof HTMLElement) {
+            // Check inline style
+            if (el.style.cssText.includes('oklch')) {
+                el.style.cssText = el.style.cssText.replace(
+                    /oklch\([^)]+\)/g,
+                    (match) => oklchToHex(match)
+                )
+            }
+
+            // Check style attribute directly
+            const styleAttr = el.getAttribute('style')
+            if (styleAttr && styleAttr.includes('oklch')) {
+                el.setAttribute('style', styleAttr.replace(
+                    /oklch\([^)]+\)/g,
+                    (match) => oklchToHex(match)
+                ))
+            }
         }
     })
 }
@@ -133,13 +242,10 @@ const forceInlineHexColors = (element: HTMLElement): Map<HTMLElement, { [key: st
             const cssPropName = prop.replace(/([A-Z])/g, '-$1').toLowerCase()
             const value = computed.getPropertyValue(cssPropName)
             if (value && value.includes('oklch')) {
-                // Save original inline style
                 originalInline[prop] = el.style.getPropertyValue(cssPropName)
 
-                // Try to convert oklch directly
                 let fallback = oklchToHex(value)
 
-                // Also check class name for more specific color
                 const className = typeof el.className === 'string' ? el.className : el.getAttribute('class') || ''
                 for (const [key, hex] of Object.entries(colorMap)) {
                     if (className.includes(key)) {
@@ -148,12 +254,10 @@ const forceInlineHexColors = (element: HTMLElement): Map<HTMLElement, { [key: st
                     }
                 }
 
-                // Special handling based on property
                 if (prop.includes('background') && fallback === '#000000') fallback = 'transparent'
                 if (prop.includes('border') && fallback === '#000000') fallback = 'transparent'
                 if (prop === 'color' && fallback === '#000000' && !className.includes('text-')) fallback = '#e4e4e7'
 
-                // Force inline style
                 el.style.setProperty(cssPropName, fallback, 'important')
             }
         })
@@ -184,7 +288,6 @@ const forceInlineHexColors = (element: HTMLElement): Map<HTMLElement, { [key: st
         }
     }
 
-    // Process element and all children
     processElement(element)
     element.querySelectorAll('*').forEach(child => {
         if (child instanceof HTMLElement) {
@@ -239,7 +342,10 @@ export const generatePdfFromElement = async (elementId: string, options: Generat
         return false
     }
 
-    // Force inline hex colors on the actual DOM before capture
+    // STEP 1: Extract and clean all CSS variables from original document BEFORE cloning
+    const cleanedCssVariables = extractAndCleanCssVariables()
+
+    // STEP 2: Force inline hex colors on the actual DOM before capture
     const originalStyles = forceInlineHexColors(element)
 
     try {
@@ -250,13 +356,51 @@ export const generatePdfFromElement = async (elementId: string, options: Generat
             logging: false,
             allowTaint: true,
             onclone: (clonedDoc) => {
-                // Critical: Replace all oklch colors in cloned document
+                // STEP 3: Apply cleaned CSS variables to cloned document's :root
+                // This is CRITICAL - it overrides all var(--*) that contain oklch
+                applyCssVariablesToClonedDocument(clonedDoc, cleanedCssVariables)
+
+                // STEP 4: Replace any remaining oklch in <style> elements
                 replaceOklchInClonedDocument(clonedDoc)
 
-                // Also process all elements in the cloned doc
+                // STEP 5: Process all elements in the cloned doc for inline oklch
                 const clonedElement = clonedDoc.getElementById(elementId)
                 if (clonedElement) {
-                    forceInlineHexColors(clonedElement)
+                    // Force inline hex on cloned element too
+                    const processClonedElement = (el: HTMLElement) => {
+                        const computed = clonedDoc.defaultView?.getComputedStyle(el)
+                        if (!computed) return
+
+                        const colorProps = [
+                            'color', 'background-color', 'border-color',
+                            'border-top-color', 'border-right-color', 'border-bottom-color', 'border-left-color',
+                            'outline-color', 'fill', 'stroke', 'caret-color', 'text-decoration-color'
+                        ]
+
+                        colorProps.forEach(prop => {
+                            const value = computed.getPropertyValue(prop)
+                            if (value && value.includes('oklch')) {
+                                el.style.setProperty(prop, oklchToHex(value), 'important')
+                            }
+                        })
+
+                        const shadow = computed.getPropertyValue('box-shadow')
+                        if (shadow && shadow.includes('oklch')) {
+                            el.style.setProperty('box-shadow', 'none', 'important')
+                        }
+
+                        const textShadow = computed.getPropertyValue('text-shadow')
+                        if (textShadow && textShadow.includes('oklch')) {
+                            el.style.setProperty('text-shadow', 'none', 'important')
+                        }
+                    }
+
+                    processClonedElement(clonedElement)
+                    clonedElement.querySelectorAll('*').forEach(child => {
+                        if (child instanceof HTMLElement) {
+                            processClonedElement(child)
+                        }
+                    })
                 }
 
                 if (onClone) onClone(clonedDoc)
@@ -297,7 +441,6 @@ export const generatePdfFromElement = async (elementId: string, options: Generat
         toast.error('Errore durante la generazione del PDF')
         return false
     } finally {
-        // Always restore original styles
         restoreOriginalStyles(originalStyles)
     }
 }
