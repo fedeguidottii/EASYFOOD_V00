@@ -525,10 +525,14 @@ export const DatabaseService = {
         if (orderError) throw orderError
         if (!orderData) throw new Error('Failed to create order')
 
-        const itemsWithOrderId = items.map(item => ({
-            ...item,
-            order_id: orderData.id
-        }))
+        const itemsWithOrderId = items.map(item => {
+            // Remove price_at_time if present, as it doesn't exist in the DB
+            const { price_at_time, ...rest } = item as any
+            return {
+                ...rest,
+                order_id: orderData.id
+            }
+        })
 
         const { error: itemsError } = await supabase
             .from('order_items')

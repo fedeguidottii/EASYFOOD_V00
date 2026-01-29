@@ -131,6 +131,9 @@ export default function CustomMenusManager({ restaurantId, dishes, categories, o
         e?.stopPropagation()
         const { error } = await supabase.rpc('apply_custom_menu', { p_restaurant_id: restaurantId, p_menu_id: menuId })
         if (!error) {
+            // Update updated_at to track manual activation time for 24h expiry
+            await supabase.from('custom_menus').update({ updated_at: new Date().toISOString() }).eq('id', menuId)
+
             toast.success('Menù Attivato!')
             fetchCustomMenus()
             onDishesChange()

@@ -487,7 +487,7 @@ const WaiterDashboard = ({ user, onLogout }: WaiterDashboardProps) => {
                     order_id: orderData.id,
                     dish_id: item.dishId,
                     quantity: item.quantity,
-                    price_at_time: dish?.price || 0,
+                    // price_at_time removed as it doesn't exist in DB
                     note: item.notes || '',
                     status: 'PENDING',
                     course_number: courseSplittingEnabled ? item.courseNumber : undefined

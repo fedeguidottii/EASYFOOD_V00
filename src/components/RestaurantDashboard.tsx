@@ -20,7 +20,7 @@ import { DishPlaceholder } from './ui/DishPlaceholder'
 import { Popover, PopoverContent, PopoverTrigger } from './ui/popover'
 import {
   SignOut,
-  Utensils,
+
   BookBookmark,
   ChartLine,
   Gear,
@@ -278,6 +278,29 @@ const RestaurantDashboard = ({ user, onLogout }: RestaurantDashboardProps) => {
 
         if (!match) {
           // No matching schedule for current meal type
+
+          // Check if there's a stale manual menu (> 24 hours)
+          const { data: activeMenus } = await supabase
+            .from('custom_menus')
+            .select('updated_at')
+            .eq('restaurant_id', restaurantId)
+            .eq('is_active', true)
+
+          if (activeMenus && activeMenus.length > 0) {
+            const activeMenu = activeMenus[0]
+            if (activeMenu.updated_at) {
+              const lastUpdate = new Date(activeMenu.updated_at).getTime()
+              const diffHours = (now.getTime() - lastUpdate) / (1000 * 60 * 60)
+
+              if (diffHours >= 24) {
+                console.log('Manual menu active for > 24h, resetting.')
+                await supabase.rpc('reset_to_full_menu', { p_restaurant_id: restaurantId })
+                lastScheduledMenuRef.current = { menuId: null, mealType: null, day: null }
+                return
+              }
+            }
+          }
+
           if (lastScheduledMenuRef.current.menuId) {
             await supabase.rpc('reset_to_full_menu', { p_restaurant_id: restaurantId })
             lastScheduledMenuRef.current = { menuId: null, mealType: null, day: null }
@@ -1410,7 +1433,7 @@ const RestaurantDashboard = ({ user, onLogout }: RestaurantDashboardProps) => {
       <aside className="w-68 bg-zinc-950/80 backdrop-blur-3xl border-r border-white/[0.03] flex flex-col flex-shrink-0 z-20 relative shadow-[20px_0_50px_rgba(0,0,0,0.5)]">
         <div className="p-6 border-b border-white/5 flex items-center gap-4">
           <div className="p-2.5 bg-zinc-900/50 border border-amber-500/20 rounded-xl text-amber-500 shadow-[0_0_15px_-5px_rgba(245,158,11,0.2)]">
-            <ChefHat size={24} weight="fill" />
+            <ChefHat size={24} />
           </div>
           <div className="overflow-hidden">
             <h1 className="font-medium text-base text-zinc-100 tracking-tight leading-none truncate">{currentRestaurant?.name || 'EASYFOOD'}</h1>
