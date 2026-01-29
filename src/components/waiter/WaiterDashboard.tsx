@@ -3,7 +3,7 @@ import { supabase } from '../../lib/supabase'
 import { DatabaseService } from '../../services/DatabaseService'
 import { Table, Order, TableSession, Restaurant, Room, Dish, Category } from '../../services/types'
 import { toast } from 'sonner'
-import { SignOut, User, CheckCircle, ArrowsClockwise, Receipt, Trash, Plus, BellRinging, Clock, Pencil, House, Funnel, GearSix, MagnifyingGlass, BookOpen, ShoppingCart, ClockCounterClockwise, ArrowLeft, Minus, X, Rocket } from '@phosphor-icons/react'
+import { SignOut, User, CheckCircle, ArrowsClockwise, Receipt, Trash, Plus, BellRinging, Clock, Pencil, House, Funnel, GearSix, MagnifyingGlass, BookOpen, ShoppingCart, ClockCounterClockwise, ArrowLeft, Minus, X, Rocket, CaretDown, ForkKnife } from '@phosphor-icons/react'
 import { Button } from '../ui/button'
 import { Card, CardContent } from '../ui/card'
 import { Badge } from '../ui/badge'
@@ -14,11 +14,7 @@ import { Label } from '../ui/label'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../ui/select'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '../ui/tabs'
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger } from '../ui/dropdown-menu'
-import { DotsThreeVertical } from '@phosphor-icons/react'
-import { DndContext, closestCenter, KeyboardSensor, PointerSensor, useSensor, useSensors, DragOverlay, defaultDropAnimationSideEffects, DragStartEvent, DragEndEvent } from '@dnd-kit/core'
-import { arrayMove, SortableContext, sortableKeyboardCoordinates, verticalListSortingStrategy, useSortable } from '@dnd-kit/sortable'
-import { CSS } from '@dnd-kit/utilities'
-import { SortableItem } from './SortableItem'
+
 
 interface WaiterDashboardProps {
     user: any
@@ -173,77 +169,7 @@ const WaiterDashboard = ({ user, onLogout }: WaiterDashboardProps) => {
         initDashboard()
     }, [user])
 
-    // Dnd Sensors
-    const sensors = useSensors(
-        useSensor(PointerSensor, { activationConstraint: { distance: 8 } }), // Distance prevents accidental drags
-        useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates })
-    )
-    const [activeId, setActiveId] = useState<string | null>(null)
 
-    const handleDragEnd = (event: DragEndEvent) => {
-        const { active, over } = event
-
-        if (!over) {
-            setActiveId(null)
-            return
-        }
-
-        const activeIdStr = active.id as string
-        const [dishId, currentCourseStr, originalIdx] = activeIdStr.split('-')
-        const currentCourse = parseInt(currentCourseStr)
-
-        // Identify target course
-        const overIdStr = over.id as string
-        let targetCourse: number
-
-        if (overIdStr.startsWith('course-')) {
-            // Dropped on container
-            targetCourse = parseInt(overIdStr.replace('course-', ''))
-        } else {
-            // Dropped on item
-            // Try catch for safety if ID format is different
-            try {
-                const parts = overIdStr.split('-')
-                // Assuming format dishId-courseNumber-index
-                // courseNumber is the second part
-                targetCourse = parseInt(parts[parts.length - 2]) || currentCourse
-            } catch (e) {
-                targetCourse = currentCourse
-            }
-        }
-
-        // Ensure valid target course
-        if (isNaN(targetCourse)) targetCourse = currentCourse
-
-        if (currentCourse !== targetCourse) {
-            setNewQuickOrderItems(items => {
-                const newItems = [...items]
-                // We need to find the specific item instance. 
-                // Since we have index in ID, let use that if reliable, otherwise fallback to finding matching item.
-                const index = parseInt(originalIdx)
-
-                if (index >= 0 && index < newItems.length &&
-                    newItems[index].dishId === dishId &&
-                    (newItems[index].courseNumber || 1) === currentCourse) {
-
-                    newItems[index] = { ...newItems[index], courseNumber: targetCourse }
-                    return newItems
-                }
-
-                return items
-            })
-        }
-
-        setActiveId(null)
-    }
-
-    const removeFromQuickOrder = (index: number) => {
-        setNewQuickOrderItems(prev => {
-            const newItems = [...prev]
-            newItems.splice(index, 1)
-            return newItems
-        })
-    }
 
 
     // Realtime Subscriptions
@@ -1727,222 +1653,130 @@ const WaiterDashboard = ({ user, onLogout }: WaiterDashboardProps) => {
 
                     {/* Tabs Navigation */}
                     <Tabs value={quickOrderTab} onValueChange={(v) => setQuickOrderTab(v as any)} className="flex-1 flex flex-col overflow-hidden">
-                        {/* Hide TabsList if in 'courses' mode to force selection, OR show simplified nav */}
-                        {quickOrderTab !== 'courses' ? (
-                            <div className="px-4 pt-2 bg-zinc-900/50 border-b border-white/5 shrink-0">
-                                <TabsList className="grid w-full grid-cols-4 bg-zinc-900 border border-white/10">
-                                    <TabsTrigger value="menu">Menu</TabsTrigger>
-                                    <TabsTrigger value="courses">Portate</TabsTrigger>
-                                    <TabsTrigger value="cart" className="relative gap-2">
-                                        Carrello
-                                        {newQuickOrderItems.length > 0 && (
-                                            <Badge className="h-5 px-1.5 bg-amber-500 text-black text-[10px] font-bold">
-                                                {newQuickOrderItems.reduce((acc, item) => acc + item.quantity, 0)}
-                                            </Badge>
-                                        )}
-                                    </TabsTrigger>
-                                    <TabsTrigger value="history">Storico</TabsTrigger>
-                                </TabsList>
-                            </div>
-                        ) : (
-                            <div className="px-4 py-2 bg-zinc-900/50 border-b border-white/5 shrink-0 flex items-center justify-between">
-                                <h3 className="font-bold text-lg">Gestione Portate</h3>
-                                <Button size="sm" variant="ghost" onClick={() => setQuickOrderTab('menu')}>
-                                    Chiudi
-                                </Button>
-                            </div>
-                        )}
-
-                        {/* COURSES TAB (New Workflow with DnD) */}
-                        <TabsContent value="courses" className="flex-1 flex flex-col overflow-hidden data-[state=inactive]:hidden mt-0">
-                            <DndContext
-                                sensors={sensors}
-                                collisionDetection={closestCenter}
-                                onDragEnd={handleDragEnd}
-                                onDragStart={(event) => setActiveId(event.active.id as string)}
-                            >
-                                <div className="flex-1 overflow-x-auto p-4 flex gap-4">
-                                    {/* Render columns for each course */}
-                                    {Array.from({ length: maxCourse }, (_, i) => i + 1).map(courseNum => (
-                                        <div key={courseNum} className="min-w-[280px] flex flex-col bg-zinc-900/50 border border-white/5 rounded-xl h-full">
-                                            <div className="p-3 border-b border-white/5 flex justify-between items-center bg-zinc-900 rounded-t-xl sticky top-0 z-10">
-                                                <h4 className="font-bold text-amber-500">Portata {courseNum}</h4>
-                                                <Button
-                                                    size="icon"
-                                                    variant="ghost"
-                                                    className="h-6 w-6"
-                                                    onClick={() => {
-                                                        setSelectedCourse(courseNum);
-                                                        setQuickOrderTab('menu');
-                                                    }}
-                                                >
-                                                    <Plus size={14} />
-                                                </Button>
-                                            </div>
-                                            <div className="flex-1 p-2 overflow-y-auto">
-                                                <SortableContext
-                                                    id={`course-${courseNum}`}
-                                                    items={newQuickOrderItems
-                                                        .filter(item => (item.courseNumber || 1) === courseNum)
-                                                        .map(item => `${item.dishId}-${item.courseNumber}-${newQuickOrderItems.indexOf(item)}`)} // Unique IDs
-                                                    strategy={verticalListSortingStrategy}
-                                                >
-                                                    {newQuickOrderItems
-                                                        .filter(item => (item.courseNumber || 1) === courseNum)
-                                                        .map((item, idx) => {
-                                                            const uniqueId = `${item.dishId}-${item.courseNumber}-${newQuickOrderItems.indexOf(item)}`;
-                                                            const dish = dishes.find(d => d.id === item.dishId);
-                                                            return (
-                                                                <SortableItem
-                                                                    key={uniqueId}
-                                                                    id={uniqueId}
-                                                                    item={item}
-                                                                    dish={dish}
-                                                                    onRemove={() => removeFromQuickOrder(newQuickOrderItems.indexOf(item))}
-                                                                    onEditNote={() => {
-                                                                        // Simple prompt implementation for MVP
-                                                                        const note = prompt('Inserisci nota:', item.notes);
-                                                                        if (note !== null) {
-                                                                            setNewQuickOrderItems(prev => prev.map((pi, pidx) =>
-                                                                                pidx === newQuickOrderItems.indexOf(item) ? { ...pi, notes: note } : pi
-                                                                            ));
-                                                                        }
-                                                                    }}
-                                                                />
-                                                            );
-                                                        })}
-                                                </SortableContext>
-                                                {newQuickOrderItems.filter(item => (item.courseNumber || 1) === courseNum).length === 0 && (
-                                                    <div className="text-center py-8 text-zinc-600 border-2 border-dashed border-zinc-800 rounded-lg mx-2">
-                                                        <p className="text-xs">Trascina qui</p>
-                                                    </div>
-                                                )}
-                                            </div>
-                                        </div>
-                                    ))}
-
-                                    {/* Add Course Button Column */}
-                                    <div className="min-w-[100px] flex items-center justify-center">
-                                        <Button
-                                            variant="outline"
-                                            className="h-12 w-12 rounded-full border-dashed border-2 border-zinc-700 text-zinc-500 hover:text-white hover:border-white hover:bg-zinc-800"
-                                            onClick={() => setMaxCourse(prev => prev + 1)}
-                                        >
-                                            <Plus size={24} />
-                                        </Button>
-                                    </div>
-
-                                </div>
-                                <DragOverlay>
-                                    {activeId ? (
-                                        <div className="bg-zinc-800 p-2 rounded-lg border border-amber-500 shadow-xl opacity-90 w-[250px]">
-                                            <div className="flex justify-between items-start">
-                                                <span className="font-medium text-sm text-zinc-200">Spostamento...</span>
-                                            </div>
-                                        </div>
-                                    ) : null}
-                                </DragOverlay>
-                            </DndContext>
-                        </TabsContent>
-
-                        {/* COURSES TAB (New Workflow) */}
-                        <TabsContent value="courses" className="flex-1 flex flex-col p-4 data-[state=inactive]:hidden mt-0">
-                            <div className="text-center mb-6 mt-4">
-                                <h3 className="text-xl font-bold text-white mb-2">Seleziona Portata</h3>
-                                <p className="text-zinc-400 text-sm">Scegli la portata per aggiungere i piatti</p>
-                            </div>
-
-                            <ScrollArea className="flex-1">
-                                <div className="grid grid-cols-2 gap-4 pb-4">
-                                    {Array.from({ length: maxCourse }, (_, i) => i + 1).map(num => {
-                                        const itemsInCourse = newQuickOrderItems.filter(i => i.courseNumber === num).length
-                                        return (
-                                            <Button
-                                                key={num}
-                                                variant="outline"
-                                                className="h-24 flex flex-col items-center justify-center gap-2 border-white/10 bg-zinc-900/50 hover:bg-zinc-800 hover:border-amber-500/50 relative overflow-visible"
-                                                onClick={() => {
-                                                    setSelectedCourse(num)
-                                                    setQuickOrderTab('menu')
-                                                }}
-                                            >
-                                                <span className="text-lg font-bold text-white">Portata {num}</span>
-                                                {itemsInCourse > 0 && (
-                                                    <Badge className="bg-amber-500 text-black text-[10px]">{itemsInCourse} piatti</Badge>
-                                                )}
-                                            </Button>
-                                        )
-                                    })}
-
-                                    <Button
-                                        variant="ghost"
-                                        className="h-24 flex flex-col items-center justify-center gap-2 border border-dashed border-white/10 hover:bg-amber-500/10 hover:border-amber-500/30 hover:text-amber-500 text-zinc-500"
-                                        onClick={() => {
-                                            const next = maxCourse + 1
-                                            setMaxCourse(next)
-                                            setSelectedCourse(next)
-                                            setQuickOrderTab('menu')
-                                        }}
-                                    >
-                                        <Plus size={24} />
-                                        <span>Nuova Portata</span>
-                                    </Button>
-                                </div>
-                            </ScrollArea>
-                        </TabsContent>
+                        {/* Persistent Navigation */}
+                        <div className="px-4 py-3 bg-zinc-950/50 border-b border-white/5 shrink-0">
+                            <TabsList className="grid w-full grid-cols-3 bg-zinc-900 border border-white/10 h-10 p-1">
+                                <TabsTrigger value="menu" className="data-[state=active]:bg-zinc-800 data-[state=active]:text-white text-zinc-400 font-bold">
+                                    <BookOpen size={16} className="mr-2" /> Menu
+                                </TabsTrigger>
+                                <TabsTrigger value="cart" className="data-[state=active]:bg-zinc-800 data-[state=active]:text-white text-zinc-400 font-bold relative">
+                                    <ShoppingCart size={16} className="mr-2" /> Carrello
+                                    {newQuickOrderItems.length > 0 && (
+                                        <span className="absolute top-1 right-3 flex h-2.5 w-2.5">
+                                            <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-amber-400 opacity-75"></span>
+                                            <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-amber-500"></span>
+                                        </span>
+                                    )}
+                                </TabsTrigger>
+                                <TabsTrigger value="history" className="data-[state=active]:bg-zinc-800 data-[state=active]:text-white text-zinc-400 font-bold">
+                                    <ClockCounterClockwise size={16} className="mr-2" /> Storico
+                                </TabsTrigger>
+                            </TabsList>
+                        </div>
 
                         {/* MENU TAB */}
                         <TabsContent value="menu" className="flex-1 flex flex-col overflow-hidden data-[state=inactive]:hidden mt-0">
-                            <div className="p-3 border-b border-white/5 space-y-3 shrink-0 bg-zinc-950/50 z-10">
-                                <div className="flex gap-2">
-                                    {courseSplittingEnabled && (
+                            {/* Course Selector & Search - Sticky Header */}
+                            <div className="p-4 space-y-4 shrink-0 bg-zinc-950/95 backdrop-blur-sm z-10 border-b border-white/5">
+                                {/* Course Selector */}
+                                {courseSplittingEnabled && (
+                                    <div className="flex items-center justify-between bg-zinc-900 border border-white/10 p-2 rounded-xl">
+                                        <div className="flex items-center gap-3">
+                                            <div className="w-10 h-10 rounded-lg bg-amber-500/10 flex items-center justify-center text-amber-500 border border-amber-500/20">
+                                                <ForkKnife size={20} weight="duotone" />
+                                            </div>
+                                            <div>
+                                                <p className="text-[10px] text-zinc-500 uppercase tracking-wider font-bold">Stai ordinando per</p>
+                                                <div className="flex items-center gap-2">
+                                                    <span className="text-white font-bold text-lg">Portata {selectedCourse}</span>
+                                                    <DropdownMenu>
+                                                        <DropdownMenuTrigger asChild>
+                                                            <Button variant="ghost" size="sm" className="h-6 w-6 p-0 rounded-full hover:bg-white/10 text-zinc-400">
+                                                                <CaretDown size={14} weight="bold" />
+                                                            </Button>
+                                                        </DropdownMenuTrigger>
+                                                        <DropdownMenuContent className="bg-zinc-900 border-zinc-800 text-zinc-200">
+                                                            {Array.from({ length: maxCourse }, (_, i) => i + 1).map(num => (
+                                                                <DropdownMenuItem
+                                                                    key={num}
+                                                                    onClick={() => setSelectedCourse(num)}
+                                                                    className={`cursor-pointer ${selectedCourse === num ? 'bg-amber-500/10 text-amber-500' : ''}`}
+                                                                >
+                                                                    Portata {num}
+                                                                </DropdownMenuItem>
+                                                            ))}
+                                                            <DropdownMenuSeparator className="bg-white/10" />
+                                                            <DropdownMenuItem
+                                                                onClick={() => {
+                                                                    const next = maxCourse + 1
+                                                                    setMaxCourse(next)
+                                                                    setSelectedCourse(next)
+                                                                }}
+                                                                className="cursor-pointer text-amber-500 font-bold"
+                                                            >
+                                                                <Plus size={14} className="mr-2" /> Nuova Portata
+                                                            </DropdownMenuItem>
+                                                        </DropdownMenuContent>
+                                                    </DropdownMenu>
+                                                </div>
+                                            </div>
+                                        </div>
+
+                                        {/* Quick Add Course Button */}
                                         <Button
-                                            variant="secondary"
-                                            onClick={() => setQuickOrderTab('courses')}
-                                            className="px-3 bg-amber-500/10 text-amber-500 hover:bg-amber-500 hover:text-black border border-amber-500/20"
+                                            size="sm"
+                                            variant="ghost"
+                                            className="text-zinc-500 hover:text-amber-500 hover:bg-amber-500/10 h-8 px-2"
+                                            onClick={() => {
+                                                const next = maxCourse + 1
+                                                setMaxCourse(next)
+                                                setSelectedCourse(next)
+                                                toast.success(`Portata ${next} aggiunta!`)
+                                            }}
                                         >
-                                            <span className="text-[10px] uppercase font-bold mr-1">Portata</span>
-                                            <span className="text-lg font-bold leading-none">{selectedCourse}</span>
+                                            <Plus size={16} className="mr-1" /> Nuova
                                         </Button>
-                                    )}
+                                    </div>
+                                )}
 
-
-                                    <div className="relative flex-1">
+                                {/* Search & Filters */}
+                                <div className="space-y-3">
+                                    <div className="relative">
                                         <MagnifyingGlass className="absolute left-3 top-1/2 -translate-y-1/2 text-zinc-500" size={16} />
                                         <Input
                                             placeholder="Cerca piatto..."
                                             value={quickOrderSearch}
                                             onChange={(e) => setQuickOrderSearch(e.target.value)}
-                                            className="pl-9 bg-black/20 border-white/10 h-10 rounded-xl w-full"
+                                            className="pl-10 bg-black/40 border-white/10 h-11 rounded-xl w-full text-base focus-visible:ring-amber-500/50"
                                         />
                                     </div>
-                                </div>
 
-                                <div className="flex gap-2 overflow-x-auto whitespace-nowrap pb-2 no-scrollbar touch-pan-x snap-x -mx-1 px-1">
-                                    <Button
-                                        size="sm"
-                                        variant={quickOrderSelectedCategory === 'all' ? 'default' : 'outline'}
-                                        onClick={() => setQuickOrderSelectedCategory('all')}
-                                        className={`rounded-xl h-8 text-xs shrink-0 whitespace-nowrap snap-start ${quickOrderSelectedCategory === 'all' ? 'bg-amber-500 text-black hover:bg-amber-400 border-transparent' : 'border-white/10 text-zinc-400'}`}
-                                    >
-                                        Tutti
-                                    </Button>
-                                    {categories.map(cat => (
+                                    <div className="flex gap-2 overflow-x-auto whitespace-nowrap pb-1 no-scrollbar touch-pan-x">
                                         <Button
-                                            key={cat.id}
                                             size="sm"
-                                            variant={quickOrderSelectedCategory === cat.id ? 'default' : 'outline'}
-                                            onClick={() => setQuickOrderSelectedCategory(cat.id)}
-                                            className={`rounded-xl h-8 text-xs shrink-0 whitespace-nowrap snap-start ${quickOrderSelectedCategory === cat.id ? 'bg-amber-500 text-black hover:bg-amber-400 border-transparent' : 'border-white/10 text-zinc-400'}`}
+                                            variant={quickOrderSelectedCategory === 'all' ? 'default' : 'outline'}
+                                            onClick={() => setQuickOrderSelectedCategory('all')}
+                                            className={`rounded-full h-8 text-xs font-bold px-4 transition-all ${quickOrderSelectedCategory === 'all' ? 'bg-white text-black border-white' : 'bg-transparent border-white/10 text-zinc-400 hover:text-white'}`}
                                         >
-                                            {cat.name}
+                                            Tutti
                                         </Button>
-                                    ))}
+                                        {categories.map(cat => (
+                                            <Button
+                                                key={cat.id}
+                                                size="sm"
+                                                variant={quickOrderSelectedCategory === cat.id ? 'default' : 'outline'}
+                                                onClick={() => setQuickOrderSelectedCategory(cat.id)}
+                                                className={`rounded-full h-8 text-xs font-bold px-4 transition-all ${quickOrderSelectedCategory === cat.id ? 'bg-white text-black border-white' : 'bg-transparent border-white/10 text-zinc-400 hover:text-white'}`}
+                                            >
+                                                {cat.name}
+                                            </Button>
+                                        ))}
+                                    </div>
                                 </div>
                             </div>
 
-                            <ScrollArea className="flex-1 p-3">
-                                <div className="flex flex-col gap-2 pb-4">
+                            <ScrollArea className="flex-1 px-4 pb-4">
+                                <div className="grid grid-cols-1 md:grid-cols-2 gap-3 pt-2 pb-20">
                                     {dishes
                                         .filter(d => d.is_active)
                                         .filter(d => quickOrderSelectedCategory === 'all' || d.category_id === quickOrderSelectedCategory)
@@ -1952,9 +1786,9 @@ const WaiterDashboard = ({ user, onLogout }: WaiterDashboardProps) => {
                                             return (
                                                 <div
                                                     key={dish.id}
-                                                    className={`flex items-center justify-between p-3 bg-zinc-900/50 border rounded-xl cursor-pointer group transition-all duration-300 active:scale-95 ${isJustAdded
-                                                        ? 'border-amber-500 bg-amber-500/10 shadow-lg shadow-amber-500/20'
-                                                        : 'border-white/5 hover:border-amber-500/30 hover:bg-zinc-800/50'
+                                                    className={`relative overflow-hidden flex items-stretch bg-zinc-900/40 border rounded-2xl cursor-pointer group transition-all duration-300 ${isJustAdded
+                                                        ? 'border-amber-500 bg-amber-500/5 shadow-[0_0_20px_-5px_rgba(245,158,11,0.3)]'
+                                                        : 'border-white/5 hover:border-white/10 hover:bg-zinc-800/60'
                                                         }`}
                                                     onClick={() => {
                                                         setNewQuickOrderItems(prev => {
@@ -1969,50 +1803,86 @@ const WaiterDashboard = ({ user, onLogout }: WaiterDashboardProps) => {
                                                         setTimeout(() => setLastAddedDishId(null), 500)
                                                         toast.success(
                                                             <div className="flex items-center gap-2">
-                                                                <CheckCircle size={18} weight="fill" className="text-green-400" />
-                                                                <span className="font-medium">{dish.name}</span>
-                                                                {courseSplittingEnabled && <Badge className="bg-amber-500/20 text-amber-400 text-[10px] whitespace-nowrap">Uscita {selectedCourse}</Badge>}
+                                                                <CheckCircle size={16} weight="fill" className="text-black" />
+                                                                <span className="font-bold text-black text-xs">Piatto aggiunto alla P{selectedCourse}</span>
                                                             </div>,
-                                                            { duration: 1500, position: 'bottom-center' }
+                                                            {
+                                                                duration: 1500,
+                                                                position: 'top-center',
+                                                                className: 'bg-amber-500 border-none text-black font-bold rounded-full px-4 py-2'
+                                                            }
                                                         )
                                                     }}
                                                 >
-                                                    <div className="flex-1 min-w-0 pr-3">
-                                                        <h4 className="font-bold text-sm text-white truncate">{dish.name}</h4>
-                                                        {dish.description && <p className="text-[10px] text-zinc-500 truncate">{dish.description}</p>}
-                                                    </div>
-                                                    <div className="flex items-center gap-3 shrink-0">
-                                                        <span className="bg-white/5 text-zinc-300 text-xs px-2 py-1 rounded-lg font-mono font-bold">
-                                                            €{dish.price}
-                                                        </span>
-                                                        <div className={`w-8 h-8 rounded-full flex items-center justify-center transition-all ${isJustAdded
-                                                            ? 'bg-amber-500 text-black scale-110'
-                                                            : 'bg-amber-500/10 text-amber-500 group-hover:bg-amber-500 group-hover:text-black'
-                                                            }`}>
-                                                            <Plus size={16} weight="bold" />
+
+                                                    <div className="flex-1 p-4 flex flex-col justify-center min-w-0">
+                                                        <div className="flex justify-between items-start gap-2">
+                                                            <div>
+                                                                <h4 className={`font-bold text-sm leading-tight mb-1 ${isJustAdded ? 'text-amber-500' : 'text-zinc-100'}`}>{dish.name}</h4>
+                                                                {dish.description && <p className="text-[11px] text-zinc-500 line-clamp-2 leading-relaxed">{dish.description}</p>}
+                                                            </div>
                                                         </div>
+                                                        <div className="mt-3 flex items-center gap-2">
+                                                            <span className="text-zinc-100 font-bold text-sm">€{dish.price}</span>
+                                                        </div>
+                                                    </div>
+
+                                                    {/* Add Button Area - Right Side */}
+                                                    <div className={`w-14 items-center justify-center flex border-l ${isJustAdded
+                                                        ? 'bg-amber-500 text-black border-amber-500'
+                                                        : 'bg-white/5 border-white/5 text-zinc-400 group-hover:bg-white/10 group-hover:text-white'
+                                                        } transition-colors`}>
+                                                        <Plus size={20} weight="bold" />
                                                     </div>
                                                 </div>
                                             )
                                         })}
                                 </div>
                             </ScrollArea>
+
+                            {/* Floating "Go to Cart" button on mobile/desktop if items exist */}
+                            {newQuickOrderItems.length > 0 && (
+                                <div className="absolute bottom-6 left-1/2 -translate-x-1/2 z-20 w-fit drop-shadow-2xl">
+                                    <Button
+                                        onClick={() => setQuickOrderTab('cart')}
+                                        className="h-12 pl-4 pr-6 rounded-full bg-zinc-100 hover:bg-white text-black font-bold shadow-xl border border-white/20 flex items-center gap-3 transition-transform hover:scale-105 active:scale-95"
+                                    >
+                                        <div className="bg-black text-white text-[10px] items-center justify-center flex h-6 w-6 rounded-full font-bold">
+                                            {newQuickOrderItems.reduce((acc, i) => acc + i.quantity, 0)}
+                                        </div>
+                                        <span>Vai al Carrello</span>
+                                        <span className="text-zinc-400 font-light">|</span>
+                                        <span>€{newQuickOrderItems.reduce((sum, item) => {
+                                            const dish = dishes.find(d => d.id === item.dishId)
+                                            return sum + (dish ? dish.price * item.quantity : 0)
+                                        }, 0).toFixed(2)}</span>
+                                    </Button>
+                                </div>
+                            )}
                         </TabsContent>
 
                         {/* CART TAB */}
                         <TabsContent value="cart" className="flex-1 flex flex-col overflow-hidden data-[state=inactive]:hidden mt-0">
+                            <div className="bg-zinc-950/50 p-4 border-b border-white/5 shrink-0 flex items-center justify-between">
+                                <h3 className="text-lg font-bold text-white">Riepilogo Ordine</h3>
+                                {newQuickOrderItems.length > 0 && (
+                                    <Button size="sm" variant="ghost" className="text-red-400 hover:bg-red-500/10 hover:text-red-300" onClick={() => setNewQuickOrderItems([])}>
+                                        Svuota
+                                    </Button>
+                                )}
+                            </div>
+
                             <ScrollArea className="flex-1 p-4">
                                 {newQuickOrderItems.length === 0 ? (
-                                    <div className="flex flex-col items-center justify-center text-zinc-500 opacity-50 py-12 border-2 border-dashed border-white/5 rounded-xl mt-4">
-                                        <ShoppingCart size={48} className="mb-4 text-zinc-700" />
-                                        <p className="font-bold">Carrello vuoto</p>
-                                        <p className="text-sm text-zinc-600 mt-1">Aggiungi piatti dal menu</p>
-                                        <Button variant="outline" className="mt-4 border-white/10" onClick={() => setQuickOrderTab('menu')}>
-                                            Vai al Menu
+                                    <div className="flex flex-col items-center justify-center h-64 text-zinc-600">
+                                        <ShoppingCart size={48} className="mb-4 opacity-20" weight="duotone" />
+                                        <p className="font-medium">Il carrello è vuoto</p>
+                                        <Button variant="link" className="text-amber-500" onClick={() => setQuickOrderTab('menu')}>
+                                            Aggiungi piatti
                                         </Button>
                                     </div>
                                 ) : (
-                                    <div className="space-y-4">
+                                    <div className="space-y-6 pb-20">
                                         {(courseSplittingEnabled
                                             ? Array.from({ length: maxCourse }, (_, i) => i + 1)
                                             : [1]
@@ -2020,29 +1890,35 @@ const WaiterDashboard = ({ user, onLogout }: WaiterDashboardProps) => {
                                             const courseItems = newQuickOrderItems.filter(i => courseSplittingEnabled ? i.courseNumber === courseNum : true)
                                             if (courseItems.length === 0) return null
                                             return (
-                                                <div key={courseNum} className="space-y-2">
+                                                <div key={courseNum} className="space-y-3">
                                                     {courseSplittingEnabled && (
-                                                        <div className="flex items-center gap-2 sticky top-0 bg-zinc-950/80 backdrop-blur-sm z-10 py-2">
-                                                            <Badge className="bg-amber-500/20 text-amber-400 text-[10px]">Uscita {courseNum}</Badge>
-                                                            <div className="flex-1 h-px bg-white/5" />
+                                                        <div className="flex items-center gap-3">
+                                                            <div className="h-px flex-1 bg-white/10"></div>
+                                                            <Badge variant="outline" className="border-amber-500/30 text-amber-500 bg-amber-500/5 px-3 py-1 text-xs">PORTATA {courseNum}</Badge>
+                                                            <div className="h-px flex-1 bg-white/10"></div>
                                                         </div>
                                                     )}
+
                                                     {courseItems.map((item, idx) => {
                                                         const dish = dishes.find(d => d.id === item.dishId)
                                                         const itemIndex = newQuickOrderItems.indexOf(item)
                                                         if (!dish) return null
                                                         return (
-                                                            <div key={idx} className="bg-zinc-900/50 rounded-xl p-3 border border-white/5 relative group pr-2">
-                                                                <div className="flex justify-between items-start mb-2">
-                                                                    <span className="font-bold text-sm text-white pr-8">{dish.name}</span>
-                                                                    <span className="text-xs text-amber-500 font-mono">€{(dish.price * item.quantity).toFixed(2)}</span>
-                                                                </div>
-                                                                <div className="flex items-center justify-between">
-                                                                    <div className="flex items-center gap-3 bg-black/40 rounded-lg p-1 border border-white/5">
-                                                                        <Button
-                                                                            size="sm"
-                                                                            variant="ghost"
-                                                                            className="h-7 w-7 p-0 rounded-md hover:bg-white/10 text-zinc-400 hover:text-white"
+                                                            <div key={idx} className="group bg-zinc-900/60 rounded-2xl p-3 border border-white/5 hover:border-white/10 transition-all">
+                                                                <div className="flex gap-4">
+                                                                    {/* Qty Controls */}
+                                                                    <div className="flex flex-col items-center justify-center gap-1 bg-black/40 rounded-xl p-1 w-10 shrink-0 border border-white/5">
+                                                                        <button
+                                                                            onClick={(e) => {
+                                                                                e.stopPropagation()
+                                                                                setNewQuickOrderItems(prev => prev.map((i, index) => index === itemIndex ? { ...i, quantity: i.quantity + 1 } : i))
+                                                                            }}
+                                                                            className="w-8 h-8 flex items-center justify-center text-zinc-400 hover:text-white hover:bg-white/10 rounded-lg transition-colors"
+                                                                        >
+                                                                            <Plus size={12} weight="bold" />
+                                                                        </button>
+                                                                        <span className="text-sm font-bold text-white">{item.quantity}</span>
+                                                                        <button
                                                                             onClick={(e) => {
                                                                                 e.stopPropagation()
                                                                                 if (item.quantity <= 1) {
@@ -2051,31 +1927,54 @@ const WaiterDashboard = ({ user, onLogout }: WaiterDashboardProps) => {
                                                                                     setNewQuickOrderItems(prev => prev.map((i, index) => index === itemIndex ? { ...i, quantity: i.quantity - 1 } : i))
                                                                                 }
                                                                             }}
+                                                                            className="w-8 h-8 flex items-center justify-center text-zinc-400 hover:text-white hover:bg-white/10 rounded-lg transition-colors"
                                                                         >
-                                                                            <Minus size={14} />
-                                                                        </Button>
-                                                                        <span className="text-sm font-bold w-6 text-center">{item.quantity}</span>
-                                                                        <Button
-                                                                            size="sm"
-                                                                            variant="ghost"
-                                                                            className="h-7 w-7 p-0 rounded-md hover:bg-white/10 text-zinc-400 hover:text-white"
-                                                                            onClick={(e) => {
-                                                                                e.stopPropagation()
-                                                                                setNewQuickOrderItems(prev => prev.map((i, index) => index === itemIndex ? { ...i, quantity: i.quantity + 1 } : i))
-                                                                            }}
-                                                                        >
-                                                                            <Plus size={14} />
-                                                                        </Button>
+                                                                            <Minus size={12} weight="bold" />
+                                                                        </button>
                                                                     </div>
 
-                                                                    <Button
-                                                                        size="sm"
-                                                                        variant="ghost"
-                                                                        className="h-8 px-2 text-red-400 hover:text-red-300 hover:bg-red-500/10"
-                                                                        onClick={() => setNewQuickOrderItems(prev => prev.filter((_, index) => index !== itemIndex))}
-                                                                    >
-                                                                        <Trash size={16} />
-                                                                    </Button>
+                                                                    <div className="flex-1 py-1 min-w-0">
+                                                                        <div className="flex justify-between items-start gap-2">
+                                                                            <div className="min-w-0">
+                                                                                <p className="font-bold text-zinc-200 text-sm truncate">{dish.name}</p>
+                                                                                <p className="text-amber-500 text-xs font-mono font-medium">€{(dish.price * item.quantity).toFixed(2)}</p>
+                                                                            </div>
+                                                                            {courseSplittingEnabled && (
+                                                                                <DropdownMenu>
+                                                                                    <DropdownMenuTrigger asChild>
+                                                                                        <Button variant="ghost" size="sm" className="h-6 px-2 text-[10px] bg-zinc-800 text-zinc-400 hover:text-white rounded-md border border-white/5">
+                                                                                            P{item.courseNumber} <CaretDown size={10} className="ml-1" />
+                                                                                        </Button>
+                                                                                    </DropdownMenuTrigger>
+                                                                                    <DropdownMenuContent align="end" className="bg-zinc-900 border-zinc-800">
+                                                                                        <DropdownMenuLabel className="text-xs">Sposta in</DropdownMenuLabel>
+                                                                                        {Array.from({ length: maxCourse }, (_, i) => i + 1).map(num => (
+                                                                                            <DropdownMenuItem
+                                                                                                key={num}
+                                                                                                onClick={() => {
+                                                                                                    setNewQuickOrderItems(prev => prev.map((i, idx) => idx === itemIndex ? { ...i, courseNumber: num } : i))
+                                                                                                }}
+                                                                                                className="text-xs cursor-pointer"
+                                                                                            >
+                                                                                                Portata {num}
+                                                                                            </DropdownMenuItem>
+                                                                                        ))}
+                                                                                    </DropdownMenuContent>
+                                                                                </DropdownMenu>
+                                                                            )}
+                                                                        </div>
+                                                                        {/* Note Input */}
+                                                                        <div className="mt-2">
+                                                                            <Input
+                                                                                placeholder="Note cucina..."
+                                                                                value={item.notes || ''}
+                                                                                onChange={(e) => {
+                                                                                    setNewQuickOrderItems(prev => prev.map((i, idx) => idx === itemIndex ? { ...i, notes: e.target.value } : i))
+                                                                                }}
+                                                                                className="h-7 text-xs bg-black/20 border-transparent focus:border-zinc-700 rounded-lg px-2 text-zinc-400 w-full"
+                                                                            />
+                                                                        </div>
+                                                                    </div>
                                                                 </div>
                                                             </div>
                                                         )
@@ -2087,22 +1986,30 @@ const WaiterDashboard = ({ user, onLogout }: WaiterDashboardProps) => {
                                 )}
                             </ScrollArea>
 
-                            <div className="p-4 border-t border-white/5 bg-zinc-900/50 shrink-0">
-                                <div className="flex justify-between items-center mb-4">
-                                    <span className="text-zinc-400">Totale</span>
-                                    <span className="text-xl font-bold text-white">
-                                        €{newQuickOrderItems.reduce((sum, item) => {
-                                            const dish = dishes.find(d => d.id === item.dishId)
-                                            return sum + (dish ? dish.price * item.quantity : 0)
-                                        }, 0).toFixed(2)}
-                                    </span>
+                            {/* Total Footer */}
+                            <div className="p-4 border-t border-white/5 bg-zinc-900/90 shrink-0 z-20 pb-8">
+                                <div className="flex items-end justify-between mb-4">
+                                    <div>
+                                        <p className="text-zinc-500 text-xs uppercase font-bold tracking-wider">Totale ordine</p>
+                                        <p className="text-3xl font-bold text-white tracking-tight mt-1">
+                                            <span className="text-amber-500 text-xl align-top mr-1">€</span>
+                                            {newQuickOrderItems.reduce((sum, item) => {
+                                                const dish = dishes.find(d => d.id === item.dishId)
+                                                return sum + (dish ? dish.price * item.quantity : 0)
+                                            }, 0).toFixed(2)}
+                                        </p>
+                                    </div>
+                                    <div className="text-right">
+                                        <p className="text-zinc-500 text-xs">{newQuickOrderItems.reduce((acc, i) => acc + i.quantity, 0)} piatti</p>
+                                    </div>
                                 </div>
                                 <Button
-                                    className="w-full bg-amber-500 hover:bg-amber-400 text-black font-bold h-12 text-lg rounded-xl shadow-lg shadow-amber-500/20"
+                                    className="w-full bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-400 hover:to-amber-500 text-black font-bold h-14 text-lg rounded-2xl shadow-lg shadow-amber-500/20 active:scale-[0.98] transition-transform"
                                     disabled={newQuickOrderItems.length === 0}
                                     onClick={handleSendQuickOrder}
                                 >
-                                    Invia Ordine 🚀
+                                    Invia in Cucina
+                                    <Rocket size={20} className="ml-2" weight="fill" />
                                 </Button>
                             </div>
                         </TabsContent>
@@ -2115,36 +2022,48 @@ const WaiterDashboard = ({ user, onLogout }: WaiterDashboardProps) => {
                                         (o as any).table_number === selectedTableForQuickOrder?.number &&
                                         !['completed', 'cooked', 'cancelled', 'served'].includes(o.status as string)
                                     ).length === 0 ? (
-                                        <div className="text-center py-12 text-zinc-500">
-                                            <ClockCounterClockwise size={48} className="mx-auto mb-4 opacity-50" />
-                                            <p>Nessun ordine attivo</p>
+                                        <div className="text-center py-20 text-zinc-600">
+                                            <div className="w-16 h-16 rounded-full bg-zinc-900 mx-auto mb-4 flex items-center justify-center">
+                                                <ClockCounterClockwise size={32} className="opacity-50" />
+                                            </div>
+                                            <p className="font-medium">Nessun ordine attivo</p>
+                                            <p className="text-sm opacity-60">Gli ordini inviati appariranno qui</p>
                                         </div>
                                     ) : (
                                         activeOrders
                                             .filter(o => (o as any).table_number === selectedTableForQuickOrder?.number && !['completed', 'cooked', 'cancelled', 'served'].includes(o.status as string))
                                             .sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime())
                                             .map(order => (
-                                                <div key={order.id} className="bg-zinc-900/50 rounded-xl p-4 border border-white/5">
-                                                    <div className="flex justify-between items-center mb-3">
-                                                        <span className="text-xs text-zinc-500 font-mono">
+                                                <div key={order.id} className="bg-zinc-900/40 rounded-2xl p-4 border border-white/5">
+                                                    <div className="flex justify-between items-center mb-4 pb-3 border-b border-white/5">
+                                                        <span className="text-xs text-zinc-500 font-mono font-bold">
                                                             {new Date(order.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
                                                         </span>
-                                                        <Badge variant="outline" className={`text-[10px] ${order.status === 'ready' ? 'text-green-400 border-green-500/30' :
-                                                            order.status === 'pending' ? 'text-amber-400 border-amber-500/30' :
-                                                                'text-blue-400 border-blue-500/30'
+                                                        <Badge variant="outline" className={`text-[10px] border-0 px-2 py-0.5 ${order.status === 'ready' ? 'bg-green-500/10 text-green-400' :
+                                                            order.status === 'pending' ? 'bg-amber-500/10 text-amber-400' :
+                                                                'bg-blue-500/10 text-blue-400'
                                                             }`}>
                                                             {order.status === 'ready' ? 'Pronto' : order.status === 'pending' ? 'In Attesa' : 'In Preparazione'}
                                                         </Badge>
                                                     </div>
-                                                    <div className="space-y-2">
+                                                    <div className="space-y-3">
                                                         {order.items?.map((item: any, idx) => (
-                                                            <div key={idx} className="flex justify-between text-sm">
-                                                                <span className="text-zinc-300"><span className="font-bold text-white">{item.quantity}x</span> {item.dish?.name}</span>
+                                                            <div key={idx} className="flex justify-between text-sm items-start">
+                                                                <div className="flex items-start gap-3">
+                                                                    <span className="font-bold text-white bg-white/5 px-2 rounded min-w-[30px] text-center">{item.quantity}</span>
+                                                                    <div>
+                                                                        <span className="text-zinc-300 block">{item.dish?.name}</span>
+                                                                        {item.note && <span className="text-xs text-zinc-500 italic block mt-0.5">{item.note}</span>}
+                                                                    </div>
+                                                                </div>
                                                                 {item.course_number && courseSplittingEnabled && (
-                                                                    <span className="text-[10px] text-zinc-500 bg-zinc-950 px-1.5 py-0.5 rounded border border-white/5">U{item.course_number}</span>
+                                                                    <Badge variant="secondary" className="text-[9px] bg-zinc-950 text-zinc-400 border border-white/5 h-5 px-1.5">P{item.course_number}</Badge>
                                                                 )}
                                                             </div>
                                                         ))}
+                                                    </div>
+                                                    <div className="mt-4 pt-3 border-t border-white/5 flex justify-end">
+                                                        <span className="text-sm font-bold text-zinc-400">Totale: <span className="text-white">€{order.total_amount?.toFixed(2)}</span></span>
                                                     </div>
                                                 </div>
                                             ))
