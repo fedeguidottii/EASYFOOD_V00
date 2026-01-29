@@ -841,75 +841,18 @@ const WaiterDashboard = ({ user, onLogout }: WaiterDashboardProps) => {
                                 </Button>
 
                                 {/* "Conto" Button Logic */}
-                                {courseSplittingEnabled ? (
-                                    <DropdownMenu>
-                                        <DropdownMenuTrigger asChild>
-                                            <Button
-                                                variant="secondary"
-                                                size="sm"
-                                                className="h-8 px-3 rounded-xl bg-zinc-800 text-zinc-200 border border-white/5 hover:bg-zinc-700 hover:text-white"
-                                                onClick={(e) => e.stopPropagation()}
-                                            >
-                                                <Receipt size={14} className="mr-1.5" />
-                                                Conto
-                                            </Button>
-                                        </DropdownMenuTrigger>
-                                        <DropdownMenuContent align="end" className="w-48 bg-zinc-900 border-zinc-800 text-zinc-200">
-                                            <DropdownMenuLabel>Azioni Conto</DropdownMenuLabel>
-                                            {restaurant?.allow_waiter_payments ? (
-                                                <>
-                                                    <DropdownMenuItem
-                                                        onClick={(e) => {
-                                                            e.stopPropagation()
-                                                            openPaymentDialog(e, table)
-                                                        }}
-                                                        className="focus:bg-amber-500/10 focus:text-amber-500 cursor-pointer"
-                                                    >
-                                                        <CheckCircle className="mr-2 h-4 w-4" />
-                                                        Segna Pagato
-                                                    </DropdownMenuItem>
-
-                                                    <DropdownMenuItem
-                                                        onClick={(e) => {
-                                                            e.stopPropagation()
-                                                            handleCloseTable(false)
-                                                        }}
-                                                        className="focus:bg-red-500/10 focus:text-red-500 text-red-400 cursor-pointer"
-                                                    >
-                                                        <Trash className="mr-2 h-4 w-4" />
-                                                        Svuota Tavolo
-                                                    </DropdownMenuItem>
-                                                </>
-                                            ) : (
-                                                <DropdownMenuItem
-                                                    onClick={(e) => {
-                                                        e.stopPropagation()
-                                                        openPaymentDialog(e, table)
-                                                    }}
-                                                    className="focus:bg-zinc-800 focus:text-zinc-200 cursor-pointer"
-                                                >
-                                                    <Receipt className="mr-2 h-4 w-4" />
-                                                    Visualizza Conto
-                                                </DropdownMenuItem>
-                                            )}
-
-
-                                        </DropdownMenuContent>
-                                    </DropdownMenu>
-                                ) : (
-                                    <Button
-                                        variant="secondary"
-                                        size="sm"
-                                        className="h-8 px-3 rounded-xl bg-zinc-800 text-zinc-200 border border-white/5 hover:bg-zinc-700 hover:text-white"
-                                        onClick={(e) => {
-                                            e.stopPropagation()
-                                            openPaymentDialog(e, table)
-                                        }}
-                                    >
-                                        <Receipt size={14} className="mr-1.5" />
-                                        Conto
-                                    </Button>
-                                )}
+                                <Button
+                                    variant="secondary"
+                                    size="sm"
+                                    className="h-8 px-3 rounded-xl bg-zinc-800 text-zinc-200 border border-white/5 hover:bg-zinc-700 hover:text-white"
+                                    onClick={(e) => {
+                                        e.stopPropagation()
+                                        openPaymentDialog(e, table)
+                                    }}
+                                >
+                                    <Receipt size={14} className="mr-1.5" />
+                                    Conto
+                                </Button>
                             </div>
                         ) : (
                             <Button
