@@ -2,17 +2,112 @@ import html2canvas from 'html2canvas'
 import jsPDF from 'jspdf'
 import { toast } from 'sonner'
 
-// Color map for oklch replacement
+// Comprehensive color map for oklch replacement - includes all Tailwind colors
 const colorMap: Record<string, string> = {
+    // Zinc
     'zinc-50': '#fafafa', 'zinc-100': '#f4f4f5', 'zinc-200': '#e4e4e7',
     'zinc-300': '#d4d4d8', 'zinc-400': '#a1a1aa', 'zinc-500': '#71717a',
     'zinc-600': '#52525b', 'zinc-700': '#3f3f46', 'zinc-800': '#27272a',
     'zinc-900': '#18181b', 'zinc-950': '#09090b',
-    'amber-400': '#fbbf24', 'amber-500': '#f59e0b', 'amber-600': '#d97706',
-    'orange-500': '#f97316', 'red-500': '#ef4444', 'rose-500': '#f43f5e',
-    'emerald-500': '#10b981', 'green-500': '#22c55e', 'blue-500': '#3b82f6',
+    // Slate
+    'slate-50': '#f8fafc', 'slate-100': '#f1f5f9', 'slate-200': '#e2e8f0',
+    'slate-300': '#cbd5e1', 'slate-400': '#94a3b8', 'slate-500': '#64748b',
+    'slate-600': '#475569', 'slate-700': '#334155', 'slate-800': '#1e293b',
+    'slate-900': '#0f172a', 'slate-950': '#020617',
+    // Gray
+    'gray-50': '#f9fafb', 'gray-100': '#f3f4f6', 'gray-200': '#e5e7eb',
+    'gray-300': '#d1d5db', 'gray-400': '#9ca3af', 'gray-500': '#6b7280',
+    'gray-600': '#4b5563', 'gray-700': '#374151', 'gray-800': '#1f2937',
+    'gray-900': '#111827', 'gray-950': '#030712',
+    // Amber / Orange
+    'amber-50': '#fffbeb', 'amber-100': '#fef3c7', 'amber-200': '#fde68a',
+    'amber-300': '#fcd34d', 'amber-400': '#fbbf24', 'amber-500': '#f59e0b',
+    'amber-600': '#d97706', 'amber-700': '#b45309', 'amber-800': '#92400e',
+    'amber-900': '#78350f', 'amber-950': '#451a03',
+    'orange-50': '#fff7ed', 'orange-100': '#ffedd5', 'orange-200': '#fed7aa',
+    'orange-300': '#fdba74', 'orange-400': '#fb923c', 'orange-500': '#f97316',
+    'orange-600': '#ea580c', 'orange-700': '#c2410c', 'orange-800': '#9a3412',
+    'orange-900': '#7c2d12', 'orange-950': '#431407',
+    // Red
+    'red-50': '#fef2f2', 'red-100': '#fee2e2', 'red-200': '#fecaca',
+    'red-300': '#fca5a5', 'red-400': '#f87171', 'red-500': '#ef4444',
+    'red-600': '#dc2626', 'red-700': '#b91c1c', 'red-800': '#991b1b',
+    'red-900': '#7f1d1d', 'red-950': '#450a0a',
+    // Rose
+    'rose-50': '#fff1f2', 'rose-100': '#ffe4e6', 'rose-200': '#fecdd3',
+    'rose-300': '#fda4af', 'rose-400': '#fb7185', 'rose-500': '#f43f5e',
+    'rose-600': '#e11d48', 'rose-700': '#be123c', 'rose-800': '#9f1239',
+    'rose-900': '#881337', 'rose-950': '#4c0519',
+    // Green / Emerald
+    'green-50': '#f0fdf4', 'green-100': '#dcfce7', 'green-200': '#bbf7d0',
+    'green-300': '#86efac', 'green-400': '#4ade80', 'green-500': '#22c55e',
+    'green-600': '#16a34a', 'green-700': '#15803d', 'green-800': '#166534',
+    'green-900': '#14532d', 'green-950': '#052e16',
+    'emerald-50': '#ecfdf5', 'emerald-100': '#d1fae5', 'emerald-200': '#a7f3d0',
+    'emerald-300': '#6ee7b7', 'emerald-400': '#34d399', 'emerald-500': '#10b981',
+    'emerald-600': '#059669', 'emerald-700': '#047857', 'emerald-800': '#065f46',
+    'emerald-900': '#064e3b', 'emerald-950': '#022c22',
+    // Blue
+    'blue-50': '#eff6ff', 'blue-100': '#dbeafe', 'blue-200': '#bfdbfe',
+    'blue-300': '#93c5fd', 'blue-400': '#60a5fa', 'blue-500': '#3b82f6',
+    'blue-600': '#2563eb', 'blue-700': '#1d4ed8', 'blue-800': '#1e40af',
+    'blue-900': '#1e3a8a', 'blue-950': '#172554',
+    // Basic
     'white': '#ffffff', 'black': '#000000', 'transparent': 'transparent',
-    'slate-50': '#f8fafc', 'slate-100': '#f1f5f9',
+}
+
+/**
+ * Converts an oklch color string to a fallback hex color
+ * Parses the oklch values and maps to closest hex
+ */
+const oklchToHex = (oklchStr: string): string => {
+    // Parse oklch(L C H) or oklch(L C H / A)
+    const match = oklchStr.match(/oklch\(\s*([\d.]+%?)\s+([\d.]+)\s+([\d.]+)/)
+    if (!match) return '#000000'
+
+    let lightness = parseFloat(match[1])
+    if (match[1].includes('%')) lightness = lightness / 100
+
+    // Simple mapping based on lightness
+    if (lightness > 0.95) return '#ffffff'
+    if (lightness > 0.9) return '#f4f4f5'
+    if (lightness > 0.8) return '#e4e4e7'
+    if (lightness > 0.7) return '#a1a1aa'
+    if (lightness > 0.6) return '#71717a'
+    if (lightness > 0.5) return '#52525b'
+    if (lightness > 0.4) return '#3f3f46'
+    if (lightness > 0.3) return '#27272a'
+    if (lightness > 0.2) return '#18181b'
+    if (lightness > 0.1) return '#09090b'
+    return '#000000'
+}
+
+/**
+ * Force replaces all oklch colors in a cloned document's stylesheets
+ * This is necessary because html2canvas cannot parse oklch
+ */
+const replaceOklchInClonedDocument = (doc: Document): void => {
+    // Process all style elements
+    const styleElements = doc.querySelectorAll('style')
+    styleElements.forEach(style => {
+        if (style.textContent && style.textContent.includes('oklch')) {
+            style.textContent = style.textContent.replace(
+                /oklch\([^)]+\)/g,
+                (match) => oklchToHex(match)
+            )
+        }
+    })
+
+    // Process all elements with inline styles
+    const allElements = doc.querySelectorAll('*')
+    allElements.forEach(el => {
+        if (el instanceof HTMLElement && el.style.cssText.includes('oklch')) {
+            el.style.cssText = el.style.cssText.replace(
+                /oklch\([^)]+\)/g,
+                (match) => oklchToHex(match)
+            )
+        }
+    })
 }
 
 /**
@@ -26,22 +121,26 @@ const forceInlineHexColors = (element: HTMLElement): Map<HTMLElement, { [key: st
         const computed = window.getComputedStyle(el)
         const originalInline: { [key: string]: string } = {}
 
-        // Properties that might contain oklch
-        const colorProps = ['color', 'backgroundColor', 'borderColor', 'borderTopColor',
-            'borderRightColor', 'borderBottomColor', 'borderLeftColor', 'outlineColor',
-            'fill', 'stroke', 'caretColor', 'textDecorationColor']
+        // All CSS properties that might contain colors
+        const colorProps = [
+            'color', 'backgroundColor', 'borderColor',
+            'borderTopColor', 'borderRightColor', 'borderBottomColor', 'borderLeftColor',
+            'outlineColor', 'fill', 'stroke', 'caretColor', 'textDecorationColor',
+            'accentColor', 'columnRuleColor', 'textEmphasisColor', 'floodColor', 'lightingColor', 'stopColor'
+        ]
 
         colorProps.forEach(prop => {
-            const value = computed.getPropertyValue(prop.replace(/([A-Z])/g, '-$1').toLowerCase())
+            const cssPropName = prop.replace(/([A-Z])/g, '-$1').toLowerCase()
+            const value = computed.getPropertyValue(cssPropName)
             if (value && value.includes('oklch')) {
                 // Save original inline style
-                originalInline[prop] = el.style.getPropertyValue(prop.replace(/([A-Z])/g, '-$1').toLowerCase())
+                originalInline[prop] = el.style.getPropertyValue(cssPropName)
 
-                // Determine fallback color based on class names
-                let fallback = '#000000'
+                // Try to convert oklch directly
+                let fallback = oklchToHex(value)
+
+                // Also check class name for more specific color
                 const className = typeof el.className === 'string' ? el.className : el.getAttribute('class') || ''
-
-                // Find matching color from class name
                 for (const [key, hex] of Object.entries(colorMap)) {
                     if (className.includes(key)) {
                         fallback = hex
@@ -52,10 +151,10 @@ const forceInlineHexColors = (element: HTMLElement): Map<HTMLElement, { [key: st
                 // Special handling based on property
                 if (prop.includes('background') && fallback === '#000000') fallback = 'transparent'
                 if (prop.includes('border') && fallback === '#000000') fallback = 'transparent'
-                if (prop === 'color' && !className.includes('text-')) fallback = '#ffffff'
+                if (prop === 'color' && fallback === '#000000' && !className.includes('text-')) fallback = '#e4e4e7'
 
                 // Force inline style
-                el.style.setProperty(prop.replace(/([A-Z])/g, '-$1').toLowerCase(), fallback, 'important')
+                el.style.setProperty(cssPropName, fallback, 'important')
             }
         })
 
@@ -64,6 +163,13 @@ const forceInlineHexColors = (element: HTMLElement): Map<HTMLElement, { [key: st
         if (shadow && shadow.includes('oklch')) {
             originalInline['box-shadow'] = el.style.getPropertyValue('box-shadow')
             el.style.setProperty('box-shadow', 'none', 'important')
+        }
+
+        // Handle text-shadow
+        const textShadow = computed.getPropertyValue('text-shadow')
+        if (textShadow && textShadow.includes('oklch')) {
+            originalInline['text-shadow'] = el.style.getPropertyValue('text-shadow')
+            el.style.setProperty('text-shadow', 'none', 'important')
         }
 
         // Handle caret-color
@@ -144,6 +250,15 @@ export const generatePdfFromElement = async (elementId: string, options: Generat
             logging: false,
             allowTaint: true,
             onclone: (clonedDoc) => {
+                // Critical: Replace all oklch colors in cloned document
+                replaceOklchInClonedDocument(clonedDoc)
+
+                // Also process all elements in the cloned doc
+                const clonedElement = clonedDoc.getElementById(elementId)
+                if (clonedElement) {
+                    forceInlineHexColors(clonedElement)
+                }
+
                 if (onClone) onClone(clonedDoc)
             }
         })
