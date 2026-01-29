@@ -1097,41 +1097,40 @@ export default function ReservationsManager({ user, restaurantId, tables, rooms,
               </Button>
             </div>
 
-            {/* Hidden Element for PDF Generation */}
+            {/* Hidden Element for PDF Generation - LIGHT THEME */}
             <div id="qr-download-content" style={{ display: 'none', position: 'fixed', top: '-9999px', width: '800px', height: '1131px' }}>
               <div style={{
                 width: '100%',
                 height: '100%',
-                background: 'linear-gradient(135deg, #09090b 0%, #18181b 100%)',
+                background: '#ffffff',
                 display: 'flex',
                 flexDirection: 'column',
                 alignItems: 'center',
                 justifyContent: 'center',
-                color: 'white',
+                color: '#18181b',
                 fontFamily: 'Segoe UI, sans-serif',
                 padding: '60px'
               }}>
                 <div style={{
-                  border: '4px solid rgba(245, 158, 11, 0.3)',
+                  border: '4px solid #f59e0b',
                   padding: '60px',
                   borderRadius: '40px',
-                  background: 'rgba(255,255,255,0.03)',
-                  backdropFilter: 'blur(20px)',
+                  background: '#ffffff',
                   display: 'flex',
                   flexDirection: 'column',
                   alignItems: 'center',
                   textAlign: 'center',
-                  boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.5)'
+                  boxShadow: 'none'
                 }}>
-                  <h1 style={{ fontSize: '48px', fontWeight: 'bold', marginBottom: '10px', color: '#fff' }}>Prenota il Tuo Tavolo</h1>
-                  <p style={{ fontSize: '24px', color: '#94a3b8', marginBottom: '50px' }}>& Scopri il nostro Menu Digitale</p>
+                  <h1 style={{ fontSize: '48px', fontWeight: 'bold', marginBottom: '10px', color: '#18181b' }}>Prenota il Tuo Tavolo</h1>
+                  <p style={{ fontSize: '24px', color: '#52525b', marginBottom: '50px' }}>& Scopri il nostro Menu Digitale</p>
 
                   <div style={{
                     background: 'white',
                     padding: '30px',
                     borderRadius: '30px',
                     marginBottom: '40px',
-                    boxShadow: '0 0 40px rgba(245, 158, 11, 0.2)'
+                    border: '1px solid #e4e4e7'
                   }}>
                     <QRCodeGenerator
                       value={`${window.location.origin}/book/${restaurantId}`}
@@ -1140,14 +1139,14 @@ export default function ReservationsManager({ user, restaurantId, tables, rooms,
                   </div>
 
                   <div style={{
-                    background: 'rgba(245, 158, 11, 0.1)',
-                    border: '1px solid rgba(245, 158, 11, 0.3)',
+                    background: '#fffbeb', // amber-50
+                    border: '1px solid #fcd34d', // amber-300
                     borderRadius: '20px',
                     padding: '30px',
                     width: '100%'
                   }}>
-                    <h3 style={{ color: '#fbbf24', fontSize: '28px', marginBottom: '15px' }}>📱 Scansiona Qui</h3>
-                    <p style={{ fontSize: '20px', color: '#cbd5e1' }}>Inquadra il codice con la fotocamera per prenotare in un attimo.</p>
+                    <h3 style={{ color: '#b45309', fontSize: '28px', marginBottom: '15px' }}>📱 Scansiona Qui</h3>
+                    <p style={{ fontSize: '20px', color: '#18181b' }}>Inquadra il codice con la fotocamera per prenotare in un attimo.</p>
                   </div>
                 </div>
               </div>

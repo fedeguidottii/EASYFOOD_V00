@@ -269,11 +269,11 @@ export default function AnalyticsCharts({ orders, completedOrders, dishes, categ
   const handleExportAnalytics = async () => {
     const toastId = toast.loading('Generazione PDF in corso...')
     try {
-      await generatePdfFromElement('analytics-export-container', {
+      await generatePdfFromElement('analytics-pdf-export-view', {
         fileName: `report-analitico-${restaurantName.toLowerCase().replace(/\s+/g, '-')}-${new Date().toISOString().split('T')[0]}.pdf`,
         orientation: 'portrait',
-        backgroundColor: '#09090b', // Force dark background
-        margin: 10
+        backgroundColor: '#f4f4f5', // Light/Grey background for elegant PDF
+        margin: 0 // Template handles padding
       })
       toast.success('Report esportato con successo')
     } catch (e) {
@@ -894,6 +894,162 @@ export default function AnalyticsCharts({ orders, completedOrders, dishes, categ
         </Card>
       </div>
 
+      {/* 
+        ========================================================================== 
+        HIDDEN PRINT TEMPLATE FOR ANALYTICS STYLING 
+        (Optimized for A4 PDF rendering with html2canvas)
+        ========================================================================== 
+      */}
+      <div
+        id="analytics-pdf-export-view"
+        style={{
+          position: 'fixed',
+          top: '-9999px',
+          left: '-9999px',
+          width: '1100px', // Fixed width for high quality A4
+          minHeight: '100vh',
+          backgroundColor: '#f4f4f5', // Grigio Chiaro Sfondo
+          color: '#18181b', // Testo Scuro
+          fontFamily: 'Segoe UI, system-ui, sans-serif',
+          padding: '60px',
+          boxSizing: 'border-box',
+          opacity: 0, // Hidden but renderable
+          pointerEvents: 'none'
+        }}
+      >
+        {/* PDF Header */}
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end', marginBottom: '40px', borderBottom: '2px solid #e4e4e7', paddingBottom: '20px' }}>
+          <div>
+            <h1 style={{ fontSize: '36px', fontWeight: '800', color: '#18181b', margin: 0, letterSpacing: '-0.02em' }}>
+              Report Analitico
+            </h1>
+            <p style={{ fontSize: '16px', color: '#71717a', marginTop: '8px', fontWeight: 500 }}>
+              {restaurantName}
+            </p>
+          </div>
+          <div style={{ textAlign: 'right' }}>
+            <div style={{ fontSize: '14px', color: '#71717a', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.05em' }}>Periodo di Analisi</div>
+            <div style={{ fontSize: '20px', fontWeight: 'bold', color: '#f59e0b' }}>
+              {new Date(start).toLocaleDateString('it-IT')} — {new Date(end).toLocaleDateString('it-IT')}
+            </div>
+            <div style={{ fontSize: '12px', color: '#a1a1aa', marginTop: '4px' }}>Generato il {new Date().toLocaleDateString('it-IT')} alle {new Date().toLocaleTimeString('it-IT')}</div>
+          </div>
+        </div>
+
+        {/* Summary Metric Cards */}
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '20px', marginBottom: '40px' }}>
+          {/* Orders */}
+          <div style={{ background: '#ffffff', borderRadius: '16px', padding: '24px', boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.05)', border: '1px solid #e4e4e7' }}>
+            <div style={{ fontSize: '13px', fontWeight: 700, color: '#71717a', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: '8px' }}>Totale Ordini</div>
+            <div style={{ fontSize: '32px', fontWeight: 800, color: '#18181b' }}>{analytics.totalOrders}</div>
+          </div>
+          {/* Revenue */}
+          <div style={{ background: '#ffffff', borderRadius: '16px', padding: '24px', boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.05)', border: '1px solid #e4e4e7' }}>
+            <div style={{ fontSize: '13px', fontWeight: 700, color: '#71717a', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: '8px' }}>Ricavi Totali</div>
+            <div style={{ fontSize: '32px', fontWeight: 800, color: '#f59e0b' }}>€{analytics.totalRevenue.toFixed(2)}</div>
+          </div>
+          {/* Avg Value */}
+          <div style={{ background: '#ffffff', borderRadius: '16px', padding: '24px', boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.05)', border: '1px solid #e4e4e7' }}>
+            <div style={{ fontSize: '13px', fontWeight: 700, color: '#71717a', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: '8px' }}>Scontrino Medio</div>
+            <div style={{ fontSize: '32px', fontWeight: 800, color: '#18181b' }}>€{analytics.averageOrderValue.toFixed(2)}</div>
+          </div>
+          {/* Trend */}
+          <div style={{ background: '#ffffff', borderRadius: '16px', padding: '24px', boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.05)', border: '1px solid #e4e4e7' }}>
+            <div style={{ fontSize: '13px', fontWeight: 700, color: '#71717a', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: '8px' }}>Miglior Trend</div>
+            {(inventoryData.trendAlerts && inventoryData.trendAlerts.length > 0) ? (
+              <div>
+                <div style={{ fontSize: '18px', fontWeight: 700, color: '#18181b', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{inventoryData.trendAlerts[0].name}</div>
+                <div style={{ fontSize: '16px', fontWeight: 800, color: inventoryData.trendAlerts[0].change > 0 ? '#10b981' : '#ef4444' }}>
+                  {inventoryData.trendAlerts[0].change > 0 ? '+' : ''}{inventoryData.trendAlerts[0].change}%
+                </div>
+              </div>
+            ) : (
+              <div style={{ fontSize: '24px', fontWeight: 800, color: '#d4d4d8' }}>-</div>
+            )}
+          </div>
+        </div>
+
+        {/* Section: Category Performance (Visual Table) */}
+        <div style={{ marginBottom: '40px', background: '#ffffff', borderRadius: '20px', padding: '30px', boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.05)', border: '1px solid #e4e4e7' }}>
+          <h3 style={{ fontSize: '20px', fontWeight: 800, color: '#18181b', marginBottom: '20px', borderBottom: '1px solid #f4f4f5', paddingBottom: '15px' }}>Performance Categorie</h3>
+          <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+            <thead>
+              <tr style={{ textAlign: 'left' }}>
+                <th style={{ padding: '10px 0', fontSize: '12px', color: '#71717a', textTransform: 'uppercase' }}>Categoria</th>
+                <th style={{ padding: '10px 0', fontSize: '12px', color: '#71717a', textTransform: 'uppercase', width: '40%' }}>Volume Vendite</th>
+                <th style={{ padding: '10px 0', fontSize: '12px', color: '#71717a', textTransform: 'uppercase', textAlign: 'right' }}>Quantità</th>
+                <th style={{ padding: '10px 0', fontSize: '12px', color: '#71717a', textTransform: 'uppercase', textAlign: 'right' }}>Ricavi</th>
+              </tr>
+            </thead>
+            <tbody>
+              {analytics.categoryStats.map((cat, idx) => (
+                <tr key={idx} style={{ borderBottom: '1px solid #f4f4f5' }}>
+                  <td style={{ padding: '12px 0', fontWeight: 600, color: '#18181b' }}>{cat.name}</td>
+                  <td style={{ padding: '12px 0' }}>
+                    <div style={{ height: '8px', width: '100%', background: '#f4f4f5', borderRadius: '4px', overflow: 'hidden' }}>
+                      <div style={{ height: '100%', width: `${Math.min(cat.percentage, 100)}%`, background: '#f59e0b', borderRadius: '4px' }}></div>
+                    </div>
+                  </td>
+                  <td style={{ padding: '12px 0', textAlign: 'right', fontWeight: 600, color: '#52525b' }}>{cat.quantity}</td>
+                  <td style={{ padding: '12px 0', textAlign: 'right', fontWeight: 700, color: '#18181b' }}>€{cat.revenue.toFixed(2)}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+
+        {/* Section: Inventory Analysis (Data Table) */}
+        <div style={{ background: '#ffffff', borderRadius: '20px', padding: '30px', boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.05)', border: '1px solid #e4e4e7', pageBreakInside: 'avoid' }}>
+          <h3 style={{ fontSize: '20px', fontWeight: 800, color: '#18181b', marginBottom: '20px', borderBottom: '1px solid #f4f4f5', paddingBottom: '15px' }}>Dettaglio Magazzino & Vendite</h3>
+          <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '13px' }}>
+            <thead>
+              <tr style={{ textAlign: 'left', borderBottom: '2px solid #e4e4e7' }}>
+                <th style={{ padding: '12px', color: '#52525b', fontWeight: 700 }}>Prodotto</th>
+                <th style={{ padding: '12px', color: '#52525b', fontWeight: 700 }}>Categoria</th>
+                <th style={{ padding: '12px', color: '#52525b', fontWeight: 700, textAlign: 'center' }}>Venduti (Periodo)</th>
+                <th style={{ padding: '12px', color: '#52525b', fontWeight: 700, textAlign: 'center' }}>Media/Giorno</th>
+                <th style={{ padding: '12px', color: '#52525b', fontWeight: 700, textAlign: 'center' }}>Trend Storico</th>
+                <th style={{ padding: '12px', color: '#52525b', fontWeight: 700, textAlign: 'right' }}>Ricavo Tot.</th>
+              </tr>
+            </thead>
+            <tbody>
+              {inventoryData.dishes.slice(0, 30).map((dish, idx) => ( // Limit to top 30 to fit one page nicely, or handle pagination
+                <tr key={dish.id} style={{ borderBottom: '1px solid #f4f4f5', background: idx % 2 === 0 ? 'transparent' : '#fafafa' }}>
+                  <td style={{ padding: '10px 12px', fontWeight: 600, color: '#18181b' }}>{dish.name}</td>
+                  <td style={{ padding: '10px 12px', color: '#71717a' }}>{dish.category}</td>
+                  <td style={{ padding: '10px 12px', textAlign: 'center', fontWeight: 700, color: '#18181b' }}>{dish.periodQuantity}</td>
+                  <td style={{ padding: '10px 12px', textAlign: 'center', color: '#52525b' }}>{dish.periodAvgPerDay}</td>
+                  <td style={{ padding: '10px 12px', textAlign: 'center' }}>
+                    <span style={{
+                      padding: '4px 8px',
+                      borderRadius: '4px',
+                      fontSize: '11px',
+                      fontWeight: 700,
+                      background: dish.percentageChange > 0 ? '#ecfdf5' : dish.percentageChange < 0 ? '#fef2f2' : '#f4f4f5',
+                      color: dish.percentageChange > 0 ? '#059669' : dish.percentageChange < 0 ? '#dc2626' : '#71717a'
+                    }}>
+                      {dish.percentageChange > 0 ? '+' : ''}{dish.percentageChange}%
+                    </span>
+                  </td>
+                  <td style={{ padding: '10px 12px', textAlign: 'right', fontWeight: 700, color: '#f59e0b' }}>
+                    €{(dish.periodQuantity * dish.price).toFixed(2)}
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+          {inventoryData.dishes.length > 30 && (
+            <div style={{ textAlign: 'center', marginTop: '15px', color: '#71717a', fontSize: '12px', fontStyle: 'italic' }}>
+              ... e altri {inventoryData.dishes.length - 30} articoli (lista completa consultabile in dashboard)
+            </div>
+          )}
+        </div>
+
+        {/* Footer */}
+        <div style={{ marginTop: '40px', textAlign: 'center', color: '#a1a1aa', fontSize: '12px', borderTop: '1px solid #e4e4e7', paddingTop: '20px' }}>
+          Documento generato automaticamente da EasyFood
+        </div>
+      </div>
     </>
   )
 }

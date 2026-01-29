@@ -418,10 +418,34 @@ const CustomerMenu = () => {
       })
       .subscribe()
 
+    // Real-time subscription for Restaurant Settings (enable_course_splitting)
+    const restaurantChannel = supabase
+      .channel(`restaurant-settings-watch:${restaurantId}`)
+      .on('postgres_changes', {
+        event: 'UPDATE',
+        schema: 'public',
+        table: 'restaurants',
+        filter: `id=eq.${restaurantId}`
+      }, (payload) => {
+        const newSettings = payload.new as Restaurant
+        if (newSettings) {
+          // Update course splitting setting immediately
+          setCourseSplittingEnabled(newSettings.enable_course_splitting !== false)
+
+          // Optionally update active status if changed
+          if ((newSettings as any).is_active === false) {
+            setRestaurantSuspended(true)
+            setIsAuthenticated(false)
+          }
+        }
+      })
+      .subscribe()
+
     return () => {
       supabase.removeChannel(sessionChannel)
+      supabase.removeChannel(restaurantChannel)
     }
-  }, [tableId, isAuthenticated])
+  }, [tableId, isAuthenticated, restaurantId])
 
   const handlePinSubmit = async (enteredPin: string) => {
     // Retry joining session if missing (connection recovery)
@@ -647,6 +671,54 @@ function AuthorizedMenuContent({ restaurantId, tableId, sessionId, activeSession
 
   // Helper to generate PIN
   const generatePin = () => Math.floor(1000 + Math.random() * 9000).toString()
+
+  // --- Realtime Order Updates ---
+  useEffect(() => {
+    if (!sessionId) return
+
+    // 1. Subscribe to new Orders (to fetch them when created)
+    const orderChannel = supabase
+      .channel(`orders-watch:${sessionId}`)
+      .on('postgres_changes', {
+        event: '*',
+        schema: 'public',
+        table: 'orders',
+        filter: `table_session_id=eq.${sessionId}`
+      }, () => {
+        fetchOrders()
+      })
+      .subscribe()
+
+    return () => {
+      supabase.removeChannel(orderChannel)
+    }
+  }, [sessionId])
+
+  useEffect(() => {
+    if (!sessionId || previousOrders.length === 0) return
+
+    // 2. Subscribe to Order Items updates (for status changes: SERVED etc)
+    const orderIds = previousOrders.map(o => o.id)
+    // Create filter string: order_id=in.(id1,id2,...)
+    const filter = `order_id=in.(${orderIds.join(',')})`
+
+    const itemsChannel = supabase
+      .channel(`order-items-watch:${orderIds.join('-')}`) // Unique channel name per ID set
+      .on('postgres_changes', {
+        event: 'UPDATE',
+        schema: 'public',
+        table: 'order_items',
+        filter: filter
+      }, () => {
+        // Refresh orders when any item status changes
+        fetchOrders()
+      })
+      .subscribe()
+
+    return () => {
+      supabase.removeChannel(itemsChannel)
+    }
+  }, [sessionId, previousOrders.map(o => o.id).join(',')]) // Re-subscribe only if order list IDs change
 
   // --- FIX DOUBLE LOADING: Consolidated data fetch ---
   const [categories, setCategories] = useState<Category[]>([])
@@ -1275,16 +1347,18 @@ function AuthorizedMenuContent({ restaurantId, tableId, sessionId, activeSession
                     </p>
                   </div>
 
-                  <div className="mt-4">
-                    <Button
-                      variant="outline"
-                      className="w-full h-11 border-dashed border-amber-500/50 text-amber-500 hover:bg-amber-500/10 gap-2 rounded-xl font-medium tracking-wide"
-                      onClick={() => setShowCourseManagement(true)}
-                    >
-                      <Layers className="w-4 h-4" />
-                      Dividi / Organizza Portate
-                    </Button>
-                  </div>
+                  {courseSplittingEnabled && (
+                    <div className="mt-4">
+                      <Button
+                        variant="outline"
+                        className="w-full h-11 border-dashed border-amber-500/50 text-amber-500 hover:bg-amber-500/10 gap-2 rounded-xl font-medium tracking-wide"
+                        onClick={() => setShowCourseManagement(true)}
+                      >
+                        <Layers className="w-4 h-4" />
+                        Dividi / Organizza Portate
+                      </Button>
+                    </div>
+                  )}
 
                   <div className="bg-zinc-900/80 backdrop-blur-sm rounded-2xl p-4 shadow-lg border border-amber-500/10 mt-4">
                     <div className="flex justify-between items-center mb-4">
@@ -1355,7 +1429,15 @@ function AuthorizedMenuContent({ restaurantId, tableId, sessionId, activeSession
                             >
                               <div className="flex items-baseline gap-2">
                                 <span className="font-bold">{item.quantity}x</span>
-                                <span className="font-medium">{dish?.name || 'Piatto non disponibile'}</span>
+                                <div className="flex flex-col">
+                                  <span className="font-medium">{dish?.name || 'Piatto non disponibile'}</span>
+                                  <div className="flex items-center gap-1.5 mt-0.5">
+                                    <div className={`w-1.5 h-1.5 rounded-full ${item.status === 'SERVED' ? 'bg-emerald-500' : 'bg-amber-500 animate-pulse'}`}></div>
+                                    <span className={`text-[10px] font-bold uppercase tracking-wider ${item.status === 'SERVED' ? 'text-emerald-500' : 'text-amber-500'}`}>
+                                      {item.status === 'SERVED' ? 'Completato' : 'In preparazione'}
+                                    </span>
+                                  </div>
+                                </div>
                               </div>
                               <span className="text-white/60">€{(price * item.quantity).toFixed(2)}</span>
                             </div>
