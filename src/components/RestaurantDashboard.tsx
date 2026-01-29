@@ -3069,9 +3069,37 @@ const RestaurantDashboard = ({ user, onLogout }: RestaurantDashboardProps) => {
                   </p>
                 </div>
               </div>
-              <Button onClick={() => setShowQrDialog(false)} className="w-full">
-                Chiudi
-              </Button>
+              <div className="flex gap-2">
+                <Button
+                  variant="outline"
+                  className="flex-1 gap-2"
+                  disabled={isGeneratingTableQrPdf}
+                  onClick={async () => {
+                    if (!selectedTable) return
+                    setIsGeneratingTableQrPdf(true)
+                    try {
+                      await generatePdfFromElement('table-qr-pdf-content', {
+                        fileName: `QR_Tavolo_${selectedTable?.number || 'tavolo'}.pdf`,
+                        scale: 2,
+                        backgroundColor: '#09090b',
+                        orientation: 'portrait'
+                      })
+                      toast.success('PDF scaricato!')
+                    } catch (err) {
+                      console.error(err)
+                      toast.error('Errore durante la generazione del PDF')
+                    } finally {
+                      setIsGeneratingTableQrPdf(false)
+                    }
+                  }}
+                >
+                  <DownloadSimple size={18} />
+                  {isGeneratingTableQrPdf ? 'Generazione...' : 'Scarica PDF'}
+                </Button>
+                <Button onClick={() => setShowQrDialog(false)} className="flex-1">
+                  Chiudi
+                </Button>
+              </div>
             </DialogContent>
           </Dialog >
 
