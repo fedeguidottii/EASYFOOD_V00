@@ -37,10 +37,10 @@ const replaceAllOklch = (str: string): string => {
  * 1. Rimuove TUTTI i link ai fogli di stile esterni
  * 2. Sostituisce oklch in TUTTI i tag <style>
  * 3. Sostituisce oklch in TUTTI gli attributi style inline
+ * MA preserva gli stili inline già presenti negli elementi
  */
 const sanitizeClonedDocument = (clonedDoc: Document): void => {
     // 1. RIMUOVI COMPLETAMENTE tutti i fogli di stile esterni
-    // Questo è CRITICO - questi contengono oklch che html2canvas non sa gestire
     const linkElements = clonedDoc.querySelectorAll('link[rel="stylesheet"]')
     linkElements.forEach(link => link.remove())
 
@@ -52,7 +52,7 @@ const sanitizeClonedDocument = (clonedDoc: Document): void => {
         }
     })
 
-    // 3. Pulisci TUTTI gli elementi con attributo style
+    // 3. Pulisci TUTTI gli elementi con attributo style contenente oklch
     const elementsWithStyle = clonedDoc.querySelectorAll('*[style]')
     elementsWithStyle.forEach(el => {
         const styleAttr = el.getAttribute('style')
@@ -61,30 +61,7 @@ const sanitizeClonedDocument = (clonedDoc: Document): void => {
         }
     })
 
-    // 4. Forza colori di base sul documento
-    clonedDoc.documentElement.style.cssText = `
-        --background: #09090b;
-        --foreground: #fafafa;
-        --card: #09090b;
-        --card-foreground: #fafafa;
-        --popover: #09090b;
-        --popover-foreground: #fafafa;
-        --primary: #fafafa;
-        --primary-foreground: #18181b;
-        --secondary: #27272a;
-        --secondary-foreground: #fafafa;
-        --muted: #27272a;
-        --muted-foreground: #a1a1aa;
-        --accent: #27272a;
-        --accent-foreground: #fafafa;
-        --destructive: #7f1d1d;
-        --destructive-foreground: #fafafa;
-        --border: #27272a;
-        --input: #27272a;
-        --ring: #d4d4d8;
-        color: #ffffff;
-        background-color: #09090b;
-    `
+    // 4. NON sovrascriviamo i colori esistenti - il template ha già stili inline corretti
 }
 
 interface GeneratePdfOptions {
