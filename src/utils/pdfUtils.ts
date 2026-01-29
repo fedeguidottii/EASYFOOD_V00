@@ -35,47 +35,58 @@ const colorMap: Record<string, string> = {
 export const fixOklchColors = (clonedDoc: Document) => {
     const allElements = clonedDoc.querySelectorAll('*')
     allElements.forEach(el => {
-        const style = (el as HTMLElement).style
+        // Safe access to styles
+        const element = el as HTMLElement;
+        const inlineStyle = element.style;
+        const computedStyle = element.ownerDocument.defaultView?.getComputedStyle(element);
 
-        // Safe class name check that handles SVGs (where className is an object)
-        const getClassName = (element: Element): string => {
-            if (typeof element.className === 'string') return element.className;
-            if (element.getAttribute) return element.getAttribute('class') || '';
+        // Safe class name check that handles SVGs
+        const getClassName = (e: Element): string => {
+            if (typeof e.className === 'string') return e.className;
+            if (e.getAttribute) return e.getAttribute('class') || '';
             return '';
         }
 
         const classNameStr = getClassName(el);
 
-        // Helper to replace oklch in a specific property
+        // Helper to replace oklch
         const replaceColor = (prop: string) => {
-            const val = style.getPropertyValue(prop)
+            // Check computed style first (what html2canvas sees), fallback to inline
+            const val = computedStyle?.getPropertyValue(prop) || inlineStyle.getPropertyValue(prop);
+
             if (val && (val.includes('oklch') || val.startsWith('var('))) {
-                // Heuristic: try to find common color names in classNames or style to guess the fallback
-                // This is a rough fallback for oklch issues
                 let fallback = '#000000' // default text
 
-                if (prop === 'color') {
-                    fallback = '#ffffff' // assume light text on dark bg usually
-                    if (classNameStr.includes('zinc-400')) fallback = colorMap['zinc-400']
-                    if (classNameStr.includes('zinc-500')) fallback = colorMap['zinc-500']
-                    if (classNameStr.includes('amber')) fallback = colorMap['amber-500']
-                    if (classNameStr.includes('black')) fallback = '#000000'
-                } else if (prop.includes('background')) {
-                    fallback = 'transparent' // safe default for bg
-                    if (classNameStr.includes('zinc-950')) fallback = colorMap['zinc-950']
-                    if (classNameStr.includes('zinc-900')) fallback = colorMap['zinc-900']
-                    if (classNameStr.includes('zinc-800')) fallback = colorMap['zinc-800']
-                    if (classNameStr.includes('amber')) fallback = colorMap['amber-500']
-                    if (classNameStr.includes('emerald')) fallback = colorMap['emerald-500']
-                    if (classNameStr.includes('rose')) fallback = colorMap['rose-500']
-                    if (classNameStr.includes('white')) fallback = '#ffffff'
-                } else if (prop.includes('border')) {
+                if (prop === 'color' || prop === 'fill' || prop === 'stroke') {
+                    fallback = '#000000'
+                    // Text/Icon color heuristics
+                    if (classNameStr.includes('text-white') || classNameStr.includes('text-zinc-50')) fallback = '#ffffff';
+                    else if (classNameStr.includes('zinc-400')) fallback = colorMap['zinc-400'];
+                    else if (classNameStr.includes('zinc-500')) fallback = colorMap['zinc-500'];
+                    else if (classNameStr.includes('amber')) fallback = colorMap['amber-500'];
+                    else if (classNameStr.includes('red') || classNameStr.includes('rose')) fallback = colorMap['rose-500'];
+
+                    // Specific fix for dark mode text
+                    if (val.includes('light') || val.includes('white')) fallback = '#ffffff';
+                }
+                else if (prop.includes('background')) {
+                    fallback = 'transparent' // safer default for bg
+                    if (classNameStr.includes('zinc-950')) fallback = colorMap['zinc-950'];
+                    else if (classNameStr.includes('zinc-900')) fallback = colorMap['zinc-900'];
+                    else if (classNameStr.includes('zinc-800')) fallback = colorMap['zinc-800'];
+                    else if (classNameStr.includes('amber')) fallback = colorMap['amber-500'];
+                    else if (classNameStr.includes('emerald')) fallback = colorMap['emerald-500'];
+                    else if (classNameStr.includes('rose')) fallback = colorMap['rose-500'];
+                    else if (classNameStr.includes('white')) fallback = '#ffffff';
+                }
+                else if (prop.includes('border') || prop.includes('outline')) {
                     fallback = 'transparent'
-                    if (classNameStr.includes('zinc-800')) fallback = colorMap['zinc-800']
-                    if (classNameStr.includes('amber')) fallback = colorMap['amber-500']
+                    if (classNameStr.includes('zinc-800')) fallback = colorMap['zinc-800'];
+                    else if (classNameStr.includes('amber')) fallback = colorMap['amber-500'];
                 }
 
-                style.setProperty(prop, fallback, 'important')
+                // Force override inline style
+                inlineStyle.setProperty(prop, fallback, 'important')
             }
         }
 
