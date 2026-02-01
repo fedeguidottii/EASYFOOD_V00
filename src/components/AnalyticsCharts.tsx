@@ -913,7 +913,7 @@ export default function AnalyticsCharts({ orders, completedOrders, dishes, categ
           fontFamily: 'Segoe UI, system-ui, sans-serif',
           padding: '60px',
           boxSizing: 'border-box',
-          opacity: 0, // Hidden but renderable
+          display: 'block', // Visible for html2canvas
           pointerEvents: 'none'
         }}
       >
