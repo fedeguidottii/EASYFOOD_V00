@@ -3560,17 +3560,18 @@ const RestaurantDashboard = ({ user, onLogout }: RestaurantDashboardProps) => {
         left: '-9999px',
         width: '210mm',
         minHeight: '297mm',
-        padding: '10mm',
+        padding: '15mm', // More padding for elegant page
         backgroundColor: '#ffffff',
         color: '#000000',
         fontFamily: 'Inter, sans-serif'
       }}>
-        <div className="grid grid-cols-2 gap-8" style={{ width: '100%' }}>
+        {/* Grid 3 cols for Vertical Cards (approx 60-65mm width each to fit 210mm - margins) */}
+        <div className="grid grid-cols-3 gap-8" style={{ width: '100%' }}>
           {restaurantTables.map((table, index) => (
             <div key={table.id} className="break-inside-avoid" style={{
-              border: '4px solid #000000',
-              borderRadius: '24px',
-              padding: '2rem',
+              border: '1px solid #000000', // Thin border
+              borderRadius: '0px', // Sharp corners for Gala style or minimal rounded
+              padding: '1.5rem',
               display: 'flex',
               flexDirection: 'column',
               alignItems: 'center',
@@ -3578,27 +3579,29 @@ const RestaurantDashboard = ({ user, onLogout }: RestaurantDashboardProps) => {
               pageBreakInside: 'avoid',
               breakInside: 'avoid',
               backgroundColor: '#ffffff',
-              height: '400px', // Fixed height to ensure consistency
+              height: '140mm', // Fixed Vertical Height
               color: '#000000'
             }}>
-              {/* HEADER: Table Number - Huge & Bold */}
+              {/* HEADER: Label + Number */}
               <div style={{ textAlign: 'center', flex: 1, display: 'flex', flexDirection: 'column', justifyContent: 'center' }}>
                 <p style={{
-                  fontSize: '16px',
-                  fontWeight: '700',
+                  fontSize: '10px',
+                  fontWeight: '500',
                   margin: '0 0 5px 0',
                   textTransform: 'uppercase',
-                  letterSpacing: '0.2em',
-                  color: '#000000'
+                  letterSpacing: '0.3em',
+                  color: '#000000',
+                  fontFamily: 'sans-serif'
                 }}>
                   TAVOLO
                 </p>
                 <h1 style={{
-                  fontSize: '90px',
+                  fontSize: '64px', // Huge but fitting Width
                   lineHeight: '1',
-                  fontWeight: '900',
+                  fontWeight: '400', // Serif usually looks good with normal weight
                   margin: 0,
-                  color: '#000000'
+                  color: '#000000',
+                  fontFamily: 'Georgia, serif' // Serif for the Number
                 }}>
                   {table.number}
                 </h1>
@@ -3606,23 +3609,25 @@ const RestaurantDashboard = ({ user, onLogout }: RestaurantDashboardProps) => {
 
               {/* BODY: QR Code - Center */}
               <div style={{
-                padding: '20px', // Quiet zone
+                padding: '10px',
                 display: 'flex',
                 justifyContent: 'center',
                 alignItems: 'center',
-                flex: 2
+                flex: 1
               }}>
-                <QRCodeGenerator value={generateQrCode(table.id)} size={180} />
+                <QRCodeGenerator value={generateQrCode(table.id)} size={140} />
               </div>
 
               {/* FOOTER: Restaurant Name */}
-              <div style={{ textAlign: 'center', marginTop: 'auto', paddingTop: '20px', flex: 0 }}>
+              <div style={{ textAlign: 'center', marginTop: 'auto', paddingTop: '10px', flex: 0 }}>
                 <h2 style={{
-                  fontSize: '20px',
-                  fontWeight: '600',
+                  fontSize: '12px',
+                  fontWeight: '400',
                   margin: 0,
                   color: '#000000',
-                  letterSpacing: '0.05em'
+                  textTransform: 'uppercase',
+                  letterSpacing: '0.25em', // Tracking widest
+                  fontFamily: 'sans-serif'
                 }}>
                   {currentRestaurant?.name || 'Restaurant'}
                 </h2>
