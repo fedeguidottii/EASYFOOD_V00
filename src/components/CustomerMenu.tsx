@@ -57,10 +57,11 @@ function SortableDishItem({ item, courseNum }: { item: CartItem, courseNum: numb
 
   const style = {
     transform: CSS.Transform.toString(transform),
-    transition: transition || 'transform 250ms cubic-bezier(0.25, 1, 0.5, 1)',
-    opacity: isDragging ? 0.9 : 1,
+    transition: transition || 'transform 300ms cubic-bezier(0.22, 1, 0.36, 1), opacity 200ms ease',
+    opacity: isDragging ? 0.4 : 1,
     zIndex: isDragging ? 999 : 'auto',
     touchAction: 'none',
+    scale: isDragging ? 0.98 : 1,
   }
 
   return (
@@ -69,10 +70,13 @@ function SortableDishItem({ item, courseNum }: { item: CartItem, courseNum: numb
       style={style}
       {...attributes}
       {...listeners}
-      className={`flex items-center justify-between bg-zinc-900 p-3 rounded-xl border border-zinc-800 group relative cursor-grab active:cursor-grabbing touch-none select-none ${isDragging ? 'ring-2 ring-amber-500 bg-zinc-800' : ''}`}
+      className={`flex items-center justify-between bg-zinc-900 p-3 rounded-xl border group relative cursor-grab active:cursor-grabbing touch-none select-none transition-all duration-300 ${isDragging
+          ? 'border-amber-500/50 bg-zinc-800/50 shadow-lg shadow-amber-500/10'
+          : 'border-zinc-800 hover:border-zinc-700 hover:bg-zinc-900/80'
+        }`}
     >
       <div className="flex items-center gap-3 pointer-events-none">
-        <div className={`p-1.5 rounded-lg ${isDragging ? 'text-amber-500 bg-amber-500/10' : 'text-zinc-600'}`}>
+        <div className={`p-1.5 rounded-lg transition-colors duration-200 ${isDragging ? 'text-amber-500 bg-amber-500/10' : 'text-zinc-600 group-hover:text-zinc-400'}`}>
           <GripVertical className="w-4 h-4" />
         </div>
         <div>
@@ -174,7 +178,10 @@ function DroppableCourse({ id, children, className }: { id: string, children: Re
   return (
     <div
       ref={setNodeRef}
-      className={`${className} transition-colors ${isOver ? 'border-amber-500/50 bg-amber-500/5' : ''}`}
+      className={`${className} transition-all duration-300 ease-out ${isOver
+          ? 'border-amber-500/60 bg-amber-500/5 shadow-lg shadow-amber-500/5 scale-[1.01]'
+          : 'border-zinc-800'
+        }`}
     >
       {children}
     </div>
@@ -1032,7 +1039,7 @@ function AuthorizedMenuContent({ restaurantId, tableId, sessionId, activeSession
   const [activeDragItem, setActiveDragItem] = useState<CartItem | null>(null)
 
   const sensors = useSensors(
-    useSensor(PointerSensor, { activationConstraint: { distance: 8 } })
+    useSensor(PointerSensor, { activationConstraint: { distance: 15 } })
   )
 
   const handleDragStart = (event: DragStartEvent) => {
@@ -1042,34 +1049,8 @@ function AuthorizedMenuContent({ restaurantId, tableId, sessionId, activeSession
   }
 
   const handleDragOver = (event: DragOverEvent) => {
-    const { active, over } = event
-    if (!over) return
-
-    const activeId = active.id as string
-    const overId = over.id as string
-
-    const activeItem = cart.find(i => i.id === activeId)
-    if (!activeItem) return
-
-    if (overId === 'new-course-zone') {
-      const newCourseNum = maxCourse + 1
-      setMaxCourse(newCourseNum)
-      moveItemToCourse(activeId, newCourseNum)
-      return
-    }
-
-    if (overId.startsWith('course-')) {
-      const courseNum = parseInt(overId.split('-')[1])
-      if (activeItem.course_number !== courseNum) {
-        moveItemToCourse(activeId, courseNum)
-      }
-      return
-    }
-
-    const overItem = cart.find(i => i.id === overId)
-    if (overItem && activeItem.course_number !== overItem.course_number) {
-      moveItemToCourse(activeId, overItem.course_number || 1)
-    }
+    // Don't move items during drag - only highlight target
+    // Actual move happens in handleDragEnd for smoother UX
   }
 
   const handleDragEnd = (event: DragEndEvent) => {
@@ -1081,18 +1062,30 @@ function AuthorizedMenuContent({ restaurantId, tableId, sessionId, activeSession
     const activeId = active.id as string
     const overId = over.id as string
 
-    if (activeId !== overId) {
-      // Logic to move item between courses would go here if we were reordering list
-      // But for courses we use drag to course container
-      const activeItem = cart.find(i => i.id === activeId)
-      const overCourseId = overId.toString()
+    const activeItem = cart.find(i => i.id === activeId)
+    if (!activeItem) return
 
-      if (activeItem && overCourseId.startsWith('course-')) {
-        const newCourse = parseInt(overCourseId.split('-')[1])
-        if (!isNaN(newCourse) && activeItem.course_number !== newCourse) {
-          moveItemToCourse(activeItem.id, newCourse)
-        }
+    // Handle dropping on "new course" zone
+    if (overId === 'new-course-zone') {
+      const newCourseNum = maxCourse + 1
+      setMaxCourse(newCourseNum)
+      moveItemToCourse(activeId, newCourseNum)
+      return
+    }
+
+    // Handle dropping on a course container
+    if (overId.startsWith('course-')) {
+      const courseNum = parseInt(overId.split('-')[1])
+      if (!isNaN(courseNum) && activeItem.course_number !== courseNum) {
+        moveItemToCourse(activeItem.id, courseNum)
       }
+      return
+    }
+
+    // Handle dropping on another item - move to that item's course
+    const overItem = cart.find(i => i.id === overId)
+    if (overItem && activeItem.course_number !== overItem.course_number) {
+      moveItemToCourse(activeId, overItem.course_number || 1)
     }
   }
 
