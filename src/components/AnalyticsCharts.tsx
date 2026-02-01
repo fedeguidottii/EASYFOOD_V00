@@ -958,8 +958,8 @@ export default function AnalyticsCharts({ orders, completedOrders, dishes, categ
             <div style={{ fontSize: '13px', fontWeight: 700, color: '#71717a', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: '8px' }}>Miglior Trend</div>
             {(inventoryData.trendAlerts && inventoryData.trendAlerts.length > 0) ? (
               <div>
-                <div style={{ fontSize: '18px', fontWeight: 700, color: '#18181b', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{inventoryData.trendAlerts[0].name}</div>
-                <div style={{ fontSize: '16px', fontWeight: 800, color: inventoryData.trendAlerts[0].change > 0 ? '#10b981' : '#ef4444' }}>
+                <div style={{ fontSize: '16px', fontWeight: 700, color: '#18181b', wordWrap: 'break-word', lineHeight: '1.3' }}>{inventoryData.trendAlerts[0].name}</div>
+                <div style={{ fontSize: '16px', fontWeight: 800, color: inventoryData.trendAlerts[0].change > 0 ? '#10b981' : '#ef4444', marginTop: '4px' }}>
                   {inventoryData.trendAlerts[0].change > 0 ? '+' : ''}{inventoryData.trendAlerts[0].change}%
                 </div>
               </div>
@@ -967,6 +967,36 @@ export default function AnalyticsCharts({ orders, completedOrders, dishes, categ
               <div style={{ fontSize: '24px', fontWeight: 800, color: '#d4d4d8' }}>-</div>
             )}
           </div>
+        </div>
+
+        {/* Section: Time Series Data (Table format for PDF) */}
+        <div style={{ marginBottom: '40px', background: '#ffffff', borderRadius: '20px', padding: '30px', boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.05)', border: '1px solid #e4e4e7' }}>
+          <h3 style={{ fontSize: '20px', fontWeight: 800, color: '#18181b', marginBottom: '20px', borderBottom: '1px solid #f4f4f5', paddingBottom: '15px' }}>Andamento nel Tempo</h3>
+          <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+            <thead>
+              <tr style={{ textAlign: 'left' }}>
+                <th style={{ padding: '10px 0', fontSize: '12px', color: '#71717a', textTransform: 'uppercase' }}>Data</th>
+                <th style={{ padding: '10px 0', fontSize: '12px', color: '#71717a', textTransform: 'uppercase', textAlign: 'right' }}>Ordini</th>
+                <th style={{ padding: '10px 0', fontSize: '12px', color: '#71717a', textTransform: 'uppercase', textAlign: 'right' }}>Ricavi</th>
+                <th style={{ padding: '10px 0', fontSize: '12px', color: '#71717a', textTransform: 'uppercase', textAlign: 'right' }}>Scontrino Medio</th>
+              </tr>
+            </thead>
+            <tbody>
+              {analytics.dailyData.slice(0, 14).map((day: any, idx: number) => (
+                <tr key={idx} style={{ borderBottom: '1px solid #f4f4f5' }}>
+                  <td style={{ padding: '10px 0', fontWeight: 600, color: '#18181b' }}>{day.date}</td>
+                  <td style={{ padding: '10px 0', textAlign: 'right', color: '#52525b' }}>{day.orders}</td>
+                  <td style={{ padding: '10px 0', textAlign: 'right', fontWeight: 600, color: '#f59e0b' }}>€{day.revenue.toFixed(2)}</td>
+                  <td style={{ padding: '10px 0', textAlign: 'right', color: '#52525b' }}>€{day.averageValue.toFixed(2)}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+          {analytics.dailyData.length > 14 && (
+            <div style={{ textAlign: 'center', marginTop: '15px', color: '#71717a', fontSize: '12px', fontStyle: 'italic' }}>
+              ... e altri {analytics.dailyData.length - 14} giorni
+            </div>
+          )}
         </div>
 
         {/* Section: Category Performance (Visual Table) */}

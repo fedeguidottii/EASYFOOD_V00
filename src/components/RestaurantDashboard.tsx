@@ -3616,66 +3616,77 @@ const RestaurantDashboard = ({ user, onLogout }: RestaurantDashboardProps) => {
         left: '-9999px',
         width: '210mm',
         minHeight: '297mm',
-        padding: '10mm',
+        padding: '8mm',
         backgroundColor: '#ffffff',
         color: '#000',
         fontFamily: 'Georgia, serif'
       }}>
-        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10mm' }}>
-          {restaurantTables.map(table => (
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gridTemplateRows: '1fr 1fr', gap: '6mm', minHeight: 'calc(297mm - 16mm)' }}>
+          {restaurantTables.map((table, index) => (
             <div key={table.id} style={{
-              border: '2px solid #e5e7eb',
+              border: '1.5px solid #d1d5db',
               borderRadius: '12px',
-              padding: '20px 16px',
+              padding: '16px',
               display: 'flex',
               flexDirection: 'column',
               alignItems: 'center',
-              justifyContent: 'space-between',
+              justifyContent: 'center',
               pageBreakInside: 'avoid',
               breakInside: 'avoid',
-              minHeight: '120mm',
-              backgroundColor: '#fafafa'
+              backgroundColor: '#fafafa',
+              gap: '12px'
             }}>
               {/* Restaurant Name at top */}
-              <div style={{ textAlign: 'center', marginBottom: '8px' }}>
+              <div style={{ textAlign: 'center' }}>
                 {currentRestaurant?.logo_url ? (
-                  <img src={currentRestaurant.logo_url} alt="Logo" style={{ maxHeight: '35px', objectFit: 'contain' }} />
+                  <img src={currentRestaurant.logo_url} alt="Logo" style={{ maxHeight: '30px', objectFit: 'contain' }} />
                 ) : (
                   <h2 style={{
-                    fontSize: '18px',
-                    fontWeight: '500',
+                    fontSize: '16px',
+                    fontWeight: '600',
                     margin: 0,
                     letterSpacing: '1px',
-                    color: '#374151'
+                    color: '#1f2937'
                   }}>
                     {currentRestaurant?.name}
                   </h2>
                 )}
               </div>
 
-              {/* QR Code - centered and prominent */}
+              {/* Instruction text */}
+              <p style={{
+                fontSize: '10px',
+                color: '#6b7280',
+                margin: 0,
+                textAlign: 'center',
+                fontStyle: 'italic'
+              }}>
+                Ordina e consulta il menù
+              </p>
+
+              {/* QR Code */}
               <div style={{
-                padding: '12px',
+                padding: '10px',
                 borderRadius: '8px',
                 border: '1px solid #e5e7eb',
                 backgroundColor: '#fff'
               }}>
-                <QRCodeGenerator value={generateQrCode(table.id)} size={140} />
+                <QRCodeGenerator value={generateQrCode(table.id)} size={100} />
               </div>
 
-              {/* Table Number - BIG and clear */}
-              <div style={{ textAlign: 'center', marginTop: '8px' }}>
+              {/* Table Number */}
+              <div style={{ textAlign: 'center' }}>
                 <p style={{
-                  fontSize: '11px',
+                  fontSize: '9px',
                   color: '#9ca3af',
-                  margin: '0 0 4px 0',
+                  margin: '0 0 2px 0',
                   textTransform: 'uppercase',
                   letterSpacing: '2px'
                 }}>
                   Tavolo
                 </p>
                 <h1 style={{
-                  fontSize: '36px',
+                  fontSize: '28px',
                   fontWeight: '700',
                   margin: 0,
                   color: '#111827'
