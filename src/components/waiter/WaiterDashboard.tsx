@@ -274,10 +274,20 @@ const WaiterDashboard = ({ user, onLogout }: WaiterDashboardProps) => {
 
     // Sound Logic for "Ready" items
     const prevReadyCountRef = useRef(0)
+    const isFirstLoadRef = useRef(true)
+
     useEffect(() => {
+        if (loading) return
+
         const currentReadyCount = activeOrders.reduce((acc, order) => {
             return acc + (order.items?.filter(i => i.status?.toLowerCase() === 'ready').length || 0)
         }, 0)
+
+        if (isFirstLoadRef.current) {
+            prevReadyCountRef.current = currentReadyCount
+            isFirstLoadRef.current = false
+            return
+        }
 
         if (currentReadyCount > prevReadyCountRef.current) {
             // Play sound - simple beep using Audio API or similar
@@ -286,7 +296,7 @@ const WaiterDashboard = ({ user, onLogout }: WaiterDashboardProps) => {
             toast.success('Ci sono piatti pronti da servire!', { icon: '🔔' })
         }
         prevReadyCountRef.current = currentReadyCount
-    }, [activeOrders])
+    }, [activeOrders, loading])
 
     const handleMarkAsDelivered = async (orderId: string, itemId: string) => {
         await supabase

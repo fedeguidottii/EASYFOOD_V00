@@ -231,6 +231,7 @@ const CustomerMenu = () => {
   const [inputPin, setInputPin] = useState('')
   const [pinError, setPinError] = useState(false)
   const [isAuthenticated, setIsAuthenticated] = useState(false)
+  const [authChecking, setAuthChecking] = useState(true)
 
   // Data hooks
   const [activeSession, setActiveSession] = useState<TableSession | null>(null)
@@ -374,6 +375,7 @@ const CustomerMenu = () => {
             localStorage.removeItem('customerSessionId')
             localStorage.removeItem('sessionPin')
             setIsAuthenticated(false)
+            setAuthChecking(false)
             return
           }
 
@@ -393,10 +395,15 @@ const CustomerMenu = () => {
           localStorage.removeItem('sessionPin')
           setIsAuthenticated(false)
         }
+        setAuthChecking(false)
       }
       checkSession()
+    } else if (!sessionLoading && !sessionId && tableId) {
+      // If loading finished but no session (and we have tableId), stop checking
+      // This handles invalid table/no session cases where we show specific errors
+      setAuthChecking(false)
     }
-  }, [sessionId, restaurantId])
+  }, [sessionId, restaurantId, sessionLoading, tableId])
 
   // Real-time subscription to detect when session is closed (table paid/emptied)
   // This ensures authenticated customers are immediately redirected to PIN screen
@@ -590,7 +597,7 @@ const CustomerMenu = () => {
     </div>
   )
 
-  if (sessionLoading) return (
+  if (sessionLoading || authChecking) return (
     <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-zinc-950 via-neutral-950 to-zinc-900">
       <div className="flex flex-col items-center gap-6">
         <div className="relative">
