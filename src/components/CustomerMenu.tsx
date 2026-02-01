@@ -71,8 +71,8 @@ function SortableDishItem({ item, courseNum }: { item: CartItem, courseNum: numb
       {...attributes}
       {...listeners}
       className={`flex items-center justify-between bg-zinc-900 p-3 rounded-xl border group relative cursor-grab active:cursor-grabbing touch-none select-none transition-all duration-300 ${isDragging
-          ? 'border-amber-500/50 bg-zinc-800/50 shadow-lg shadow-amber-500/10'
-          : 'border-zinc-800 hover:border-zinc-700 hover:bg-zinc-900/80'
+        ? 'border-amber-500/50 bg-zinc-800/50 shadow-lg shadow-amber-500/10'
+        : 'border-zinc-800 hover:border-zinc-700 hover:bg-zinc-900/80'
         }`}
     >
       <div className="flex items-center gap-3 pointer-events-none">
@@ -179,8 +179,8 @@ function DroppableCourse({ id, children, className }: { id: string, children: Re
     <div
       ref={setNodeRef}
       className={`${className} transition-all duration-300 ease-out ${isOver
-          ? 'border-amber-500/60 bg-amber-500/5 shadow-lg shadow-amber-500/5 scale-[1.01]'
-          : 'border-zinc-800'
+        ? 'border-amber-500/60 bg-amber-500/5 shadow-lg shadow-amber-500/5 scale-[1.01]'
+        : 'border-zinc-800'
         }`}
     >
       {children}
@@ -1798,10 +1798,10 @@ function AuthorizedMenuContent({ restaurantId, tableId, sessionId, activeSession
 
         {/* Course Alert Dialog */}
         <AlertDialog open={showCourseAlert} onOpenChange={setShowCourseAlert}>
-          <AlertDialogContent className="bg-white dark:bg-slate-900 rounded-3xl border-0 shadow-2xl max-w-sm">
+          <AlertDialogContent className="bg-zinc-950 border-amber-500/20 text-white shadow-2xl shadow-black/80 rounded-3xl max-w-sm">
             <AlertDialogHeader>
-              <AlertDialogTitle className="text-center text-xl">Come vuoi procedere?</AlertDialogTitle>
-              <AlertDialogDescription className="text-center">
+              <AlertDialogTitle className="text-center text-xl text-amber-500" style={{ fontFamily: 'Georgia, serif' }}>Come vuoi procedere?</AlertDialogTitle>
+              <AlertDialogDescription className="text-center text-zinc-400">
                 Hai inserito tutti i piatti in un'unica portata. Vuoi inviare tutto subito o dividere in più uscite?
               </AlertDialogDescription>
             </AlertDialogHeader>
@@ -1814,32 +1814,32 @@ function AuthorizedMenuContent({ restaurantId, tableId, sessionId, activeSession
                 Invia tutto insieme
               </Button>
               {courseSplittingEnabled && (
-                <Button variant="outline" className="h-14 border-slate-200 dark:border-slate-700 hover:bg-slate-50 dark:hover:bg-slate-800 rounded-xl font-medium" onClick={() => {
+                <Button variant="outline" className="h-14 border-zinc-800 bg-zinc-900/50 text-white hover:bg-zinc-800 hover:text-amber-500 hover:border-amber-500/30 rounded-xl font-medium transition-all" onClick={() => {
                   setShowCourseAlert(false);
                   setShowCourseManagement(true);
                 }}>
-                  <Layers className="w-5 h-5 mr-2 text-amber-600" />
+                  <Layers className="w-5 h-5 mr-2 text-amber-500" />
                   Dividi in portate
                 </Button>
               )}
             </div>
             <AlertDialogFooter>
-              <AlertDialogCancel className="rounded-xl h-12 border-zinc-800 text-zinc-400 hover:bg-zinc-900 hover:text-white">Annulla</AlertDialogCancel>
+              <AlertDialogCancel className="rounded-xl h-12 border-zinc-800 bg-transparent text-zinc-400 hover:bg-zinc-900 hover:text-white w-full">Annulla</AlertDialogCancel>
             </AlertDialogFooter>
           </AlertDialogContent>
         </AlertDialog>
 
-        {/* Call Waiter FAB - Floating Action Button */}
+        {/* Call Waiter FAB - Floating Action Button (Top Right) */}
         <Button
           onClick={handleCallWaiter}
           disabled={callWaiterDisabled}
-          className={`fixed bottom-24 right-4 z-50 h-14 w-14 rounded-full shadow-xl border-2 transition-all duration-300 ${callWaiterDisabled
-            ? 'bg-zinc-700 border-zinc-600 text-zinc-400 cursor-not-allowed opacity-50'
-            : 'bg-white border-amber-300 text-amber-600 hover:bg-amber-50 hover:border-amber-400 hover:shadow-amber-500/20'
+          className={`fixed top-4 right-4 z-50 h-12 w-12 rounded-full shadow-xl border-2 transition-all duration-300 ${callWaiterDisabled
+            ? 'bg-zinc-800 border-zinc-700 text-zinc-500 cursor-not-allowed'
+            : 'bg-zinc-900 border-amber-500/50 text-amber-500 hover:bg-amber-500 hover:text-white hover:border-amber-500 hover:shadow-amber-500/20'
             }`}
           title={callWaiterDisabled ? 'Attendi 30 secondi...' : 'Chiama cameriere'}
         >
-          <Bell className="w-6 h-6" strokeWidth={2} />
+          <Bell className="w-5 h-5" fill="currentColor" />
         </Button>
       </div>
     </div >
