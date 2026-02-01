@@ -19,9 +19,10 @@ interface KitchenViewProps {
     onCompleteOrder: (orderId: string) => void
     sessions: TableSession[]
     zoom?: number
+    waiterModeEnabled?: boolean // Added for persistent ready items
 }
 
-export function KitchenView({ orders, tables, dishes, selectedCategoryIds = [], viewMode, onCompleteDish, onCompleteOrder, sessions, zoom = 1 }: KitchenViewProps) {
+export function KitchenView({ orders, tables, dishes, selectedCategoryIds = [], viewMode, onCompleteDish, onCompleteOrder, sessions, zoom = 1, waiterModeEnabled = false }: KitchenViewProps) {
     const [now, setNow] = useState(new Date())
     const [selectedDishInfo, setSelectedDishInfo] = useState<{ dish: Dish | undefined, itemId?: string } | null>(null)
 
@@ -70,13 +71,32 @@ export function KitchenView({ orders, tables, dishes, selectedCategoryIds = [], 
     const activeOrders = useMemo(() => {
         return orders
             .filter(o => ['OPEN', 'pending', 'preparing', 'ready'].includes(o.status))
-            .filter(o => !isOrderComplete(o))
+            .filter(o => {
+                // If waiter mode is enabled, keep the order visible if it has items that are ready but not served (delivered)
+                // If NOT waiter mode, keep standard behavior (hide complete orders)
+                if (waiterModeEnabled) {
+                    // Check if any item is active OR ready (but not served/delivered which are final states for kitchen view usually, but 'ready' is intermediate here)
+                    // Actually, we want to KEEP it if there are items that are 'ready'.
+                    // Filter out only if ALL items are SERVED/DELIVERED/PAID.
+                    // The isOrderComplete check usually filters out ready items too?
+                    // Let's customize:
+                    const hasActiveOrReadyItems = o.items?.some(item => {
+                        const s = item.status?.toLowerCase()
+                        return s !== 'served' && s !== 'delivered' && s !== 'paid' && s !== 'cancelled'
+                        // Note: 'ready' is not in this list, so it returns true.
+                        // But we also need to check if we should hide it.
+                    })
+                    return hasActiveOrReadyItems
+                } else {
+                    return !isOrderComplete(o)
+                }
+            })
             .filter(o => {
                 if (!selectedCategoryIds || selectedCategoryIds.length === 0) return true
                 return o.items?.some(item => itemMatchesCategory(item))
             })
             .sort((a, b) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime())
-    }, [orders, selectedCategoryIds, dishes])
+    }, [orders, selectedCategoryIds, dishes, waiterModeEnabled])
 
     const dishesViewData = useMemo(() => {
         const dishMap = new Map<string, { dish: Dish | undefined, items: { order: Order, item: OrderItem }[] }>()
@@ -174,7 +194,11 @@ export function KitchenView({ orders, tables, dishes, selectedCategoryIds = [], 
                                                 {itemsByCourse[courseNum].map((item, idx) => {
                                                     const dish = getDish(item.dish_id)
                                                     const itemStatus = item.status?.toUpperCase?.() || item.status || ''
-                                                    const isItemDone = ['SERVED', 'READY'].includes(itemStatus)
+                                                    const isItemReady = itemStatus === 'READY'
+                                                    const isItemDone = ['SERVED'].includes(itemStatus) || (isItemReady && !waiterModeEnabled)
+                                                    // If waiter mode is ON, 'READY' is NOT considered 'Done' (it stays visible), but is 'Ready' state.
+                                                    // If waiter mode is OFF, 'READY' is considered 'Done' (fades out or disappears).
+
                                                     const isDelivered = itemStatus === 'DELIVERED'
                                                     const dishName = dish?.name || `❓ Sconosciuto`
 
@@ -187,7 +211,9 @@ export function KitchenView({ orders, tables, dishes, selectedCategoryIds = [], 
                                                                     ? "opacity-40 bg-zinc-950/50 border-transparent scale-[0.98]"
                                                                     : isItemDone
                                                                         ? "opacity-30 bg-zinc-950/50 border-transparent scale-[0.98] grayscale"
-                                                                        : "bg-zinc-800/50 border-white/10 hover:border-amber-500/40 hover:bg-zinc-800 hover:shadow-lg shadow-sm"
+                                                                        : isItemReady && waiterModeEnabled
+                                                                            ? "opacity-50 bg-amber-900/10 border-amber-500/30" // Persistent Ready State
+                                                                            : "bg-zinc-800/50 border-white/10 hover:border-amber-500/40 hover:bg-zinc-800 hover:shadow-lg shadow-sm"
                                                             )}
                                                         >
                                                             <div

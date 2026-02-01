@@ -10,7 +10,7 @@ import { useSupabaseData } from '../hooks/useSupabaseData'
 import { DatabaseService } from '../services/DatabaseService'
 import { toast } from 'sonner'
 import { User, Restaurant, Order } from '../services/types'
-import { Crown, Plus, Buildings, SignOut, Trash, ChartBar, PencilSimple, Eye, EyeSlash, Database, MagnifyingGlass, SortAscending, UploadSimple } from '@phosphor-icons/react'
+import { Crown, Plus, Buildings, SignOut, Trash, ChartBar, PencilSimple, Eye, EyeSlash, Database, MagnifyingGlass, SortAscending, UploadSimple, SignIn } from '@phosphor-icons/react'
 import AdminStatistics from './AdminStatistics'
 import RestaurantDashboard from './RestaurantDashboard'
 import { v4 as uuidv4 } from 'uuid'
@@ -569,9 +569,9 @@ export default function AdminDashboard({ user, onLogout }: Props) {
                             size="icon"
                             className="h-9 w-9 text-zinc-400 hover:text-white hover:bg-white/5 rounded-lg border border-transparent hover:border-white/10"
                             onClick={() => setImpersonatedRestaurantId(restaurant.id)}
-                            title="Dashboard"
+                            title="Accedi alla Dashboard"
                           >
-                            <Eye size={18} />
+                            <SignIn size={18} />
                           </Button>
 
                           <Button

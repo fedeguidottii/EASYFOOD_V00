@@ -5,7 +5,7 @@ import { cn } from '@/lib/utils'
 interface DishPlaceholderProps {
     className?: string
     iconSize?: number
-    variant?: 'default' | 'pot'
+    variant?: 'default' | 'pot' | 'fork'
 }
 
 export function DishPlaceholder({ className, iconSize = 40, variant = 'default' }: DishPlaceholderProps) {

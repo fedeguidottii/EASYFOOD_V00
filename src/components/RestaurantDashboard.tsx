@@ -598,6 +598,33 @@ const RestaurantDashboard = ({ user, onLogout }: RestaurantDashboardProps) => {
 
   // Dirty state tracking
   const [restaurantNameDirty, setRestaurantNameDirty] = useState(false)
+
+  // Split Bill State
+  const [isSplitMode, setIsSplitMode] = useState(false)
+  const [selectedSplitItems, setSelectedSplitItems] = useState<Set<string>>(new Set())
+
+  // Helper: Get detailed status for table color
+  const getDetailedTableStatus = (tableId: string): 'free' | 'waiting' | 'eating' => {
+    const session = sessions?.find(s => s.table_id === tableId && s.status === 'OPEN')
+    if (!session) return 'free'
+
+    const sessionOrders = orders?.filter(o => o.table_session_id === session.id && o.status !== 'CANCELLED') || []
+
+    if (sessionOrders.length === 0) return 'eating' // Or 'waiting' if just seated? optimizing for "eating" means seated/safe. User said "Red = must receive dishes". If no orders, maybe default to seated/yellow or red? Let's assume Red if just seated? 
+    // Actually user said: "Green: free", "Red: table must receive dishes", "Yellow: received all dishes and eating".
+    // If just seated (no orders), they haven't received dishes, so technically waiting? Or just neutral.
+    // Let's stick to: If ANY item is NOT served/completed/delivered -> RED. Else YELLOW.
+
+    const hasPendingItems = sessionOrders.some(order =>
+      order.items?.some((item: any) =>
+        !['SERVED', 'DELIVERED', 'COMPLETED'].includes(item.status?.toUpperCase()) &&
+        item.status !== 'CANCELLED' &&
+        item.status !== 'PAID'
+      )
+    )
+
+    return hasPendingItems ? 'waiting' : 'eating'
+  }
   const [waiterCredentialsDirty, setWaiterCredentialsDirty] = useState(false)
   const [ayceDirty, setAyceDirty] = useState(false)
   const [copertoDirty, setCopertoDirty] = useState(false)
@@ -2188,9 +2215,12 @@ const RestaurantDashboard = ({ user, onLogout }: RestaurantDashboardProps) => {
                           key={table.id}
                           className={`relative overflow-hidden transition-all duration-300 group cursor-pointer ${isTableMarkedInactive
                             ? 'opacity-60 grayscale'
-                            : isActive
-                              ? 'bg-amber-950/20 border-amber-500/50 shadow-[0_0_15px_-5px_rgba(245,158,11,0.3)]'
-                              : 'bg-black/40 border-emerald-500/20 shadow-[0_0_15px_-5px_rgba(16,185,129,0.1)] hover:border-emerald-500/40'
+                            : (() => {
+                              const status = getDetailedTableStatus(table.id)
+                              if (status === 'free') return 'bg-black/40 border-emerald-500/20 shadow-[0_0_15px_-5px_rgba(16,185,129,0.1)] hover:border-emerald-500/40' // Green (Free)
+                              if (status === 'waiting') return 'bg-red-900/20 border-red-500/50 shadow-[0_0_15px_-5px_rgba(239,68,68,0.3)]' // Red (Waiting for food)
+                              return 'bg-amber-900/20 border-amber-500/50 shadow-[0_0_15px_-5px_rgba(245,158,11,0.3)]' // Yellow (Eating)
+                            })()
                             }`}
                           onClick={() => {
                             if (isTableMarkedInactive) {

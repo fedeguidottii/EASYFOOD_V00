@@ -64,14 +64,17 @@ const WaiterOrderPage = () => {
                 const rest = Array.isArray(tableData.restaurants) ? tableData.restaurants[0] : tableData.restaurants
                 setRestaurant(rest)
 
-                if (rest) {
+                const restaurantId = tableData.restaurant_id || rest?.id
+
+                if (restaurantId) {
                     // Fetch Categories
-                    const cats = await DatabaseService.getCategories(rest.id)
+                    const cats = await DatabaseService.getCategories(restaurantId)
                     setCategories(cats)
 
                     // Fetch Dishes
-                    const allDishes = await DatabaseService.getDishes(rest.id)
-                    setDishes(allDishes.filter(d => d.is_available))
+                    const allDishes = await DatabaseService.getDishes(restaurantId)
+                    // Relaxed filter: show providing is_available is not explicitly false
+                    setDishes(allDishes.filter(d => d.is_available !== false))
                 }
 
             } catch (error) {
@@ -155,7 +158,7 @@ const WaiterOrderPage = () => {
                     table_id: table.id,
                     restaurant_id: restaurant.id,
                     coperto: baseCover,
-                    customers_count: table.seats // Default to max seats if unknown
+                    customer_count: table.seats // Default to max seats if unknown
                 })
 
                 if (!newSession) throw new Error("Errore creazione sessione")
@@ -280,8 +283,8 @@ const WaiterOrderPage = () => {
                             size="sm"
                             onClick={() => setSelectedCategory('all')}
                             className={`rounded-full border transition-all h-8 px-4 text-xs font-medium ${selectedCategory === 'all'
-                                    ? 'bg-white text-black border-white'
-                                    : 'bg-transparent text-zinc-400 border-zinc-800 hover:border-zinc-600'
+                                ? 'bg-white text-black border-white'
+                                : 'bg-transparent text-zinc-400 border-zinc-800 hover:border-zinc-600'
                                 }`}
                         >
                             Tutti
@@ -293,8 +296,8 @@ const WaiterOrderPage = () => {
                                 size="sm"
                                 onClick={() => setSelectedCategory(cat.id)}
                                 className={`rounded-full border transition-all h-8 px-4 text-xs font-medium ${selectedCategory === cat.id
-                                        ? 'bg-amber-500 text-black border-amber-500'
-                                        : 'bg-transparent text-zinc-400 border-zinc-800 hover:border-zinc-600'
+                                    ? 'bg-amber-500 text-black border-amber-500'
+                                    : 'bg-transparent text-zinc-400 border-zinc-800 hover:border-zinc-600'
                                     }`}
                             >
                                 {cat.name}
@@ -334,8 +337,8 @@ const WaiterOrderPage = () => {
                                 initial={{ opacity: 0, y: 10 }}
                                 animate={{ opacity: 1, y: 0 }}
                                 className={`relative flex items-center gap-4 p-3 rounded-2xl border transition-all active:scale-[0.99] touch-manipulation ${qtyInCurrentCourse > 0
-                                        ? 'bg-amber-500/5 border-amber-500/30 shadow-lg shadow-amber-500/5'
-                                        : 'bg-zinc-900/40 border-white/5 hover:border-white/10'
+                                    ? 'bg-amber-500/5 border-amber-500/30 shadow-lg shadow-amber-500/5'
+                                    : 'bg-zinc-900/40 border-white/5 hover:border-white/10'
                                     }`}
                                 onClick={() => addToOrder(dish)}
                             >

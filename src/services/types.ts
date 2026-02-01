@@ -118,8 +118,9 @@ export interface Dish {
     is_active: boolean
     image_url?: string
     created_at?: string
+    is_available?: boolean // Added for temporary availability toggle
+    short_code?: string // Added for quick search
     excludeFromAllYouCanEat?: boolean
-    // Mapped from DB
     // Mapped from DB
     exclude_from_all_you_can_eat?: boolean
     is_ayce?: boolean
@@ -156,6 +157,7 @@ export interface TableSession {
     session_pin?: string
     customer_count?: number
     created_at: string
+    coperto?: number
     coperto_enabled?: boolean
     ayce_enabled?: boolean
 }

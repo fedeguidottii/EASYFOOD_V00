@@ -39,6 +39,7 @@ export default function AdminStatistics({ onImpersonate }: AdminStatisticsProps)
     const [endDate, setEndDate] = useState<string>(format(new Date(), 'yyyy-MM-dd'))
     const [allRestaurants, setAllRestaurants] = useState<Restaurant[]>([])
     const [selectedRestaurantIds, setSelectedRestaurantIds] = useState<string[]>([])
+    const [rankingMode, setRankingMode] = useState<'revenue' | 'access'>('revenue')
 
     useEffect(() => {
         const fetchStats = async () => {
@@ -301,7 +302,7 @@ export default function AdminStatistics({ onImpersonate }: AdminStatisticsProps)
 
             {/* KPI Cards - Row 2: Detailed metrics */}
             <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
-                <KPICard title="Clienti Totali" value={stats.totalCustomers.toLocaleString('it-IT')} subtitle={`${stats.totalSessions} sessioni uniche`} icon={<UsersThree size={24} />} color="blue" />
+                <KPICard title="Totale Accessi" value={stats.totalCustomers.toLocaleString('it-IT')} subtitle={`${stats.totalSessions} sessioni uniche`} icon={<UsersThree size={24} />} color="blue" />
                 <KPICard title="Scontrino Medio" value={`€ ${stats.avgOrderValue.toFixed(2)}`} subtitle="Valore medio ordine" icon={<Receipt size={24} />} color="green" />
                 <KPICard title="Media/Ristorante" value={`€ ${stats.avgRevenuePerRestaurant.toFixed(0)}`} subtitle={`~${stats.avgOrdersPerRestaurant.toFixed(0)} ordini ciascuno`} icon={<CurrencyEur size={24} />} color="purple" />
                 <KPICard title="Ordini Attivi" value={stats.activeOrders.toString()} subtitle="In lavorazione" icon={<Clock size={24} />} color="amber" />
@@ -379,53 +380,100 @@ export default function AdminStatistics({ onImpersonate }: AdminStatisticsProps)
             <div className="grid gap-6 md:grid-cols-3">
                 {/* Rankings */}
                 <Card className="col-span-2 bg-zinc-900/40 backdrop-blur-xl border border-white/5 rounded-3xl shadow-[0_30px_60px_-15px_rgba(0,0,0,0.9)] overflow-hidden">
-                    <CardHeader className="border-b border-white/5 pb-6">
-                        <CardTitle className="text-xl font-bold text-white flex items-center justify-between">
-                            <div className="flex items-center gap-3">
+                    <CardHeader className="border-b border-white/5 pb-6 flex flex-row items-center justify-between">
+                        <div className="flex flex-col gap-1">
+                            <CardTitle className="text-xl font-bold text-white flex items-center gap-3">
                                 <div className="p-2 bg-amber-500/10 rounded-xl">
                                     <ChartBar className="text-amber-500" size={20} />
                                 </div>
                                 Performance Partner
-                            </div>
-                            <span className="text-xs font-bold text-zinc-500 uppercase tracking-widest">TOP RANKING</span>
-                        </CardTitle>
+                            </CardTitle>
+                            <span className="text-xs font-bold text-zinc-500 uppercase tracking-widest pl-12">TOP RANKING</span>
+                        </div>
+
+                        {/* Ranking Mode Toggle */}
+                        <div className="flex items-center gap-1 bg-black/40 p-1 rounded-xl border border-white/5">
+                            <Button
+                                variant="ghost"
+                                size="sm"
+                                onClick={() => setRankingMode('revenue')}
+                                className={`text-xs font-bold px-3 rounded-lg transition-all ${rankingMode === 'revenue' ? 'bg-amber-500 text-black shadow-lg shadow-amber-500/20' : 'text-zinc-500 hover:text-white'}`}
+                            >
+                                Fatturato
+                            </Button>
+                            <Button
+                                variant="ghost"
+                                size="sm"
+                                onClick={() => setRankingMode('access')}
+                                className={`text-xs font-bold px-3 rounded-lg transition-all ${rankingMode === 'access' ? 'bg-blue-500 text-white shadow-lg shadow-blue-500/20' : 'text-zinc-500 hover:text-white'}`}
+                            >
+                                Accessi
+                            </Button>
+                        </div>
                     </CardHeader>
                     <CardContent>
-                        <div className="space-y-6">
-                            {stats.revenueByRestaurant.slice(0, 10).map((item, index) => (
-                                <div key={item.id} className="group relative">
-                                    <div className="flex items-center mb-3">
-                                        <div className="w-10 font-bold text-amber-500/20 text-lg italic">#{index + 1}</div>
-                                        <div className="flex-1 flex items-center justify-between">
-                                            <div className="flex flex-col">
-                                                <div className="flex items-center gap-2">
-                                                    <p className="text-base font-bold text-zinc-100 group-hover:text-amber-500 transition-colors uppercase tracking-tight">{item.name}</p>
-                                                    {onImpersonate && (
-                                                        <Button
-                                                            variant="ghost"
-                                                            size="icon"
-                                                            className="h-7 w-7 opacity-0 group-hover:opacity-100 transition-opacity bg-amber-500/10 text-amber-500 rounded-lg"
-                                                            onClick={() => onImpersonate(item.id)}
-                                                        >
-                                                            <Eye size={16} />
-                                                        </Button>
-                                                    )}
+                        <div className="space-y-6 mt-4">
+                            {stats.revenueByRestaurant
+                                .sort((a, b) => rankingMode === 'revenue' ? b.revenue - a.revenue : b.customers - a.customers)
+                                .slice(0, 10)
+                                .map((item, index) => {
+                                    const primaryMetric = rankingMode === 'revenue' ? item.revenue : item.customers
+                                    const maxMetric = rankingMode === 'revenue'
+                                        ? Math.max(...stats.revenueByRestaurant.map(r => r.revenue))
+                                        : Math.max(...stats.revenueByRestaurant.map(r => r.customers))
+                                    const percentage = maxMetric > 0 ? (primaryMetric / maxMetric) * 100 : 0
+
+                                    const barColor = rankingMode === 'revenue' ? 'from-amber-600 to-amber-400' : 'from-blue-600 to-blue-400'
+                                    const shadowColor = rankingMode === 'revenue' ? 'rgba(245,158,11,0.4)' : 'rgba(59,130,246,0.4)'
+                                    const metricColor = rankingMode === 'revenue' ? 'text-amber-500' : 'text-blue-500'
+
+                                    return (
+                                        <div key={item.id} className="group relative">
+                                            <div className="flex items-center mb-3">
+                                                <div className={`w-10 font-bold text-lg italic ${rankingMode === 'revenue' ? 'text-amber-500/20' : 'text-blue-500/20'}`}>#{index + 1}</div>
+                                                <div className="flex-1 flex items-center justify-between">
+                                                    <div className="flex flex-col">
+                                                        <div className="flex items-center gap-2">
+                                                            <p className={`text-base font-bold text-zinc-100 group-hover:${rankingMode === 'revenue' ? 'text-amber-500' : 'text-blue-500'} transition-colors uppercase tracking-tight`}>{item.name}</p>
+                                                            {onImpersonate && (
+                                                                <Button
+                                                                    variant="ghost"
+                                                                    size="icon"
+                                                                    className={`h-7 w-7 opacity-0 group-hover:opacity-100 transition-opacity rounded-lg ${rankingMode === 'revenue' ? 'bg-amber-500/10 text-amber-500' : 'bg-blue-500/10 text-blue-500'}`}
+                                                                    onClick={() => onImpersonate(item.id)}
+                                                                >
+                                                                    <Eye size={16} />
+                                                                </Button>
+                                                            )}
+                                                        </div>
+                                                        <p className="text-[10px] text-zinc-600 font-bold tracking-widest uppercase">
+                                                            {rankingMode === 'revenue'
+                                                                ? `${item.orders} ORDINI COMPLETATI`
+                                                                : `FATTURATO: € ${item.revenue.toLocaleString('it-IT')}`}
+                                                        </p>
+                                                    </div>
+                                                    <div className="text-right">
+                                                        <p className={`text-xl font-black ${metricColor} tabular-nums`}>
+                                                            {rankingMode === 'revenue'
+                                                                ? `€ ${item.revenue.toLocaleString('it-IT')}`
+                                                                : item.customers.toLocaleString('it-IT')}
+                                                        </p>
+                                                        {rankingMode === 'access' && <p className="text-[9px] font-bold text-zinc-600 uppercase tracking-widest">PERSONE</p>}
+                                                    </div>
                                                 </div>
-                                                <p className="text-[10px] text-zinc-600 font-bold tracking-widest uppercase">{item.orders} ORDINI COMPLETATI</p>
                                             </div>
-                                            <div className="text-right">
-                                                <p className="text-xl font-black text-amber-500 tabular-nums">€ {item.revenue.toLocaleString('it-IT')}</p>
+                                            <div className="h-2 w-full bg-white/5 rounded-full overflow-hidden">
+                                                <div
+                                                    className={`h-full bg-gradient-to-r ${barColor} transition-all duration-1000 ease-out`}
+                                                    style={{
+                                                        width: `${percentage}%`,
+                                                        boxShadow: `0 0 15px ${shadowColor}`
+                                                    }}
+                                                />
                                             </div>
                                         </div>
-                                    </div>
-                                    <div className="h-2 w-full bg-white/5 rounded-full overflow-hidden">
-                                        <div
-                                            className="h-full bg-gradient-to-r from-amber-600 to-amber-400 shadow-[0_0_15px_rgba(245,158,11,0.4)] transition-all duration-1000 ease-out"
-                                            style={{ width: `${stats.totalRevenue > 0 ? (item.revenue / stats.totalRevenue) * 100 : 0}%` }}
-                                        />
-                                    </div>
-                                </div>
-                            ))}
+                                    )
+                                })}
                         </div>
                     </CardContent>
                 </Card>
