@@ -3615,84 +3615,74 @@ const RestaurantDashboard = ({ user, onLogout }: RestaurantDashboardProps) => {
         top: '-9999px',
         left: '-9999px',
         width: '210mm',
-        minHeight: '297mm', // A4
-        padding: '8mm',
-        backgroundColor: '#09090b',
-        color: 'white',
+        minHeight: '297mm',
+        padding: '10mm',
+        backgroundColor: '#ffffff',
+        color: '#000',
         fontFamily: 'Georgia, serif'
       }}>
-        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gridAutoRows: '135mm', gap: '8mm' }}>
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10mm' }}>
           {restaurantTables.map(table => (
             <div key={table.id} style={{
-              border: '1px solid rgba(245, 158, 11, 0.2)',
-              borderRadius: '16px',
-              padding: '24px',
+              border: '2px solid #e5e7eb',
+              borderRadius: '12px',
+              padding: '20px 16px',
               display: 'flex',
               flexDirection: 'column',
               alignItems: 'center',
-              justifyContent: 'center',
+              justifyContent: 'space-between',
               pageBreakInside: 'avoid',
-              height: '100%',
-              background: 'linear-gradient(180deg, rgba(24,24,27,1) 0%, rgba(9,9,11,1) 100%)'
+              breakInside: 'avoid',
+              minHeight: '120mm',
+              backgroundColor: '#fafafa'
             }}>
-              {/* Restaurant Name - Prominent at top */}
-              <div style={{ marginBottom: '12px', textAlign: 'center' }}>
+              {/* Restaurant Name at top */}
+              <div style={{ textAlign: 'center', marginBottom: '8px' }}>
                 {currentRestaurant?.logo_url ? (
-                  <img src={currentRestaurant.logo_url} alt="Logo" style={{ maxHeight: '40px', objectFit: 'contain' }} />
+                  <img src={currentRestaurant.logo_url} alt="Logo" style={{ maxHeight: '35px', objectFit: 'contain' }} />
                 ) : (
                   <h2 style={{
-                    fontSize: '22px',
-                    fontWeight: '400',
+                    fontSize: '18px',
+                    fontWeight: '500',
                     margin: 0,
-                    letterSpacing: '2px',
-                    textTransform: 'uppercase',
-                    color: '#fff'
+                    letterSpacing: '1px',
+                    color: '#374151'
                   }}>
                     {currentRestaurant?.name}
                   </h2>
                 )}
               </div>
 
-              {/* Decorative line */}
+              {/* QR Code - centered and prominent */}
               <div style={{
-                width: '40px',
-                height: '1px',
-                background: 'rgba(245, 158, 11, 0.5)',
-                marginBottom: '12px'
-              }} />
-
-              {/* Table Name - Small and elegant */}
-              <p style={{
-                fontSize: '11px',
-                color: '#71717a',
-                marginBottom: '20px',
-                textTransform: 'uppercase',
-                letterSpacing: '3px',
-                fontWeight: '300'
+                padding: '12px',
+                borderRadius: '8px',
+                border: '1px solid #e5e7eb',
+                backgroundColor: '#fff'
               }}>
-                Tavolo {table.number}
-              </p>
-
-              {/* QR Code */}
-              <div style={{
-                background: 'white',
-                padding: '16px',
-                borderRadius: '12px',
-                marginBottom: '16px',
-                boxShadow: '0 0 30px rgba(245, 158, 11, 0.1)'
-              }}>
-                <QRCodeGenerator value={generateQrCode(table.id)} size={130} />
+                <QRCodeGenerator value={generateQrCode(table.id)} size={140} />
               </div>
 
-              {/* Instruction */}
-              <p style={{
-                fontSize: '9px',
-                color: '#52525b',
-                fontStyle: 'italic',
-                margin: 0
-              }}>
-                Inquadra per ordinare
-              </p>
+              {/* Table Number - BIG and clear */}
+              <div style={{ textAlign: 'center', marginTop: '8px' }}>
+                <p style={{
+                  fontSize: '11px',
+                  color: '#9ca3af',
+                  margin: '0 0 4px 0',
+                  textTransform: 'uppercase',
+                  letterSpacing: '2px'
+                }}>
+                  Tavolo
+                </p>
+                <h1 style={{
+                  fontSize: '36px',
+                  fontWeight: '700',
+                  margin: 0,
+                  color: '#111827'
+                }}>
+                  {table.number}
+                </h1>
+              </div>
             </div>
           ))}
         </div>
