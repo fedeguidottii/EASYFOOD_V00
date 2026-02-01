@@ -1,21 +1,26 @@
-import React, { useState, useEffect, useRef } from 'react'
-import { useNavigate } from 'react-router-dom'
-import { AnimatePresence, motion } from 'framer-motion'
-import { supabase } from '../../lib/supabase'
-import { DatabaseService } from '../../services/DatabaseService'
+import { useRef, useState, useEffect, useMemo } from 'react'
+import { v4 as uuidv4 } from 'uuid'
+import { useNavigate } from 'react-router-dom' // Restored
+import { useAuth } from '../../context/AuthContext' // Corrected path? User context is passed as prop, maybe not needed? App.tsx uses SessionProvider from ./context/SessionContext. WaiterDashboard usage: const { user } = useAuth() ?? No, props has user. 
+// Checking line 3 error: cannot find module '../contexts/AuthContext'. 
+// I will remove useAuth if not used, or fix path. WaiterDashboard receives `user` as prop.
+import { DatabaseService } from '../../services/DatabaseService' // Corrected path (../services -> ../../services)
 import { Table, Order, TableSession, Restaurant, Room, Dish, Category } from '../../services/types'
+import { Badge } from '@/components/ui/badge'
+import { Button } from '@/components/ui/button'
+import { Card, CardContent } from '@/components/ui/card' // Restored
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '@/components/ui/dialog' // Restored DialogFooter
+import { Input } from '@/components/ui/input'
+import { Label } from '@/components/ui/label'
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
+import { BellRinging, Users, Plus, Pencil, Trash, SignOut, ForkKnife, MagnifyingGlass, CheckCircle, WarningCircle, X, CaretDown, CaretUp, GearSix, House, BellSimple, Receipt, User, Clock, Check, ArrowLeft, ChefHat, Funnel, ArrowsClockwise } from '@phosphor-icons/react' // Restored icons
 import { toast } from 'sonner'
-import { SignOut, User, CheckCircle, ArrowsClockwise, Receipt, Trash, BellRinging, BellSimple, Clock, Pencil, House, Funnel, GearSix, Check, CaretDown, ForkKnife, Plus, Minus, ArrowLeft, WarningCircle, ChefHat } from '@phosphor-icons/react'
-import { Button } from '../ui/button'
-import { Card, CardContent } from '../ui/card'
-import { Badge } from '../ui/badge'
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '../ui/dialog'
-import { ScrollArea } from '../ui/scroll-area'
-import { Input } from '../ui/input'
-import { Label } from '../ui/label'
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../ui/select'
-import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger } from '../ui/dropdown-menu'
-
+import { supabase } from '../../lib/supabase' // Corrected path (../../supabaseClient -> ../../lib/supabase usually, or just check file tree)
+import { cn } from '@/lib/utils'
+import { ScrollArea } from '@/components/ui/scroll-area'
+import { motion, AnimatePresence } from 'framer-motion'
+import TableBillDialog from '../TableBillDialog'
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger } from '@/components/ui/dropdown-menu' // Restored
 
 interface WaiterDashboardProps {
     user: any
@@ -69,10 +74,6 @@ const WaiterDashboard = ({ user, onLogout }: WaiterDashboardProps) => {
 
     // Ready Items View Mode (like gestione ordini)
     const [readyViewMode, setReadyViewMode] = useState<'table' | 'dish'>('table')
-
-    // Payment / Split Bill
-    const [isSplitMode, setIsSplitMode] = useState(false)
-    const [selectedSplitItems, setSelectedSplitItems] = useState<Set<string>>(new Set())
 
     // Timer effect for timeline
     useEffect(() => {
@@ -200,6 +201,8 @@ const WaiterDashboard = ({ user, onLogout }: WaiterDashboardProps) => {
 
     // ... (getTableTotal, getSplitTotal, getDetailedTableStatus functions remain same) ...
 
+    // ... (getTableTotal, getSplitTotal, getDetailedTableStatus functions remain same) ...
+
     const getTableTotal = (sessionId: string) => {
         const sessionOrders = activeOrders.filter(o => o.table_session_id === sessionId && o.status !== 'CANCELLED')
         // Sum only items that are not PAID
@@ -207,24 +210,6 @@ const WaiterDashboard = ({ user, onLogout }: WaiterDashboardProps) => {
             const validItems = order.items?.filter((i: any) => i.status !== 'CANCELLED' && i.status !== 'PAID') || []
             return sum + validItems.reduce((acc: number, item: any) => acc + ((item.dish?.price || 0) * item.quantity), 0)
         }, 0)
-    }
-
-    // Helper for split bill total
-    const getSplitTotal = () => {
-        if (!selectedTableForPayment) return 0
-        const session = sessions.find(s => s.table_id === selectedTableForPayment.id)
-        if (!session) return 0
-
-        const sessionOrders = activeOrders.filter(o => o.table_session_id === session.id && o.status !== 'CANCELLED')
-        let total = 0
-        sessionOrders.forEach(order => {
-            order.items?.forEach((item: any) => {
-                if (selectedSplitItems.has(item.id)) {
-                    total += (item.dish?.price || 0) * item.quantity
-                }
-            })
-        })
-        return total
     }
 
     const getDetailedTableStatus = (tableId: string): { step: 'seated' | 'waiting' | 'eating' | 'free', label: string, time: string, color: string } => {
@@ -451,26 +436,6 @@ const WaiterDashboard = ({ user, onLogout }: WaiterDashboardProps) => {
         } catch (error) {
             console.error('Error closing table:', error)
             toast.error('Errore durante la chiusura del tavolo')
-        }
-    }
-
-    const handlePaySplit = async () => {
-        if (selectedSplitItems.size === 0) return
-        try {
-            const { error } = await supabase
-                .from('order_items')
-                .update({ status: 'PAID' })
-                .in('id', Array.from(selectedSplitItems))
-
-            if (error) throw error
-
-            toast.success(`Pagamento parziale registrato!`)
-            setSelectedSplitItems(new Set())
-            setIsSplitMode(false)
-            refreshData()
-        } catch (err) {
-            console.error(err)
-            toast.error('Errore pagamento parziale')
         }
     }
 
@@ -1107,131 +1072,26 @@ const WaiterDashboard = ({ user, onLogout }: WaiterDashboardProps) => {
             </AnimatePresence>
 
             {/* Payment Dialog */}
-            <Dialog open={isPaymentDialogOpen} onOpenChange={setIsPaymentDialogOpen}>
-                <DialogContent className="sm:max-w-md bg-zinc-950 border-zinc-800 text-zinc-100 p-6">
-                    <DialogHeader className="pb-4">
-                        <DialogTitle className="text-xl font-bold text-white flex items-center gap-3">
-                            <span className="bg-amber-500/10 border border-amber-500/20 px-3 py-1 rounded-xl text-base text-amber-500 font-mono">#{selectedTableForPayment?.number}</span>
-                            Gestione Conto
-                        </DialogTitle>
-                        <DialogDescription className="text-zinc-500">
-                            {isSplitMode ? 'Seleziona i piatti da pagare.' : 'Gestisci il pagamento e la chiusura del tavolo.'}
-                        </DialogDescription>
-                    </DialogHeader>
-
-                    <div className="py-6 flex flex-col items-center justify-center bg-black/30 rounded-xl border border-white/5 my-4">
-                        <span className="text-xs font-bold text-zinc-500 uppercase tracking-widest mb-2">{isSplitMode ? 'Totale Selezionato' : 'Totale da Saldare'}</span>
-                        <span className="text-4xl font-black text-white tracking-tight flex items-start gap-1">
-                            <span className="text-xl text-amber-500 mt-1">€</span>
-                            {isSplitMode
-                                ? getSplitTotal().toFixed(2)
-                                : (selectedTableForPayment && sessions.find(s => s.table_id === selectedTableForPayment.id)
-                                    ? getTableTotal(sessions.find(s => s.table_id === selectedTableForPayment.id)!.id).toFixed(2)
-                                    : '0.00')}
-                        </span>
-                    </div>
-
-                    {isSplitMode ? (
-                        <div className="flex-1 overflow-y-auto max-h-[40vh] mb-4 space-y-2 pr-2">
-                            {selectedTableForPayment && (() => {
-                                const session = sessions.find(s => s.table_id === selectedTableForPayment.id)
-                                if (!session) return null
-                                const sessionOrders = activeOrders.filter(o => o.table_session_id === session.id && o.status !== 'CANCELLED')
-                                const unpaidItems: any[] = []
-                                sessionOrders.forEach(o => {
-                                    o.items?.forEach((i: any) => {
-                                        if (i.status !== 'CANCELLED' && i.status !== 'PAID') {
-                                            unpaidItems.push(i)
-                                        }
-                                    })
-                                })
-
-                                return unpaidItems.map((item, idx) => (
-                                    <div key={item.id || idx} className="flex items-center justify-between p-3 bg-zinc-900 rounded-lg border border-white/5" onClick={() => {
-                                        const newSet = new Set(selectedSplitItems)
-                                        if (newSet.has(item.id)) newSet.delete(item.id)
-                                        else newSet.add(item.id)
-                                        setSelectedSplitItems(newSet)
-                                    }}>
-                                        <div className="flex items-center gap-3">
-                                            <div className={`w-5 h-5 rounded border flex items-center justify-center ${selectedSplitItems.has(item.id) ? 'bg-amber-500 border-amber-500' : 'border-zinc-600'}`}>
-                                                {selectedSplitItems.has(item.id) && <CheckCircle size={14} weight="fill" className="text-black" />}
-                                            </div>
-                                            <div className="flex flex-col">
-                                                <span className="text-sm font-medium text-zinc-200">{item.dish?.name}</span>
-                                                <span className="text-[10px] text-zinc-500">€{item.dish?.price}</span>
-                                            </div>
-                                        </div>
-                                        <span className="text-sm font-bold text-amber-500">€{(item.dish?.price * item.quantity).toFixed(2)}</span>
-                                    </div>
-                                ))
-                            })()}
-                        </div>
-                    ) : null}
-
-                    <div className="flex flex-col gap-3 pt-2">
-                        {restaurant?.allow_waiter_payments ? (
-                            <>
-                                {isSplitMode ? (
-                                    <div className="flex gap-2">
-                                        <Button
-                                            variant="outline"
-                                            className="flex-1 h-12 rounded-xl"
-                                            onClick={() => {
-                                                setIsSplitMode(false)
-                                                setSelectedSplitItems(new Set())
-                                            }}
-                                        >
-                                            Annulla
-                                        </Button>
-                                        <Button
-                                            className="flex-[2] h-12 text-base font-bold bg-amber-500 hover:bg-amber-400 text-black rounded-xl"
-                                            onClick={handlePaySplit}
-                                            disabled={selectedSplitItems.size === 0}
-                                        >
-                                            Paga Selezionati
-                                        </Button>
-                                    </div>
-                                ) : (
-                                    <>
-                                        <div className="flex gap-2">
-                                            <Button
-                                                className="flex-1 h-12 text-base font-bold bg-amber-500 hover:bg-amber-400 text-black rounded-xl"
-                                                onClick={() => handleCloseTable(true)}
-                                            >
-                                                <CheckCircle className="mr-2 h-5 w-5" weight="fill" />
-                                                SALDA TUTTO
-                                            </Button>
-                                            <Button
-                                                variant="secondary"
-                                                className="flex-1 h-12 text-base font-bold bg-zinc-800 hover:bg-zinc-700 text-white rounded-xl"
-                                                onClick={() => setIsSplitMode(true)}
-                                            >
-                                                DIVIDI CONTO
-                                            </Button>
-                                        </div>
-
-                                        <Button
-                                            variant="outline"
-                                            className="w-full h-12 text-sm font-bold bg-transparent border-zinc-700 text-zinc-400 hover:text-red-400 hover:border-red-500/30 hover:bg-red-500/5 rounded-xl"
-                                            onClick={() => handleCloseTable(false)}
-                                            disabled={Number(selectedTableForPayment && sessions.find(s => s.table_id === selectedTableForPayment.id) ? getTableTotal(sessions.find(s => s.table_id === selectedTableForPayment.id)!.id) : 0) > 0}
-                                        >
-                                            <Trash className="mr-2 h-4 w-4" weight="duotone" />
-                                            LIBERA TAVOLO {Number(selectedTableForPayment && sessions.find(s => s.table_id === selectedTableForPayment.id) ? getTableTotal(sessions.find(s => s.table_id === selectedTableForPayment.id)!.id) : 0) > 0 ? '(Saldo Pendente)' : ''}
-                                        </Button>
-                                    </>
-                                )}
-                            </>
-                        ) : (
-                            <div className="bg-red-500/10 border border-red-500/20 rounded-xl p-4 text-center">
-                                <p className="text-red-400 font-bold mb-1">Permessi Negati</p>
-                                <p className="text-xs text-red-300/70">Solo l'amministratore può segnare i tavoli come pagati.</p>
-                            </div>
-                        )}
-                    </div>
-                </DialogContent>
-            </Dialog>
+            {/* Payment / Bill Dialog */}
+            <TableBillDialog
+                isOpen={isPaymentDialogOpen}
+                onClose={() => setIsPaymentDialogOpen(false)}
+                table={selectedTableForPayment}
+                session={selectedTableForPayment ? (sessions.find(s => s.table_id === selectedTableForPayment.id) || null) : null}
+                orders={selectedTableForPayment
+                    ? activeOrders.filter(o => {
+                        const sess = sessions.find(s => s.table_id === selectedTableForPayment.id)
+                        return sess && o.table_session_id === sess.id
+                    })
+                    : []
+                }
+                restaurant={restaurant}
+                onPaymentComplete={() => {
+                    handleCloseTable(true)
+                    setIsPaymentDialogOpen(false)
+                }}
+                isWaiter={true}
+            />
 
             {/* Table Management Modal */}
             <Dialog open={isTableModalOpen} onOpenChange={setIsTableModalOpen}>

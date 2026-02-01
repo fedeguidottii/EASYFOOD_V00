@@ -65,6 +65,7 @@ import { DatabaseService } from '../services/DatabaseService'
 import { useSupabaseData } from '../hooks/useSupabaseData'
 import { getCurrentCopertoPrice, getCurrentAyceSettings } from '../utils/pricingUtils'
 import { KitchenView } from './KitchenView'
+import TableBillDialog from './TableBillDialog'
 import { SettingsView } from './SettingsView'
 import ReservationsManager from './ReservationsManager'
 import AnalyticsCharts from './AnalyticsCharts'
@@ -3453,110 +3454,23 @@ const RestaurantDashboard = ({ user, onLogout }: RestaurantDashboardProps) => {
             </DialogContent>
           </Dialog >
 
-          < Dialog open={showTableBillDialog} onOpenChange={(open) => setShowTableBillDialog(open)}>
-            <DialogContent className="sm:max-w-lg bg-zinc-950 border-zinc-800 text-zinc-100">
-              <DialogHeader>
-                <DialogTitle>Conto - Tavolo {selectedTableForActions?.number}</DialogTitle>
-                <DialogDescription>
-                  Riepilogo ordini e totale
-                </DialogDescription>
-              </DialogHeader>
-              <div className="space-y-4">
-                {selectedTableForActions && (() => {
-                  const session = sessions?.find(s => s.table_id === selectedTableForActions.id && s.status === 'OPEN')
-                  const customerCount = session?.customer_count || 1
-
-                  const tableOrders = restaurantOrders.filter(o => o.table_session_id === session?.id)
-                  const completedOrders = restaurantCompletedOrders.filter(o => o.table_session_id === session?.id)
-                  const allOrders = [...tableOrders, ...completedOrders]
-
-                  let subtotal = 0
-                  // Use session overrides if available, otherwise fallback to global settings
-                  const isAyceActive = session?.ayce_enabled ?? ayceEnabled
-                  const isCoverActive = session?.coperto_enabled ?? copertoEnabled
-
-                  // Calculate effective prices based on schedule - use local state first for immediate updates
-                  // This mirrors the logic in the activation dialog to ensure what you see in settings is what you get here
-                  const effectiveCoperto = currentRestaurant
-                    ? getCurrentCopertoPrice({ ...currentRestaurant, weekly_coperto: weeklyCoperto } as any, lunchTimeStart, dinnerTimeStart).price
-                    : (typeof copertoPrice === 'string' ? parseFloat(copertoPrice) : copertoPrice)
-
-                  const effectiveAyce = currentRestaurant
-                    ? getCurrentAyceSettings({ ...currentRestaurant, weekly_ayce: weeklyAyce } as any, lunchTimeStart, dinnerTimeStart).price
-                    : (typeof aycePrice === 'string' ? parseFloat(aycePrice) : aycePrice)
-
-                  const coverCharge = (isCoverActive ? (effectiveCoperto || 0) : 0) * customerCount
-                  const ayceCharge = (isAyceActive ? (effectiveAyce || 0) : 0) * customerCount
-
-                  return (
-                    <>
-                      <div className="max-h-[300px] overflow-y-auto space-y-2">
-                        {allOrders.length === 0 ? (
-                          <p className="text-center text-muted-foreground py-4">Nessun ordine per questo tavolo</p>
-                        ) : (
-                          allOrders.map(order => {
-                            const orderItems = order.items || []
-                            return orderItems.map((item: any) => {
-                              const dish = restaurantDishes.find(d => d.id === item.dish_id)
-                              if (!dish) return null
-
-                              const itemTotal = (dish.is_ayce && isAyceActive) ? 0 : dish.price * item.quantity
-                              subtotal += itemTotal
-
-                              return (
-                                <div key={item.id} className="flex justify-between text-sm">
-                                  <span>{item.quantity}x {dish?.name}</span>
-                                  <span>€{itemTotal.toFixed(2)}</span>
-                                </div>
-                              )
-                            })
-                          })
-                        )}
-                      </div>
-                      <Separator />
-                      <div className="space-y-2">
-                        <div className="flex justify-between text-sm">
-                          <span>Subtotale:</span>
-                          <span>€{subtotal.toFixed(2)}</span>
-                        </div>
-                        {coverCharge > 0 && (
-                          <div className="flex justify-between text-sm">
-                            <span>Coperto ({customerCount} pers.):</span>
-                            <span>€{coverCharge.toFixed(2)}</span>
-                          </div>
-                        )}
-                        {ayceCharge > 0 && (
-                          <div className="flex justify-between text-sm">
-                            <span>All You Can Eat ({customerCount} pers.):</span>
-                            <span>€{ayceCharge.toFixed(2)}</span>
-                          </div>
-                        )}
-                        <Separator />
-                        <div className="flex justify-between font-bold text-lg">
-                          <span>Totale:</span>
-                          <span>€{(subtotal + coverCharge + ayceCharge).toFixed(2)}</span>
-                        </div>
-                      </div>
-                      <div className="grid grid-cols-2 gap-2 pt-4">
-                        <Button
-                          variant="destructive"
-                          onClick={() => selectedTableForActions && handleCloseTable(selectedTableForActions.id, false)}
-                        >
-                          Svuota Tavolo
-                        </Button>
-                        <Button
-                          className="bg-amber-600 hover:bg-amber-700 text-white"
-                          onClick={() => selectedTableForActions && handleCloseTable(selectedTableForActions.id, true)}
-                        >
-                          Segna Pagato
-                        </Button>
-                      </div>
-                    </>
-                  )
-                })()}
-              </div>
-            </DialogContent>
-          </Dialog >
+          <TableBillDialog
+            isOpen={showTableBillDialog}
+            onClose={() => setShowTableBillDialog(false)}
+            table={selectedTableForActions}
+            session={sessions?.find(s => s.table_id === selectedTableForActions?.id && s.status === 'OPEN') || null}
+            orders={orders.filter(o => o.table_session_id === (sessions?.find(s => s.table_id === selectedTableForActions?.id && s.status === 'OPEN')?.id))}
+            restaurant={currentRestaurant || null}
+            onPaymentComplete={() => {
+              if (selectedTableForActions) handleCloseTable(selectedTableForActions.id, true)
+              setShowTableBillDialog(false)
+            }}
+            onEmptyTable={() => {
+              if (selectedTableForActions) handleCloseTable(selectedTableForActions.id, false)
+              setShowTableBillDialog(false)
+            }}
+            isWaiter={false}
+          />
 
         </div >
       </main >
@@ -3646,83 +3560,72 @@ const RestaurantDashboard = ({ user, onLogout }: RestaurantDashboardProps) => {
         left: '-9999px',
         width: '210mm',
         minHeight: '297mm',
-        padding: '8mm',
+        padding: '10mm',
         backgroundColor: '#ffffff',
-        color: '#000',
-        fontFamily: 'Georgia, serif'
+        color: '#000000',
+        fontFamily: 'Inter, sans-serif'
       }}>
-        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gridTemplateRows: '1fr 1fr', gap: '6mm', minHeight: 'calc(297mm - 16mm)' }}>
+        <div className="grid grid-cols-2 gap-8" style={{ width: '100%' }}>
           {restaurantTables.map((table, index) => (
-            <div key={table.id} style={{
-              border: '1.5px solid #d1d5db',
-              borderRadius: '12px',
-              padding: '16px',
+            <div key={table.id} className="break-inside-avoid" style={{
+              border: '4px solid #000000',
+              borderRadius: '24px',
+              padding: '2rem',
               display: 'flex',
               flexDirection: 'column',
               alignItems: 'center',
-              justifyContent: 'center',
+              justifyContent: 'space-between',
               pageBreakInside: 'avoid',
               breakInside: 'avoid',
-              backgroundColor: '#fafafa',
-              gap: '12px'
+              backgroundColor: '#ffffff',
+              height: '400px', // Fixed height to ensure consistency
+              color: '#000000'
             }}>
-              {/* Restaurant Name at top */}
-              <div style={{ textAlign: 'center' }}>
-                {currentRestaurant?.logo_url ? (
-                  <img src={currentRestaurant.logo_url} alt="Logo" style={{ maxHeight: '30px', objectFit: 'contain' }} />
-                ) : (
-                  <h2 style={{
-                    fontSize: '16px',
-                    fontWeight: '600',
-                    margin: 0,
-                    letterSpacing: '1px',
-                    color: '#1f2937'
-                  }}>
-                    {currentRestaurant?.name}
-                  </h2>
-                )}
-              </div>
-
-              {/* Instruction text */}
-              <p style={{
-                fontSize: '10px',
-                color: '#6b7280',
-                margin: 0,
-                textAlign: 'center',
-                fontStyle: 'italic'
-              }}>
-                Ordina e consulta il menù
-              </p>
-
-              {/* QR Code */}
-              <div style={{
-                padding: '10px',
-                borderRadius: '8px',
-                border: '1px solid #e5e7eb',
-                backgroundColor: '#fff'
-              }}>
-                <QRCodeGenerator value={generateQrCode(table.id)} size={100} />
-              </div>
-
-              {/* Table Number */}
-              <div style={{ textAlign: 'center' }}>
+              {/* HEADER: Table Number - Huge & Bold */}
+              <div style={{ textAlign: 'center', flex: 1, display: 'flex', flexDirection: 'column', justifyContent: 'center' }}>
                 <p style={{
-                  fontSize: '9px',
-                  color: '#9ca3af',
-                  margin: '0 0 2px 0',
+                  fontSize: '16px',
+                  fontWeight: '700',
+                  margin: '0 0 5px 0',
                   textTransform: 'uppercase',
-                  letterSpacing: '2px'
+                  letterSpacing: '0.2em',
+                  color: '#000000'
                 }}>
-                  Tavolo
+                  TAVOLO
                 </p>
                 <h1 style={{
-                  fontSize: '28px',
-                  fontWeight: '700',
+                  fontSize: '90px',
+                  lineHeight: '1',
+                  fontWeight: '900',
                   margin: 0,
-                  color: '#111827'
+                  color: '#000000'
                 }}>
                   {table.number}
                 </h1>
+              </div>
+
+              {/* BODY: QR Code - Center */}
+              <div style={{
+                padding: '20px', // Quiet zone
+                display: 'flex',
+                justifyContent: 'center',
+                alignItems: 'center',
+                flex: 2
+              }}>
+                <QRCodeGenerator value={generateQrCode(table.id)} size={180} />
+              </div>
+
+              {/* FOOTER: Restaurant Name */}
+              <div style={{ textAlign: 'center', marginTop: 'auto', paddingTop: '20px', flex: 0 }}>
+                <h2 style={{
+                  fontSize: '20px',
+                  fontWeight: '600',
+                  margin: 0,
+                  color: '#000000',
+                  letterSpacing: '0.05em'
+                }}>
+                  {currentRestaurant?.name || 'Restaurant'}
+                </h2>
               </div>
             </div>
           ))}

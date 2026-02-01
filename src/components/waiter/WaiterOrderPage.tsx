@@ -195,7 +195,7 @@ const WaiterOrderPage = () => {
                     notes: item.notes,
                     status: 'pending',
                     course_number: courseNum, // If you have this column
-                    price_at_time: item.dish?.price
+                    // Removed price_at_time to prevent error
                 }))
 
                 const { error: itemsError } = await supabase
@@ -322,7 +322,7 @@ const WaiterOrderPage = () => {
             </div>
 
             {/* 3. Main Content - Dish List - Spaced for fixed headers */}
-            <main className="flex-1 pt-48 px-4 space-y-3 max-w-2xl mx-auto w-full">
+            <main className="flex-1 pt-60 px-4 space-y-3 max-w-2xl mx-auto w-full">
                 {filteredDishes.length === 0 ? (
                     <div className="flex flex-col items-center justify-center py-20 text-zinc-600">
                         <Info size={48} className="mb-4 opacity-20" />
@@ -372,10 +372,25 @@ const WaiterOrderPage = () => {
                                     )}
                                 </div>
 
-                                {/* Add Button (Visual cue) */}
-                                <div className={`w-8 h-8 rounded-full flex items-center justify-center border transition-colors ${qtyInCurrentCourse > 0 ? 'bg-amber-500 text-black border-amber-500' : 'bg-transparent text-zinc-600 border-zinc-800'
-                                    }`}>
-                                    <Plus weight="bold" size={14} />
+                                {/* Add/Remove Buttons */}
+                                <div className="flex flex-col gap-2">
+                                    <div className={`w-8 h-8 rounded-full flex items-center justify-center border transition-colors ${qtyInCurrentCourse > 0 ? 'bg-amber-500 text-black border-amber-500' : 'bg-transparent text-zinc-600 border-zinc-800'
+                                        }`}>
+                                        <Plus weight="bold" size={14} />
+                                    </div>
+                                    {qtyInCurrentCourse > 0 && (
+                                        <div
+                                            className="w-8 h-8 rounded-full flex items-center justify-center border border-zinc-700 bg-zinc-900 text-zinc-400 hover:text-red-400 hover:border-red-500/50 transition-colors"
+                                            onClick={(e) => {
+                                                e.stopPropagation()
+                                                // Find index and decrease
+                                                const idx = orderItems.findIndex(i => i.dishId === dish.id && i.courseNumber === activeCourse)
+                                                if (idx !== -1) updateQuantity(idx, -1)
+                                            }}
+                                        >
+                                            <Minus weight="bold" size={14} />
+                                        </div>
+                                    )}
                                 </div>
                             </motion.div>
                         )
@@ -405,8 +420,9 @@ const WaiterOrderPage = () => {
                                     <span>€{totalAmount.toFixed(2)}</span>
                                 </Button>
                             </SheetTrigger>
-                            <SheetContent side="bottom" className="h-[85vh] bg-zinc-950 border-t border-zinc-800 p-0 flex flex-col rounded-t-[2rem]">
-                                <SheetHeader className="p-6 pb-2 border-b border-white/5 bg-zinc-900/50">
+                            {/* FIX: max-h-[90dvh] for better mobile support, overflow-hidden to let ScrollArea handle scroll */}
+                            <SheetContent side="bottom" className="max-h-[90dvh] h-[90dvh] bg-zinc-950 border-t border-zinc-800 p-0 flex flex-col rounded-t-[2rem] overflow-hidden">
+                                <SheetHeader className="p-6 pb-2 border-b border-white/5 bg-zinc-900/50 shrink-0">
                                     <SheetTitle className="text-xl text-white flex items-center gap-2">
                                         <ShoppingCart className="text-amber-500" weight="duotone" />
                                         Riepilogo Ordine
