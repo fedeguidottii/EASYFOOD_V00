@@ -1,9 +1,7 @@
 import { useRef, useState, useEffect, useMemo } from 'react'
 import { v4 as uuidv4 } from 'uuid'
 import { useNavigate } from 'react-router-dom' // Restored
-import { useAuth } from '../../context/AuthContext' // Corrected path? User context is passed as prop, maybe not needed? App.tsx uses SessionProvider from ./context/SessionContext. WaiterDashboard usage: const { user } = useAuth() ?? No, props has user. 
-// Checking line 3 error: cannot find module '../contexts/AuthContext'. 
-// I will remove useAuth if not used, or fix path. WaiterDashboard receives `user` as prop.
+
 import { DatabaseService } from '../../services/DatabaseService' // Corrected path (../services -> ../../services)
 import { Table, Order, TableSession, Restaurant, Room, Dish, Category } from '../../services/types'
 import { Badge } from '@/components/ui/badge'
@@ -918,7 +916,7 @@ const WaiterDashboard = ({ user, onLogout }: WaiterDashboardProps) => {
                                         <div className="flex-1 h-px bg-white/10" />
                                         <span className="text-xs text-zinc-500">{roomTables.length} tavoli</span>
                                     </div>
-                                    <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-4">
+                                    <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 md:gap-4">
                                         {roomTables.map(table => renderTableCard(table))}
                                     </div>
                                 </div>
