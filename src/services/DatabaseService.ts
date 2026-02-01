@@ -726,6 +726,16 @@ export const DatabaseService = {
         return data as any[]
     },
 
+    async getAllCustomMenus(restaurantId: string) {
+        const { data, error } = await supabase
+            .from('custom_menus')
+            .select('*')
+            .eq('restaurant_id', restaurantId)
+            .order('created_at', { ascending: false })
+        if (error) throw error
+        return data as any[]
+    },
+
     async getCustomMenuWithDishes(menuId: string) {
         const { data, error } = await supabase
             .from('custom_menus')

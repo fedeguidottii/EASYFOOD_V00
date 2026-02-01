@@ -126,7 +126,7 @@ const RestaurantDashboard = ({ user, onLogout }: RestaurantDashboardProps) => {
   // Fetch custom menus when dialog opens
   useEffect(() => {
     if (showExportMenuDialog && restaurantId) {
-      DatabaseService.getCustomMenus(restaurantId)
+      DatabaseService.getAllCustomMenus(restaurantId)
         .then(menus => setAvailableCustomMenus(menus || []))
         .catch(console.error)
     }

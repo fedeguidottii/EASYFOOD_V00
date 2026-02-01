@@ -9,6 +9,7 @@ const LoginPage = lazy(() => import('./components/LoginPage'))
 const RestaurantDashboard = lazy(() => import('./components/RestaurantDashboard'))
 const AdminDashboard = lazy(() => import('./components/AdminDashboard'))
 const WaiterDashboard = lazy(() => import('./components/waiter/WaiterDashboard'))
+const WaiterOrderPage = lazy(() => import('./components/waiter/WaiterOrderPage'))
 const CustomerMenu = lazy(() => import('./components/CustomerMenu'))
 const PublicReservationPage = lazy(() => import('./components/reservations/PublicReservationPage'))
 
@@ -114,6 +115,14 @@ const AppContent = () => {
             element={
               <ProtectedRoute user={user} loading={loading}>
                 <WaiterDashboard user={user} onLogout={handleLogout} />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/waiter/table/:tableId/order"
+            element={
+              <ProtectedRoute user={user} loading={loading}>
+                <WaiterOrderPage />
               </ProtectedRoute>
             }
           />

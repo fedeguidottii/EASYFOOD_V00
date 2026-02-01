@@ -1185,8 +1185,8 @@ function AuthorizedMenuContent({ restaurantId, tableId, sessionId, activeSession
       // Clear Cart from DB
       await DatabaseService.clearCart(activeSessionId)
 
-      // Local state update handled by Realtime subscription
-      // setCart([]) 
+      // Local state update
+      setCart([])
       setMaxCourse(1)
       setCurrentCourse(1)
       setIsCartOpen(false)
