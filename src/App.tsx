@@ -4,14 +4,16 @@ import { Toaster } from 'sonner'
 import { SessionProvider } from './context/SessionContext'
 import { supabase } from './lib/supabase'
 
-// Lazy loaded components for code splitting
-const LoginPage = lazy(() => import('./components/LoginPage'))
-const RestaurantDashboard = lazy(() => import('./components/RestaurantDashboard'))
-const AdminDashboard = lazy(() => import('./components/AdminDashboard'))
-const WaiterDashboard = lazy(() => import('./components/waiter/WaiterDashboard'))
-const WaiterOrderPage = lazy(() => import('./components/waiter/WaiterOrderPage'))
-const CustomerMenu = lazy(() => import('./components/CustomerMenu'))
-const PublicReservationPage = lazy(() => import('./components/reservations/PublicReservationPage'))
+import { lazyImportRetry } from './utils/lazyImportRetry'
+
+// Lazy loaded components for code splitting (with auto-retry on chunk error)
+const LoginPage = lazyImportRetry(() => import('./components/LoginPage'))
+const RestaurantDashboard = lazyImportRetry(() => import('./components/RestaurantDashboard'))
+const AdminDashboard = lazyImportRetry(() => import('./components/AdminDashboard'))
+const WaiterDashboard = lazyImportRetry(() => import('./components/waiter/WaiterDashboard'))
+const WaiterOrderPage = lazyImportRetry(() => import('./components/waiter/WaiterOrderPage'))
+const CustomerMenu = lazyImportRetry(() => import('./components/CustomerMenu'))
+const PublicReservationPage = lazyImportRetry(() => import('./components/reservations/PublicReservationPage'))
 
 // Loading spinner component
 const LoadingSpinner = () => (
