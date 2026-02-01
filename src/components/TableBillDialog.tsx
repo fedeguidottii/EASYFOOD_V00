@@ -253,7 +253,7 @@ export default function TableBillDialog({
     // ... Render ...
     return (
         <Dialog open={isOpen} onOpenChange={(open) => !open && onClose()}>
-            <DialogContent className="sm:max-w-md bg-zinc-950 border-zinc-800 text-zinc-100 p-6">
+            <DialogContent className="sm:max-w-md w-[95vw] max-h-[90vh] overflow-y-auto bg-zinc-950 border-zinc-800 text-zinc-100 p-6">
                 <DialogHeader className="pb-4">
                     <DialogTitle className="text-xl font-bold text-white flex items-center gap-3">
                         <span className="bg-amber-500/10 border border-amber-500/20 px-3 py-1 rounded-xl text-base text-amber-500 font-mono">#{table?.number}</span>

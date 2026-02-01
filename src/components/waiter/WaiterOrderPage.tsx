@@ -179,8 +179,7 @@ const WaiterOrderPage = () => {
                         table_session_id: sessionId,
                         restaurant_id: restaurant.id,
                         status: 'pending', // Waiter orders go to pending/kitchen immediately
-                        total_amount: totalAmount,
-                        notes: `Portata ${courseNum}`
+                        total_amount: totalAmount
                     })
                     .select()
                     .single()

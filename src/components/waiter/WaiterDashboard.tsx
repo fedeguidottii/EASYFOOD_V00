@@ -937,7 +937,7 @@ const WaiterDashboard = ({ user, onLogout }: WaiterDashboardProps) => {
                                         <span className="text-xs text-zinc-500">{noRoomTables.length} tavoli</span>
                                     </div>
                                 )}
-                                <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-4">
+                                <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 md:gap-4">
                                     {noRoomTables.map(table => renderTableCard(table))}
                                 </div>
                             </div>
@@ -1257,7 +1257,7 @@ const WaiterDashboard = ({ user, onLogout }: WaiterDashboardProps) => {
 
             {/* Management Dialog - Main Menu */}
             <Dialog open={isManageDialogOpen} onOpenChange={setIsManageDialogOpen}>
-                <DialogContent className="sm:max-w-lg bg-zinc-950 border-zinc-800 text-zinc-100 p-0 overflow-hidden max-h-[85vh] flex flex-col">
+                <DialogContent className="sm:max-w-lg w-[95vw] bg-zinc-950 border-zinc-800 text-zinc-100 p-0 overflow-hidden max-h-[85vh] flex flex-col">
                     <DialogHeader className="p-6 pb-4 border-b border-white/5 bg-zinc-900/50 shrink-0">
                         <DialogTitle className="text-xl font-bold flex items-center gap-3">
                             <GearSix size={24} className="text-amber-500" />
