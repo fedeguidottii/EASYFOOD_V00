@@ -118,9 +118,13 @@ const RestaurantDashboard = ({ user, onLogout }: RestaurantDashboardProps) => {
   const [rooms, , refreshRooms, setRooms] = useSupabaseData<Room>('rooms', [], { column: 'restaurant_id', value: restaurantId })
 
   // Initialize selected categories when available
+  const categoriesInitializedRef = useRef(false)
+
+  // Initialize selected categories when available (RUN ONCE)
   useEffect(() => {
-    if (categories && categories.length > 0 && exportSelectedCategories.length === 0) {
+    if (categories && categories.length > 0 && !categoriesInitializedRef.current) {
       setExportSelectedCategories(categories.map(c => c.id))
+      categoriesInitializedRef.current = true
     }
   }, [categories])
 
@@ -2410,14 +2414,24 @@ const RestaurantDashboard = ({ user, onLogout }: RestaurantDashboardProps) => {
                           <div className="space-y-3">
                             <div className="flex items-center justify-between pb-2 border-b border-zinc-800">
                               <span className="text-sm font-medium">Categorie Incluse</span>
-                              <Button
-                                variant="ghost"
-                                size="sm"
-                                className="h-auto py-1 text-xs text-amber-500"
-                                onClick={() => setExportSelectedCategories(categories.map(c => c.id))}
-                              >
-                                Seleziona Tutte
-                              </Button>
+                              <div className="flex gap-2">
+                                <Button
+                                  variant="ghost"
+                                  size="sm"
+                                  className="h-auto py-1 text-xs text-zinc-400 hover:text-zinc-200"
+                                  onClick={() => setExportSelectedCategories([])}
+                                >
+                                  Deseleziona
+                                </Button>
+                                <Button
+                                  variant="ghost"
+                                  size="sm"
+                                  className="h-auto py-1 text-xs text-amber-500"
+                                  onClick={() => setExportSelectedCategories(categories.map(c => c.id))}
+                                >
+                                  Seleziona Tutte
+                                </Button>
+                              </div>
                             </div>
                             <ScrollArea className="h-[200px] pr-4">
                               <div className="space-y-2">
