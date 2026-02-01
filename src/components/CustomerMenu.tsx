@@ -17,7 +17,7 @@ import { Textarea } from '@/components/ui/textarea'
 import { toast } from 'sonner'
 import { DishPlaceholder } from '@/components/ui/DishPlaceholder'
 // Icons
-import { Minus, Plus, ShoppingCart, Trash, User, Info, X, Clock, Wallet, Check, Warning, ForkKnife, Note, Storefront } from '@phosphor-icons/react'
+import { Minus, Plus, ShoppingCart, Trash, User, Info, X, Clock, Wallet, Check, Warning, ForkKnife, Note, Storefront, Rocket } from '@phosphor-icons/react'
 import {
   ShoppingBasket, Utensils, CheckCircle, ChefHat, Search,
   RefreshCw, AlertCircle, ChevronUp, ChevronDown, Layers, ArrowLeft, Send,
@@ -1492,18 +1492,21 @@ function AuthorizedMenuContent({ restaurantId, tableId, sessionId, activeSession
                   )}
 
                   <div className="bg-zinc-900/80 backdrop-blur-sm rounded-2xl p-4 shadow-lg border border-amber-500/10 mt-4">
-                    <div className="flex justify-between items-center mb-4">
+                    <div className="flex justify-between items-center">
                       <span className="text-zinc-400 font-medium">Totale Ordine</span>
                       <span className="text-2xl font-bold text-white">€{cartTotal.toFixed(2)}</span>
                     </div>
-                    <Button
-                      className="w-full h-14 text-base font-bold bg-gradient-to-r from-amber-600 to-amber-500 hover:from-amber-500 hover:to-amber-400 text-zinc-900 rounded-xl shadow-lg shadow-amber-500/30 tracking-wide uppercase"
-                      onClick={handleSubmitClick}
-                      disabled={isOrderSubmitting}
-                    >
-                      {isOrderSubmitting ? 'Invio in corso...' : 'Invia Ordine alla Cucina'}
-                    </Button>
                   </div>
+
+                  {/* Floating Submit Order Button */}
+                  <Button
+                    className="fixed bottom-24 right-4 z-50 h-14 px-6 text-sm font-bold bg-gradient-to-r from-amber-600 to-amber-500 hover:from-amber-500 hover:to-amber-400 text-zinc-900 rounded-full shadow-2xl shadow-amber-500/40 tracking-wide uppercase flex items-center gap-2"
+                    onClick={handleSubmitClick}
+                    disabled={isOrderSubmitting}
+                  >
+                    <Rocket className="w-5 h-5" weight="fill" />
+                    {isOrderSubmitting ? 'Invio...' : 'Invia Ordine'}
+                  </Button>
                 </>
               )}
             </div>
@@ -1532,7 +1535,7 @@ function AuthorizedMenuContent({ restaurantId, tableId, sessionId, activeSession
                   {previousOrders.map(order => (
                     <div key={order.id} className="bg-zinc-900/80 backdrop-blur-sm rounded-xl p-4 shadow-md border border-amber-500/10">
                       <div className="flex justify-between items-center mb-3 pb-3 border-b border-white/5">
-                        <h3 className="font-bold text-white text-lg">Ordine #{order.id.slice(0, 8)}</h3>
+                        <h3 className="font-bold text-white text-lg">Ordine</h3>
                         <span className="text-amber-400 font-bold text-lg">€{order.total_amount?.toFixed(2)}</span>
                       </div>
                       <div className="space-y-2">
@@ -1838,8 +1841,8 @@ function AuthorizedMenuContent({ restaurantId, tableId, sessionId, activeSession
           onClick={handleCallWaiter}
           disabled={callWaiterDisabled}
           className={`fixed bottom-24 right-4 z-50 h-14 w-14 rounded-full shadow-xl border-2 transition-all duration-300 ${callWaiterDisabled
-              ? 'bg-zinc-700 border-zinc-600 text-zinc-400 cursor-not-allowed opacity-50'
-              : 'bg-white border-amber-300 text-amber-600 hover:bg-amber-50 hover:border-amber-400 hover:shadow-amber-500/20'
+            ? 'bg-zinc-700 border-zinc-600 text-zinc-400 cursor-not-allowed opacity-50'
+            : 'bg-white border-amber-300 text-amber-600 hover:bg-amber-50 hover:border-amber-400 hover:shadow-amber-500/20'
             }`}
           title={callWaiterDisabled ? 'Attendi 30 secondi...' : 'Chiama cameriere'}
         >

@@ -884,22 +884,24 @@ const WaiterDashboard = ({ user, onLogout }: WaiterDashboardProps) => {
                 </div>
 
                 <div className="flex items-center gap-3 w-full md:w-auto overflow-x-auto pb-1 md:pb-0 scrollbar-hide">
-                    {/* Ready Items Button */}
+                    {/* Activity Button - Ready items + Assistance requests */}
                     <Button
-                        variant={readyCount > 0 ? "default" : "outline"}
+                        variant={(readyCount + assistanceRequests.length) > 0 ? "default" : "outline"}
                         size="sm"
-                        className={`md:mr-4 h-10 px-4 rounded-xl font-bold transition-all shadow-lg ${readyCount > 0
+                        className={`md:mr-4 h-10 px-4 rounded-xl font-bold transition-all shadow-lg ${(readyCount + assistanceRequests.length) > 0
                             ? 'bg-amber-500 hover:bg-amber-400 text-black border-transparent animate-pulse shadow-amber-500/20'
                             : 'text-zinc-400 bg-zinc-900/50 border-white/5 hover:bg-zinc-800 hover:text-white'
                             }`}
                         onClick={() => setIsReadyDrawerOpen(true)}
                     >
-                        {readyCount > 0 ? (
+                        {assistanceRequests.length > 0 ? (
+                            <BellSimple size={20} weight="fill" className="mr-2 animate-bounce text-yellow-400" />
+                        ) : readyCount > 0 ? (
                             <BellRinging size={20} weight="fill" className="mr-2 animate-bounce" />
                         ) : (
                             <CheckCircle size={20} className="mr-2" />
                         )}
-                        Pronti: {readyCount}
+                        Attività: {readyCount + assistanceRequests.length}
                     </Button>
 
                     <div className="flex bg-zinc-900/80 p-1 rounded-xl border border-white/5">

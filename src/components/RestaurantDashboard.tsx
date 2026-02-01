@@ -823,7 +823,18 @@ const RestaurantDashboard = ({ user, onLogout }: RestaurantDashboardProps) => {
         return dish && selectedKitchenCategories.includes(dish.category_id)
       })
       return { ...order, items: filteredItems }
-    }).filter(order => order.items && order.items.length > 0)
+    }).filter(order => {
+      // Must have items
+      if (!order.items || order.items.length === 0) return false
+
+      // Hide orders where ALL items are delivered (waiter marked as consegnato)
+      const allDelivered = order.items.every(i =>
+        i.status?.toLowerCase() === 'delivered'
+      )
+      if (allDelivered) return false
+
+      return true
+    })
   }, [orders, dishes, selectedKitchenCategories])
 
   // Load additional settings from restaurant (Coperto, etc - AYCE is handled in the main sync effect above)

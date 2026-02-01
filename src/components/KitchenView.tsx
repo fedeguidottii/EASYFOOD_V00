@@ -173,7 +173,9 @@ export function KitchenView({ orders, tables, dishes, selectedCategoryIds = [], 
                                             <div key={courseNum}>
                                                 {itemsByCourse[courseNum].map((item, idx) => {
                                                     const dish = getDish(item.dish_id)
-                                                    const isItemDone = item.status === 'SERVED' || item.status === 'READY'
+                                                    const itemStatus = item.status?.toUpperCase?.() || item.status || ''
+                                                    const isItemDone = ['SERVED', 'READY'].includes(itemStatus)
+                                                    const isDelivered = itemStatus === 'DELIVERED'
                                                     const dishName = dish?.name || `❓ Sconosciuto`
 
                                                     return (
@@ -181,9 +183,11 @@ export function KitchenView({ orders, tables, dishes, selectedCategoryIds = [], 
                                                             key={`${item.id}-${idx}`}
                                                             className={cn(
                                                                 "flex items-center justify-between p-4 rounded-xl border transition-all duration-300 mb-3 group/item relative",
-                                                                isItemDone
-                                                                    ? "opacity-30 bg-zinc-950/50 border-transparent scale-[0.98] grayscale"
-                                                                    : "bg-zinc-800/50 border-white/10 hover:border-amber-500/40 hover:bg-zinc-800 hover:shadow-lg shadow-sm"
+                                                                isDelivered
+                                                                    ? "opacity-40 bg-zinc-950/50 border-transparent scale-[0.98]"
+                                                                    : isItemDone
+                                                                        ? "opacity-30 bg-zinc-950/50 border-transparent scale-[0.98] grayscale"
+                                                                        : "bg-zinc-800/50 border-white/10 hover:border-amber-500/40 hover:bg-zinc-800 hover:shadow-lg shadow-sm"
                                                             )}
                                                         >
                                                             <div
@@ -193,14 +197,14 @@ export function KitchenView({ orders, tables, dishes, selectedCategoryIds = [], 
                                                                 <div className="flex items-baseline gap-3">
                                                                     <span className={cn(
                                                                         "text-3xl font-light transition-colors duration-300 shrink-0",
-                                                                        isItemDone ? "text-zinc-600" : "text-amber-500"
+                                                                        isDelivered ? "text-zinc-600 line-through" : isItemDone ? "text-zinc-600" : "text-amber-500"
                                                                     )}>
                                                                         {item.quantity}
                                                                     </span>
                                                                     <div className="flex flex-col">
                                                                         <span className={cn(
                                                                             "text-lg font-medium leading-tight transition-colors duration-300 line-clamp-2",
-                                                                            isItemDone ? "text-zinc-600" : "text-zinc-200 group-hover:text-pure-white"
+                                                                            isDelivered ? "text-zinc-600 line-through decoration-zinc-500" : isItemDone ? "text-zinc-600" : "text-zinc-200 group-hover:text-pure-white"
                                                                         )}>
                                                                             {dishName}
                                                                         </span>
@@ -293,23 +297,33 @@ export function KitchenView({ orders, tables, dishes, selectedCategoryIds = [], 
                                         {data.items.map(({ order, item }, itemIdx) => {
                                             const tableName = getTableName(undefined, order.table_session_id)
                                             const timeDiff = (now.getTime() - new Date(order.created_at).getTime()) / 1000 / 60
-                                            const isItemDone = item.status === 'SERVED' || item.status === 'READY'
+                                            const itemStatus = item.status?.toUpperCase?.() || item.status || ''
+                                            const isItemDone = ['SERVED', 'READY'].includes(itemStatus)
+                                            const isDelivered = itemStatus === 'DELIVERED'
 
                                             return (
                                                 <div
                                                     key={`dv-${item.id}-${itemIdx}`}
                                                     className={cn(
                                                         "flex items-center justify-between p-2 rounded-lg border transition-all",
-                                                        isItemDone
-                                                            ? "opacity-30 bg-black/20 border-transparent"
-                                                            : "bg-black/40 border-white/5 hover:border-amber-500/20"
+                                                        isDelivered
+                                                            ? "opacity-40 bg-black/20 border-transparent"
+                                                            : isItemDone
+                                                                ? "opacity-30 bg-black/20 border-transparent"
+                                                                : "bg-black/40 border-white/5 hover:border-amber-500/20"
                                                     )}
                                                 >
                                                     <div className="flex items-center gap-3">
-                                                        <span className="text-3xl font-light text-amber-500">
+                                                        <span className={cn(
+                                                            "text-3xl font-light",
+                                                            isDelivered ? "text-zinc-600 line-through" : "text-amber-500"
+                                                        )}>
                                                             {item.quantity}
                                                         </span>
-                                                        <span className="text-2xl font-bold text-zinc-300">
+                                                        <span className={cn(
+                                                            "text-2xl font-bold",
+                                                            isDelivered ? "text-zinc-600 line-through" : "text-zinc-300"
+                                                        )}>
                                                             {tableName}
                                                         </span>
                                                     </div>
