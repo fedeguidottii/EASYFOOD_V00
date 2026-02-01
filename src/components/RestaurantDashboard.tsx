@@ -3148,7 +3148,7 @@ const RestaurantDashboard = ({ user, onLogout }: RestaurantDashboardProps) => {
                         backgroundColor: '#09090b',
                         orientation: 'portrait'
                       })
-                      toast.success('PDF scaricato!')
+                      toast.success('PDF scaricato!', { duration: 3000 })
                     } catch (err) {
                       console.error(err)
                       toast.error('Errore durante la generazione del PDF')
@@ -3313,7 +3313,7 @@ const RestaurantDashboard = ({ user, onLogout }: RestaurantDashboardProps) => {
                       })
 
                       if (el) el.style.display = 'none'
-                      toast.success('PDF scaricato!')
+                      toast.success('PDF scaricato!', { duration: 3000 })
                     } catch (err) {
                       console.error(err)
                       toast.error('Errore durante la generazione del PDF')
@@ -3335,64 +3335,102 @@ const RestaurantDashboard = ({ user, onLogout }: RestaurantDashboardProps) => {
                 <div style={{
                   width: '100%',
                   height: '100%',
-                  background: 'linear-gradient(135deg, #09090b 0%, #18181b 100%)',
+                  background: 'linear-gradient(180deg, #09090b 0%, #18181b 50%, #09090b 100%)',
                   display: 'flex',
                   flexDirection: 'column',
                   alignItems: 'center',
                   justifyContent: 'center',
                   color: 'white',
-                  fontFamily: 'Segoe UI, sans-serif',
-                  padding: '60px'
+                  fontFamily: 'Georgia, serif',
+                  padding: '80px'
                 }}>
                   <div style={{
-                    border: '4px solid rgba(245, 158, 11, 0.3)',
-                    padding: '60px',
+                    border: '2px solid rgba(245, 158, 11, 0.2)',
+                    padding: '80px 60px',
                     borderRadius: '40px',
-                    background: 'rgba(255,255,255,0.03)',
-                    backdropFilter: 'blur(20px)',
+                    background: 'rgba(255,255,255,0.02)',
                     display: 'flex',
                     flexDirection: 'column',
                     alignItems: 'center',
                     textAlign: 'center',
-                    boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.5)'
+                    boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.6)',
+                    maxWidth: '600px',
+                    width: '100%'
                   }}>
-                    <p style={{ fontSize: '18px', color: '#94a3b8', marginBottom: '20px', textTransform: 'uppercase', letterSpacing: '3px' }}>
+                    {/* Restaurant Name - Prominent at top */}
+                    <h1 style={{
+                      fontSize: '42px',
+                      fontWeight: '400',
+                      marginBottom: '8px',
+                      color: '#fff',
+                      letterSpacing: '3px',
+                      textTransform: 'uppercase'
+                    }}>
                       {currentRestaurant?.name || 'Ristorante'}
-                    </p>
-                    <h1 style={{ fontSize: '56px', fontWeight: 'bold', marginBottom: '10px', color: '#fff' }}>
-                      Tavolo {selectedTableForActions?.number}
                     </h1>
-                    <p style={{ fontSize: '24px', color: '#94a3b8', marginBottom: '50px' }}>Scansiona per ordinare</p>
 
+                    {/* Decorative line */}
+                    <div style={{
+                      width: '60px',
+                      height: '2px',
+                      background: 'linear-gradient(90deg, transparent, rgba(245, 158, 11, 0.6), transparent)',
+                      marginBottom: '24px'
+                    }} />
+
+                    {/* Table Name - Small and elegant */}
+                    <p style={{
+                      fontSize: '16px',
+                      color: '#71717a',
+                      marginBottom: '50px',
+                      textTransform: 'uppercase',
+                      letterSpacing: '4px',
+                      fontWeight: '300'
+                    }}>
+                      Tavolo {selectedTableForActions?.number}
+                    </p>
+
+                    {/* QR Code with subtle glow */}
                     <div style={{
                       background: 'white',
-                      padding: '30px',
-                      borderRadius: '30px',
-                      marginBottom: '40px',
-                      boxShadow: '0 0 40px rgba(245, 158, 11, 0.2)'
+                      padding: '35px',
+                      borderRadius: '24px',
+                      marginBottom: '50px',
+                      boxShadow: '0 0 60px rgba(245, 158, 11, 0.15), 0 4px 20px rgba(0,0,0,0.3)'
                     }}>
                       {selectedTableForActions && (
                         <QRCodeGenerator
                           value={generateQrCode(selectedTableForActions.id)}
-                          size={350}
+                          size={320}
                         />
                       )}
                     </div>
 
-                    <div style={{
-                      background: 'rgba(245, 158, 11, 0.1)',
-                      border: '1px solid rgba(245, 158, 11, 0.3)',
-                      borderRadius: '20px',
-                      padding: '25px 40px',
-                      width: '100%'
+                    {/* Instruction text */}
+                    <p style={{
+                      fontSize: '15px',
+                      color: '#52525b',
+                      marginBottom: '30px',
+                      fontStyle: 'italic',
+                      fontWeight: '300'
                     }}>
-                      <p style={{ color: '#fbbf24', fontSize: '20px', marginBottom: '10px' }}>PIN di accesso</p>
-                      <p style={{ fontSize: '48px', fontWeight: 'bold', color: '#fff', letterSpacing: '12px', fontFamily: 'monospace' }}>
+                      Inquadra il codice per visualizzare il menu
+                    </p>
+
+                    {/* PIN section */}
+                    <div style={{
+                      background: 'rgba(245, 158, 11, 0.08)',
+                      border: '1px solid rgba(245, 158, 11, 0.2)',
+                      borderRadius: '16px',
+                      padding: '20px 50px',
+                      marginBottom: '20px'
+                    }}>
+                      <p style={{ color: '#a1a1aa', fontSize: '12px', marginBottom: '8px', textTransform: 'uppercase', letterSpacing: '2px' }}>PIN</p>
+                      <p style={{ fontSize: '36px', fontWeight: '500', color: '#f59e0b', letterSpacing: '10px', fontFamily: 'monospace' }}>
                         {currentSessionPin || '----'}
                       </p>
                     </div>
 
-                    <p style={{ marginTop: '40px', fontSize: '14px', color: '#64748b' }}>Powered by EASYFOOD</p>
+                    <p style={{ marginTop: '30px', fontSize: '11px', color: '#3f3f46', letterSpacing: '1px' }}>EASYFOOD</p>
                   </div>
                 </div>
               </div>
