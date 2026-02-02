@@ -1141,14 +1141,7 @@ function AuthorizedMenuContent({ restaurantId, tableId, sessionId, activeSession
         finalCourse = overItem.course_number || 1
       }
     }
-      return
-    }
 
-    // Handle dropping on another item - move to that item's course
-    const overItem = cart.find(i => i.id === overId)
-    if (overItem && activeItem.course_number !== overItem.course_number) {
-      moveItemToCourse(activeId, overItem.course_number || 1)
-    }
 
     if (finalCourse !== null && !isNaN(finalCourse)) {
       await moveItemToCourse(activeId, finalCourse)
