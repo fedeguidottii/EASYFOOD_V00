@@ -1129,24 +1129,6 @@ function AuthorizedMenuContent({ restaurantId, tableId, sessionId, activeSession
     const activeId = active.id as string
     const overId = over.id as string
 
-<<<<<<< HEAD
-    const activeItem = cart.find(i => i.id === activeId)
-    if (!activeItem) return
-
-    // Handle dropping on "new course" zone
-    if (overId === 'new-course-zone') {
-      const newCourseNum = maxCourse + 1
-      setMaxCourse(newCourseNum)
-      moveItemToCourse(activeId, newCourseNum)
-      return
-    }
-
-    // Handle dropping on a course container
-    if (overId.startsWith('course-')) {
-      const courseNum = parseInt(overId.split('-')[1])
-      if (!isNaN(courseNum) && activeItem.course_number !== courseNum) {
-        moveItemToCourse(activeItem.id, courseNum)
-=======
     let finalCourse: number | null = null
 
     if (overId === 'new-course-zone') {
@@ -1157,8 +1139,8 @@ function AuthorizedMenuContent({ restaurantId, tableId, sessionId, activeSession
       const overItem = cart.find(i => i.id === overId)
       if (overItem) {
         finalCourse = overItem.course_number || 1
->>>>>>> e9598e9 (feat: implement view-only menu, waiter dashboard sync, and collapsible sidebar)
       }
+    }
       return
     }
 
