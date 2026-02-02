@@ -93,12 +93,14 @@ const DishCard = ({
   dish,
   index,
   onSelect,
-  onAdd
+  onAdd,
+  isViewOnly
 }: {
   dish: Dish,
   index: number,
   onSelect: (dish: Dish) => void,
-  onAdd: (dish: Dish) => void
+  onAdd: (dish: Dish) => void,
+  isViewOnly?: boolean
 }) => (
   <motion.div
     layout
@@ -132,13 +134,15 @@ const DishCard = ({
       </div>
     </div>
 
-    <Button
-      size="sm"
-      className="h-10 w-10 rounded-full p-0 bg-amber-500/10 border border-amber-500/40 hover:bg-amber-500/20 hover:border-amber-500/60 text-amber-400 transition-all duration-300 hover:scale-110 shrink-0"
-      onClick={(e) => { e.stopPropagation(); onAdd(dish); }}
-    >
-      <Plus className="w-4 h-4" strokeWidth={1.5} />
-    </Button>
+    {!isViewOnly && (
+      <Button
+        size="sm"
+        className="h-10 w-10 rounded-full p-0 bg-amber-500/10 border border-amber-500/40 hover:bg-amber-500/20 hover:border-amber-500/60 text-amber-400 transition-all duration-300 hover:scale-110 shrink-0"
+        onClick={(e) => { e.stopPropagation(); onAdd(dish); }}
+      >
+        <Plus className="w-4 h-4" strokeWidth={1.5} />
+      </Button>
+    )}
   </motion.div>
 )
 
@@ -241,6 +245,7 @@ const CustomerMenu = () => {
   const [restaurantSuspended, setRestaurantSuspended] = useState(false)
   const [courseSplittingEnabled, setCourseSplittingEnabled] = useState(true) // Default to true for backwards compat
   const [isTableActive, setIsTableActive] = useState(true) // Check if table has active session
+  const [isViewOnly, setIsViewOnly] = useState(false) // New state for view-only mode
 
   // Check if table is active (has ANY open session) when Not Authenticated
   useEffect(() => {
@@ -306,6 +311,16 @@ const CustomerMenu = () => {
                   setIsAuthenticated(false)
                   return
                 }
+              }
+
+              // View Only Logic
+              if (restaurant.view_only_menu_enabled) {
+                setIsViewOnly(true)
+                setIsAuthenticated(true) // Bypass PIN
+                // We don't join session here because we don't need a session to view menu? 
+                // Actually, we might still want to join if a session exists to show 'orders' if any?
+                // But user requirement says: "valid only for visualization... no PIN required".
+                // So we treat it as authenticated but restricted.
               }
             }
 
@@ -699,11 +714,17 @@ const CustomerMenu = () => {
 
   // MAIN MENU CONTENT
   // Pass restaurantId to hooks
-  return <AuthorizedMenuContent restaurantId={activeSession?.restaurant_id!} tableId={tableId} sessionId={sessionId!} activeSession={activeSession!} />
+  return <AuthorizedMenuContent
+    restaurantId={activeSession?.restaurant_id || restaurantId!}
+    tableId={tableId}
+    sessionId={sessionId!}
+    activeSession={activeSession!}
+    isViewOnly={isViewOnly}
+  />
 }
 
 // Refactored Content Component to keep logic clean
-function AuthorizedMenuContent({ restaurantId, tableId, sessionId, activeSession }: { restaurantId: string, tableId: string, sessionId: string, activeSession: TableSession }) {
+function AuthorizedMenuContent({ restaurantId, tableId, sessionId, activeSession, isViewOnly }: { restaurantId: string, tableId: string, sessionId: string, activeSession: TableSession, isViewOnly?: boolean }) {
   // Using passed props instead of resolving them
   const isWaiterMode = false // Or pass as prop if needed
 
@@ -1040,6 +1061,8 @@ function AuthorizedMenuContent({ restaurantId, tableId, sessionId, activeSession
       await DatabaseService.updateCartItem(cartId, { course_number: newCourse })
     } catch (err) {
       console.error("Error moving item:", err)
+      toast.error("Errore spostamento piatto")
+      fetchCart()
     }
   }
 
@@ -1056,11 +1079,48 @@ function AuthorizedMenuContent({ restaurantId, tableId, sessionId, activeSession
   }
 
   const handleDragOver = (event: DragOverEvent) => {
-    // Don't move items during drag - only highlight target
-    // Actual move happens in handleDragEnd for smoother UX
+    const { active, over } = event
+    if (!over) return
+
+    const activeId = active.id as string
+    const overId = over.id as string
+
+    // Find active item
+    const activeItem = cart.find(i => i.id === activeId)
+    if (!activeItem) return
+
+    const optimisticUpdate = (newCourse: number) => {
+      setCart(items => items.map(item =>
+        item.id === activeId ? { ...item, course_number: newCourse } : item
+      ))
+    }
+
+    // 1. Drop on New Course Zone
+    if (overId === 'new-course-zone') {
+      const target = maxCourse + 1
+      if (activeItem.course_number !== target) {
+        optimisticUpdate(target)
+      }
+      return
+    }
+
+    // 2. Drop on Course Container
+    if (overId.startsWith('course-')) {
+      const courseNum = parseInt(overId.split('-')[1])
+      if (!isNaN(courseNum) && activeItem.course_number !== courseNum) {
+        optimisticUpdate(courseNum)
+      }
+      return
+    }
+
+    // 3. Drop on Item
+    const overItem = cart.find(i => i.id === overId)
+    if (overItem && activeItem.course_number !== overItem.course_number) {
+      optimisticUpdate(overItem.course_number || 1)
+    }
   }
 
-  const handleDragEnd = (event: DragEndEvent) => {
+  const handleDragEnd = async (event: DragEndEvent) => {
     const { active, over } = event
     setActiveDragItem(null)
 
@@ -1069,6 +1129,7 @@ function AuthorizedMenuContent({ restaurantId, tableId, sessionId, activeSession
     const activeId = active.id as string
     const overId = over.id as string
 
+<<<<<<< HEAD
     const activeItem = cart.find(i => i.id === activeId)
     if (!activeItem) return
 
@@ -1085,6 +1146,18 @@ function AuthorizedMenuContent({ restaurantId, tableId, sessionId, activeSession
       const courseNum = parseInt(overId.split('-')[1])
       if (!isNaN(courseNum) && activeItem.course_number !== courseNum) {
         moveItemToCourse(activeItem.id, courseNum)
+=======
+    let finalCourse: number | null = null
+
+    if (overId === 'new-course-zone') {
+      finalCourse = maxCourse + 1
+    } else if (overId.startsWith('course-')) {
+      finalCourse = parseInt(overId.split('-')[1])
+    } else {
+      const overItem = cart.find(i => i.id === overId)
+      if (overItem) {
+        finalCourse = overItem.course_number || 1
+>>>>>>> e9598e9 (feat: implement view-only menu, waiter dashboard sync, and collapsible sidebar)
       }
       return
     }
@@ -1093,6 +1166,10 @@ function AuthorizedMenuContent({ restaurantId, tableId, sessionId, activeSession
     const overItem = cart.find(i => i.id === overId)
     if (overItem && activeItem.course_number !== overItem.course_number) {
       moveItemToCourse(activeId, overItem.course_number || 1)
+    }
+
+    if (finalCourse !== null && !isNaN(finalCourse)) {
+      await moveItemToCourse(activeId, finalCourse)
     }
   }
 
@@ -1585,45 +1662,61 @@ function AuthorizedMenuContent({ restaurantId, tableId, sessionId, activeSession
               )}
             </div>
           </div>
+
+        )}
+
+        {/* Smart Bell FAB */}
+        {isAuthenticated && activeSession && activeSession.status === 'OPEN' && !isViewOnly && (
+          <motion.button
+            initial={{ scale: 0, opacity: 0 }}
+            animate={{ scale: 1, opacity: 1 }}
+            whileTap={{ scale: 0.9 }}
+            onClick={handleRequestHelp}
+            className="fixed bottom-24 right-4 z-50 w-14 h-14 rounded-full bg-amber-500 text-black shadow-[0_0_20px_rgba(245,158,11,0.4)] flex items-center justify-center border-2 border-white/20"
+          >
+            <Bell className="w-7 h-7" strokeWidth={2.5} />
+          </motion.button>
         )}
 
         {/* Floating Bottom Navigation */}
-        <div className="fixed bottom-0 left-0 right-0 z-50 bg-zinc-950/90 backdrop-blur-xl border-t border-amber-500/10 shadow-lg shadow-black/30">
-          <div className="w-full flex justify-around items-center h-16">
-            <button
-              onClick={() => setActiveTab('menu')}
-              className={`flex flex-col items-center gap-1 transition-colors ${activeTab === 'menu' ? 'text-amber-500' : 'text-zinc-500 hover:text-zinc-300'}`}
-            >
-              <Menu className="w-5 h-5" />
-              <span className="text-[10px] font-medium uppercase tracking-wider">Menu</span>
-            </button>
-            <button
-              onClick={() => setActiveTab('cart')}
-              className={`relative flex flex-col items-center gap-1 transition-colors ${activeTab === 'cart' ? 'text-amber-500' : 'text-zinc-500 hover:text-zinc-300'}`}
-            >
-              <ShoppingBasket className="w-5 h-5" />
-              {cartCount > 0 && (
-                <motion.span
-                  key={cartCount}
-                  initial={{ scale: 0.5, opacity: 0 }}
-                  animate={{ scale: 1, opacity: 1 }}
-                  transition={{ type: "spring", stiffness: 500, damping: 30 }}
-                  className={`absolute -top-1 -right-2 w-5 h-5 flex items-center justify-center rounded-full bg-amber-500 text-zinc-950 text-xs font-bold ${isCartAnimating ? 'animate-ping-once' : ''}`}
-                >
-                  {cartCount}
-                </motion.span>
-              )}
-              <span className="text-[10px] font-medium uppercase tracking-wider">Carrello</span>
-            </button>
-            <button
-              onClick={() => setActiveTab('orders')}
-              className={`flex flex-col items-center gap-1 transition-colors ${activeTab === 'orders' ? 'text-amber-500' : 'text-zinc-500 hover:text-zinc-300'}`}
-            >
-              <History className="w-5 h-5" />
-              <span className="text-[10px] font-medium uppercase tracking-wider">Ordini</span>
-            </button>
+        {!isViewOnly && (
+          <div className="fixed bottom-0 left-0 right-0 z-50 bg-zinc-950/90 backdrop-blur-xl border-t border-amber-500/10 shadow-lg shadow-black/30">
+            <div className="w-full flex justify-around items-center h-16">
+              <button
+                onClick={() => setActiveTab('menu')}
+                className={`flex flex-col items-center gap-1 transition-colors ${activeTab === 'menu' ? 'text-amber-500' : 'text-zinc-500 hover:text-zinc-300'}`}
+              >
+                <Menu className="w-5 h-5" />
+                <span className="text-[10px] font-medium uppercase tracking-wider">Menu</span>
+              </button>
+              <button
+                onClick={() => setActiveTab('cart')}
+                className={`relative flex flex-col items-center gap-1 transition-colors ${activeTab === 'cart' ? 'text-amber-500' : 'text-zinc-500 hover:text-zinc-300'}`}
+              >
+                <ShoppingBasket className="w-5 h-5" />
+                {cartCount > 0 && (
+                  <motion.span
+                    key={cartCount}
+                    initial={{ scale: 0.5, opacity: 0 }}
+                    animate={{ scale: 1, opacity: 1 }}
+                    transition={{ type: "spring", stiffness: 500, damping: 30 }}
+                    className={`absolute -top-1 -right-2 w-5 h-5 flex items-center justify-center rounded-full bg-amber-500 text-zinc-950 text-xs font-bold ${isCartAnimating ? 'animate-ping-once' : ''}`}
+                  >
+                    {cartCount}
+                  </motion.span>
+                )}
+                <span className="text-[10px] font-medium uppercase tracking-wider">Carrello</span>
+              </button>
+              <button
+                onClick={() => setActiveTab('orders')}
+                className={`flex flex-col items-center gap-1 transition-colors ${activeTab === 'orders' ? 'text-amber-500' : 'text-zinc-500 hover:text-zinc-300'}`}
+              >
+                <History className="w-5 h-5" />
+                <span className="text-[10px] font-medium uppercase tracking-wider">Ordini</span>
+              </button>
+            </div>
           </div>
-        </div>
+        )}
 
         {/* Dish Detail Dialog */}
         <Dialog open={!!selectedDish} onOpenChange={(open) => !open && setSelectedDish(null)}>

@@ -56,6 +56,7 @@ export interface Restaurant {
     // Weekly scheduling for Coperto and AYCE
     weekly_coperto?: WeeklyCopertoSchedule
     weekly_ayce?: WeeklyAyceSchedule
+    view_only_menu_enabled?: boolean
 }
 
 export interface DayMealConfig {

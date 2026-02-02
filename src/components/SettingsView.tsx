@@ -85,6 +85,9 @@ interface SettingsViewProps {
     setEnableReservationRoomSelection: (enabled: boolean) => void
     enablePublicReservations: boolean
     setEnablePublicReservations: (enabled: boolean) => void
+
+    viewOnlyMenuEnabled: boolean
+    setViewOnlyMenuEnabled: (enabled: boolean) => void
 }
 
 export function SettingsView({
@@ -131,7 +134,9 @@ export function SettingsView({
     weeklyCoperto,
     setWeeklyCoperto,
     weeklyAyce,
-    setWeeklyAyce
+    setWeeklyAyce,
+    viewOnlyMenuEnabled,
+    setViewOnlyMenuEnabled
 }: SettingsViewProps) {
 
     const containerVariants = {

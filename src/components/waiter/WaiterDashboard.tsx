@@ -465,6 +465,7 @@ const WaiterDashboard = ({ user, onLogout }: WaiterDashboardProps) => {
 
 
 
+
     // TABLE MANAGEMENT FUNCTIONS
     const handleAddTable = async () => {
         if (!restaurantId || !newTableNumber.trim()) {

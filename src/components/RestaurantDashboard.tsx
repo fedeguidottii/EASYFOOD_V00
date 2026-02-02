@@ -92,6 +92,7 @@ const RestaurantDashboard = ({ user, onLogout }: RestaurantDashboardProps) => {
   const [pendingAutoOrderTableId, setPendingAutoOrderTableId] = useState<string | null>(null)
   const [activeTab, setActiveTab] = useState('orders')
   const [sidebarExpanded, setSidebarExpanded] = useState(false)
+  const [isSidebarOpen, setIsSidebarOpen] = useState(true) // Collapsible sidebar state
   const [tableSearchTerm, setTableSearchTerm] = useState('')
 
   // Schedule Settings State
@@ -821,12 +822,37 @@ const RestaurantDashboard = ({ user, onLogout }: RestaurantDashboardProps) => {
       await DatabaseService.updateRestaurant({ id: restaurantId, ...updateData })
     }
   }
+  // View Only Menu State
+  const viewOnlyMenuEnabled = currentRestaurant?.view_only_menu_enabled ?? false
+
+  const updateViewOnlyMenuEnabled = async (enabled: boolean) => {
+    if (!restaurantId) return
+    try {
+      await DatabaseService.updateRestaurant({
+        id: restaurantId,
+        view_only_menu_enabled: enabled
+      })
+      toast.success(enabled ? 'Menu Solo Visualizzazione attivato' : 'Menu Solo Visualizzazione disattivato')
+    } catch (error) {
+      console.error('Error updating view only settings:', error)
+      toast.error('Errore durante l\'aggiornamento delle impostazioni')
+    }
+  }
+
+  // --- Handlers ---
+  const updateRestaurantName = async (name: string) => {
+    setRestaurantName(name)
+    if (!restaurantId) return
+    await DatabaseService.updateRestaurant({ id: restaurantId, name })
+    setRestaurantNameDirty(false)
+  }
 
   const updateLunchStart = async (time: string) => {
     setLunchTimeStart(time)
     if (!restaurantId) return
     await DatabaseService.updateRestaurant({ id: restaurantId, lunch_time_start: time })
   }
+
 
   const updateDinnerStart = async (time: string) => {
     setDinnerTimeStart(time)
@@ -1477,91 +1503,127 @@ const RestaurantDashboard = ({ user, onLogout }: RestaurantDashboardProps) => {
         <div className="absolute bottom-[-20%] right-[-20%] w-[60%] h-[60%] bg-amber-500/[0.02] rounded-full blur-[150px]" />
       </div>
 
-      {/* Sidebar - Refined & Nuanced */}
-      <aside className="w-68 bg-zinc-950/80 backdrop-blur-3xl border-r border-white/[0.03] flex flex-col flex-shrink-0 z-20 relative shadow-[20px_0_50px_rgba(0,0,0,0.5)]">
-        <div className="p-6 border-b border-white/5 flex items-center gap-4">
-          {currentRestaurant?.logo_url ? (
-            <div className="flex items-center gap-4 w-full">
-              <div className="w-12 h-12 rounded-xl bg-zinc-900/50 border border-white/10 flex items-center justify-center overflow-hidden">
-                <img src={currentRestaurant.logo_url} alt={currentRestaurant.name} className="w-full h-full object-contain" />
-              </div>
-              <div className="overflow-hidden flex-1">
-                <h1 className="font-medium text-base text-zinc-100 tracking-tight leading-none truncate">{currentRestaurant.name}</h1>
-                <p className="text-[9px] uppercase tracking-[0.2em] text-zinc-500 font-bold mt-1.5 flex items-center gap-1">
-                  <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 shadow-[0_0_8px_rgba(16,185,129,0.5)]"></span>
-                  Online
-                </p>
-              </div>
-            </div>
-          ) : (
-            <>
-              <div className="p-2.5 bg-zinc-900/50 border border-amber-500/20 rounded-xl text-amber-500 shadow-[0_0_15px_-5px_rgba(245,158,11,0.2)]">
-                <ChefHat size={24} />
-              </div>
-              <div className="overflow-hidden">
-                <h1 className="font-medium text-base text-zinc-100 tracking-tight leading-none truncate">{currentRestaurant?.name || 'EASYFOOD'}</h1>
-                <p className="text-[9px] uppercase tracking-[0.2em] text-zinc-500 font-bold mt-1.5 flex items-center gap-1">
-                  <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 shadow-[0_0_8px_rgba(16,185,129,0.5)]"></span>
-                  Online
-                </p>
-              </div>
-            </>
-          )}
-        </div>
-
-        <nav className="flex-1 px-3 py-6 space-y-1 overflow-y-auto">
-          {[
-            { id: 'orders', label: 'Ordini', icon: Clock },
-            { id: 'tables', label: 'Tavoli', icon: MapPin },
-            { id: 'menu', label: 'Menu', icon: BookOpen },
-            { id: 'reservations', label: 'Prenotazioni', icon: Calendar },
-            { id: 'analytics', label: 'Analitiche', icon: ChartBar },
-            { id: 'settings', label: 'Impostazioni', icon: Gear },
-          ].map((item) => (
-            <Button
-              key={item.id}
-              variant="ghost"
-              className={`w-full justify-start h-12 px-4 rounded-xl transition-all duration-300 group relative overflow-hidden ${activeTab === item.id
-                // Active State: Minimal & Elegant
-                ? 'bg-gradient-to-r from-amber-500/10 to-transparent text-amber-500 font-medium'
-                // Inactive State
-                : 'text-zinc-500 hover:text-zinc-200 hover:bg-white/[0.03]'
-                }`}
-              onClick={() => {
-                const section = item.id
-                setActiveTab(section)
-                setActiveSection(section)
-              }}
-            >
-              {activeTab === item.id && (
-                <div className="absolute left-0 top-1/2 -translate-y-1/2 h-6 w-1 rounded-r-full bg-amber-500 shadow-[0_0_12px_rgba(245,158,11,0.8)]" />
-              )}
-              <item.icon
-                size={22}
-                weight={activeTab === item.id ? 'fill' : 'regular'}
-                className={`mr-3 transition-colors duration-300 ${activeTab === item.id ? 'text-amber-500 shadow-[0_0_10px_rgba(245,158,11,0.3)]' : 'text-zinc-600 group-hover:text-zinc-400'}`}
-              />
-              <span className={`relative z-10 text-sm tracking-wide ${activeTab === item.id ? 'font-medium' : 'font-normal'}`}>{item.label}</span>
-
-              {/* Subtle shimmer for active item */}
-              {activeTab === item.id && (
-                <div className="absolute inset-0 bg-gradient-to-r from-amber-500/5 to-transparent opacity-50" />
-              )}
-            </Button>
-          ))}
-        </nav>
-
-        <div className="p-4 border-t border-white/5 bg-black/20">
-          <Button
-            variant="ghost"
-            onClick={onLogout}
-            className="w-full justify-start h-12 px-4 rounded-xl text-zinc-500 hover:text-red-400 hover:bg-red-500/5 transition-all border border-transparent hover:border-red-500/10 group"
+      {/* Hamburger Menu Button - Fixed Position top-left */}
+      <AnimatePresence>
+        {!isSidebarOpen && (
+          <motion.button
+            initial={{ opacity: 0, x: -20 }}
+            animate={{ opacity: 1, x: 0 }}
+            exit={{ opacity: 0, x: -20 }}
+            transition={{ type: "spring", stiffness: 300, damping: 30 }}
+            onClick={() => setIsSidebarOpen(true)}
+            className="fixed top-6 left-6 z-50 p-2.5 bg-zinc-950/80 backdrop-blur-md border border-white/10 rounded-xl text-zinc-400 hover:text-amber-500 hover:border-amber-500/30 shadow-2xl shadow-black/80 transition-all hover:scale-105"
           >
-            <SignOut size={20} weight="regular" className="mr-3 group-hover:text-red-400 transition-colors" />
-            <span className="text-sm tracking-wide">Esci</span>
-          </Button>
-        </div>
-      </aside>
+            <List size={24} weight="regular" />
+          </motion.button>
+        )}
+      </AnimatePresence>
+
+      {/* Sidebar - Collapsible with AnimatePresence */}
+      <AnimatePresence mode="wait">
+        {isSidebarOpen && (
+          <motion.aside
+            initial={{ width: 0, opacity: 0, x: -50 }}
+            animate={{ width: 272, opacity: 1, x: 0 }}
+            exit={{ width: 0, opacity: 0, x: -50 }}
+            transition={{ type: "spring", stiffness: 300, damping: 30 }}
+            className="h-full bg-zinc-950/80 backdrop-blur-3xl border-r border-white/[0.03] flex flex-col flex-shrink-0 z-40 relative shadow-[20px_0_50px_rgba(0,0,0,0.5)] overflow-hidden"
+          >
+            <div className="p-6 border-b border-white/5 flex items-center justify-between gap-4 min-w-[272px]">
+              {currentRestaurant?.logo_url ? (
+                <div className="flex items-center gap-4 flex-1">
+                  <div className="w-12 h-12 rounded-xl bg-zinc-900/50 border border-white/10 flex items-center justify-center overflow-hidden flex-shrink-0">
+                    <img src={currentRestaurant.logo_url} alt={currentRestaurant.name} className="w-full h-full object-contain" />
+                  </div>
+                  <div className="overflow-hidden flex-1 min-w-0">
+                    <h1 className="font-medium text-base text-zinc-100 tracking-tight leading-none truncate">{currentRestaurant.name}</h1>
+                    <p className="text-[9px] uppercase tracking-[0.2em] text-zinc-500 font-bold mt-1.5 flex items-center gap-1">
+                      <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 shadow-[0_0_8px_rgba(16,185,129,0.5)]"></span>
+                      Online
+                    </p>
+                  </div>
+                </div>
+              ) : (
+                <div className="flex items-center gap-4 flex-1">
+                  <div className="flex-shrink-0 p-2.5 bg-zinc-900/50 border border-amber-500/20 rounded-xl text-amber-500 shadow-[0_0_15px_-5px_rgba(245,158,11,0.2)]">
+                    <ChefHat size={24} />
+                  </div>
+                  <div className="overflow-hidden flex-1 min-w-0">
+                    <h1 className="font-medium text-base text-zinc-100 tracking-tight leading-none truncate">{currentRestaurant?.name || 'EASYFOOD'}</h1>
+                    <p className="text-[9px] uppercase tracking-[0.2em] text-zinc-500 font-bold mt-1.5 flex items-center gap-1">
+                      <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 shadow-[0_0_8px_rgba(16,185,129,0.5)]"></span>
+                      Online
+                    </p>
+                  </div>
+                </div>
+              )}
+
+              {/* Close Sidebar Button */}
+              <button
+                onClick={() => setIsSidebarOpen(false)}
+                className="p-2 text-zinc-500 hover:text-white rounded-lg hover:bg-white/5 transition-colors"
+              >
+                <CaretRight size={20} className="transform rotate-180" />
+              </button>
+            </div>
+
+            <nav className="flex-1 px-3 py-6 space-y-1 overflow-y-auto min-w-[272px]">
+              {[
+                { id: 'orders', label: 'Ordini', icon: Clock },
+                { id: 'tables', label: 'Tavoli', icon: MapPin },
+                { id: 'menu', label: 'Menu', icon: BookOpen },
+                { id: 'reservations', label: 'Prenotazioni', icon: Calendar },
+                { id: 'analytics', label: 'Analitiche', icon: ChartBar },
+                { id: 'settings', label: 'Impostazioni', icon: Gear },
+              ].map((item) => (
+                <Button
+                  key={item.id}
+                  variant="ghost"
+                  className={`w-full justify-start h-12 px-4 rounded-xl transition-all duration-300 group relative overflow-hidden ${activeTab === item.id
+                    // Active State: Minimal & Elegant
+                    ? 'bg-gradient-to-r from-amber-500/10 to-transparent text-amber-500 font-medium'
+                    // Inactive State
+                    : 'text-zinc-500 hover:text-zinc-200 hover:bg-white/[0.03]'
+                    }`}
+                  onClick={() => {
+                    const section = item.id
+                    setActiveTab(section)
+                    setActiveSection(section)
+                    // Auto collapsing logic
+                    setIsSidebarOpen(false)
+                  }}
+                >
+                  {activeTab === item.id && (
+                    <div className="absolute left-0 top-1/2 -translate-y-1/2 h-6 w-1 rounded-r-full bg-amber-500 shadow-[0_0_12px_rgba(245,158,11,0.8)]" />
+                  )}
+                  <item.icon
+                    size={22}
+                    weight={activeTab === item.id ? 'fill' : 'regular'}
+                    className={`mr-3 transition-colors duration-300 flex-shrink-0 ${activeTab === item.id ? 'text-amber-500 shadow-[0_0_10px_rgba(245,158,11,0.3)]' : 'text-zinc-600 group-hover:text-zinc-400'}`}
+                  />
+                  <span className={`relative z-10 text-sm tracking-wide truncate ${activeTab === item.id ? 'font-medium' : 'font-normal'}`}>{item.label}</span>
+
+                  {/* Subtle shimmer for active item */}
+                  {activeTab === item.id && (
+                    <div className="absolute inset-0 bg-gradient-to-r from-amber-500/5 to-transparent opacity-50" />
+                  )}
+                </Button>
+              ))}
+            </nav>
+
+            <div className="p-4 border-t border-white/5 bg-black/20 min-w-[272px]">
+              <Button
+                variant="ghost"
+                onClick={onLogout}
+                className="w-full justify-start h-12 px-4 rounded-xl text-zinc-500 hover:text-red-400 hover:bg-red-500/5 transition-all border border-transparent hover:border-red-500/10 group"
+              >
+                <SignOut size={20} weight="regular" className="mr-3 group-hover:text-red-400 transition-colors flex-shrink-0" />
+                <span className="text-sm tracking-wide truncate">Esci</span>
+              </Button>
+            </div>
+          </motion.aside>
+        )}
+      </AnimatePresence>
 
       {/* Main Content Area */}
       <main className="flex-1 flex flex-col min-w-0 overflow-hidden relative z-10">
@@ -2906,6 +2968,10 @@ const RestaurantDashboard = ({ user, onLogout }: RestaurantDashboardProps) => {
 
                 copertoEnabled={copertoEnabled}
                 setCopertoEnabled={updateCopertoEnabled}
+
+                viewOnlyMenuEnabled={viewOnlyMenuEnabled}
+                setViewOnlyMenuEnabled={updateViewOnlyMenuEnabled}
+
                 copertoPrice={copertoPrice}
                 setCopertoPrice={updateCopertoPrice}
 
