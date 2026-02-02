@@ -401,14 +401,15 @@ const CustomerMenu = () => {
             // Session changed (table was reset) - clear old credentials
             localStorage.removeItem('customerSessionId')
             localStorage.removeItem('sessionPin')
-            setIsAuthenticated(false)
+            if (!isViewOnly) setIsAuthenticated(false)
             // CRITICAL: Do NOT navigate away. Just show PIN screen by setting auth to false.
           }
         } else {
           // Session invalid or closed/deleted
           localStorage.removeItem('customerSessionId')
+          localStorage.removeItem('customerSessionId')
           localStorage.removeItem('sessionPin')
-          setIsAuthenticated(false)
+          if (!isViewOnly) setIsAuthenticated(false)
         }
         setAuthChecking(false)
       }
@@ -626,7 +627,7 @@ const CustomerMenu = () => {
   )
 
   // LOGIN SCREEN (PIN) - Minimalist Luxury Design
-  if (!isAuthenticated) {
+  if (!isAuthenticated && !isViewOnly) {
     return (
       <div className="min-h-screen bg-zinc-950 flex flex-col items-center justify-center p-6 text-white">
 
@@ -720,11 +721,12 @@ const CustomerMenu = () => {
     sessionId={sessionId!}
     activeSession={activeSession!}
     isViewOnly={isViewOnly}
+    isAuthenticated={isAuthenticated}
   />
 }
 
 // Refactored Content Component to keep logic clean
-function AuthorizedMenuContent({ restaurantId, tableId, sessionId, activeSession, isViewOnly }: { restaurantId: string, tableId: string, sessionId: string, activeSession: TableSession, isViewOnly?: boolean }) {
+function AuthorizedMenuContent({ restaurantId, tableId, sessionId, activeSession, isViewOnly, isAuthenticated }: { restaurantId: string, tableId: string, sessionId: string, activeSession: TableSession, isViewOnly?: boolean, isAuthenticated: boolean }) {
   // Using passed props instead of resolving them
   const isWaiterMode = false // Or pass as prop if needed
 
