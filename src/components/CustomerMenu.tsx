@@ -1646,7 +1646,7 @@ function AuthorizedMenuContent({ restaurantId, tableId, sessionId, activeSession
             initial={{ scale: 0, opacity: 0 }}
             animate={{ scale: 1, opacity: 1 }}
             whileTap={{ scale: 0.9 }}
-            onClick={handleRequestHelp}
+            onClick={handleCallWaiter}
             className="fixed bottom-24 right-4 z-50 w-14 h-14 rounded-full bg-amber-500 text-black shadow-[0_0_20px_rgba(245,158,11,0.4)] flex items-center justify-center border-2 border-white/20"
           >
             <Bell className="w-7 h-7" strokeWidth={2.5} />
