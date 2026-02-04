@@ -369,16 +369,16 @@ export function SettingsView({
                                 </div>
                             </div>
 
-                            {/* Solo Visualizzazione Menu */}
+                            {/* Menu Solo Visualizzazione */}
                             <div className="col-span-full p-6 rounded-2xl bg-zinc-900/50 border border-white/5 backdrop-blur-sm">
                                 <div className="flex items-center justify-between">
                                     <div className="space-y-1">
                                         <h3 className="text-lg font-bold flex items-center gap-2">
-                                            <ForkKnife className="text-amber-500" />
-                                            Solo Visualizzazione Menu
+                                            Menu Solo Visualizzazione
                                         </h3>
                                         <p className="text-sm text-zinc-400 max-w-prose">
-                                            Se attivo, il QR Code permetterà solo di visualizzare il menu, senza possibilità di ordinare. Utile per ristoranti con servizio tradizionale al cameriere.
+                                            Se attivo, i clienti potranno solo visualizzare il menu tramite QR Code, senza poter inviare ordini.
+                                            Ideale per eventi o servizio servito al tavolo.
                                         </p>
                                     </div>
                                     <Switch

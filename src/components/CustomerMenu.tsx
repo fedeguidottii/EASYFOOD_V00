@@ -1394,9 +1394,9 @@ function AuthorizedMenuContent({ restaurantId, tableId, sessionId, activeSession
           </AnimatePresence>
         </main>
 
-        {/* Floating Cart Button */}
+        {/* Floating Cart Button - Only if NOT view only */}
         <AnimatePresence>
-          {cart.length > 0 && (
+          {!isViewOnly && cart.length > 0 && (
             <motion.div
               initial={{ y: 100, opacity: 0 }}
               animate={{ y: 0, opacity: 1 }}
@@ -1519,8 +1519,8 @@ function AuthorizedMenuContent({ restaurantId, tableId, sessionId, activeSession
                                         key={num}
                                         onClick={() => updateCartItem(item.id, { course_number: num })}
                                         className={`w-6 h-6 flex items-center justify-center rounded-full text-[10px] font-bold border ${(item.course_number || 1) === num
-                                            ? 'bg-amber-500 text-black border-amber-500'
-                                            : 'text-zinc-500 border-zinc-700 hover:border-zinc-500'
+                                          ? 'bg-amber-500 text-black border-amber-500'
+                                          : 'text-zinc-500 border-zinc-700 hover:border-zinc-500'
                                           }`}
                                       >
                                         {num}

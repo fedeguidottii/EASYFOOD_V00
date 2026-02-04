@@ -169,17 +169,15 @@ export const generatePdfFromElement = async (elementId: string, options: Generat
 
                     // Logica per evitare il taglio dei contenuti
                     const items = clonedElement.querySelectorAll('.break-inside-avoid')
-
-                    // Get the container's position to calculate relative offsets
-                    const containerRect = clonedElement.getBoundingClientRect()
-                    const containerTop = containerRect.top
+                    let currentOffset = 0
 
                     items.forEach((item) => {
                         if (item instanceof HTMLElement) {
                             const rect = item.getBoundingClientRect()
-                            // Posizione RELATIVA al contenitore
-                            const itemTop = rect.top - containerTop
-                            const itemBottom = rect.bottom - containerTop
+                            // Posizione relativa all'inizio del contenuto
+                            // (Assumendo che clonedElement sia a top:0)
+                            const itemTop = rect.top
+                            const itemBottom = rect.bottom
                             const itemHeight = rect.height
 
                             // Calcola in quale pagina cade l'inizio e la fine dell'elemento
@@ -188,16 +186,16 @@ export const generatePdfFromElement = async (elementId: string, options: Generat
 
                             if (startPage !== endPage) {
                                 // L'elemento attraversa un'interruzione di pagina
+                                // Aggiungi un margine superiore per spingerlo nella pagina successiva
                                 // Calcola quanto spazio manca alla fine della pagina corrente
                                 const spaceRemainingOnPage = ((startPage + 1) * pageHeightPx) - itemTop
 
-                                // Aggiungi spacer PRIMA dell'elemento per spingerlo nella pagina successiva
+                                // Aggiungi spacer
                                 const spacer = document.createElement('div')
-                                spacer.style.height = `${spaceRemainingOnPage + 5}px`
+                                spacer.style.height = `${spaceRemainingOnPage + 10}px` // +10px buffer
                                 spacer.style.display = 'block'
                                 spacer.style.width = '100%'
-                                spacer.style.gridColumn = '1 / -1' // Full width in Grid
-                                spacer.style.visibility = 'hidden'
+                                spacer.style.gridColumn = '1 / -1' // Force span full width in Grid
                                 item.parentElement?.insertBefore(spacer, item)
                             }
                         }
