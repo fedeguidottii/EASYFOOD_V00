@@ -84,7 +84,7 @@ export function useRestaurantLogic(restaurantId: string) {
         await DatabaseService.removeFromCart(itemId)
     }
 
-    const updateCartItem = async (itemId: string, updates: { quantity?: number, notes?: string }) => {
+    const updateCartItem = async (itemId: string, updates: { quantity?: number, notes?: string, course_number?: number }) => {
         await DatabaseService.updateCartItem(itemId, updates)
     }
 

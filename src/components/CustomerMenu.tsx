@@ -745,10 +745,19 @@ function AuthorizedMenuContent({ restaurantId, tableId, sessionId, activeSession
   const [cart, setCart] = useState<CartItem[]>([])
   const [isCartOpen, setIsCartOpen] = useState(false)
   // const [activeSession, setSession] = useState<TableSession | null>(null) // Removed
-  const [previousOrders, setPreviousOrders] = useState<Order[]>([])
-  const [isOrderSubmitting, setIsOrderSubmitting] = useState(false)
   const [searchTerm, setSearchTerm] = useState('')
   const [selectedDish, setSelectedDish] = useState<Dish | null>(null)
+
+  // New state for course splitting mode
+  const [isCourseSplittingMode, setIsCourseSplittingMode] = useState(false)
+
+  // Derived state for sorted cart
+  const sortedCart = useMemo(() => {
+    if (!isCourseSplittingMode) return cart
+    return [...cart].sort((a, b) => (a.course_number || 1) - (b.course_number || 1))
+  }, [cart, isCourseSplittingMode])
+  const [previousOrders, setPreviousOrders] = useState<Order[]>([])
+  const [isOrderSubmitting, setIsOrderSubmitting] = useState(false)
   const [dishNote, setDishNote] = useState('')
   const [dishQuantity, setDishQuantity] = useState(1)
 
@@ -1439,7 +1448,17 @@ function AuthorizedMenuContent({ restaurantId, tableId, sessionId, activeSession
               {/* CURRENT CART */}
               <div className="space-y-4">
                 <div className="flex items-center justify-between">
-                  <h3 className="text-amber-500 text-xs font-bold uppercase tracking-wider">Nel Carrello</h3>
+                  <div className="flex items-center gap-2">
+                    <h3 className="text-amber-500 text-xs font-bold uppercase tracking-wider">Nel Carrello</h3>
+                    {fullRestaurant?.enable_course_splitting && (
+                      <button
+                        onClick={() => setIsCourseSplittingMode(!isCourseSplittingMode)}
+                        className={`text-[10px] px-2 py-0.5 rounded-full border transition-all ${isCourseSplittingMode ? 'bg-amber-500 text-black border-amber-500 font-bold' : 'text-zinc-500 border-zinc-700 hover:border-zinc-500'}`}
+                      >
+                        {isCourseSplittingMode ? 'Dividi in Portate: ON' : 'Dividi in Portate'}
+                      </button>
+                    )}
+                  </div>
                   <span className="text-xs text-zinc-500">{cart.length} articoli</span>
                 </div>
 
@@ -1447,52 +1466,84 @@ function AuthorizedMenuContent({ restaurantId, tableId, sessionId, activeSession
                   <p className="text-zinc-500 text-sm italic text-center py-8 bg-zinc-900/30 rounded-xl border border-white/5">Il carrello è vuoto</p>
                 ) : (
                   <div className="space-y-3">
-                    {cart.map((item) => (
-                      <div key={item.id} className="bg-zinc-900/50 rounded-xl p-3 border border-white/5 flex gap-3 shadow-sm">
-                        {/* Image if available */}
-                        {item.dish?.image_url ? (
-                          <img src={item.dish.image_url} className="w-16 h-16 rounded-lg object-cover bg-zinc-800" />
-                        ) : (
-                          <div className="w-16 h-16 rounded-lg bg-zinc-800 flex items-center justify-center text-zinc-600">
-                            <ForkKnife weight="duotone" size={24} />
-                          </div>
-                        )}
-                        <div className="flex-1 min-w-0 flex flex-col justify-between">
-                          <div className="flex justify-between items-start gap-2">
-                            <h4 className="font-medium text-white line-clamp-1 text-sm">{item.dish?.name}</h4>
-                            <span className="text-amber-400 font-bold text-sm whitespace-nowrap">€{((item.dish?.price || 0) * item.quantity).toFixed(2)}</span>
-                          </div>
-                          {item.notes && <p className="text-[10px] text-zinc-500 line-clamp-1 italic">{item.notes}</p>}
+                    {sortedCart.map((item, index) => {
+                      // Logic for grouping headers
+                      const showCourseHeader = isCourseSplittingMode && (index === 0 || (item.course_number || 1) !== (sortedCart[index - 1].course_number || 1));
 
-                          <div className="flex items-center justify-between mt-2">
-                            <div className="flex items-center gap-3 bg-zinc-950/50 rounded-lg p-0.5 border border-white/5 shadow-inner">
-                              <button
-                                onClick={() => updateCartItemQuantity(item.id, -1)}
-                                className="w-7 h-7 flex items-center justify-center text-zinc-400 hover:text-white hover:bg-zinc-800 rounded-md transition-colors"
-                              >
-                                <Minus size={14} weight="bold" />
-                              </button>
-                              <span className="text-sm font-bold w-4 text-center">{item.quantity}</span>
-                              <button
-                                onClick={() => updateCartItemQuantity(item.id, 1)}
-                                className="w-7 h-7 flex items-center justify-center text-zinc-400 hover:text-white hover:bg-zinc-800 rounded-md transition-colors"
-                              >
-                                <Plus size={14} weight="bold" />
-                              </button>
+                      return (
+                        <React.Fragment key={item.id}>
+                          {showCourseHeader && (
+                            <div className="text-xs font-bold text-zinc-400 mt-2 mb-1 px-1 uppercase tracking-widest">
+                              Portata {item.course_number || 1}
                             </div>
-                            <button
-                              onClick={() => {
-                                // Remove logic: calling with negative quantity equal to current will set to 0 and remove
-                                updateCartItemQuantity(item.id, -item.quantity)
-                              }}
-                              className="text-red-400/50 hover:text-red-400 p-1.5 hover:bg-red-400/10 rounded-md transition-colors"
-                            >
-                              <Trash size={16} />
-                            </button>
+                          )}
+                          <div className="bg-zinc-900/50 rounded-xl p-3 border border-white/5 flex gap-3 shadow-sm relative overflow-hidden">
+                            {/* Image if available */}
+                            {item.dish?.image_url ? (
+                              <img src={item.dish.image_url} className="w-16 h-16 rounded-lg object-cover bg-zinc-800" />
+                            ) : (
+                              <div className="w-16 h-16 rounded-lg bg-zinc-800 flex items-center justify-center text-zinc-600">
+                                <ForkKnife weight="duotone" size={24} />
+                              </div>
+                            )}
+                            <div className="flex-1 min-w-0 flex flex-col justify-between">
+                              <div className="flex justify-between items-start gap-2">
+                                <h4 className="font-medium text-white line-clamp-1 text-sm">{item.dish?.name}</h4>
+                                <span className="text-amber-400 font-bold text-sm whitespace-nowrap">€{((item.dish?.price || 0) * item.quantity).toFixed(2)}</span>
+                              </div>
+                              {item.notes && <p className="text-[10px] text-zinc-500 line-clamp-1 italic">{item.notes}</p>}
+
+                              <div className="flex items-center justify-between mt-2">
+                                {/* Quantity Controls */}
+                                <div className="flex items-center gap-3 bg-zinc-950/50 rounded-lg p-0.5 border border-white/5 shadow-inner">
+                                  <button
+                                    onClick={() => updateCartItemQuantity(item.id, -1)}
+                                    className="w-7 h-7 flex items-center justify-center text-zinc-400 hover:text-white hover:bg-zinc-800 rounded-md transition-colors"
+                                  >
+                                    <Minus size={14} weight="bold" />
+                                  </button>
+                                  <span className="text-sm font-bold w-4 text-center">{item.quantity}</span>
+                                  <button
+                                    onClick={() => updateCartItemQuantity(item.id, 1)}
+                                    className="w-7 h-7 flex items-center justify-center text-zinc-400 hover:text-white hover:bg-zinc-800 rounded-md transition-colors"
+                                  >
+                                    <Plus size={14} weight="bold" />
+                                  </button>
+                                </div>
+
+                                {/* Course Selection (Only if mode active) */}
+                                {isCourseSplittingMode && (
+                                  <div className="flex items-center gap-1 ml-2">
+                                    {[1, 2, 3, 4].map(num => (
+                                      <button
+                                        key={num}
+                                        onClick={() => updateCartItem(item.id, { course_number: num })}
+                                        className={`w-6 h-6 flex items-center justify-center rounded-full text-[10px] font-bold border ${(item.course_number || 1) === num
+                                            ? 'bg-amber-500 text-black border-amber-500'
+                                            : 'text-zinc-500 border-zinc-700 hover:border-zinc-500'
+                                          }`}
+                                      >
+                                        {num}
+                                      </button>
+                                    ))}
+                                  </div>
+                                )}
+
+                                <button
+                                  onClick={() => {
+                                    // Remove logic: calling with negative quantity equal to current will set to 0 and remove
+                                    updateCartItemQuantity(item.id, -item.quantity)
+                                  }}
+                                  className="text-red-400/50 hover:text-red-400 p-1.5 hover:bg-red-400/10 rounded-md transition-colors ml-auto"
+                                >
+                                  <Trash size={16} />
+                                </button>
+                              </div>
+                            </div>
                           </div>
-                        </div>
-                      </div>
-                    ))}
+                        </React.Fragment>
+                      )
+                    })}
                   </div>
                 )}
               </div>

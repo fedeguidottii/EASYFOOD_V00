@@ -483,62 +483,69 @@ const WaiterOrderPage = () => {
 
                                 <ScrollArea className="flex-1 p-4">
                                     {orderItems.length === 0 ? (
-                                        <p className="text-center text-zinc-500 py-10">Nessun piatto.</p>
+                                        <div className="flex flex-col items-center justify-center py-20 text-zinc-500">
+                                            <ShoppingCart size={48} weight="duotone" className="mb-4 opacity-50" />
+                                            <p>Nessun piatto selezionato</p>
+                                        </div>
                                     ) : (
-                                        <div className="space-y-6">
+                                        <div className="space-y-6 pb-24">
                                             {[1, 2, 3, 4, 5].map(courseNum => {
                                                 const items = orderItems.filter(i => i.courseNumber === courseNum)
                                                 if (items.length === 0) return null
                                                 return (
                                                     <div key={courseNum} className="space-y-3">
-                                                        <div className="flex items-center gap-3">
-                                                            <Badge variant="outline" className="bg-amber-500/5 border-amber-500/20 text-amber-500 font-mono uppercase text-[10px] tracking-widest px-2">
-                                                                Portata {courseNum}
+                                                        <div className="flex items-center gap-2">
+                                                            <div className="h-px flex-1 bg-gradient-to-r from-transparent via-zinc-700 to-transparent" />
+                                                            <Badge variant="outline" className="border-amber-500/30 text-amber-500 bg-amber-500/5">
+                                                                {courseNum === 0 ? 'Bevande / Altro' : `Portata ${courseNum}`}
                                                             </Badge>
-                                                            <div className="h-px flex-1 bg-white/5"></div>
+                                                            <div className="h-px flex-1 bg-gradient-to-r from-transparent via-zinc-700 to-transparent" />
                                                         </div>
-                                                        {items.map((item, idx) => {
+
+                                                        {items.map((item) => {
                                                             const realIndex = orderItems.indexOf(item)
+                                                            const uniqueId = `${item.dishId}-${realIndex}`
                                                             return (
-                                                                <div key={idx} className="flex gap-4 bg-zinc-900/30 p-3 rounded-xl border border-white/5">
-                                                                    {/* Qty Controls */}
-                                                                    <div className="flex flex-col items-center gap-1 bg-zinc-900 rounded-lg p-1 border border-white/5 h-fit">
-                                                                        <button onClick={() => updateQuantity(realIndex, 1)} className="w-6 h-6 flex items-center justify-center text-zinc-400 hover:text-white bg-white/5 rounded"><Plus size={10} weight="bold" /></button>
-                                                                        <span className="text-sm font-bold text-white">{item.quantity}</span>
-                                                                        <button onClick={() => updateQuantity(realIndex, -1)} className="w-6 h-6 flex items-center justify-center text-zinc-400 hover:text-red-400 bg-white/5 rounded"><Minus size={10} weight="bold" /></button>
-                                                                    </div>
-
-                                                                    <div className="flex-1 min-w-0">
+                                                                <div key={uniqueId} className="flex gap-3 bg-zinc-900/50 p-3 rounded-xl border border-white/5 relative group">
+                                                                    <div className="flex-1">
                                                                         <div className="flex justify-between items-start">
-                                                                            <p className="font-bold text-zinc-200 text-sm truncate">{item.dish?.name}</p>
-                                                                            <p className="text-amber-500 text-xs font-mono font-medium">€{((item.dish?.price || 0) * item.quantity).toFixed(2)}</p>
+                                                                            <span className="font-bold text-zinc-200">{item.dish?.name}</span>
+                                                                            <span className="text-zinc-400 text-sm">€{((item.dish?.price || 0) * item.quantity).toFixed(2)}</span>
                                                                         </div>
+                                                                        {item.notes && <p className="text-xs text-amber-500 italic mt-1">{item.notes}</p>}
 
-                                                                        <div className="flex items-center gap-2 mt-2">
-                                                                            {/* Course Mover */}
-                                                                            <DropdownMenu>
-                                                                                <DropdownMenuTrigger asChild>
-                                                                                    <Button variant="outline" size="sm" className="h-6 px-2 text-[10px] border-zinc-700 text-zinc-400 bg-transparent">
-                                                                                        P{item.courseNumber} <CaretDown className="ml-1" />
-                                                                                    </Button>
-                                                                                </DropdownMenuTrigger>
-                                                                                <DropdownMenuContent align="start" className="bg-zinc-900 border-zinc-800">
-                                                                                    <DropdownMenuLabel className="text-xs">Sposta in</DropdownMenuLabel>
-                                                                                    {[1, 2, 3, 4, 5].map(n => (
-                                                                                        <DropdownMenuItem key={n} onClick={() => moveToCourse(realIndex, n)} className="text-xs">
-                                                                                            Portata {n}
-                                                                                        </DropdownMenuItem>
-                                                                                    ))}
-                                                                                </DropdownMenuContent>
-                                                                            </DropdownMenu>
+                                                                        <div className="flex items-center gap-4 mt-3">
+                                                                            <div className="flex items-center gap-3 bg-black/40 rounded-lg p-1">
+                                                                                <button
+                                                                                    onClick={() => updateQuantity(realIndex, -1)}
+                                                                                    className="w-8 h-8 flex items-center justify-center bg-zinc-800 rounded-md text-zinc-400 hover:text-white"
+                                                                                >
+                                                                                    <Minus size={14} weight="bold" />
+                                                                                </button>
+                                                                                <span className="font-mono font-bold w-6 text-center">{item.quantity}</span>
+                                                                                <button
+                                                                                    onClick={() => updateQuantity(realIndex, 1)}
+                                                                                    className="w-8 h-8 flex items-center justify-center bg-zinc-800 rounded-md text-zinc-400 hover:text-white"
+                                                                                >
+                                                                                    <Plus size={14} weight="bold" />
+                                                                                </button>
+                                                                            </div>
 
-                                                                            {/* Notes */}
-                                                                            <Input
+                                                                            <input
+                                                                                type="text"
                                                                                 placeholder="Note..."
-                                                                                value={item.notes}
+                                                                                value={item.notes || ''}
                                                                                 onChange={(e) => updateNote(realIndex, e.target.value)}
-                                                                                className="h-6 text-xs bg-black/20 border-transparent focus:border-zinc-700 min-w-0"
+                                                                                className="h-8 text-xs bg-black/20 border-transparent focus:border-zinc-700 rounded-lg flex-1 min-w-0 px-2 text-zinc-300"
                                                                             />
+
+                                                                            <button
+                                                                                // Remove by reducing quantity to 0
+                                                                                onClick={() => updateQuantity(realIndex, -item.quantity)}
+                                                                                className="w-8 h-8 flex items-center justify-center text-red-500/50 hover:text-red-500 bg-red-500/5 hover:bg-red-500/10 rounded-lg transition-colors ml-auto"
+                                                                            >
+                                                                                <Trash size={16} weight="duotone" />
+                                                                            </button>
                                                                         </div>
                                                                     </div>
                                                                 </div>
@@ -551,7 +558,9 @@ const WaiterOrderPage = () => {
                                     )}
                                 </ScrollArea>
 
-                                <div className="p-6 bg-zinc-900/80 border-t border-white/5 space-y-4">
+                                {/* Fixed Footer */}
+                                <div className="p-4 bg-zinc-900 border-t border-white/5 space-y-3 pb-8 md:pb-6">
+                                    {/* Increased bottom padding for mobile safe area */}
                                     <div className="flex justify-between items-center text-lg font-bold text-white">
                                         <span>Totale</span>
                                         <span className="text-amber-500 text-2xl">€{totalAmount.toFixed(2)}</span>
@@ -563,6 +572,7 @@ const WaiterOrderPage = () => {
                                     >
                                         {submitting ? 'Invio in corso...' : 'Invia Ordine in Cucina'}
                                     </Button>
+                                    <div className="h-4 md:hidden" /> {/* Spacer for iOS Home Bar */}
                                 </div>
                             </SheetContent>
                         </Sheet>
@@ -572,7 +582,8 @@ const WaiterOrderPage = () => {
 
             {/* Dish Detail Dialog */}
             <Dialog open={!!selectedDishForDetail} onOpenChange={(open) => !open && setSelectedDishForDetail(null)}>
-                <DialogContent className="sm:max-w-md bg-zinc-950 border-zinc-800 text-zinc-100 p-0 overflow-hidden">
+                <DialogContent className="sm:max-w-md bg-zinc-950 border-zinc-800 text-zinc-100 p-0 overflow-hidden max-h-[90vh] flex flex-col">
+                    {/* Added max-h and flex-col to DishDetail as well just in case */}
                     {selectedDishForDetail && (
                         <>
                             <div className="h-48 relative">
