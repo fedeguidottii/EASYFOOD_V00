@@ -3514,32 +3514,7 @@ const RestaurantDashboard = ({ user, onLogout }: RestaurantDashboardProps) => {
                 </div>
               </div>
 
-              {/* QR Code with subtle glow */}
-              <div style={{
-                background: 'white',
-                padding: '35px',
-                borderRadius: '24px',
-                marginBottom: '50px',
-                boxShadow: '0 0 60px rgba(245, 158, 11, 0.15), 0 4px 20px rgba(0,0,0,0.3)'
-              }}>
-                {selectedTableForActions && (
-                  <QRCodeGenerator
-                    value={generateQrCode(selectedTableForActions.id)}
-                    size={320}
-                  />
-                )}
-              </div>
 
-              {/* Instruction text */}
-              <p style={{
-                fontSize: '15px',
-                color: '#52525b',
-                marginBottom: '40px',
-                fontStyle: 'italic',
-                fontWeight: '300'
-              }}>
-                Inquadra il codice per visualizzare il menu
-              </p>
 
               <p style={{ fontSize: '11px', color: '#3f3f46', letterSpacing: '1px' }}>EASYFOOD</p>
             </DialogContent>
