@@ -154,7 +154,8 @@ export const generatePdfFromElement = async (elementId: string, options: Generat
                 const mmToPx = 3.7795275591 // 1mm = ~3.78px a 96dpi (standard browser)
                 // Usiamo un'altezza pagina leggermente ridotta per sicurezza (es. 290mm invece di 297mm) 
                 // per tenere conto di margini di errore rendering
-                const pageHeightPx = (297 - (margin * 2)) * mmToPx * scale
+                // FIX: Non moltiplicare per scale, perché getBoundingClientRect restituisce dimensioni CSS (1x)
+                const pageHeightPx = (297 - (margin * 2)) * mmToPx
 
                 // ASSICURA VISIBILITÀ: Riporta l'elemento nel viewport del clone
                 const clonedElement = clonedDoc.getElementById(elementId)

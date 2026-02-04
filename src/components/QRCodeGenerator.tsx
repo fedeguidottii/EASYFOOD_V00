@@ -3,9 +3,10 @@ import { useEffect, useRef } from 'react'
 interface QRCodeGeneratorProps {
   value: string
   size?: number
+  className?: string
 }
 
-export default function QRCodeGenerator({ value, size = 256 }: QRCodeGeneratorProps) {
+export default function QRCodeGenerator({ value, size = 256, className }: QRCodeGeneratorProps) {
   const qrUrl = `https://api.qrserver.com/v1/create-qr-code/?size=${size}x${size}&data=${encodeURIComponent(value)}`
 
   return (
@@ -14,7 +15,7 @@ export default function QRCodeGenerator({ value, size = 256 }: QRCodeGeneratorPr
       alt="QR Code"
       width={size}
       height={size}
-      className="rounded-lg"
+      className={`rounded-lg ${className || ''}`}
     />
   )
 }
