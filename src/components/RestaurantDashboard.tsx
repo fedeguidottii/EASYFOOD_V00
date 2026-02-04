@@ -3467,20 +3467,20 @@ const RestaurantDashboard = ({ user, onLogout }: RestaurantDashboardProps) => {
                     maxWidth: '100%'
                   }}>
                     {/* HEADER: Label + Number */}
-                    <div style={{ textAlign: 'center', marginBottom: '30px' }}>
+                    <div style={{ textAlign: 'center', flex: 1, display: 'flex', flexDirection: 'column', justifyContent: 'center' }}>
                       <p style={{
-                        fontSize: '12px',
+                        fontSize: '14px',
                         fontWeight: '600',
-                        margin: '0 0 8px 0',
+                        margin: '0 0 15px 0',
                         textTransform: 'uppercase',
-                        letterSpacing: '0.25em',
+                        letterSpacing: '0.3em',
                         color: '#52525b',
                         fontFamily: 'sans-serif'
                       }}>
                         TAVOLO
                       </p>
                       <h1 style={{
-                        fontSize: '80px',
+                        fontSize: '96px',
                         lineHeight: '1',
                         fontWeight: '400',
                         margin: 0,
@@ -3491,16 +3491,11 @@ const RestaurantDashboard = ({ user, onLogout }: RestaurantDashboardProps) => {
                       </h1>
                     </div>
 
-                    {/* BODY: QR Code */}
-                    <div style={{ marginBottom: '20px' }}>
-                      <QRCodeGenerator value={generateQrCode(selectedTableForActions?.id || '')} size={220} />
-                    </div>
-
-                    {/* CTA: Scansiona per ordinare */}
+                    {/* CTA: Scansiona per ordinare - SOPRA al QR */}
                     <p style={{
-                      fontSize: '10px',
+                      fontSize: '11px',
                       fontWeight: '500',
-                      margin: '15px 0',
+                      margin: '0 0 15px 0',
                       textTransform: 'uppercase',
                       letterSpacing: '0.15em',
                       color: '#71717a',
@@ -3510,8 +3505,13 @@ const RestaurantDashboard = ({ user, onLogout }: RestaurantDashboardProps) => {
                       Scansiona per ordinare
                     </p>
 
+                    {/* BODY: QR Code */}
+                    <div style={{ marginBottom: '25px' }}>
+                      <QRCodeGenerator value={generateQrCode(selectedTableForActions?.id || '')} size={220} />
+                    </div>
+
                     {/* FOOTER: Restaurant Name */}
-                    <div style={{ textAlign: 'center', marginTop: '10px' }}>
+                    <div style={{ textAlign: 'center' }}>
                       <h2 style={{
                         fontSize: '12px',
                         fontWeight: '500',
@@ -3667,7 +3667,7 @@ const RestaurantDashboard = ({ user, onLogout }: RestaurantDashboardProps) => {
                     <div key={table.id} style={{
                       backgroundColor: '#FFFFFF',
                       borderRadius: '6px',
-                      padding: '15mm 10mm',
+                      padding: '10mm',
                       display: 'flex',
                       flexDirection: 'column',
                       alignItems: 'center',
@@ -3676,12 +3676,12 @@ const RestaurantDashboard = ({ user, onLogout }: RestaurantDashboardProps) => {
                       color: '#000000',
                       boxSizing: 'border-box'
                     }}>
-                      {/* HEADER: Label + Number */}
-                      <div style={{ textAlign: 'center' }}>
+                      {/* HEADER: Label + Number - CENTERED */}
+                      <div style={{ textAlign: 'center', flex: 1, display: 'flex', flexDirection: 'column', justifyContent: 'center' }}>
                         <p style={{
                           fontSize: '11px',
                           fontWeight: '600',
-                          margin: '0 0 4mm 0',
+                          margin: '0 0 8px 0',
                           textTransform: 'uppercase',
                           letterSpacing: '0.3em',
                           color: '#52525b',
@@ -3705,7 +3705,7 @@ const RestaurantDashboard = ({ user, onLogout }: RestaurantDashboardProps) => {
                       <p style={{
                         fontSize: '9px',
                         fontWeight: '500',
-                        margin: '15mm 0 6mm 0',
+                        margin: '0 0 5mm 0',
                         textTransform: 'uppercase',
                         letterSpacing: '0.15em',
                         color: '#71717a',
@@ -3726,7 +3726,7 @@ const RestaurantDashboard = ({ user, onLogout }: RestaurantDashboardProps) => {
                       </div>
 
                       {/* FOOTER: Restaurant Name */}
-                      <div style={{ textAlign: 'center', marginTop: '6mm' }}>
+                      <div style={{ textAlign: 'center', marginTop: '5mm' }}>
                         <h2 style={{
                           fontSize: '10px',
                           fontWeight: '500',
