@@ -359,7 +359,7 @@ const RestaurantDashboard = ({ user, onLogout }: RestaurantDashboardProps) => {
       let dataToExport: { title: string, subtitle?: string, sections: { id: string, title: string, dishes: Dish[] }[] }
 
       if (exportMode === 'full') {
-        const selectedCats = categories.filter(c => exportSelectedCategories.includes(c.id))
+        const selectedCats = restaurantCategories.filter(c => exportSelectedCategories.includes(c.id))
         if (selectedCats.length === 0) {
           toast.error('Seleziona almeno una categoria')
           toast.dismiss(toastId)
