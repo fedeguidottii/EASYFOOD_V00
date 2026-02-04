@@ -1384,30 +1384,130 @@ function AuthorizedMenuContent({ restaurantId, tableId, sessionId, activeSession
             ))}
           </AnimatePresence>
         </main>
-      </main>
 
-      {/* Floating Cart Button */}
-      <AnimatePresence>
-        {cart.length > 0 && (
-          <motion.div
-            initial={{ y: 100, opacity: 0 }}
-            animate={{ y: 0, opacity: 1 }}
-            exit={{ y: 100, opacity: 0 }}
-            className="fixed bottom-6 left-4 right-4 z-40"
-          >
-            <Button
-              onClick={() => setIsCartOpen(true)}
-              className="w-full h-14 bg-gradient-to-r from-amber-500 to-orange-600 hover:from-amber-400 hover:to-orange-500 text-white rounded-full shadow-2xl shadow-amber-900/40 flex items-center justify-between px-6 transform transition-transform active:scale-95"
+        {/* Floating Cart Button */}
+        <AnimatePresence>
+          {cart.length > 0 && (
+            <motion.div
+              initial={{ y: 100, opacity: 0 }}
+              animate={{ y: 0, opacity: 1 }}
+              exit={{ y: 100, opacity: 0 }}
+              className="fixed bottom-6 left-4 right-4 z-40"
             >
-              <div className="flex items-center gap-2">
-                <span className="bg-white/20 px-2 py-0.5 rounded-full text-sm font-bold">{cart.reduce((a, b) => a + b.quantity, 0)}</span>
-                <span className="font-medium text-lg tracking-wide uppercase">Vedi Ordine</span>
+              <Button
+                onClick={() => setIsCartOpen(true)}
+                className="w-full h-14 bg-gradient-to-r from-amber-500 to-orange-600 hover:from-amber-400 hover:to-orange-500 text-white rounded-full shadow-2xl shadow-amber-900/40 flex items-center justify-between px-6 transform transition-transform active:scale-95"
+              >
+                <div className="flex items-center gap-2">
+                  <span className="bg-white/20 px-2 py-0.5 rounded-full text-sm font-bold">{cart.reduce((a, b) => a + b.quantity, 0)}</span>
+                  <span className="font-medium text-lg tracking-wide uppercase">Vedi Ordine</span>
+                </div>
+                <span className="font-bold text-xl">
+                  €{(() => {
+                    const isCopertoEnabled = activeSession?.coperto_enabled ?? true
+                    let copertoTotal = 0
+                    if (isCopertoEnabled) {
+                      const currentCoperto = fullRestaurant
+                        ? getCurrentCopertoPrice(
+                          fullRestaurant,
+                          fullRestaurant.lunch_time_start || '12:00',
+                          fullRestaurant.dinner_time_start || '19:00'
+                        ).price
+                        : (fullRestaurant?.cover_charge_per_person || 0)
+                      if (currentCoperto > 0) {
+                        copertoTotal = currentCoperto * (activeSession?.customer_count || 1)
+                      }
+                    }
+                    return (cartTotal + copertoTotal).toFixed(2)
+                  })()}
+                </span>
+              </Button>
+            </motion.div>
+          )}
+        </AnimatePresence>
+
+
+        {/* CART & HISTORY MODAL */}
+        <Dialog open={isCartOpen} onOpenChange={setIsCartOpen}>
+          <DialogContent className="sm:max-w-md bg-zinc-950 border-amber-500/20 text-white p-0 gap-0 overflow-hidden shadow-2xl rounded-3xl h-[85vh] flex flex-col w-[95vw]">
+            <DialogHeader className="p-4 border-b border-white/10 bg-zinc-900/50 backdrop-blur-xl flex-none">
+              <DialogTitle className="text-center text-xl font-light uppercase tracking-widest text-white" style={{ fontFamily: 'Georgia, serif' }}>Riepilogo</DialogTitle>
+            </DialogHeader>
+
+            <div className="flex-1 overflow-y-auto scrollbar-hide p-4 space-y-6">
+
+              {/* CURRENT CART */}
+              <div className="space-y-4">
+                <div className="flex items-center justify-between">
+                  <h3 className="text-amber-500 text-xs font-bold uppercase tracking-wider">Nel Carrello</h3>
+                  <span className="text-xs text-zinc-500">{cart.length} articoli</span>
+                </div>
+
+                {cart.length === 0 ? (
+                  <p className="text-zinc-500 text-sm italic text-center py-8 bg-zinc-900/30 rounded-xl border border-white/5">Il carrello è vuoto</p>
+                ) : (
+                  <div className="space-y-3">
+                    {cart.map((item) => (
+                      <div key={item.id} className="bg-zinc-900/50 rounded-xl p-3 border border-white/5 flex gap-3 shadow-sm">
+                        {/* Image if available */}
+                        {item.dish?.image_url ? (
+                          <img src={item.dish.image_url} className="w-16 h-16 rounded-lg object-cover bg-zinc-800" />
+                        ) : (
+                          <div className="w-16 h-16 rounded-lg bg-zinc-800 flex items-center justify-center text-zinc-600">
+                            <ForkKnife weight="duotone" size={24} />
+                          </div>
+                        )}
+                        <div className="flex-1 min-w-0 flex flex-col justify-between">
+                          <div className="flex justify-between items-start gap-2">
+                            <h4 className="font-medium text-white line-clamp-1 text-sm">{item.dish?.name}</h4>
+                            <span className="text-amber-400 font-bold text-sm whitespace-nowrap">€{((item.dish?.price || 0) * item.quantity).toFixed(2)}</span>
+                          </div>
+                          {item.notes && <p className="text-[10px] text-zinc-500 line-clamp-1 italic">{item.notes}</p>}
+
+                          <div className="flex items-center justify-between mt-2">
+                            <div className="flex items-center gap-3 bg-zinc-950/50 rounded-lg p-0.5 border border-white/5 shadow-inner">
+                              <button
+                                onClick={() => updateCartItemQuantity(item.id, -1)}
+                                className="w-7 h-7 flex items-center justify-center text-zinc-400 hover:text-white hover:bg-zinc-800 rounded-md transition-colors"
+                              >
+                                <Minus size={14} weight="bold" />
+                              </button>
+                              <span className="text-sm font-bold w-4 text-center">{item.quantity}</span>
+                              <button
+                                onClick={() => updateCartItemQuantity(item.id, 1)}
+                                className="w-7 h-7 flex items-center justify-center text-zinc-400 hover:text-white hover:bg-zinc-800 rounded-md transition-colors"
+                              >
+                                <Plus size={14} weight="bold" />
+                              </button>
+                            </div>
+                            <button
+                              onClick={() => {
+                                // Remove logic: calling with negative quantity equal to current will set to 0 and remove
+                                updateCartItemQuantity(item.id, -item.quantity)
+                              }}
+                              className="text-red-400/50 hover:text-red-400 p-1.5 hover:bg-red-400/10 rounded-md transition-colors"
+                            >
+                              <Trash size={16} />
+                            </button>
+                          </div>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
               </div>
-              <span className="font-bold text-xl">
-                €{(() => {
-                  const isCopertoEnabled = activeSession?.coperto_enabled ?? true
-                  let copertoTotal = 0
-                  if (isCopertoEnabled) {
+
+              {/* SEND BUTTON AREA */}
+              {cart.length > 0 && (
+                <div className="bg-zinc-900/30 p-4 rounded-2xl border border-white/5 space-y-4 shadow-lg">
+                  <div className="flex justify-between items-center text-zinc-400 text-sm border-b border-white/5 pb-3">
+                    <span>Totale Carrello</span>
+                    <span>€{cartTotal.toFixed(2)}</span>
+                  </div>
+                  {/* Coperto Display in Modal */}
+                  {(() => {
+                    const isCopertoEnabled = activeSession?.coperto_enabled ?? true
+                    if (!isCopertoEnabled) return null;
                     const currentCoperto = fullRestaurant
                       ? getCurrentCopertoPrice(
                         fullRestaurant,
@@ -1415,407 +1515,306 @@ function AuthorizedMenuContent({ restaurantId, tableId, sessionId, activeSession
                         fullRestaurant.dinner_time_start || '19:00'
                       ).price
                       : (fullRestaurant?.cover_charge_per_person || 0)
-                    if (currentCoperto > 0) {
-                      copertoTotal = currentCoperto * (activeSession?.customer_count || 1)
-                    }
-                  }
-                  return (cartTotal + copertoTotal).toFixed(2)
-                })()}
-              </span>
-            </Button>
-          </motion.div>
-        )}
-      </AnimatePresence>
-    </div>
+                    if (currentCoperto <= 0) return null;
 
-      {/* CART & HISTORY MODAL */ }
-  <Dialog open={isCartOpen} onOpenChange={setIsCartOpen}>
-    <DialogContent className="sm:max-w-md bg-zinc-950 border-amber-500/20 text-white p-0 gap-0 overflow-hidden shadow-2xl rounded-3xl h-[85vh] flex flex-col w-[95vw]">
-      <DialogHeader className="p-4 border-b border-white/10 bg-zinc-900/50 backdrop-blur-xl flex-none">
-        <DialogTitle className="text-center text-xl font-light uppercase tracking-widest text-white" style={{ fontFamily: 'Georgia, serif' }}>Riepilogo</DialogTitle>
-      </DialogHeader>
-
-      <div className="flex-1 overflow-y-auto scrollbar-hide p-4 space-y-6">
-
-        {/* CURRENT CART */}
-        <div className="space-y-4">
-          <div className="flex items-center justify-between">
-            <h3 className="text-amber-500 text-xs font-bold uppercase tracking-wider">Nel Carrello</h3>
-            <span className="text-xs text-zinc-500">{cart.length} articoli</span>
-          </div>
-
-          {cart.length === 0 ? (
-            <p className="text-zinc-500 text-sm italic text-center py-8 bg-zinc-900/30 rounded-xl border border-white/5">Il carrello è vuoto</p>
-          ) : (
-            <div className="space-y-3">
-              {cart.map((item) => (
-                <div key={item.id} className="bg-zinc-900/50 rounded-xl p-3 border border-white/5 flex gap-3 shadow-sm">
-                  {/* Image if available */}
-                  {item.dish?.image_url ? (
-                    <img src={item.dish.image_url} className="w-16 h-16 rounded-lg object-cover bg-zinc-800" />
-                  ) : (
-                    <div className="w-16 h-16 rounded-lg bg-zinc-800 flex items-center justify-center text-zinc-600">
-                      <ForkKnife weight="duotone" size={24} />
-                    </div>
-                  )}
-                  <div className="flex-1 min-w-0 flex flex-col justify-between">
-                    <div className="flex justify-between items-start gap-2">
-                      <h4 className="font-medium text-white line-clamp-1 text-sm">{item.dish?.name}</h4>
-                      <span className="text-amber-400 font-bold text-sm whitespace-nowrap">€{((item.dish?.price || 0) * item.quantity).toFixed(2)}</span>
-                    </div>
-                    {item.notes && <p className="text-[10px] text-zinc-500 line-clamp-1 italic">{item.notes}</p>}
-
-                    <div className="flex items-center justify-between mt-2">
-                      <div className="flex items-center gap-3 bg-zinc-950/50 rounded-lg p-0.5 border border-white/5 shadow-inner">
-                        <button
-                          onClick={() => updateCartItemQuantity(item.id, -1)}
-                          className="w-7 h-7 flex items-center justify-center text-zinc-400 hover:text-white hover:bg-zinc-800 rounded-md transition-colors"
-                        >
-                          <Minus size={14} weight="bold" />
-                        </button>
-                        <span className="text-sm font-bold w-4 text-center">{item.quantity}</span>
-                        <button
-                          onClick={() => updateCartItemQuantity(item.id, 1)}
-                          className="w-7 h-7 flex items-center justify-center text-zinc-400 hover:text-white hover:bg-zinc-800 rounded-md transition-colors"
-                        >
-                          <Plus size={14} weight="bold" />
-                        </button>
+                    const personCount = activeSession?.customer_count || 1;
+                    const totalCoperto = currentCoperto * personCount;
+                    return (
+                      <div className="flex justify-between items-center text-zinc-500 text-xs pb-3 border-b border-white/5">
+                        <span>Coperto ({personCount} pers.)</span>
+                        <span>€{totalCoperto.toFixed(2)}</span>
                       </div>
-                      <button
-                        onClick={() => {
-                          // Remove logic: calling with negative quantity equal to current will set to 0 and remove
-                          updateCartItemQuantity(item.id, -item.quantity)
-                        }}
-                        className="text-red-400/50 hover:text-red-400 p-1.5 hover:bg-red-400/10 rounded-md transition-colors"
-                      >
-                        <Trash size={16} />
-                      </button>
-                    </div>
-                  </div>
-                </div>
-              ))}
-            </div>
-          )}
-        </div>
+                    )
+                  })()}
 
-        {/* SEND BUTTON AREA */}
-        {cart.length > 0 && (
-          <div className="bg-zinc-900/30 p-4 rounded-2xl border border-white/5 space-y-4 shadow-lg">
-            <div className="flex justify-between items-center text-zinc-400 text-sm border-b border-white/5 pb-3">
-              <span>Totale Carrello</span>
-              <span>€{cartTotal.toFixed(2)}</span>
-            </div>
-            {/* Coperto Display in Modal */}
-            {(() => {
-              const isCopertoEnabled = activeSession?.coperto_enabled ?? true
-              if (!isCopertoEnabled) return null;
-              const currentCoperto = fullRestaurant
-                ? getCurrentCopertoPrice(
-                  fullRestaurant,
-                  fullRestaurant.lunch_time_start || '12:00',
-                  fullRestaurant.dinner_time_start || '19:00'
-                ).price
-                : (fullRestaurant?.cover_charge_per_person || 0)
-              if (currentCoperto <= 0) return null;
-
-              const personCount = activeSession?.customer_count || 1;
-              const totalCoperto = currentCoperto * personCount;
-              return (
-                <div className="flex justify-between items-center text-zinc-500 text-xs pb-3 border-b border-white/5">
-                  <span>Coperto ({personCount} pers.)</span>
-                  <span>€{totalCoperto.toFixed(2)}</span>
-                </div>
-              )
-            })()}
-
-            <Button
-              className="w-full bg-gradient-to-r from-amber-500 to-orange-600 hover:from-amber-400 hover:to-orange-500 text-white font-bold h-12 rounded-xl shadow-lg shadow-amber-900/20"
-              onClick={() => {
-                handleSubmitClick()
-                // Close modal after successful submission? 
-                // Check handleSubmitClick logic: it doesn't close modal but clears cart. 
-                // We should probably wait or close.
-                // Looking at handleSubmitClick: it calls submitOrder which resets cart and sets IsCartOpen(false)
-              }}
-              disabled={isOrderSubmitting}
-            >
-              {isOrderSubmitting ? (
-                <div className="flex items-center gap-2">
-                  <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
-                  <span>Invio...</span>
-                </div>
-              ) : (
-                <div className="flex items-center gap-2">
-                  <Rocket weight="fill" size={18} />
-                  <span>Conferma e Invia Ordine</span>
+                  <Button
+                    className="w-full bg-gradient-to-r from-amber-500 to-orange-600 hover:from-amber-400 hover:to-orange-500 text-white font-bold h-12 rounded-xl shadow-lg shadow-amber-900/20"
+                    onClick={() => {
+                      handleSubmitClick()
+                      // Close modal after successful submission? 
+                      // Check handleSubmitClick logic: it doesn't close modal but clears cart. 
+                      // We should probably wait or close.
+                      // Looking at handleSubmitClick: it calls submitOrder which resets cart and sets IsCartOpen(false)
+                    }}
+                    disabled={isOrderSubmitting}
+                  >
+                    {isOrderSubmitting ? (
+                      <div className="flex items-center gap-2">
+                        <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                        <span>Invio...</span>
+                      </div>
+                    ) : (
+                      <div className="flex items-center gap-2">
+                        <Rocket weight="fill" size={18} />
+                        <span>Conferma e Invia Ordine</span>
+                      </div>
+                    )}
+                  </Button>
                 </div>
               )}
-            </Button>
-          </div>
-        )}
 
-        {/* HISTORY */}
-        {previousOrders.length > 0 && (
-          <div className="pt-6 border-t border-white/10 space-y-4">
-            <h3 className="text-zinc-500 text-xs font-bold uppercase tracking-wider mb-2">Storico Ordini</h3>
-            {previousOrders.map(order => (
-              <div key={order.id} className="bg-zinc-900/30 rounded-xl p-3 border border-white/5 opacity-80 hover:opacity-100 transition-opacity">
-                <div className="flex justify-between text-sm mb-3 pb-2 border-b border-white/5">
-                  <span className="text-zinc-400 text-xs">Ordine delle {new Date(order.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>
-                  <span className="text-zinc-200 font-bold">€{order.total_amount?.toFixed(2)}</span>
-                </div>
-                <div className="space-y-2">
-                  {order.items?.map((item: any, i: number) => (
-                    <div key={i} className="flex justify-between text-xs text-zinc-500 items-start">
-                      <span className="line-clamp-1 flex-1 pr-2">
-                        <span className="font-bold text-zinc-400">{item.quantity}x</span> {(item.dish || dishes.find(d => d.id === item.dish_id))?.name || 'Piatto'}
-                      </span>
-                      <span className={`whitespace-nowrap ${item.status === 'SERVED' ? 'text-emerald-500 font-medium' : 'text-amber-500/80'}`}>
-                        {item.status === 'SERVED' ? 'Servito' : 'In prep.'}
-                      </span>
+              {/* HISTORY */}
+              {previousOrders.length > 0 && (
+                <div className="pt-6 border-t border-white/10 space-y-4">
+                  <h3 className="text-zinc-500 text-xs font-bold uppercase tracking-wider mb-2">Storico Ordini</h3>
+                  {previousOrders.map(order => (
+                    <div key={order.id} className="bg-zinc-900/30 rounded-xl p-3 border border-white/5 opacity-80 hover:opacity-100 transition-opacity">
+                      <div className="flex justify-between text-sm mb-3 pb-2 border-b border-white/5">
+                        <span className="text-zinc-400 text-xs">Ordine delle {new Date(order.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>
+                        <span className="text-zinc-200 font-bold">€{order.total_amount?.toFixed(2)}</span>
+                      </div>
+                      <div className="space-y-2">
+                        {order.items?.map((item: any, i: number) => (
+                          <div key={i} className="flex justify-between text-xs text-zinc-500 items-start">
+                            <span className="line-clamp-1 flex-1 pr-2">
+                              <span className="font-bold text-zinc-400">{item.quantity}x</span> {(item.dish || dishes.find(d => d.id === item.dish_id))?.name || 'Piatto'}
+                            </span>
+                            <span className={`whitespace-nowrap ${item.status === 'SERVED' ? 'text-emerald-500 font-medium' : 'text-amber-500/80'}`}>
+                              {item.status === 'SERVED' ? 'Servito' : 'In prep.'}
+                            </span>
+                          </div>
+                        ))}
+                      </div>
                     </div>
                   ))}
                 </div>
-              </div>
-            ))}
-          </div>
-        )}
+              )}
 
-      </div>
-    </DialogContent>
-  </Dialog>
-
-
-
-
-
-
-
-  {/* Dish Detail Dialog */ }
-  <Dialog open={!!selectedDish} onOpenChange={(open) => !open && setSelectedDish(null)}>
-    <DialogContent className="sm:max-w-[380px] bg-zinc-950 border-amber-500/20 text-white p-0 gap-0 overflow-hidden shadow-2xl rounded-3xl">
-      {selectedDish && (
-        <div className="flex flex-col h-full bg-zinc-950 text-white">
-          {selectedDish.image_url ? (
-            <div className="relative h-48 w-full">
-              <img src={selectedDish.image_url} alt={selectedDish.name} className="w-full h-full object-cover" />
-              <div className="absolute inset-0 bg-gradient-to-t from-zinc-950/80 to-transparent" />
             </div>
-          ) : (
-            <div className="relative h-48 w-full">
-              <DishPlaceholder iconSize={48} variant="pot" />
-              <div className="absolute inset-0 bg-gradient-to-t from-zinc-950/80 to-transparent" />
-            </div>
-          )}
+          </DialogContent>
+        </Dialog>
 
-          <div className="flex items-start justify-between p-5 pb-0">
-            <div>
-              <h2 className="text-2xl font-light leading-tight pr-4 tracking-wide" style={{ fontFamily: 'Georgia, serif' }}>{selectedDish.name}</h2>
-              <p className="text-amber-400 font-bold mt-2 text-xl">€{selectedDish.price.toFixed(2)}</p>
-            </div>
-            <Button variant="ghost" size="icon" onClick={() => setSelectedDish(null)} className="-mt-2 -mr-2 text-zinc-400 hover:text-white hover:bg-zinc-800 rounded-full h-10 w-10">
-              <X className="w-6 h-6" />
-            </Button>
-          </div>
 
-          <div className="p-5 space-y-5 flex-1 overflow-y-auto scrollbar-hide">
-            {selectedDish.description && (
-              <p className="text-zinc-400 text-sm font-light leading-relaxed">{selectedDish.description}</p>
-            )}
 
-            {/* Quantity */}
-            <div className="flex items-center justify-between bg-zinc-900/50 p-2 rounded-xl border border-white/5">
-              <span className="text-sm font-medium pl-2 text-zinc-300">Quantità</span>
-              <div className="flex items-center gap-3">
-                <Button variant="outline" size="icon" className="h-10 w-10 border-white/10 bg-zinc-800 hover:bg-zinc-700 hover:text-white text-zinc-400 rounded-lg" onClick={() => setDishQuantity(q => Math.max(1, q - 1))} disabled={dishQuantity <= 1}><Minus className="w-5 h-5" /></Button>
-                <span className="w-8 text-center font-bold text-xl">{dishQuantity}</span>
-                <Button variant="outline" size="icon" className="h-10 w-10 border-white/10 bg-zinc-800 hover:bg-zinc-700 hover:text-white text-zinc-400 rounded-lg" onClick={() => setDishQuantity(q => q + 1)}><Plus className="w-5 h-5" /></Button>
-              </div>
-            </div>
 
-            {/* Notes */}
-            <div className="space-y-2">
-              <span className="text-xs font-bold text-zinc-500 uppercase tracking-wider">Note speciali</span>
-              <Textarea
-                placeholder="Es. Senza cipolla, cottura media..."
-                className="bg-zinc-900/50 border-white/10 text-white min-h-[80px] focus:ring-amber-500/50 focus:border-amber-500 placeholder:text-zinc-600"
-                value={dishNote}
-                onChange={(e) => setDishNote(e.target.value)}
-              />
-            </div>
-          </div>
 
-          <div className="p-5 pt-0">
-            <Button
-              className="w-full bg-amber-500 hover:bg-amber-600 text-zinc-900 font-bold rounded-xl text-lg shadow-lg shadow-amber-500/20 active:scale-[0.98] transition-transform h-14"
-              onClick={() => addToCart(selectedDish, dishQuantity, dishNote)}
-            >
-              AGGIUNGI - €{(selectedDish.price * dishQuantity).toFixed(2)}
-            </Button>
-          </div>
-        </div>
-      )}
-    </DialogContent>
-  </Dialog>
 
-  {/* Confirm Send Dialog */ }
-  <Dialog open={showConfirmDialog} onOpenChange={setShowConfirmDialog}>
-    <DialogContent className="sm:max-w-sm bg-zinc-950 border-amber-500/20 text-white shadow-2xl shadow-black/80">
-      <DialogHeader>
-        <DialogTitle className="text-amber-500" style={{ fontFamily: 'Georgia, serif' }}>Conferma invio</DialogTitle>
-        <DialogDescription className="text-zinc-400">Inviare l'ordine in cucina?</DialogDescription>
-      </DialogHeader>
-      <div className="py-3">
-        <div className="bg-zinc-900/50 rounded-xl p-3 space-y-2 border border-white/5">
-          {courseNumbers.map(num => (
-            <div key={num} className="mb-2">
-              <p className="text-xs font-bold text-amber-500 uppercase tracking-widest mb-1">• Portata {num}</p>
-              <ul className="pl-2 space-y-1">
-                {cartByCourse[num]?.map((item, idx) => (
-                  <li key={idx} className="text-xs text-zinc-300 flex justify-between">
-                    <span>{item.quantity}x {item.dish?.name}</span>
-                    {item.notes && <span className="text-[10px] italic text-zinc-500 max-w-[120px] truncate ml-2">({item.notes})</span>}
-                  </li>
-                ))}
-              </ul>
-            </div>
-          ))}
-          <p className="text-sm font-bold pt-2 border-t border-white/10 mt-2 text-white">Totale Ordine: €{cartTotal.toFixed(2)}</p>
-        </div>
-      </div>
-      <div className="flex gap-2">
-        <Button variant="outline" className="flex-1 border-white/10 bg-white/5 text-zinc-300 hover:bg-white/10 hover:text-white" onClick={() => setShowConfirmDialog(false)}>Annulla</Button>
-        <Button className="flex-1 bg-amber-500 hover:bg-amber-600 text-zinc-950 font-bold" onClick={submitOrder} disabled={isOrderSubmitting}>{isOrderSubmitting ? 'Invio...' : 'Conferma'}</Button>
-      </div>
-    </DialogContent>
-  </Dialog>
 
-  {/* Course Management (Drag & Drop) */ }
-  <Dialog open={showCourseManagement} onOpenChange={setShowCourseManagement}>
-    <DialogContent className="max-w-lg bg-zinc-950 max-h-[85vh] overflow-hidden flex flex-col p-0 rounded-3xl border border-amber-500/20 shadow-2xl shadow-black">
-      <DialogHeader className="p-4 bg-zinc-950 border-b border-amber-500/10 z-10">
-        <DialogTitle className="text-amber-500" style={{ fontFamily: 'Georgia, serif' }}>Organizza Portate</DialogTitle>
-        <DialogDescription className="text-zinc-400">Trascina i piatti per cambiare l'ordine di uscita</DialogDescription>
-      </DialogHeader>
-
-      <div className="flex-1 min-h-0 relative flex flex-col overflow-hidden">
-        <DndContext
-          sensors={sensors}
-          collisionDetection={closestCenter}
-          onDragStart={handleDragStart}
-          onDragOver={handleDragOver}
-          onDragEnd={handleDragEnd}
-        >
-          <div className="flex-1 overflow-y-auto scrollbar-hide p-4 bg-zinc-900/50">
-            <div className="space-y-4 pb-20">
-              {Array.from({ length: maxCourse }, (_, i) => i + 1).map((courseNum) => (
-                <DroppableCourse
-                  key={courseNum}
-                  id={`course-${courseNum}`}
-                  className="bg-zinc-950/80 rounded-2xl p-3 shadow-lg border border-white/5"
-                >
-                  <div className="flex items-center justify-center mb-3">
-                    <h3 className="font-bold text-amber-500 uppercase tracking-widest text-xs flex items-center gap-2 bg-amber-500/10 px-4 py-2 rounded-full border border-amber-500/20" style={{ fontFamily: 'Georgia, serif' }}>
-                      <Layers className="w-4 h-4" />
-                      {getCourseTitle(courseNum)}
-                    </h3>
+        {/* Dish Detail Dialog */}
+        <Dialog open={!!selectedDish} onOpenChange={(open) => !open && setSelectedDish(null)}>
+          <DialogContent className="sm:max-w-[380px] bg-zinc-950 border-amber-500/20 text-white p-0 gap-0 overflow-hidden shadow-2xl rounded-3xl">
+            {selectedDish && (
+              <div className="flex flex-col h-full bg-zinc-950 text-white">
+                {selectedDish.image_url ? (
+                  <div className="relative h-48 w-full">
+                    <img src={selectedDish.image_url} alt={selectedDish.name} className="w-full h-full object-cover" />
+                    <div className="absolute inset-0 bg-gradient-to-t from-zinc-950/80 to-transparent" />
                   </div>
-
-                  <div className="space-y-2 min-h-[40px]">
-                    <SortableContext
-                      id={`course-${courseNum}`}
-                      items={cartByCourse[courseNum]?.map(i => i.id) || []}
-                      strategy={verticalListSortingStrategy}
-                    >
-                      {cartByCourse[courseNum]?.length === 0 ? (
-                        <DroppableCoursePlaceholder id={`course-${courseNum}`} />
-                      ) : (
-                        cartByCourse[courseNum]?.map((item) => (
-                          <SortableDishItem key={item.id} item={item} courseNum={courseNum} />
-                        ))
-                      )}
-                    </SortableContext>
+                ) : (
+                  <div className="relative h-48 w-full">
+                    <DishPlaceholder iconSize={48} variant="pot" />
+                    <div className="absolute inset-0 bg-gradient-to-t from-zinc-950/80 to-transparent" />
                   </div>
-                </DroppableCourse>
-              ))}
+                )}
 
-              <NewCourseDropZone onClick={addNewCourse} />
-            </div>
-          </div>
-
-          <DragOverlay dropAnimation={dropAnimation}>
-            {activeDragItem ? (
-              <div className="flex items-center justify-between bg-zinc-800 p-2 rounded-xl border border-amber-500 shadow-xl opacity-90 scale-105 cursor-grabbing">
-                <div className="flex items-center gap-3">
-                  <div className="p-1 text-amber-500">
-                    <GripVertical className="w-4 h-4" />
-                  </div>
+                <div className="flex items-start justify-between p-5 pb-0">
                   <div>
-                    <p className="font-bold text-white text-xs">{activeDragItem.dish?.name}</p>
-                    <p className="text-[10px] text-zinc-400">{activeDragItem.quantity}x</p>
+                    <h2 className="text-2xl font-light leading-tight pr-4 tracking-wide" style={{ fontFamily: 'Georgia, serif' }}>{selectedDish.name}</h2>
+                    <p className="text-amber-400 font-bold mt-2 text-xl">€{selectedDish.price.toFixed(2)}</p>
+                  </div>
+                  <Button variant="ghost" size="icon" onClick={() => setSelectedDish(null)} className="-mt-2 -mr-2 text-zinc-400 hover:text-white hover:bg-zinc-800 rounded-full h-10 w-10">
+                    <X className="w-6 h-6" />
+                  </Button>
+                </div>
+
+                <div className="p-5 space-y-5 flex-1 overflow-y-auto scrollbar-hide">
+                  {selectedDish.description && (
+                    <p className="text-zinc-400 text-sm font-light leading-relaxed">{selectedDish.description}</p>
+                  )}
+
+                  {/* Quantity */}
+                  <div className="flex items-center justify-between bg-zinc-900/50 p-2 rounded-xl border border-white/5">
+                    <span className="text-sm font-medium pl-2 text-zinc-300">Quantità</span>
+                    <div className="flex items-center gap-3">
+                      <Button variant="outline" size="icon" className="h-10 w-10 border-white/10 bg-zinc-800 hover:bg-zinc-700 hover:text-white text-zinc-400 rounded-lg" onClick={() => setDishQuantity(q => Math.max(1, q - 1))} disabled={dishQuantity <= 1}><Minus className="w-5 h-5" /></Button>
+                      <span className="w-8 text-center font-bold text-xl">{dishQuantity}</span>
+                      <Button variant="outline" size="icon" className="h-10 w-10 border-white/10 bg-zinc-800 hover:bg-zinc-700 hover:text-white text-zinc-400 rounded-lg" onClick={() => setDishQuantity(q => q + 1)}><Plus className="w-5 h-5" /></Button>
+                    </div>
+                  </div>
+
+                  {/* Notes */}
+                  <div className="space-y-2">
+                    <span className="text-xs font-bold text-zinc-500 uppercase tracking-wider">Note speciali</span>
+                    <Textarea
+                      placeholder="Es. Senza cipolla, cottura media..."
+                      className="bg-zinc-900/50 border-white/10 text-white min-h-[80px] focus:ring-amber-500/50 focus:border-amber-500 placeholder:text-zinc-600"
+                      value={dishNote}
+                      onChange={(e) => setDishNote(e.target.value)}
+                    />
                   </div>
                 </div>
+
+                <div className="p-5 pt-0">
+                  <Button
+                    className="w-full bg-amber-500 hover:bg-amber-600 text-zinc-900 font-bold rounded-xl text-lg shadow-lg shadow-amber-500/20 active:scale-[0.98] transition-transform h-14"
+                    onClick={() => addToCart(selectedDish, dishQuantity, dishNote)}
+                  >
+                    AGGIUNGI - €{(selectedDish.price * dishQuantity).toFixed(2)}
+                  </Button>
+                </div>
               </div>
-            ) : null}
-          </DragOverlay>
-        </DndContext>
-      </div>
+            )}
+          </DialogContent>
+        </Dialog>
 
-      <div className="p-4 bg-zinc-950 border-t border-amber-500/10 z-20 relative">
-        <Button className="w-full h-12 bg-amber-500 hover:bg-amber-600 text-zinc-900 font-bold rounded-xl shadow-lg shadow-amber-500/20" onClick={() => setShowCourseManagement(false)}>
-          Fatto
+        {/* Confirm Send Dialog */}
+        <Dialog open={showConfirmDialog} onOpenChange={setShowConfirmDialog}>
+          <DialogContent className="sm:max-w-sm bg-zinc-950 border-amber-500/20 text-white shadow-2xl shadow-black/80">
+            <DialogHeader>
+              <DialogTitle className="text-amber-500" style={{ fontFamily: 'Georgia, serif' }}>Conferma invio</DialogTitle>
+              <DialogDescription className="text-zinc-400">Inviare l'ordine in cucina?</DialogDescription>
+            </DialogHeader>
+            <div className="py-3">
+              <div className="bg-zinc-900/50 rounded-xl p-3 space-y-2 border border-white/5">
+                {courseNumbers.map(num => (
+                  <div key={num} className="mb-2">
+                    <p className="text-xs font-bold text-amber-500 uppercase tracking-widest mb-1">• Portata {num}</p>
+                    <ul className="pl-2 space-y-1">
+                      {cartByCourse[num]?.map((item, idx) => (
+                        <li key={idx} className="text-xs text-zinc-300 flex justify-between">
+                          <span>{item.quantity}x {item.dish?.name}</span>
+                          {item.notes && <span className="text-[10px] italic text-zinc-500 max-w-[120px] truncate ml-2">({item.notes})</span>}
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+                ))}
+                <p className="text-sm font-bold pt-2 border-t border-white/10 mt-2 text-white">Totale Ordine: €{cartTotal.toFixed(2)}</p>
+              </div>
+            </div>
+            <div className="flex gap-2">
+              <Button variant="outline" className="flex-1 border-white/10 bg-white/5 text-zinc-300 hover:bg-white/10 hover:text-white" onClick={() => setShowConfirmDialog(false)}>Annulla</Button>
+              <Button className="flex-1 bg-amber-500 hover:bg-amber-600 text-zinc-950 font-bold" onClick={submitOrder} disabled={isOrderSubmitting}>{isOrderSubmitting ? 'Invio...' : 'Conferma'}</Button>
+            </div>
+          </DialogContent>
+        </Dialog>
+
+        {/* Course Management (Drag & Drop) */}
+        <Dialog open={showCourseManagement} onOpenChange={setShowCourseManagement}>
+          <DialogContent className="max-w-lg bg-zinc-950 max-h-[85vh] overflow-hidden flex flex-col p-0 rounded-3xl border border-amber-500/20 shadow-2xl shadow-black">
+            <DialogHeader className="p-4 bg-zinc-950 border-b border-amber-500/10 z-10">
+              <DialogTitle className="text-amber-500" style={{ fontFamily: 'Georgia, serif' }}>Organizza Portate</DialogTitle>
+              <DialogDescription className="text-zinc-400">Trascina i piatti per cambiare l'ordine di uscita</DialogDescription>
+            </DialogHeader>
+
+            <div className="flex-1 min-h-0 relative flex flex-col overflow-hidden">
+              <DndContext
+                sensors={sensors}
+                collisionDetection={closestCenter}
+                onDragStart={handleDragStart}
+                onDragOver={handleDragOver}
+                onDragEnd={handleDragEnd}
+              >
+                <div className="flex-1 overflow-y-auto scrollbar-hide p-4 bg-zinc-900/50">
+                  <div className="space-y-4 pb-20">
+                    {Array.from({ length: maxCourse }, (_, i) => i + 1).map((courseNum) => (
+                      <DroppableCourse
+                        key={courseNum}
+                        id={`course-${courseNum}`}
+                        className="bg-zinc-950/80 rounded-2xl p-3 shadow-lg border border-white/5"
+                      >
+                        <div className="flex items-center justify-center mb-3">
+                          <h3 className="font-bold text-amber-500 uppercase tracking-widest text-xs flex items-center gap-2 bg-amber-500/10 px-4 py-2 rounded-full border border-amber-500/20" style={{ fontFamily: 'Georgia, serif' }}>
+                            <Layers className="w-4 h-4" />
+                            {getCourseTitle(courseNum)}
+                          </h3>
+                        </div>
+
+                        <div className="space-y-2 min-h-[40px]">
+                          <SortableContext
+                            id={`course-${courseNum}`}
+                            items={cartByCourse[courseNum]?.map(i => i.id) || []}
+                            strategy={verticalListSortingStrategy}
+                          >
+                            {cartByCourse[courseNum]?.length === 0 ? (
+                              <DroppableCoursePlaceholder id={`course-${courseNum}`} />
+                            ) : (
+                              cartByCourse[courseNum]?.map((item) => (
+                                <SortableDishItem key={item.id} item={item} courseNum={courseNum} />
+                              ))
+                            )}
+                          </SortableContext>
+                        </div>
+                      </DroppableCourse>
+                    ))}
+
+                    <NewCourseDropZone onClick={addNewCourse} />
+                  </div>
+                </div>
+
+                <DragOverlay dropAnimation={dropAnimation}>
+                  {activeDragItem ? (
+                    <div className="flex items-center justify-between bg-zinc-800 p-2 rounded-xl border border-amber-500 shadow-xl opacity-90 scale-105 cursor-grabbing">
+                      <div className="flex items-center gap-3">
+                        <div className="p-1 text-amber-500">
+                          <GripVertical className="w-4 h-4" />
+                        </div>
+                        <div>
+                          <p className="font-bold text-white text-xs">{activeDragItem.dish?.name}</p>
+                          <p className="text-[10px] text-zinc-400">{activeDragItem.quantity}x</p>
+                        </div>
+                      </div>
+                    </div>
+                  ) : null}
+                </DragOverlay>
+              </DndContext>
+            </div>
+
+            <div className="p-4 bg-zinc-950 border-t border-amber-500/10 z-20 relative">
+              <Button className="w-full h-12 bg-amber-500 hover:bg-amber-600 text-zinc-900 font-bold rounded-xl shadow-lg shadow-amber-500/20" onClick={() => setShowCourseManagement(false)}>
+                Fatto
+              </Button>
+            </div>
+          </DialogContent>
+        </Dialog>
+
+        {/* Course Alert Dialog */}
+        <AlertDialog open={showCourseAlert} onOpenChange={setShowCourseAlert}>
+          <AlertDialogContent className="bg-zinc-950 border-amber-500/20 text-white shadow-2xl shadow-black/80 rounded-3xl max-w-sm">
+            <AlertDialogHeader>
+              <AlertDialogTitle className="text-center text-xl text-amber-500" style={{ fontFamily: 'Georgia, serif' }}>Come vuoi procedere?</AlertDialogTitle>
+              <AlertDialogDescription className="text-center text-zinc-400">
+                Hai inserito tutti i piatti in un'unica portata. Vuoi inviare tutto subito o dividere in più uscite?
+              </AlertDialogDescription>
+            </AlertDialogHeader>
+            <div className="flex flex-col gap-3 py-4">
+              <Button className="h-14 bg-gradient-to-r from-amber-600 to-amber-500 hover:from-amber-700 hover:to-amber-600 text-white font-bold rounded-xl shadow-lg shadow-amber-500/20" onClick={() => {
+                setShowCourseAlert(false);
+                setShowConfirmDialog(true);
+              }}>
+                <ChefHat className="w-5 h-5 mr-2" />
+                Invia tutto insieme
+              </Button>
+              {courseSplittingEnabled && (
+                <Button variant="outline" className="h-14 border-zinc-800 bg-zinc-900/50 text-white hover:bg-zinc-800 hover:text-amber-500 hover:border-amber-500/30 rounded-xl font-medium transition-all" onClick={() => {
+                  setShowCourseAlert(false);
+                  setShowCourseManagement(true);
+                }}>
+                  <Layers className="w-5 h-5 mr-2 text-amber-500" />
+                  Dividi in portate
+                </Button>
+              )}
+            </div>
+            <AlertDialogFooter>
+              <AlertDialogCancel className="rounded-xl h-12 border-zinc-800 bg-transparent text-zinc-400 hover:bg-zinc-900 hover:text-white w-full">Annulla</AlertDialogCancel>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
+
+        {/* Call Waiter FAB - Floating Action Button (Top Right) */}
+        <Button
+          onClick={handleCallWaiter}
+          disabled={callWaiterDisabled}
+          className={`fixed top-4 right-4 z-50 h-12 w-12 rounded-full shadow-xl border-2 transition-all duration-300 ${callWaiterDisabled
+            ? 'bg-zinc-800 border-zinc-700 text-zinc-500 cursor-not-allowed'
+            : 'bg-zinc-900 border-amber-500/50 text-amber-500 hover:bg-amber-500 hover:text-white hover:border-amber-500 hover:shadow-amber-500/20'
+            }`}
+          title={callWaiterDisabled ? 'Attendi 30 secondi...' : 'Chiama cameriere'}
+        >
+          <Bell className="w-5 h-5" fill="currentColor" />
         </Button>
       </div>
-    </DialogContent>
-  </Dialog>
-
-  {/* Course Alert Dialog */ }
-  <AlertDialog open={showCourseAlert} onOpenChange={setShowCourseAlert}>
-    <AlertDialogContent className="bg-zinc-950 border-amber-500/20 text-white shadow-2xl shadow-black/80 rounded-3xl max-w-sm">
-      <AlertDialogHeader>
-        <AlertDialogTitle className="text-center text-xl text-amber-500" style={{ fontFamily: 'Georgia, serif' }}>Come vuoi procedere?</AlertDialogTitle>
-        <AlertDialogDescription className="text-center text-zinc-400">
-          Hai inserito tutti i piatti in un'unica portata. Vuoi inviare tutto subito o dividere in più uscite?
-        </AlertDialogDescription>
-      </AlertDialogHeader>
-      <div className="flex flex-col gap-3 py-4">
-        <Button className="h-14 bg-gradient-to-r from-amber-600 to-amber-500 hover:from-amber-700 hover:to-amber-600 text-white font-bold rounded-xl shadow-lg shadow-amber-500/20" onClick={() => {
-          setShowCourseAlert(false);
-          setShowConfirmDialog(true);
-        }}>
-          <ChefHat className="w-5 h-5 mr-2" />
-          Invia tutto insieme
-        </Button>
-        {courseSplittingEnabled && (
-          <Button variant="outline" className="h-14 border-zinc-800 bg-zinc-900/50 text-white hover:bg-zinc-800 hover:text-amber-500 hover:border-amber-500/30 rounded-xl font-medium transition-all" onClick={() => {
-            setShowCourseAlert(false);
-            setShowCourseManagement(true);
-          }}>
-            <Layers className="w-5 h-5 mr-2 text-amber-500" />
-            Dividi in portate
-          </Button>
-        )}
-      </div>
-      <AlertDialogFooter>
-        <AlertDialogCancel className="rounded-xl h-12 border-zinc-800 bg-transparent text-zinc-400 hover:bg-zinc-900 hover:text-white w-full">Annulla</AlertDialogCancel>
-      </AlertDialogFooter>
-    </AlertDialogContent>
-  </AlertDialog>
-
-  {/* Call Waiter FAB - Floating Action Button (Top Right) */ }
-  <Button
-    onClick={handleCallWaiter}
-    disabled={callWaiterDisabled}
-    className={`fixed top-4 right-4 z-50 h-12 w-12 rounded-full shadow-xl border-2 transition-all duration-300 ${callWaiterDisabled
-      ? 'bg-zinc-800 border-zinc-700 text-zinc-500 cursor-not-allowed'
-      : 'bg-zinc-900 border-amber-500/50 text-amber-500 hover:bg-amber-500 hover:text-white hover:border-amber-500 hover:shadow-amber-500/20'
-      }`}
-    title={callWaiterDisabled ? 'Attendi 30 secondi...' : 'Chiama cameriere'}
-  >
-    <Bell className="w-5 h-5" fill="currentColor" />
-  </Button>
-    </div >
-    </div >
+    </div>
   )
 }
 

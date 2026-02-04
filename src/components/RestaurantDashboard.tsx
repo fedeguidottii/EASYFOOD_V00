@@ -1492,7 +1492,7 @@ const RestaurantDashboard = ({ user, onLogout }: RestaurantDashboardProps) => {
         <Button variant="ghost" onClick={onLogout} className="relative z-10 mt-8 text-zinc-600 hover:text-amber-500 hover:bg-white/5 uppercase text-xs tracking-widest">
           Torna al login
         </Button>
-      </div >
+      </div>
     )
   }
 
@@ -1743,11 +1743,11 @@ const RestaurantDashboard = ({ user, onLogout }: RestaurantDashboardProps) => {
                     Storico
                   </Button>
                 </div>
-              </div >
+              </div>
 
               {
                 showOrderHistory ? (
-                  <div className="space-y-4" >
+                  <div className="space-y-4">
                     <h3 className="text-lg font-light text-zinc-400 mb-4">Storico Ordini Completati</h3>
                     {restaurantCompletedOrders.length === 0 ? (
                       <div className="text-center py-10 text-zinc-600 bg-zinc-900/20 rounded-2xl border border-white/5 border-dashed">
@@ -1779,7 +1779,7 @@ const RestaurantDashboard = ({ user, onLogout }: RestaurantDashboardProps) => {
                       </div>
                     )
                     }
-                  </div >
+                  </div>
                 ) : filteredOrders.length === 0 ? (
                   <div className="col-span-full text-center py-24 flex flex-col items-center justify-center">
                     <div className="w-20 h-20 rounded-full bg-zinc-900/50 border border-white/5 flex items-center justify-center mb-6 shadow-inner">
@@ -1805,7 +1805,7 @@ const RestaurantDashboard = ({ user, onLogout }: RestaurantDashboardProps) => {
             </TabsContent >
 
             {/* Tables Tab */}
-            < TabsContent value="tables" className="space-y-6" >
+            <TabsContent value="tables" className="space-y-6">
               <div className="flex flex-col md:flex-row items-start md:items-center justify-between mb-6 gap-4 pb-4 border-b border-white/10">
                 <div>
                   <h2 className="text-2xl font-light text-white tracking-tight">Gestione <span className="font-bold text-amber-500">Tavoli</span></h2>
@@ -2405,7 +2405,7 @@ const RestaurantDashboard = ({ user, onLogout }: RestaurantDashboardProps) => {
             </TabsContent >
 
             {/* Menu Tab */}
-            < TabsContent value="menu" className="space-y-6" >
+            <TabsContent value="menu" className="space-y-6">
               <div className="flex flex-col md:flex-row items-start md:items-center justify-between mb-6 gap-4 pb-4 border-b border-white/10">
                 <div>
                   <h2 className="text-2xl font-light text-white tracking-tight">Gestione <span className="font-bold text-amber-500">Menu</span></h2>
@@ -2704,8 +2704,8 @@ const RestaurantDashboard = ({ user, onLogout }: RestaurantDashboardProps) => {
                       </div>
                     </DialogContent>
                   </Dialog>
-                </div >
-              </div >
+                </div>
+              </div>
 
               <div className="space-y-10">
                 {restaurantCategories.map(category => {
@@ -2842,9 +2842,9 @@ const RestaurantDashboard = ({ user, onLogout }: RestaurantDashboardProps) => {
             </TabsContent >
 
             {/* Reservations Tab */}
-            < TabsContent value="reservations" className="space-y-6 p-6" >
+            <TabsContent value="reservations" className="space-y-6 p-6">
               {/* Date Quick Filters */}
-              < div className="flex items-center gap-2 flex-wrap" >
+              <div className="flex items-center gap-2 flex-wrap">
                 <span className="text-sm font-medium text-muted-foreground mr-2">Seleziona data:</span>
                 <Button
                   variant={selectedReservationDate.toDateString() === new Date().toDateString() ? 'default' : 'outline'}
@@ -2883,7 +2883,7 @@ const RestaurantDashboard = ({ user, onLogout }: RestaurantDashboardProps) => {
                     className="w-[180px] h-9"
                   />
                 </div>
-              </div >
+              </div>
               <ReservationsManager
                 user={user}
                 restaurantId={restaurantId}
@@ -2900,9 +2900,9 @@ const RestaurantDashboard = ({ user, onLogout }: RestaurantDashboardProps) => {
             </TabsContent >
 
             {/* Analytics Tab */}
-            < TabsContent value="analytics" className="m-0 h-full p-4 md:p-6 outline-none data-[state=inactive]:hidden overflow-y-auto" >
+            <TabsContent value="analytics" className="m-0 h-full p-4 md:p-6 outline-none data-[state=inactive]:hidden overflow-y-auto">
               {/* Analytics Content */}
-              < AnalyticsCharts
+              <AnalyticsCharts
                 orders={restaurantOrders}
                 dishes={restaurantDishes}
                 categories={restaurantCategories}
@@ -2912,7 +2912,7 @@ const RestaurantDashboard = ({ user, onLogout }: RestaurantDashboardProps) => {
             </TabsContent >
 
             {/* Settings Tab */}
-            < TabsContent value="settings" className="m-0 h-full p-4 md:p-6 outline-none data-[state=inactive]:hidden overflow-y-auto" >
+            <TabsContent value="settings" className="m-0 h-full p-4 md:p-6 outline-none data-[state=inactive]:hidden overflow-y-auto">
               <SettingsView
                 restaurantName={restaurantName}
                 setRestaurantName={setRestaurantName}
@@ -3017,7 +3017,7 @@ const RestaurantDashboard = ({ user, onLogout }: RestaurantDashboardProps) => {
             </TabsContent >
           </Tabs >
           <div className="mt-8"></div> {/* Spacer or container for dialogs if needed */}
-          < Dialog open={showTableDialog && !!selectedTable} onOpenChange={(open) => {
+          <Dialog open={showTableDialog && !!selectedTable} onOpenChange={(open) => {
             if (!open) {
               setSelectedTable(null);
               setShowTableDialog(false);
@@ -3096,7 +3096,7 @@ const RestaurantDashboard = ({ user, onLogout }: RestaurantDashboardProps) => {
             </DialogContent>
           </Dialog >
 
-          < Dialog open={showCreateTableDialog} onOpenChange={setShowCreateTableDialog} >
+          <Dialog open={showCreateTableDialog} onOpenChange={setShowCreateTableDialog}>
             <DialogContent className="bg-zinc-950 border-zinc-800 text-zinc-100">
               <DialogHeader>
                 <DialogTitle>Nuovo Tavolo</DialogTitle>
@@ -3222,7 +3222,7 @@ const RestaurantDashboard = ({ user, onLogout }: RestaurantDashboardProps) => {
             </DialogContent>
           </Dialog>
 
-          < Dialog open={showQrDialog} onOpenChange={(open) => setShowQrDialog(open)}>
+          <Dialog open={showQrDialog} onOpenChange={(open) => setShowQrDialog(open)}>
             <DialogContent className="sm:max-w-md bg-zinc-950 border-zinc-800 text-zinc-100">
               <DialogHeader>
                 <DialogTitle>Tavolo Attivato!</DialogTitle>
@@ -3278,7 +3278,7 @@ const RestaurantDashboard = ({ user, onLogout }: RestaurantDashboardProps) => {
             </DialogContent>
           </Dialog >
 
-          < Dialog open={!!editingCategory} onOpenChange={(open) => { if (!open) handleCancelEdit() }}>
+          <Dialog open={!!editingCategory} onOpenChange={(open) => { if (!open) handleCancelEdit() }}>
             <DialogContent className="bg-zinc-950 border-zinc-800 text-zinc-100">
               <DialogHeader>
                 <DialogTitle>Modifica Categoria</DialogTitle>
@@ -3299,7 +3299,7 @@ const RestaurantDashboard = ({ user, onLogout }: RestaurantDashboardProps) => {
             </DialogContent>
           </Dialog >
 
-          < Dialog open={!!editingDish} onOpenChange={(open) => { if (!open) handleCancelDishEdit() }}>
+          <Dialog open={!!editingDish} onOpenChange={(open) => { if (!open) handleCancelDishEdit() }}>
             <DialogContent className="bg-zinc-950 border-zinc-800 text-zinc-100">
               <DialogHeader>
                 <DialogTitle>Modifica Piatto</DialogTitle>
@@ -3379,7 +3379,7 @@ const RestaurantDashboard = ({ user, onLogout }: RestaurantDashboardProps) => {
             </DialogContent>
           </Dialog >
 
-          < Dialog open={showTableQrDialog} onOpenChange={(open) => setShowTableQrDialog(open)}>
+          <Dialog open={showTableQrDialog} onOpenChange={(open) => setShowTableQrDialog(open)}>
             <DialogContent className="sm:max-w-md bg-zinc-950 border-zinc-800 text-zinc-100">
               <DialogHeader>
                 <DialogTitle>QR Code & PIN - {selectedTableForActions?.number}</DialogTitle>
@@ -3542,202 +3542,198 @@ const RestaurantDashboard = ({ user, onLogout }: RestaurantDashboardProps) => {
               </p>
 
               <p style={{ fontSize: '11px', color: '#3f3f46', letterSpacing: '1px' }}>EASYFOOD</p>
-            </div>
+            </DialogContent>
+          </Dialog>
+
+          <TableBillDialog
+            isOpen={showTableBillDialog}
+            onClose={() => setShowTableBillDialog(false)}
+            table={selectedTableForActions}
+            session={sessions?.find(s => s.table_id === selectedTableForActions?.id && s.status === 'OPEN') || null}
+            orders={orders.filter(o => o.table_session_id === (sessions?.find(s => s.table_id === selectedTableForActions?.id && s.status === 'OPEN')?.id))}
+            restaurant={currentRestaurant || null}
+            onPaymentComplete={() => {
+              if (selectedTableForActions) handleCloseTable(selectedTableForActions.id, true)
+              setShowTableBillDialog(false)
+            }}
+            onEmptyTable={() => {
+              if (selectedTableForActions) handleCloseTable(selectedTableForActions.id, false)
+              setShowTableBillDialog(false)
+            }}
+            isWaiter={false}
+          />
+
         </div>
-    </div>
-            </DialogContent >
-          </Dialog >
+      </main>
 
-  <TableBillDialog
-    isOpen={showTableBillDialog}
-    onClose={() => setShowTableBillDialog(false)}
-    table={selectedTableForActions}
-    session={sessions?.find(s => s.table_id === selectedTableForActions?.id && s.status === 'OPEN') || null}
-    orders={orders.filter(o => o.table_session_id === (sessions?.find(s => s.table_id === selectedTableForActions?.id && s.status === 'OPEN')?.id))}
-    restaurant={currentRestaurant || null}
-    onPaymentComplete={() => {
-      if (selectedTableForActions) handleCloseTable(selectedTableForActions.id, true)
-      setShowTableBillDialog(false)
-    }}
-    onEmptyTable={() => {
-      if (selectedTableForActions) handleCloseTable(selectedTableForActions.id, false)
-      setShowTableBillDialog(false)
-    }}
-    isWaiter={false}
-  />
-
-        </div >
-      </main >
-
-  {/* HIDDEN PRINT VIEW FOR MENU EXPORT - ALL INLINE STYLES FOR PDF COMPATIBILITY */ }
-  < div id = "menu-print-view" style = {{
-  display: 'none',
-    position: 'fixed',
-      top: 0,
+      {/* HIDDEN PRINT VIEW FOR MENU EXPORT - ALL INLINE STYLES FOR PDF COMPATIBILITY */}
+      <div id="menu-print-view" style={{
+        display: 'none',
+        position: 'fixed',
+        top: 0,
         left: '-9999px',
-          zIndex: -1,
-            width: '210mm',
-              minHeight: '297mm',
-                backgroundColor: '#09090b',
-                  color: '#ffffff',
-                    padding: '40px 50px',
-                      fontFamily: 'Georgia, serif',
-                        boxSizing: 'border-box'
-}}>
-  {/* Header */ }
-  < div style = {{ textAlign: 'center', marginBottom: '40px', borderBottom: '1px solid rgba(0,0,0,0.1)', paddingBottom: '30px' }}>
+        zIndex: -1,
+        width: '210mm',
+        minHeight: '297mm',
+        backgroundColor: '#09090b',
+        color: '#ffffff',
+        padding: '40px 50px',
+        fontFamily: 'Georgia, serif',
+        boxSizing: 'border-box'
+      }}>
+        {/* Header */}
+        <div style={{ textAlign: 'center', marginBottom: '40px', borderBottom: '1px solid rgba(0,0,0,0.1)', paddingBottom: '30px' }}>
           <div style={{ width: '100px', height: '3px', background: 'linear-gradient(to right, transparent, #d97706, transparent)', margin: '0 auto 20px auto' }}></div>
           <h1 style={{ fontSize: '42px', fontWeight: 300, letterSpacing: '0.2em', color: '#18181b', marginBottom: '10px', textTransform: 'uppercase' }}>
             {exportPreviewData?.title || currentRestaurant?.name || 'Menu'}
           </h1>
-{
-  exportPreviewData?.subtitle && (
-    <p style={{ color: '#d97706', fontSize: '18px', letterSpacing: '0.15em', fontWeight: 300, marginTop: '10px' }}>{exportPreviewData.subtitle}</p>
-  )
-}
-<p style={{ color: '#d97706', fontSize: '12px', fontStyle: 'italic', letterSpacing: '0.2em', fontWeight: 300, marginTop: '15px', opacity: 0.8 }}>Fine Dining Experience</p>
-        </div >
-
-  {/* Categories & Dishes */ }
-  < div style = {{ display: 'flex', flexDirection: 'column', gap: '35px' }}>
-  {
-    exportPreviewData?(
-      exportPreviewData.sections.map(section => (
-        <div key={section.id} style={{ marginBottom: '20px', pageBreakInside: 'avoid' }}>
-          {section.title && (
-            <div style={{ display: 'flex', alignItems: 'center', gap: '15px', marginBottom: '20px' }}>
-              <h2 style={{ fontSize: '22px', fontWeight: 300, color: '#d97706', textTransform: 'uppercase', letterSpacing: '0.15em', whiteSpace: 'nowrap' }}>{section.title}</h2>
-              <div style={{ height: '1px', flex: 1, background: 'linear-gradient(to right, rgba(217,119,6,0.4), transparent)' }}></div>
-            </div>
-          )}
-
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
-            {section.dishes.map(dish => (
-              <div key={dish.id} style={{ display: 'flex', gap: '15px', alignItems: 'flex-start', pageBreakInside: 'avoid' }}>
-                {dish.image_url && (
-                  <div style={{ width: '60px', height: '60px', flexShrink: 0, borderRadius: '6px', overflow: 'hidden', border: '1px solid rgba(0,0,0,0.1)' }}>
-                    <img src={dish.image_url} alt={dish.name} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
-                  </div>
-                )}
-                <div style={{ flex: 1 }}>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', marginBottom: '6px', borderBottom: '1px dotted rgba(0,0,0,0.15)', paddingBottom: '6px' }}>
-                    <h3 style={{ fontSize: '17px', fontWeight: 500, color: '#18181b', letterSpacing: '0.02em', margin: 0 }}>{dish.name}</h3>
-                    <span style={{ fontSize: '16px', fontWeight: 300, color: '#b45309', whiteSpace: 'nowrap', marginLeft: '15px' }}>€ {dish.price.toFixed(2)}</span>
-                  </div>
-                  {dish.description && (
-                    <p style={{ color: '#52525b', fontSize: '12px', fontWeight: 300, lineHeight: 1.5, fontStyle: 'italic', margin: 0 }}>{dish.description}</p>
-                  )}
-                  {dish.allergens && dish.allergens.length > 0 && (
-                    <p style={{ color: '#71717a', fontSize: '9px', marginTop: '6px', textTransform: 'uppercase', letterSpacing: '0.1em' }}>Allergeni: {dish.allergens.join(', ')}</p>
-                  )}
-                </div>
-              </div>
-            ))}
-          </div>
+          {
+            exportPreviewData?.subtitle && (
+              <p style={{ color: '#d97706', fontSize: '18px', letterSpacing: '0.15em', fontWeight: 300, marginTop: '10px' }}>{exportPreviewData.subtitle}</p>
+            )
+          }
+          <p style={{ color: '#d97706', fontSize: '12px', fontStyle: 'italic', letterSpacing: '0.2em', fontWeight: 300, marginTop: '15px', opacity: 0.8 }}>Fine Dining Experience</p>
         </div>
-      ))
-          ) : null}
-        </div >
 
-  {/* Footer */ }
-  < div style = {{ marginTop: '60px', paddingTop: '20px', borderTop: '1px solid rgba(0,0,0,0.05)', textAlign: 'center' }}>
+        {/* Categories & Dishes */}
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '35px' }}>
+          {
+            exportPreviewData ? (
+              exportPreviewData.sections.map(section => (
+                <div key={section.id} style={{ marginBottom: '20px', pageBreakInside: 'avoid' }}>
+                  {section.title && (
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '15px', marginBottom: '20px' }}>
+                      <h2 style={{ fontSize: '22px', fontWeight: 300, color: '#d97706', textTransform: 'uppercase', letterSpacing: '0.15em', whiteSpace: 'nowrap' }}>{section.title}</h2>
+                      <div style={{ height: '1px', flex: 1, background: 'linear-gradient(to right, rgba(217,119,6,0.4), transparent)' }}></div>
+                    </div>
+                  )}
+
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+                    {section.dishes.map(dish => (
+                      <div key={dish.id} style={{ display: 'flex', gap: '15px', alignItems: 'flex-start', pageBreakInside: 'avoid' }}>
+                        {dish.image_url && (
+                          <div style={{ width: '60px', height: '60px', flexShrink: 0, borderRadius: '6px', overflow: 'hidden', border: '1px solid rgba(0,0,0,0.1)' }}>
+                            <img src={dish.image_url} alt={dish.name} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                          </div>
+                        )}
+                        <div style={{ flex: 1 }}>
+                          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', marginBottom: '6px', borderBottom: '1px dotted rgba(0,0,0,0.15)', paddingBottom: '6px' }}>
+                            <h3 style={{ fontSize: '17px', fontWeight: 500, color: '#18181b', letterSpacing: '0.02em', margin: 0 }}>{dish.name}</h3>
+                            <span style={{ fontSize: '16px', fontWeight: 300, color: '#b45309', whiteSpace: 'nowrap', marginLeft: '15px' }}>€ {dish.price.toFixed(2)}</span>
+                          </div>
+                          {dish.description && (
+                            <p style={{ color: '#52525b', fontSize: '12px', fontWeight: 300, lineHeight: 1.5, fontStyle: 'italic', margin: 0 }}>{dish.description}</p>
+                          )}
+                          {dish.allergens && dish.allergens.length > 0 && (
+                            <p style={{ color: '#71717a', fontSize: '9px', marginTop: '6px', textTransform: 'uppercase', letterSpacing: '0.1em' }}>Allergeni: {dish.allergens.join(', ')}</p>
+                          )}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              ))
+            ) : null}
+        </div>
+
+        {/* Footer */}
+        <div style={{ marginTop: '60px', paddingTop: '20px', borderTop: '1px solid rgba(0,0,0,0.05)', textAlign: 'center' }}>
           <p style={{ color: '#52525b', fontSize: '10px', textTransform: 'uppercase', letterSpacing: '0.2em', margin: 0 }}>
             {currentRestaurant?.address || ''} {currentRestaurant?.address && currentRestaurant?.phone ? '•' : ''} {currentRestaurant?.phone || ''}
           </p>
           <p style={{ color: '#3f3f46', fontSize: '9px', marginTop: '8px', letterSpacing: '0.1em' }}>Powered by EasyFood</p>
-        </div >
-      </div >
-
-
-  {/* HIDDEN GRID PRINT VIEW FOR TABLES */ }
-  < div id = "tables-grid-print-view" style = {{
-  display: 'none',
-    position: 'fixed',
-      top: '-9999px',
-        left: '-9999px',
-          width: '210mm',
-            minHeight: '297mm',
-              padding: '20mm', // Generous padding
-                backgroundColor: '#F2F2F2', // Light Gray Gala Background
-                  color: '#000000',
-                    fontFamily: 'Inter, sans-serif'
-}}>
-  {/* Grid 3 cols for Vertical Cards */ }
-  < div className = "grid grid-cols-3 gap-8" style = {{ width: '100%' }}>
-  {
-    restaurantTables.map((table, index) => (
-      <div key={table.id} className="break-inside-avoid" style={{
-        backgroundColor: '#FFFFFF', // White Card
-        borderRadius: '2px',
-        padding: '40px 20px',
-        display: 'flex',
-        flexDirection: 'column',
-        alignItems: 'center',
-        justifyContent: 'space-between',
-        pageBreakInside: 'avoid',
-        breakInside: 'avoid',
-        height: 'auto', // Allow auto height
-        minHeight: '130mm',
-        boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.05), 0 2px 4px -1px rgba(0, 0, 0, 0.03)',
-        color: '#000000',
-        marginBottom: '20px' // Spacing for flow
-      }}>
-        {/* HEADER: Label + Number */}
-        <div style={{ textAlign: 'center', marginBottom: '20px' }}>
-          <p style={{
-            fontSize: '11px',
-            fontWeight: '600',
-            margin: '0 0 5px 0',
-            textTransform: 'uppercase',
-            letterSpacing: '0.3em',
-            color: '#52525b', // Zinc 600
-            fontFamily: 'sans-serif'
-          }}>
-            TAVOLO
-          </p>
-          <h1 style={{
-            fontSize: '72px',
-            lineHeight: '0.9',
-            fontWeight: '400',
-            margin: 0,
-            color: '#18181b', // Zinc 900
-            fontFamily: 'Georgia, serif'
-          }}>
-            {table.number}
-          </h1>
-        </div>
-
-        {/* BODY: QR Code - Center */}
-        <div style={{
-          padding: '10px',
-          display: 'flex',
-          justifyContent: 'center',
-          alignItems: 'center',
-          flex: 1
-        }}>
-          <QRCodeGenerator value={generateQrCode(table.id)} size={160} />
-        </div>
-
-        {/* FOOTER: Restaurant Name */}
-        <div style={{ textAlign: 'center', marginBottom: '0', marginTop: '20px' }}>
-          <h2 style={{
-            fontSize: '10px',
-            fontWeight: '500',
-            margin: 0,
-            color: '#71717a', // Zinc 500
-            textTransform: 'uppercase',
-            letterSpacing: '0.2em',
-            fontFamily: 'sans-serif'
-          }}>
-            {currentRestaurant?.name || 'Restaurant'}
-          </h2>
         </div>
       </div>
-    ))
-  }
-        </div >
-      </div >
-    </div >
+
+      {/* HIDDEN GRID PRINT VIEW FOR TABLES */}
+      <div id="tables-grid-print-view" style={{
+        display: 'none',
+        position: 'fixed',
+        top: '-9999px',
+        left: '-9999px',
+        width: '210mm',
+        minHeight: '297mm',
+        padding: '20mm',
+        backgroundColor: '#F2F2F2', // Light Gray Gala Background
+        color: '#000000',
+        fontFamily: 'Inter, sans-serif'
+      }}>
+        {/* Grid 3 cols for Vertical Cards */}
+        <div className="grid grid-cols-3 gap-8" style={{ width: '100%' }}>
+          {
+            restaurantTables.map((table, index) => (
+              <div key={table.id} className="break-inside-avoid" style={{
+                backgroundColor: '#FFFFFF', // White Card
+                borderRadius: '2px',
+                padding: '40px 20px',
+                display: 'flex',
+                flexDirection: 'column',
+                alignItems: 'center',
+                justifyContent: 'space-between',
+                pageBreakInside: 'avoid',
+                breakInside: 'avoid',
+                height: 'auto', // Allow auto height
+                minHeight: '130mm',
+                boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.05), 0 2px 4px -1px rgba(0, 0, 0, 0.03)',
+                color: '#000000',
+                marginBottom: '20px' // Spacing for flow
+              }}>
+                {/* HEADER: Label + Number */}
+                <div style={{ textAlign: 'center', marginBottom: '20px' }}>
+                  <p style={{
+                    fontSize: '11px',
+                    fontWeight: '600',
+                    margin: '0 0 5px 0',
+                    textTransform: 'uppercase',
+                    letterSpacing: '0.3em',
+                    color: '#52525b', // Zinc 600
+                    fontFamily: 'sans-serif'
+                  }}>
+                    TAVOLO
+                  </p>
+                  <h1 style={{
+                    fontSize: '72px',
+                    lineHeight: '0.9',
+                    fontWeight: '400',
+                    margin: 0,
+                    color: '#18181b', // Zinc 900
+                    fontFamily: 'Georgia, serif'
+                  }}>
+                    {table.number}
+                  </h1>
+                </div>
+
+                {/* BODY: QR Code - Center */}
+                <div style={{
+                  padding: '10px',
+                  display: 'flex',
+                  justifyContent: 'center',
+                  alignItems: 'center',
+                  flex: 1
+                }}>
+                  <QRCodeGenerator value={generateQrCode(table.id)} size={160} />
+                </div>
+
+                {/* FOOTER: Restaurant Name */}
+                <div style={{ textAlign: 'center', marginBottom: '0', marginTop: '20px' }}>
+                  <h2 style={{
+                    fontSize: '10px',
+                    fontWeight: '500',
+                    margin: 0,
+                    color: '#71717a', // Zinc 500
+                    textTransform: 'uppercase',
+                    letterSpacing: '0.2em',
+                    fontFamily: 'sans-serif'
+                  }}>
+                    {currentRestaurant?.name || 'Restaurant'}
+                  </h2>
+                </div>
+              </div>
+            ))
+          }
+        </div>
+      </div>
+    </div>
   )
 }
 
