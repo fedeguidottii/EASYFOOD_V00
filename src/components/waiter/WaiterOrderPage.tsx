@@ -514,8 +514,8 @@ const WaiterOrderPage = () => {
                                                                         </div>
                                                                         {item.notes && <p className="text-xs text-amber-500 italic mt-1">{item.notes}</p>}
 
-                                                                        <div className="flex items-center gap-4 mt-3">
-                                                                            <div className="flex items-center gap-3 bg-black/40 rounded-lg p-1">
+                                                                        <div className="flex items-center gap-3 mt-3 flex-wrap">
+                                                                            <div className="flex items-center gap-2 bg-black/40 rounded-lg p-1">
                                                                                 <button
                                                                                     onClick={() => updateQuantity(realIndex, -1)}
                                                                                     className="w-8 h-8 flex items-center justify-center bg-zinc-800 rounded-md text-zinc-400 hover:text-white"
@@ -539,10 +539,32 @@ const WaiterOrderPage = () => {
                                                                                 className="h-8 text-xs bg-black/20 border-transparent focus:border-zinc-700 rounded-lg flex-1 min-w-0 px-2 text-zinc-300"
                                                                             />
 
+                                                                            {/* Course Selector Dropdown */}
+                                                                            <DropdownMenu>
+                                                                                <DropdownMenuTrigger asChild>
+                                                                                    <button className="h-8 px-2 flex items-center gap-1 text-xs bg-zinc-800 hover:bg-zinc-700 rounded-lg text-zinc-300 border border-zinc-700">
+                                                                                        P{item.courseNumber}
+                                                                                        <CaretDown size={12} />
+                                                                                    </button>
+                                                                                </DropdownMenuTrigger>
+                                                                                <DropdownMenuContent className="bg-zinc-900 border-zinc-800">
+                                                                                    <DropdownMenuLabel className="text-zinc-500 text-xs">Sposta a Portata</DropdownMenuLabel>
+                                                                                    {[1, 2, 3, 4, 5].map(num => (
+                                                                                        <DropdownMenuItem
+                                                                                            key={num}
+                                                                                            onClick={() => moveToCourse(realIndex, num)}
+                                                                                            className={`text-sm ${item.courseNumber === num ? 'text-amber-500 font-bold' : 'text-zinc-300'}`}
+                                                                                        >
+                                                                                            Portata {num} {item.courseNumber === num && '✓'}
+                                                                                        </DropdownMenuItem>
+                                                                                    ))}
+                                                                                </DropdownMenuContent>
+                                                                            </DropdownMenu>
+
                                                                             <button
                                                                                 // Remove by reducing quantity to 0
                                                                                 onClick={() => updateQuantity(realIndex, -item.quantity)}
-                                                                                className="w-8 h-8 flex items-center justify-center text-red-500/50 hover:text-red-500 bg-red-500/5 hover:bg-red-500/10 rounded-lg transition-colors ml-auto"
+                                                                                className="w-8 h-8 flex items-center justify-center text-red-500/50 hover:text-red-500 bg-red-500/5 hover:bg-red-500/10 rounded-lg transition-colors"
                                                                             >
                                                                                 <Trash size={16} weight="duotone" />
                                                                             </button>
@@ -582,8 +604,10 @@ const WaiterOrderPage = () => {
 
             {/* Dish Detail Dialog */}
             <Dialog open={!!selectedDishForDetail} onOpenChange={(open) => !open && setSelectedDishForDetail(null)}>
-                <DialogContent className="sm:max-w-md bg-zinc-950 border-zinc-800 text-zinc-100 p-0 overflow-hidden max-h-[90vh] flex flex-col">
-                    {/* Added max-h and flex-col to DishDetail as well just in case */}
+                <DialogContent className="sm:max-w-md bg-zinc-950 border-zinc-800 text-zinc-100 p-0 overflow-hidden max-h-[90vh] flex flex-col" aria-describedby={undefined}>
+                    <DialogHeader className="sr-only">
+                        <DialogTitle>{selectedDishForDetail?.name || 'Dettaglio Piatto'}</DialogTitle>
+                    </DialogHeader>
                     {selectedDishForDetail && (
                         <>
                             <div className="h-48 relative">
