@@ -194,6 +194,8 @@ export const generatePdfFromElement = async (elementId: string, options: Generat
                                 const spacer = document.createElement('div')
                                 spacer.style.height = `${spaceRemainingOnPage + 10}px` // +10px buffer
                                 spacer.style.display = 'block'
+                                spacer.style.width = '100%'
+                                spacer.style.gridColumn = '1 / -1' // Force span full width in Grid
                                 item.parentElement?.insertBefore(spacer, item)
                             }
                         }
