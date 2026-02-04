@@ -4,12 +4,14 @@ import { supabase } from '../../lib/supabase'
 import { DatabaseService } from '../../services/DatabaseService'
 import { Table, Dish, Category, Restaurant } from '../../services/types'
 import { toast } from 'sonner'
-import { ArrowLeft, MagnifyingGlass, Plus, Minus, Trash, ShoppingCart, Info, CaretDown, CaretUp, CheckCircle, Warning } from '@phosphor-icons/react'
+import { ArrowLeft, MagnifyingGlass, Plus, Minus, Trash, ShoppingCart, Info, CaretDown, CaretUp, CheckCircle, Warning, PencilSimple } from '@phosphor-icons/react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
+import { Textarea } from '@/components/ui/textarea'
 import { Badge } from '@/components/ui/badge'
 import { ScrollArea, ScrollBar } from '@/components/ui/scroll-area'
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger, SheetFooter } from "@/components/ui/sheet"
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '@/components/ui/dialog'
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs"
 import { DropdownMenu, DropdownMenuTrigger, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel } from "@/components/ui/dropdown-menu"
 import { DishPlaceholder } from '@/components/ui/DishPlaceholder'
@@ -148,17 +150,16 @@ const WaiterOrderPage = () => {
             if (!sessionId) {
                 // Determine cover charge
                 const dayOfWeek = new Date().toLocaleDateString('en-US', { weekday: 'long' }).toLowerCase()
-                const isLunch = new Date().getHours() < 16 // Simple logic, refine if needed based on restaurant settings
 
                 // We'll use simple defaults if complex pricing logic isn't easily reusable without importing large utils
-                // Ideally this should be robust, but for "Quick Order" we assume basic session start
                 const baseCover = restaurant.cover_charge_per_person || 0
 
+                // Create session with minimal required data
                 const newSession = await DatabaseService.createSession({
                     table_id: table.id,
                     restaurant_id: restaurant.id,
                     coperto: baseCover,
-                    customer_count: table.seats // Default to max seats if unknown
+                    customer_count: table.seats || 2 // Default if unknown
                 })
 
                 if (!newSession) throw new Error("Errore creazione sessione")
@@ -172,13 +173,13 @@ const WaiterOrderPage = () => {
                 const itemsInCourse = orderItems.filter(i => i.courseNumber === courseNum)
                 const totalAmount = itemsInCourse.reduce((sum, item) => sum + ((item.dish?.price || 0) * item.quantity), 0)
 
-                // Create Order
+                // Create Order - Use 'OPEN' status which is standard
                 const { data: orderData, error: orderError } = await supabase
                     .from('orders')
                     .insert({
                         table_session_id: sessionId,
                         restaurant_id: restaurant.id,
-                        status: 'pending', // Waiter orders go to pending/kitchen immediately
+                        status: 'OPEN', // Changed from 'pending' to 'OPEN'
                         total_amount: totalAmount
                     })
                     .select()
@@ -192,9 +193,8 @@ const WaiterOrderPage = () => {
                     dish_id: item.dishId,
                     quantity: item.quantity,
                     notes: item.notes,
-                    status: 'pending',
-                    course_number: courseNum, // If you have this column
-                    // Removed price_at_time to prevent error
+                    status: 'PENDING', // Changed from 'pending' to 'PENDING'
+                    course_number: courseNum,
                 }))
 
                 const { error: itemsError } = await supabase
@@ -209,7 +209,7 @@ const WaiterOrderPage = () => {
 
         } catch (error) {
             console.error('Submit error:', error)
-            toast.error("Errore nell'invio dell'ordine")
+            toast.error("Errore nell'invio dell'ordine: " + (error as any)?.message)
         } finally {
             setSubmitting(false)
         }
@@ -218,6 +218,64 @@ const WaiterOrderPage = () => {
     // Totals
     const totalAmount = orderItems.reduce((sum, item) => sum + ((item.dish?.price || 0) * item.quantity), 0)
     const totalItems = orderItems.reduce((sum, item) => sum + item.quantity, 0)
+
+    // Dish Detail Dialog State
+    const [selectedDishForDetail, setSelectedDishForDetail] = useState<Dish | null>(null)
+    const [detailQuantity, setDetailQuantity] = useState(1)
+    const [detailNotes, setDetailNotes] = useState('')
+
+    const openDishDetail = (dish: Dish, e: React.MouseEvent) => {
+        e.stopPropagation()
+        setSelectedDishForDetail(dish)
+        setDetailQuantity(1)
+        setDetailNotes('')
+    }
+
+    const addFromDetail = () => {
+        if (!selectedDishForDetail) return
+
+        setOrderItems(prev => {
+            // Check if we can merge with existing identical item (same notes) or just add new
+            // For simplicity in Waiter Mode, we just append or update if exact match.
+            // But since notes can vary, we treat as unique entry if notes differ?
+            // The current addToOrder logic merges by DishId + Course. 
+            // If we want to support same dish with different notes, we need strictly separate items or merged notes?
+            // The current data structure: dishId is key.
+            // If I add Carbonara (No pepe) and then Carbonara (No uovo), they might merge if I match only ID.
+            // Let's stick to the current logic: Merge by ID+Course.
+            // If notes exist, we append them? Or overwrite? 
+            // Better: Add as new item or Append notes. 
+            // Given the structure, let's just use the standard addToOrder but with initial notes?
+            // Re-implementing specific add logic here:
+
+            const existingIndex = prev.findIndex(i => i.dishId === selectedDishForDetail.id && i.courseNumber === activeCourse)
+
+            if (existingIndex >= 0) {
+                // Update existing
+                const newItems = [...prev]
+                newItems[existingIndex].quantity += detailQuantity
+                // Append notes if not empty
+                if (detailNotes) {
+                    newItems[existingIndex].notes = newItems[existingIndex].notes
+                        ? `${newItems[existingIndex].notes}, ${detailNotes}`
+                        : detailNotes
+                }
+                return newItems
+            } else {
+                // New Item
+                return [...prev, {
+                    dishId: selectedDishForDetail.id,
+                    quantity: detailQuantity,
+                    notes: detailNotes,
+                    courseNumber: activeCourse,
+                    dish: selectedDishForDetail
+                }]
+            }
+        })
+
+        toast.success(`Aggiunto con note: ${selectedDishForDetail.name}`)
+        setSelectedDishForDetail(null)
+    }
 
     if (loading) return (
         <div className="min-h-screen bg-zinc-950 flex items-center justify-center text-amber-500">
@@ -335,7 +393,7 @@ const WaiterOrderPage = () => {
                                 key={dish.id}
                                 initial={{ opacity: 0, y: 10 }}
                                 animate={{ opacity: 1, y: 0 }}
-                                className={`relative flex items-center gap-4 p-3 rounded-2xl border transition-all active:scale-[0.99] touch-manipulation ${qtyInCurrentCourse > 0
+                                className={`relative flex items-center gap-4 p-3 rounded-2xl border transition-all active:scale-[0.99] touch-manipulation cursor-pointer ${qtyInCurrentCourse > 0
                                     ? 'bg-amber-500/5 border-amber-500/30 shadow-lg shadow-amber-500/5'
                                     : 'bg-zinc-900/40 border-white/5 hover:border-white/10'
                                     }`}
@@ -373,23 +431,18 @@ const WaiterOrderPage = () => {
 
                                 {/* Add/Remove Buttons */}
                                 <div className="flex flex-col gap-2">
+                                    {/* Note/Edit Button */}
+                                    <div
+                                        className="w-8 h-8 rounded-full flex items-center justify-center border border-zinc-800 bg-zinc-900/50 text-zinc-400 hover:text-amber-500 hover:border-amber-500"
+                                        onClick={(e) => openDishDetail(dish, e)}
+                                    >
+                                        <PencilSimple weight="bold" size={14} />
+                                    </div>
+
                                     <div className={`w-8 h-8 rounded-full flex items-center justify-center border transition-colors ${qtyInCurrentCourse > 0 ? 'bg-amber-500 text-black border-amber-500' : 'bg-transparent text-zinc-600 border-zinc-800'
                                         }`}>
                                         <Plus weight="bold" size={14} />
                                     </div>
-                                    {qtyInCurrentCourse > 0 && (
-                                        <div
-                                            className="w-8 h-8 rounded-full flex items-center justify-center border border-zinc-700 bg-zinc-900 text-zinc-400 hover:text-red-400 hover:border-red-500/50 transition-colors"
-                                            onClick={(e) => {
-                                                e.stopPropagation()
-                                                // Find index and decrease
-                                                const idx = orderItems.findIndex(i => i.dishId === dish.id && i.courseNumber === activeCourse)
-                                                if (idx !== -1) updateQuantity(idx, -1)
-                                            }}
-                                        >
-                                            <Minus weight="bold" size={14} />
-                                        </div>
-                                    )}
                                 </div>
                             </motion.div>
                         )
@@ -516,6 +569,70 @@ const WaiterOrderPage = () => {
                     </motion.div>
                 )}
             </AnimatePresence>
+
+            {/* Dish Detail Dialog */}
+            <Dialog open={!!selectedDishForDetail} onOpenChange={(open) => !open && setSelectedDishForDetail(null)}>
+                <DialogContent className="sm:max-w-md bg-zinc-950 border-zinc-800 text-zinc-100 p-0 overflow-hidden">
+                    {selectedDishForDetail && (
+                        <>
+                            <div className="h-48 relative">
+                                {selectedDishForDetail.image_url ? (
+                                    <img src={selectedDishForDetail.image_url} alt={selectedDishForDetail.name} className="w-full h-full object-cover" />
+                                ) : (
+                                    <div className="w-full h-full bg-zinc-900 flex items-center justify-center">
+                                        <DishPlaceholder iconSize={64} className="text-zinc-800" variant="fork" />
+                                    </div>
+                                )}
+                                <div className="absolute inset-0 bg-gradient-to-t from-zinc-950 via-transparent to-transparent" />
+                                <div className="absolute bottom-4 left-4 right-4">
+                                    <h2 className="text-2xl font-bold text-white">{selectedDishForDetail.name}</h2>
+                                    <div className="flex items-center gap-2 mt-1">
+                                        <span className="text-amber-500 font-bold text-lg">€{selectedDishForDetail.price.toFixed(2)}</span>
+                                        {selectedDishForDetail.allergens && (
+                                            <div className="flex gap-1">
+                                                {selectedDishForDetail.allergens.map(a => (
+                                                    <Badge key={a} variant="outline" className="border-white/10 bg-black/40 text-[10px] h-5">{a}</Badge>
+                                                ))}
+                                            </div>
+                                        )}
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div className="p-6 space-y-6">
+                                <p className="text-zinc-400 text-sm">{selectedDishForDetail.description}</p>
+
+                                <div className="space-y-3">
+                                    <label className="text-xs font-bold text-zinc-500 uppercase tracking-widest">Quantità</label>
+                                    <div className="flex items-center gap-4 bg-zinc-900 p-2 rounded-xl border border-zinc-800 w-fit">
+                                        <Button variant="ghost" size="icon" onClick={() => setDetailQuantity(Math.max(1, detailQuantity - 1))} className="h-10 w-10 text-zinc-400 hover:text-white hover:bg-white/5">
+                                            <Minus weight="bold" />
+                                        </Button>
+                                        <span className="text-xl font-bold font-mono w-8 text-center">{detailQuantity}</span>
+                                        <Button variant="ghost" size="icon" onClick={() => setDetailQuantity(detailQuantity + 1)} className="h-10 w-10 text-zinc-400 hover:text-white hover:bg-white/5">
+                                            <Plus weight="bold" />
+                                        </Button>
+                                    </div>
+                                </div>
+
+                                <div className="space-y-3">
+                                    <label className="text-xs font-bold text-zinc-500 uppercase tracking-widest">Note e Richieste</label>
+                                    <Textarea
+                                        placeholder="Es. Senza cipolla, ben cotto..."
+                                        value={detailNotes}
+                                        onChange={(e) => setDetailNotes(e.target.value)}
+                                        className="bg-zinc-900 border-zinc-800 focus:border-amber-500/50 min-h-[100px]"
+                                    />
+                                </div>
+
+                                <Button className="w-full h-12 bg-amber-500 hover:bg-amber-400 text-black font-bold text-lg rounded-xl" onClick={addFromDetail}>
+                                    Aggiungi all'ordine - €{(selectedDishForDetail.price * detailQuantity).toFixed(2)}
+                                </Button>
+                            </div>
+                        </>
+                    )}
+                </DialogContent>
+            </Dialog>
         </div>
     )
 }
