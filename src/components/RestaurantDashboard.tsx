@@ -3705,7 +3705,7 @@ const RestaurantDashboard = ({ user, onLogout }: RestaurantDashboardProps) => {
                       <p style={{
                         fontSize: '9px',
                         fontWeight: '500',
-                        margin: '8mm 0 4mm 0',
+                        margin: '15mm 0 6mm 0',
                         textTransform: 'uppercase',
                         letterSpacing: '0.15em',
                         color: '#71717a',
