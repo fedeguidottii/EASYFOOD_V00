@@ -3634,112 +3634,118 @@ const RestaurantDashboard = ({ user, onLogout }: RestaurantDashboardProps) => {
         </div>
       </div>
 
-      {/* HIDDEN GRID PRINT VIEW FOR TABLES */}
+      {/* HIDDEN GRID PRINT VIEW FOR TABLES - 4 BLOCKS PER PAGE */}
       <div id="tables-grid-print-view" style={{
         display: 'none',
         position: 'fixed',
         top: '-9999px',
         left: '-9999px',
         width: '210mm',
-        minHeight: '297mm',
-        padding: '15mm',
         backgroundColor: '#F2F2F2',
         color: '#000000',
         fontFamily: 'Georgia, serif'
       }}>
-        {/* Flexbox layout for reliable page breaks */}
-        <div style={{
-          display: 'flex',
-          flexWrap: 'wrap',
-          justifyContent: 'center',
-          gap: '10mm',
-          width: '100%'
-        }}>
-          {
-            restaurantTables.map((table) => (
-              <div key={table.id} style={{
-                backgroundColor: '#FFFFFF',
-                borderRadius: '4px',
-                padding: '12mm 8mm',
-                display: 'flex',
-                flexDirection: 'column',
-                alignItems: 'center',
-                justifyContent: 'space-between',
-                pageBreakInside: 'avoid',
-                breakInside: 'avoid',
-                width: '55mm',
-                minHeight: '80mm',
-                boxShadow: '0 2px 8px rgba(0, 0, 0, 0.08)',
-                color: '#000000',
-                boxSizing: 'border-box'
+        {/* Generate pages with exactly 4 tables each */}
+        {
+          Array.from({ length: Math.ceil(restaurantTables.length / 4) }).map((_, pageIndex) => {
+            const pageTables = restaurantTables.slice(pageIndex * 4, (pageIndex + 1) * 4)
+            return (
+              <div key={pageIndex} style={{
+                width: '210mm',
+                height: '297mm',
+                padding: '10mm',
+                backgroundColor: '#F2F2F2',
+                boxSizing: 'border-box',
+                display: 'grid',
+                gridTemplateColumns: '1fr 1fr',
+                gridTemplateRows: '1fr 1fr',
+                gap: '8mm',
+                pageBreakAfter: pageIndex < Math.ceil(restaurantTables.length / 4) - 1 ? 'always' : 'auto'
               }}>
-                {/* HEADER: Label + Number */}
-                <div style={{ textAlign: 'center', marginBottom: '6mm' }}>
-                  <p style={{
-                    fontSize: '8px',
-                    fontWeight: '600',
-                    margin: '0 0 2mm 0',
-                    textTransform: 'uppercase',
-                    letterSpacing: '0.25em',
-                    color: '#52525b',
-                    fontFamily: 'sans-serif'
-                  }}>
-                    TAVOLO
-                  </p>
-                  <h1 style={{
-                    fontSize: '48px',
-                    lineHeight: '1',
-                    fontWeight: '400',
-                    margin: 0,
-                    color: '#18181b',
-                    fontFamily: 'Georgia, serif'
-                  }}>
-                    {table.number}
-                  </h1>
-                </div>
+                {
+                  pageTables.map((table) => (
+                    <div key={table.id} style={{
+                      backgroundColor: '#FFFFFF',
+                      borderRadius: '6px',
+                      padding: '15mm 10mm',
+                      display: 'flex',
+                      flexDirection: 'column',
+                      alignItems: 'center',
+                      justifyContent: 'space-between',
+                      boxShadow: '0 2px 10px rgba(0, 0, 0, 0.06)',
+                      color: '#000000',
+                      boxSizing: 'border-box'
+                    }}>
+                      {/* HEADER: Label + Number */}
+                      <div style={{ textAlign: 'center' }}>
+                        <p style={{
+                          fontSize: '11px',
+                          fontWeight: '600',
+                          margin: '0 0 4mm 0',
+                          textTransform: 'uppercase',
+                          letterSpacing: '0.3em',
+                          color: '#52525b',
+                          fontFamily: 'sans-serif'
+                        }}>
+                          TAVOLO
+                        </p>
+                        <h1 style={{
+                          fontSize: '72px',
+                          lineHeight: '1',
+                          fontWeight: '400',
+                          margin: 0,
+                          color: '#18181b',
+                          fontFamily: 'Georgia, serif'
+                        }}>
+                          {table.number}
+                        </h1>
+                      </div>
 
-                {/* BODY: QR Code */}
-                <div style={{
-                  padding: '4mm',
-                  display: 'flex',
-                  justifyContent: 'center',
-                  alignItems: 'center'
-                }}>
-                  <QRCodeGenerator value={generateQrCode(table.id)} size={120} />
-                </div>
+                      {/* CTA: Scansiona per ordinare - SOPRA al QR */}
+                      <p style={{
+                        fontSize: '9px',
+                        fontWeight: '500',
+                        margin: '8mm 0 4mm 0',
+                        textTransform: 'uppercase',
+                        letterSpacing: '0.15em',
+                        color: '#71717a',
+                        fontFamily: 'sans-serif',
+                        textAlign: 'center'
+                      }}>
+                        Scansiona per ordinare
+                      </p>
 
-                {/* CTA: Scansiona per ordinare */}
-                <p style={{
-                  fontSize: '7px',
-                  fontWeight: '500',
-                  margin: '4mm 0',
-                  textTransform: 'uppercase',
-                  letterSpacing: '0.15em',
-                  color: '#71717a',
-                  fontFamily: 'sans-serif',
-                  textAlign: 'center'
-                }}>
-                  Scansiona per ordinare
-                </p>
+                      {/* BODY: QR Code */}
+                      <div style={{
+                        padding: '2mm',
+                        display: 'flex',
+                        justifyContent: 'center',
+                        alignItems: 'center'
+                      }}>
+                        <QRCodeGenerator value={generateQrCode(table.id)} size={180} />
+                      </div>
 
-                {/* FOOTER: Restaurant Name */}
-                <div style={{ textAlign: 'center', marginTop: '2mm' }}>
-                  <h2 style={{
-                    fontSize: '8px',
-                    fontWeight: '500',
-                    margin: 0,
-                    color: '#a1a1aa',
-                    textTransform: 'uppercase',
-                    letterSpacing: '0.2em',
-                    fontFamily: 'sans-serif'
-                  }}>
-                    {currentRestaurant?.name || 'Restaurant'}
-                  </h2>
-                </div>
+                      {/* FOOTER: Restaurant Name */}
+                      <div style={{ textAlign: 'center', marginTop: '6mm' }}>
+                        <h2 style={{
+                          fontSize: '10px',
+                          fontWeight: '500',
+                          margin: 0,
+                          color: '#a1a1aa',
+                          textTransform: 'uppercase',
+                          letterSpacing: '0.2em',
+                          fontFamily: 'sans-serif'
+                        }}>
+                          {currentRestaurant?.name || 'Restaurant'}
+                        </h2>
+                      </div>
+                    </div>
+                  ))
+                }
               </div>
-            ))
-          }
-        </div>
+            )
+          })
+        }
       </div>
     </div>
   )
