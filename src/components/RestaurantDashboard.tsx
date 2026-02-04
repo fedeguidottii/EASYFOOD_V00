@@ -3620,7 +3620,7 @@ const RestaurantDashboard = ({ user, onLogout }: RestaurantDashboardProps) => {
         </div>
       </div>
 
-      {/* HIDDEN GRID PRINT VIEW FOR TABLES - GALA REDESIGN */}
+      {/* HIDDEN GRID PRINT VIEW FOR TABLES */}
       <div id="tables-grid-print-view" style={{
         display: 'none',
         position: 'fixed',
@@ -3628,115 +3628,79 @@ const RestaurantDashboard = ({ user, onLogout }: RestaurantDashboardProps) => {
         left: '-9999px',
         width: '210mm',
         minHeight: '297mm',
-        padding: '15mm', // Reduced padding to maximize card space
-        backgroundColor: '#FFFFFF', // Clean White
+        padding: '20mm',
+        backgroundColor: '#F2F2F2', // Light Gray Gala Background
         color: '#000000',
-        fontFamily: 'Times New Roman, serif' // Elegant Serif
+        fontFamily: 'Inter, sans-serif'
       }}>
-        {/* Grid 2 cols for Larger Cards (Gala Style) */}
-        <div className="grid grid-cols-2 gap-8" style={{ width: '100%' }}>
+        {/* Grid 3 cols for Vertical Cards */}
+        <div className="grid grid-cols-3 gap-8" style={{ width: '100%' }}>
           {
             restaurantTables.map((table, index) => (
               <div key={table.id} className="break-inside-avoid" style={{
-                backgroundColor: '#FFFFFF',
-                borderRadius: '0px', // Sharp corners for elegance
-                border: '1px solid #18181b', // Strong minimalist border
-                padding: '40px 30px',
+                backgroundColor: '#FFFFFF', // White Card
+                borderRadius: '2px',
+                padding: '40px 20px',
                 display: 'flex',
                 flexDirection: 'column',
                 alignItems: 'center',
                 justifyContent: 'space-between',
                 pageBreakInside: 'avoid',
                 breakInside: 'avoid',
-                height: 'auto',
-                minHeight: '140mm', // Taller cards
+                height: 'auto', // Allow auto height
+                minHeight: '130mm',
+                boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.05), 0 2px 4px -1px rgba(0, 0, 0, 0.03)',
                 color: '#000000',
-                marginBottom: '30px',
-                position: 'relative'
+                marginBottom: '20px' // Spacing for flow
               }}>
-                {/* HEADER: Large Number */}
-                <div style={{ textAlign: 'center', marginBottom: '30px', width: '100%' }}>
+                {/* HEADER: Label + Number */}
+                <div style={{ textAlign: 'center', marginBottom: '20px' }}>
                   <p style={{
-                    fontSize: '12px',
-                    fontWeight: '400',
-                    margin: '0 0 15px 0',
+                    fontSize: '11px',
+                    fontWeight: '600',
+                    margin: '0 0 5px 0',
                     textTransform: 'uppercase',
-                    letterSpacing: '0.4em',
-                    color: '#000000',
-                    fontFamily: 'Helvetica, Arial, sans-serif' // Sans override for label
+                    letterSpacing: '0.3em',
+                    color: '#52525b', // Zinc 600
+                    fontFamily: 'sans-serif'
                   }}>
                     TAVOLO
                   </p>
                   <h1 style={{
-                    fontSize: '120px', // Massive number
-                    lineHeight: '0.8',
+                    fontSize: '72px',
+                    lineHeight: '0.9',
                     fontWeight: '400',
                     margin: 0,
-                    color: '#000000',
-                    fontFamily: 'Times New Roman, serif'
+                    color: '#18181b', // Zinc 900
+                    fontFamily: 'Georgia, serif'
                   }}>
                     {table.number}
                   </h1>
                 </div>
 
-                {/* BODY: QR Code & CTA */}
+                {/* BODY: QR Code - Center */}
                 <div style={{
+                  padding: '10px',
                   display: 'flex',
-                  flexDirection: 'column',
+                  justifyContent: 'center',
                   alignItems: 'center',
-                  gap: '20px',
-                  width: '100%'
+                  flex: 1
                 }}>
-                  {/* CTA Text above QR */}
-                  <p style={{
-                    fontSize: '12px',
-                    fontStyle: 'italic',
-                    margin: 0,
-                    color: '#000000',
-                    textAlign: 'center',
-                    fontFamily: 'Times New Roman, serif',
-                    maxWidth: '80%'
-                  }}>
-                    {currentRestaurant?.view_only_menu_enabled
-                      ? 'Scansiona il QR code per vedere il menù'
-                      : 'Scansiona il QR code per ordinare'}
-                  </p>
-
-                  <QRCodeGenerator value={generateQrCode(table.id)} size={200} className="border-0" />
-
-                  {/* Optional Instruction */}
-                  {!currentRestaurant?.view_only_menu_enabled && (
-                    <p style={{
-                      fontSize: '10px',
-                      textTransform: 'uppercase',
-                      letterSpacing: '0.1em',
-                      color: '#52525b',
-                      marginTop: '5px',
-                      fontFamily: 'Helvetica, Arial, sans-serif'
-                    }}>
-                      Ordina e paga dal tavolo
-                    </p>
-                  )}
+                  <QRCodeGenerator value={generateQrCode(table.id)} size={160} />
                 </div>
 
-                {/* FOOTER: Restaurant Branding */}
-                <div style={{
-                  textAlign: 'center',
-                  marginTop: '40px',
-                  width: '100%',
-                  borderTop: '1px solid #e4e4e7',
-                  paddingTop: '20px'
-                }}>
+                {/* FOOTER: Restaurant Name */}
+                <div style={{ textAlign: 'center', marginBottom: '0', marginTop: '20px' }}>
                   <h2 style={{
-                    fontSize: '14px',
-                    fontWeight: '600',
+                    fontSize: '10px',
+                    fontWeight: '500',
                     margin: 0,
-                    color: '#000000',
+                    color: '#71717a', // Zinc 500
                     textTransform: 'uppercase',
-                    letterSpacing: '0.3em',
-                    fontFamily: 'Helvetica, Arial, sans-serif'
+                    letterSpacing: '0.2em',
+                    fontFamily: 'sans-serif'
                   }}>
-                    {currentRestaurant?.name || 'Ristorante'}
+                    {currentRestaurant?.name || 'Restaurant'}
                   </h2>
                 </div>
               </div>

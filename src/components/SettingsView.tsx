@@ -368,26 +368,6 @@ export function SettingsView({
                                     />
                                 </div>
                             </div>
-
-                            {/* Menu Solo Visualizzazione */}
-                            <div className="col-span-full p-6 rounded-2xl bg-zinc-900/50 border border-white/5 backdrop-blur-sm">
-                                <div className="flex items-center justify-between">
-                                    <div className="space-y-1">
-                                        <h3 className="text-lg font-bold flex items-center gap-2">
-                                            Menu Solo Visualizzazione
-                                        </h3>
-                                        <p className="text-sm text-zinc-400 max-w-prose">
-                                            Se attivo, i clienti potranno solo visualizzare il menu tramite QR Code, senza poter inviare ordini.
-                                            Ideale per eventi o servizio servito al tavolo.
-                                        </p>
-                                    </div>
-                                    <Switch
-                                        checked={viewOnlyMenuEnabled}
-                                        onCheckedChange={setViewOnlyMenuEnabled}
-                                        className="data-[state=checked]:bg-amber-500"
-                                    />
-                                </div>
-                            </div>
                         </div>
                     </motion.div>
                 </TabsContent>

@@ -1394,9 +1394,9 @@ function AuthorizedMenuContent({ restaurantId, tableId, sessionId, activeSession
           </AnimatePresence>
         </main>
 
-        {/* Floating Cart Button - Only if NOT view only */}
+        {/* Floating Cart Button */}
         <AnimatePresence>
-          {!isViewOnly && cart.length > 0 && (
+          {cart.length > 0 && (
             <motion.div
               initial={{ y: 100, opacity: 0 }}
               animate={{ y: 0, opacity: 1 }}
