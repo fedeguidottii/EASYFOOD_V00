@@ -12,6 +12,7 @@ import { Badge } from '@/components/ui/badge'
 import { ScrollArea, ScrollBar } from '@/components/ui/scroll-area'
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger, SheetFooter } from "@/components/ui/sheet"
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '@/components/ui/dialog'
+import { VisuallyHidden } from '@radix-ui/react-visually-hidden'
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs"
 import { DropdownMenu, DropdownMenuTrigger, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel } from "@/components/ui/dropdown-menu"
 import { DishPlaceholder } from '@/components/ui/DishPlaceholder'
@@ -103,7 +104,8 @@ const WaiterOrderPage = () => {
     // Cart Logic
     const addToOrder = (dish: Dish) => {
         setOrderItems(prev => {
-            const existing = prev.find(i => i.dishId === dish.id && i.courseNumber === activeCourse)
+            // Only merge with items that have NO notes (same dish, same course, no notes)
+            const existing = prev.find(i => i.dishId === dish.id && i.courseNumber === activeCourse && !i.notes)
             if (existing) {
                 return prev.map(i => i === existing ? { ...i, quantity: i.quantity + 1 } : i)
             }
@@ -235,34 +237,18 @@ const WaiterOrderPage = () => {
         if (!selectedDishForDetail) return
 
         setOrderItems(prev => {
-            // Check if we can merge with existing identical item (same notes) or just add new
-            // For simplicity in Waiter Mode, we just append or update if exact match.
-            // But since notes can vary, we treat as unique entry if notes differ?
-            // The current addToOrder logic merges by DishId + Course. 
-            // If we want to support same dish with different notes, we need strictly separate items or merged notes?
-            // The current data structure: dishId is key.
-            // If I add Carbonara (No pepe) and then Carbonara (No uovo), they might merge if I match only ID.
-            // Let's stick to the current logic: Merge by ID+Course.
-            // If notes exist, we append them? Or overwrite? 
-            // Better: Add as new item or Append notes. 
-            // Given the structure, let's just use the standard addToOrder but with initial notes?
-            // Re-implementing specific add logic here:
-
-            const existingIndex = prev.findIndex(i => i.dishId === selectedDishForDetail.id && i.courseNumber === activeCourse)
-
-            if (existingIndex >= 0) {
-                // Update existing
-                const newItems = [...prev]
-                newItems[existingIndex].quantity += detailQuantity
-                // Append notes if not empty
-                if (detailNotes) {
-                    newItems[existingIndex].notes = newItems[existingIndex].notes
-                        ? `${newItems[existingIndex].notes}, ${detailNotes}`
-                        : detailNotes
+            if (detailNotes) {
+                // Items with notes are ALWAYS added as separate entries
+                // Check if there's already an item with the exact same notes
+                const exactMatch = prev.find(i =>
+                    i.dishId === selectedDishForDetail.id &&
+                    i.courseNumber === activeCourse &&
+                    i.notes === detailNotes
+                )
+                if (exactMatch) {
+                    return prev.map(i => i === exactMatch ? { ...i, quantity: i.quantity + detailQuantity } : i)
                 }
-                return newItems
-            } else {
-                // New Item
+                // Add as new separate item with notes
                 return [...prev, {
                     dishId: selectedDishForDetail.id,
                     quantity: detailQuantity,
@@ -270,10 +256,27 @@ const WaiterOrderPage = () => {
                     courseNumber: activeCourse,
                     dish: selectedDishForDetail
                 }]
+            } else {
+                // No notes: merge with existing no-notes item if exists
+                const existing = prev.find(i =>
+                    i.dishId === selectedDishForDetail.id &&
+                    i.courseNumber === activeCourse &&
+                    !i.notes
+                )
+                if (existing) {
+                    return prev.map(i => i === existing ? { ...i, quantity: i.quantity + detailQuantity } : i)
+                }
+                return [...prev, {
+                    dishId: selectedDishForDetail.id,
+                    quantity: detailQuantity,
+                    notes: '',
+                    courseNumber: activeCourse,
+                    dish: selectedDishForDetail
+                }]
             }
         })
 
-        toast.success(`Aggiunto con note: ${selectedDishForDetail.name}`)
+        toast.success(`Aggiunto: ${selectedDishForDetail.name}${detailNotes ? ' (con note)' : ''}`)
         setSelectedDishForDetail(null)
     }
 
@@ -601,7 +604,10 @@ const WaiterOrderPage = () => {
             {/* Dish Detail Dialog */}
             <Dialog open={!!selectedDishForDetail} onOpenChange={(open) => !open && setSelectedDishForDetail(null)}>
                 <DialogContent className="sm:max-w-md bg-zinc-950 border-zinc-800 text-zinc-100 p-0 overflow-hidden max-h-[90vh] flex flex-col">
-                    {/* Added max-h and flex-col to DishDetail as well just in case */}
+                    <VisuallyHidden>
+                        <DialogTitle>{selectedDishForDetail?.name || 'Dettaglio Piatto'}</DialogTitle>
+                        <DialogDescription>Aggiungi questo piatto al tuo ordine con quantità e note personalizzate.</DialogDescription>
+                    </VisuallyHidden>
                     {selectedDishForDetail && (
                         <>
                             <div className="h-48 relative">

@@ -1514,25 +1514,7 @@ const RestaurantDashboard = ({ user, onLogout }: RestaurantDashboardProps) => {
         <div className="absolute bottom-[-20%] right-[-20%] w-[60%] h-[60%] bg-amber-500/[0.02] rounded-full blur-[150px]" />
       </div>
 
-      {/* Hamburger Menu Button - Fixed Position top-left */}
-      <AnimatePresence>
-        {!isSidebarOpen && (
-          <motion.button
-            initial={{ opacity: 0, x: -20 }}
-            animate={{ opacity: 1, x: 0 }}
-            exit={{ opacity: 0, x: -20 }}
-            transition={{ type: "spring", stiffness: 300, damping: 30 }}
-            onClick={() => setIsSidebarOpen(true)}
-            className="fixed top-6 left-6 z-50 flex items-center gap-2 px-3 py-2.5 bg-zinc-950/90 backdrop-blur-md border border-white/10 rounded-xl text-zinc-400 hover:text-amber-500 hover:border-amber-500/30 shadow-2xl shadow-black/80 transition-all hover:scale-105"
-            title="Apri Menu Navigazione"
-          >
-            <List size={22} weight="regular" />
-            <span className="text-xs font-medium tracking-wide hidden sm:inline">
-              {({ orders: 'Ordini', tables: 'Tavoli', menu: 'Menu', reservations: 'Prenotazioni', analytics: 'Analitiche', settings: 'Impostazioni' } as Record<string, string>)[activeTab] || 'Menu'}
-            </span>
-          </motion.button>
-        )}
-      </AnimatePresence>
+      {/* Sidebar Toggle Button - Inline, does not overlap content */}
 
       {/* Sidebar - Collapsible with AnimatePresence */}
       <AnimatePresence mode="wait">
@@ -1642,7 +1624,28 @@ const RestaurantDashboard = ({ user, onLogout }: RestaurantDashboardProps) => {
 
       {/* Main Content Area */}
       <main className="flex-1 flex flex-col min-w-0 overflow-hidden relative z-10">
-        <div className={`flex-1 overflow-y-auto p-4 sm:p-6 lg:p-8 scroll-smooth scrollbar-thin scrollbar-thumb-zinc-800 scrollbar-track-transparent ${!isSidebarOpen ? '!pl-20' : ''}`}>
+        <div className="flex-1 overflow-y-auto p-4 sm:p-6 lg:p-8 scroll-smooth scrollbar-thin scrollbar-thumb-zinc-800 scrollbar-track-transparent">
+          {/* Inline sidebar toggle — never overlaps content */}
+          <AnimatePresence>
+            {!isSidebarOpen && (
+              <motion.div
+                initial={{ opacity: 0, y: -10 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, y: -10 }}
+                transition={{ duration: 0.2 }}
+                className="mb-4"
+              >
+                <button
+                  onClick={() => setIsSidebarOpen(true)}
+                  className="flex items-center gap-2 px-3 py-2 bg-zinc-900/60 border border-white/5 rounded-xl text-zinc-400 hover:text-amber-500 hover:border-amber-500/20 transition-all text-sm"
+                  title="Apri Menu Navigazione"
+                >
+                  <List size={18} weight="regular" />
+                  <span className="text-xs font-medium">Menu</span>
+                </button>
+              </motion.div>
+            )}
+          </AnimatePresence>
           <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-8 animate-in fade-in-30 duration-500">
             {/* Orders Tab */}
             <TabsContent value="orders" className="space-y-6">

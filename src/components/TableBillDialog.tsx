@@ -38,8 +38,11 @@ export default function TableBillDialog({
             setIsSplitMode(false)
             setEqualSplitMode(false)
             setSelectedSplitItems(new Set())
+            setPaidItemIds(new Set())
         }
     }, [isOpen])
+
+    const [paidItemIds, setPaidItemIds] = useState<Set<string>>(new Set())
 
     const [isSplitMode, setIsSplitMode] = useState(false)
     const [selectedSplitItems, setSelectedSplitItems] = useState<Set<string>>(new Set())
@@ -65,17 +68,16 @@ export default function TableBillDialog({
         return items
     }, [session, restaurant])
 
-    // Combine Real Orders + Virtual Items
+    // Combine Real Orders + Virtual Items (exclude PAID items)
     const splitPayableItems = useMemo(() => {
         let allItems: any[] = []
         orders.forEach(order => {
             if (order.items) {
                 order.items.forEach((item: any) => {
-                    // Include items that are not explicitly cancelled
-                    if (item.status !== 'CANCELLED') {
+                    // Exclude cancelled AND paid items
+                    if (item.status !== 'CANCELLED' && item.status !== 'PAID' && !paidItemIds.has(item.id)) {
                         allItems.push({
                             ...item,
-                            // Ensure price is available at item level
                             price: item.dish?.price || item.price || 0,
                             name: item.dish?.name || item.name || 'Piatto',
                             originalOrder: order
@@ -85,14 +87,14 @@ export default function TableBillDialog({
             }
         })
         return [...allItems, ...virtualItems]
-    }, [orders, virtualItems])
+    }, [orders, virtualItems, paidItemIds])
 
-    // Group real items by order for display
+    // Group real items by order for display (exclude PAID items)
     const orderGroups = useMemo(() => {
         const groups: { order: Order; items: any[] }[] = []
         orders.forEach(order => {
             const orderItems = (order.items || [])
-                .filter((item: any) => item.status !== 'CANCELLED')
+                .filter((item: any) => item.status !== 'CANCELLED' && item.status !== 'PAID' && !paidItemIds.has(item.id))
                 .map((item: any) => ({
                     ...item,
                     price: item.dish?.price || item.price || 0,
@@ -103,7 +105,7 @@ export default function TableBillDialog({
             }
         })
         return groups
-    }, [orders])
+    }, [orders, paidItemIds])
 
     // Calculate Totals
     const totalAmount = useMemo(() => {
@@ -136,9 +138,28 @@ export default function TableBillDialog({
         setProcessingPayment(true)
         try {
             if (selectedSplitItems.size === splitPayableItems.length) {
+                // All items selected = full payment
                 onPaymentComplete()
             } else {
-                toast.success('Pagamento parziale registrato')
+                // Partial payment: mark selected real items as PAID in DB
+                const realItemIds = Array.from(selectedSplitItems).filter(id => !id.startsWith('coperto-'))
+                for (const itemId of realItemIds) {
+                    await supabase
+                        .from('order_items')
+                        .update({ status: 'PAID' })
+                        .eq('id', itemId)
+                }
+
+                // Immediately hide paid items from UI
+                setPaidItemIds(prev => {
+                    const newSet = new Set(prev)
+                    realItemIds.forEach(id => newSet.add(id))
+                    // Also hide virtual items (coperto) from selection
+                    Array.from(selectedSplitItems).filter(id => id.startsWith('coperto-')).forEach(id => newSet.add(id))
+                    return newSet
+                })
+
+                toast.success(`Pagamento parziale di €${splitTotal.toFixed(2)} registrato`)
                 setIsSplitMode(false)
                 setSelectedSplitItems(new Set())
             }
@@ -472,7 +493,7 @@ export default function TableBillDialog({
                 </div>
 
                 {/* Actions Footer */}
-                <div className="relative p-6 pt-4 border-t border-white/5 bg-gradient-to-t from-zinc-900/80 to-transparent">
+                <div className="relative p-5 border-t border-white/5 bg-zinc-900/50">
                     {isWaiter && !restaurant?.allow_waiter_payments ? (
                         <div className="bg-red-500/10 border border-red-500/20 rounded-2xl p-4 text-center">
                             <p className="text-red-400 font-bold mb-1">Permessi Negati</p>
@@ -481,10 +502,10 @@ export default function TableBillDialog({
                     ) : (
                         <>
                             {isSplitMode || equalSplitMode ? (
-                                <div className="flex gap-3">
+                                <div className="flex gap-2">
                                     <Button
-                                        variant="outline"
-                                        className="flex-1 h-14 rounded-2xl border-zinc-700 text-zinc-300 hover:bg-zinc-800"
+                                        variant="ghost"
+                                        className="h-12 px-5 rounded-xl text-zinc-400 hover:text-white hover:bg-zinc-800"
                                         onClick={() => {
                                             setIsSplitMode(false)
                                             setEqualSplitMode(false)
@@ -492,11 +513,11 @@ export default function TableBillDialog({
                                         }}
                                         disabled={processingPayment}
                                     >
-                                        Indietro
+                                        ← Indietro
                                     </Button>
                                     {isSplitMode && (
                                         <Button
-                                            className="flex-[2] h-14 text-base font-bold bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-400 hover:to-amber-500 text-black rounded-2xl shadow-lg shadow-amber-500/20"
+                                            className="flex-1 h-12 font-bold bg-amber-500 hover:bg-amber-400 text-black rounded-xl transition-all active:scale-[0.98]"
                                             onClick={handlePaySplit}
                                             disabled={selectedSplitItems.size === 0 || processingPayment}
                                         >
@@ -505,25 +526,25 @@ export default function TableBillDialog({
                                     )}
                                 </div>
                             ) : (
-                                <div className="space-y-3">
+                                <div className="space-y-2">
                                     <Button
-                                        className="w-full h-14 text-lg font-bold bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-400 hover:to-amber-500 text-black rounded-2xl shadow-xl shadow-amber-500/20 transition-all active:scale-[0.98]"
+                                        className="w-full h-12 font-bold bg-amber-500 hover:bg-amber-400 text-black rounded-xl shadow-lg shadow-amber-500/15 transition-all active:scale-[0.98]"
                                         onClick={() => onPaymentComplete()}
                                     >
-                                        <CheckCircle className="mr-2 h-6 w-6" weight="fill" />
+                                        <CheckCircle className="mr-2 h-5 w-5" weight="fill" />
                                         Salda Tutto · €{totalAmount.toFixed(2)}
                                     </Button>
-                                    <div className="grid grid-cols-2 gap-3">
+                                    <div className="flex gap-2">
                                         <Button
-                                            variant="secondary"
-                                            className="h-12 text-sm font-bold bg-zinc-800/80 hover:bg-zinc-700 text-zinc-200 rounded-xl border border-white/5 transition-all active:scale-[0.98]"
+                                            variant="ghost"
+                                            className="flex-1 h-10 text-xs font-semibold text-zinc-400 hover:text-white hover:bg-zinc-800 rounded-xl"
                                             onClick={() => setIsSplitMode(true)}
                                         >
                                             Dividi per Piatti
                                         </Button>
                                         <Button
-                                            variant="secondary"
-                                            className="h-12 text-sm font-bold bg-zinc-800/80 hover:bg-zinc-700 text-zinc-200 rounded-xl border border-white/5 transition-all active:scale-[0.98]"
+                                            variant="ghost"
+                                            className="flex-1 h-10 text-xs font-semibold text-zinc-400 hover:text-white hover:bg-zinc-800 rounded-xl"
                                             onClick={() => setEqualSplitMode(true)}
                                         >
                                             Dividi Equo
@@ -532,12 +553,12 @@ export default function TableBillDialog({
                                     {onEmptyTable && (
                                         <Button
                                             variant="ghost"
-                                            className="w-full h-11 text-sm font-medium text-zinc-500 hover:text-red-400 hover:bg-red-500/5 rounded-xl mt-2 transition-all"
+                                            className="w-full h-9 text-xs text-zinc-600 hover:text-red-400 hover:bg-red-500/5 rounded-xl"
                                             onClick={onEmptyTable}
                                             disabled={totalAmount > 0}
                                         >
-                                            <Trash className="mr-2 h-4 w-4" weight="duotone" />
-                                            {totalAmount > 0 ? 'Libera Tavolo (prima salda il conto)' : 'Libera Tavolo'}
+                                            <Trash className="mr-1.5 h-3.5 w-3.5" weight="duotone" />
+                                            {totalAmount > 0 ? 'Libera Tavolo (prima salda)' : 'Libera Tavolo'}
                                         </Button>
                                     )}
                                 </div>
