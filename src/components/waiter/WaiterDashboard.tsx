@@ -256,11 +256,8 @@ const WaiterDashboard = ({ user, onLogout }: WaiterDashboardProps) => {
     // Assistance Requests Calculation (moved up for use in effect)
     const assistanceRequests = tables.filter(table => {
         if (!table.last_assistance_request) return false
-        const requestTime = new Date(table.last_assistance_request)
-        const fiveMinutesAgo = new Date(Date.now() - 5 * 60 * 1000) // Only recent requests (last 5 min)? Or just all active ones...
-        // Assuming we want to show all unresolved ones, but maybe the UI only shows recent.
-        // Actually, the logic below filters by 5 minutes. Let's keep it consistent.
-        return requestTime > fiveMinutesAgo
+        // Show all unresolved assistance requests (no time filter)
+        return true
     })
 
     // Sound Logic for "Ready" items AND Assistance Requests
@@ -477,7 +474,7 @@ const WaiterDashboard = ({ user, onLogout }: WaiterDashboardProps) => {
                 restaurant_id: restaurantId,
                 number: newTableNumber.trim(),
                 seats: parseInt(newTableSeats) || 4,
-                room_id: newTableRoomId || undefined,
+                room_id: (newTableRoomId && newTableRoomId !== 'none') ? newTableRoomId : undefined,
                 is_active: true
             })
             setTables(prev => [...prev, newTable])
@@ -498,13 +495,13 @@ const WaiterDashboard = ({ user, onLogout }: WaiterDashboardProps) => {
             await DatabaseService.updateTable(tableToEdit.id, {
                 number: newTableNumber.trim(),
                 seats: parseInt(newTableSeats) || 4,
-                room_id: newTableRoomId || undefined
+                room_id: (newTableRoomId && newTableRoomId !== 'none') ? newTableRoomId : undefined
             })
             setTables(prev => prev.map(t => t.id === tableToEdit.id ? {
                 ...t,
                 number: newTableNumber.trim(),
                 seats: parseInt(newTableSeats) || 4,
-                room_id: newTableRoomId || undefined
+                room_id: (newTableRoomId && newTableRoomId !== 'none') ? newTableRoomId : undefined
             } : t))
             setTableToEdit(null)
             setIsEditTableDialogOpen(false)
@@ -1356,7 +1353,7 @@ const WaiterDashboard = ({ user, onLogout }: WaiterDashboardProps) => {
                                     <SelectValue placeholder="Nessuna sala" />
                                 </SelectTrigger>
                                 <SelectContent className="bg-zinc-950 border-zinc-800">
-                                    <SelectItem value="">Nessuna sala</SelectItem>
+                                    <SelectItem value="none">Nessuna sala</SelectItem>
                                     {rooms.map(room => <SelectItem key={room.id} value={room.id}>{room.name}</SelectItem>)}
                                 </SelectContent>
                             </Select>
@@ -1391,7 +1388,7 @@ const WaiterDashboard = ({ user, onLogout }: WaiterDashboardProps) => {
                                     <SelectValue placeholder="Nessuna sala" />
                                 </SelectTrigger>
                                 <SelectContent className="bg-zinc-950 border-zinc-800">
-                                    <SelectItem value="">Nessuna sala</SelectItem>
+                                    <SelectItem value="none">Nessuna sala</SelectItem>
                                     {rooms.map(room => <SelectItem key={room.id} value={room.id}>{room.name}</SelectItem>)}
                                 </SelectContent>
                             </Select>

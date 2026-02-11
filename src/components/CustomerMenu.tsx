@@ -249,26 +249,59 @@ const CustomerMenu = () => {
   const [isViewOnly, setIsViewOnly] = useState(false) // New state for view-only mode
 
   // Check if table is active (has ANY open session) when Not Authenticated
+  // Also subscribe to real-time changes so if waiter activates after customer scans QR,
+  // the customer auto-sees the PIN screen
   useEffect(() => {
-    if (!isAuthenticated && tableId) {
-      const checkTableActivity = async () => {
-        // Check if there is an OPEN session for this table
-        const { data, error } = await supabase
-          .from('table_sessions')
-          .select('id')
-          .eq('table_id', tableId)
-          .eq('status', 'OPEN')
-          .single()
+    if (!tableId) return
 
-        if (!data) {
-          setIsTableActive(false)
-        } else {
-          setIsTableActive(true)
-        }
+    const checkTableActivity = async () => {
+      const { data } = await supabase
+        .from('table_sessions')
+        .select('id')
+        .eq('table_id', tableId)
+        .eq('status', 'OPEN')
+        .single()
+
+      setIsTableActive(!!data)
+
+      // If session found and not authenticated, try to join it
+      if (data && !isAuthenticated && restaurantId) {
+        joinSession(tableId, restaurantId)
       }
-      checkTableActivity()
     }
-  }, [isAuthenticated, tableId])
+    checkTableActivity()
+
+    // Real-time subscription: detect when a session is created/updated for this table
+    const channel = supabase
+      .channel(`table-activity-watch:${tableId}`)
+      .on('postgres_changes', {
+        event: '*',
+        schema: 'public',
+        table: 'table_sessions',
+        filter: `table_id=eq.${tableId}`
+      }, (payload) => {
+        if (payload.eventType === 'INSERT' || payload.eventType === 'UPDATE') {
+          const session = payload.new as any
+          if (session.status === 'OPEN') {
+            setIsTableActive(true)
+            // Auto-join the new session
+            if (!isAuthenticated && restaurantId) {
+              joinSession(tableId, restaurantId)
+            }
+          } else if (session.status === 'CLOSED' || session.status === 'PAID') {
+            setIsTableActive(false)
+          }
+        }
+        if (payload.eventType === 'DELETE') {
+          setIsTableActive(false)
+        }
+      })
+      .subscribe()
+
+    return () => {
+      supabase.removeChannel(channel)
+    }
+  }, [isAuthenticated, tableId, restaurantId, joinSession])
 
   // Attempt joining session on mount if tableId exists and no sessionId
   useEffect(() => {
@@ -346,31 +379,38 @@ const CustomerMenu = () => {
     } else if (tableId && sessionId && !restaurantId) {
       // Session exists but restaurantId not in state - fetch it
       const fetchRestaurantId = async () => {
-        const { data: tableData } = await supabase
-          .from('tables')
-          .select('restaurant_id, restaurants(*)')
-          .eq('id', tableId)
-          .single()
+        try {
+          const { data: tableData } = await supabase
+            .from('tables')
+            .select('restaurant_id, restaurants(*)')
+            .eq('id', tableId)
+            .single()
 
-        if (tableData && tableData.restaurants) {
-          const restaurantsData = tableData.restaurants as unknown
-          const restaurant = (Array.isArray(restaurantsData) ? restaurantsData[0] : restaurantsData) as Restaurant | null
-          if (restaurant) {
-            setRestaurantName(restaurant.name)
-            setFullRestaurant(restaurant)
-            setCourseSplittingEnabled(restaurant.enable_course_splitting !== false)
-            if (restaurant.isActive === false) {
-              // Check raw DB field if needed
-              if ((restaurant as any).is_active === false) {
-                setRestaurantSuspended(true)
-                setIsAuthenticated(false)
+          if (tableData && tableData.restaurants) {
+            const restaurantsData = tableData.restaurants as unknown
+            const restaurant = (Array.isArray(restaurantsData) ? restaurantsData[0] : restaurantsData) as Restaurant | null
+            if (restaurant) {
+              setRestaurantName(restaurant.name)
+              setFullRestaurant(restaurant)
+              setCourseSplittingEnabled(restaurant.enable_course_splitting !== false)
+              if (restaurant.isActive === false) {
+                // Check raw DB field if needed
+                if ((restaurant as any).is_active === false) {
+                  setRestaurantSuspended(true)
+                  setIsAuthenticated(false)
+                }
               }
             }
+            setRestaurantId(tableData.restaurant_id)
           }
-          setRestaurantId(tableData.restaurant_id)
+        } finally {
+          setIsInitLoading(false)
         }
       }
       fetchRestaurantId()
+    } else {
+      // No work to do - ensure loading is false
+      setIsInitLoading(false)
     }
   }, [tableId, sessionId, joinSession, restaurantId])
 
@@ -427,20 +467,25 @@ const CustomerMenu = () => {
   // Real-time subscription to detect when session is closed (table paid/emptied)
   // This ensures authenticated customers are immediately redirected to PIN screen
   useEffect(() => {
-    if (!tableId || !isAuthenticated) return
+    // Only subscribe if we have an active session
+    if (!tableId || !isAuthenticated || !activeSession?.id) return
+
+    const currentSessionId = activeSession.id
 
     const sessionChannel = supabase
-      .channel(`customer-session-watch:${tableId}`)
+      .channel(`customer-session-watch:${currentSessionId}`)
       .on('postgres_changes', {
         event: '*',
         schema: 'public',
         table: 'table_sessions',
-        filter: `table_id=eq.${tableId}`
+        // Filter by session ID, not table_id, for precise targeting
+        filter: `id=eq.${currentSessionId}`
       }, async (payload) => {
         // Handle session updates (status changed to CLOSED)
         if (payload.eventType === 'UPDATE') {
           const updatedSession = payload.new as any
-          if (updatedSession.status === 'CLOSED') {
+          // Double-check session ID matches before logging out
+          if (updatedSession.id === currentSessionId && updatedSession.status === 'CLOSED') {
             // Session closed - force logout
             localStorage.removeItem('customerSessionId')
             localStorage.removeItem('sessionPin')
@@ -456,16 +501,19 @@ const CustomerMenu = () => {
 
         // Handle session deletion
         if (payload.eventType === 'DELETE') {
-          // Session deleted - force logout
-          localStorage.removeItem('customerSessionId')
-          localStorage.removeItem('sessionPin')
-          setIsAuthenticated(false)
-          setActiveSession(null)
-          setPin(['', '', '', ''])
-          toast.info('Il tavolo è stato chiuso. Inserisci il nuovo codice per ordinare.', {
-            duration: 4000,
-            style: { background: '#3b82f6', color: 'white' }
-          })
+          const deletedSession = payload.old as any
+          // Only log out if the deleted session is OUR session
+          if (deletedSession?.id === currentSessionId) {
+            localStorage.removeItem('customerSessionId')
+            localStorage.removeItem('sessionPin')
+            setIsAuthenticated(false)
+            setActiveSession(null)
+            setPin(['', '', '', ''])
+            toast.info('Il tavolo è stato chiuso. Inserisci il nuovo codice per ordinare.', {
+              duration: 4000,
+              style: { background: '#3b82f6', color: 'white' }
+            })
+          }
         }
       })
       .subscribe()
@@ -497,7 +545,7 @@ const CustomerMenu = () => {
       supabase.removeChannel(sessionChannel)
       supabase.removeChannel(restaurantChannel)
     }
-  }, [tableId, isAuthenticated, restaurantId])
+  }, [tableId, isAuthenticated, restaurantId, activeSession?.id])
 
   const handlePinSubmit = async (enteredPin: string) => {
     // Retry joining session if missing (connection recovery)
@@ -1081,6 +1129,7 @@ function AuthorizedMenuContent({ restaurantId, tableId, sessionId, activeSession
   const moveItemToCourse = async (cartId: string, newCourse: number) => {
     try {
       await DatabaseService.updateCartItem(cartId, { course_number: newCourse })
+      toast.success(`Piatto spostato alla Portata ${newCourse}`, { duration: 1500 })
     } catch (err) {
       console.error("Error moving item:", err)
       toast.error("Errore spostamento piatto")
@@ -1453,9 +1502,9 @@ function AuthorizedMenuContent({ restaurantId, tableId, sessionId, activeSession
                     {fullRestaurant?.enable_course_splitting && (
                       <button
                         onClick={() => setIsCourseSplittingMode(!isCourseSplittingMode)}
-                        className={`text-[10px] px-2 py-0.5 rounded-full border transition-all ${isCourseSplittingMode ? 'bg-amber-500 text-black border-amber-500 font-bold' : 'text-zinc-500 border-zinc-700 hover:border-zinc-500'}`}
+                        className={`text-sm px-3 py-1.5 rounded-full border transition-all font-medium ${isCourseSplittingMode ? 'bg-amber-500 text-black border-amber-500 font-bold' : 'text-zinc-400 border-zinc-600 hover:border-amber-500 hover:text-amber-500'}`}
                       >
-                        {isCourseSplittingMode ? 'Dividi in Portate: ON' : 'Dividi in Portate'}
+                        {isCourseSplittingMode ? '✓ Portate Attive' : 'Dividi in Portate'}
                       </button>
                     )}
                   </div>
@@ -1513,14 +1562,18 @@ function AuthorizedMenuContent({ restaurantId, tableId, sessionId, activeSession
 
                                 {/* Course Selection (Only if mode active) */}
                                 {isCourseSplittingMode && (
-                                  <div className="flex items-center gap-1 ml-2">
+                                  <div className="flex items-center gap-1.5 ml-2">
                                     {[1, 2, 3, 4].map(num => (
                                       <button
                                         key={num}
-                                        onClick={() => updateCartItem(item.id, { course_number: num })}
-                                        className={`w-6 h-6 flex items-center justify-center rounded-full text-[10px] font-bold border ${(item.course_number || 1) === num
-                                          ? 'bg-amber-500 text-black border-amber-500'
-                                          : 'text-zinc-500 border-zinc-700 hover:border-zinc-500'
+                                        onClick={() => {
+                                          if ((item.course_number || 1) !== num) {
+                                            moveItemToCourse(item.id, num)
+                                          }
+                                        }}
+                                        className={`w-8 h-8 flex items-center justify-center rounded-full text-xs font-bold border-2 transition-all ${(item.course_number || 1) === num
+                                          ? 'bg-amber-500 text-black border-amber-500 scale-110 shadow-lg shadow-amber-500/30'
+                                          : 'text-zinc-400 border-zinc-600 hover:border-amber-500 hover:text-amber-500 hover:scale-105'
                                           }`}
                                       >
                                         {num}

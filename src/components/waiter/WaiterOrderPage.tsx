@@ -192,7 +192,7 @@ const WaiterOrderPage = () => {
                     order_id: orderData.id,
                     dish_id: item.dishId,
                     quantity: item.quantity,
-                    notes: item.notes,
+                    note: item.notes || null,
                     status: 'PENDING', // Changed from 'pending' to 'PENDING'
                     course_number: courseNum,
                 }))
@@ -514,7 +514,8 @@ const WaiterOrderPage = () => {
                                                                         </div>
                                                                         {item.notes && <p className="text-xs text-amber-500 italic mt-1">{item.notes}</p>}
 
-                                                                        <div className="flex items-center gap-4 mt-3">
+                                                                        <div className="flex items-center gap-4 mt-3 flex-wrap">
+                                                                            {/* Quantity Controls */}
                                                                             <div className="flex items-center gap-3 bg-black/40 rounded-lg p-1">
                                                                                 <button
                                                                                     onClick={() => updateQuantity(realIndex, -1)}
@@ -529,6 +530,23 @@ const WaiterOrderPage = () => {
                                                                                 >
                                                                                     <Plus size={14} weight="bold" />
                                                                                 </button>
+                                                                            </div>
+
+                                                                            {/* Course Selection Buttons */}
+                                                                            <div className="flex items-center gap-1 bg-black/40 rounded-lg p-1">
+                                                                                <span className="text-[10px] text-zinc-500 px-1 uppercase">Port.</span>
+                                                                                {[1, 2, 3, 4, 5].map(cn => (
+                                                                                    <button
+                                                                                        key={cn}
+                                                                                        onClick={() => moveToCourse(realIndex, cn)}
+                                                                                        className={`w-7 h-7 flex items-center justify-center rounded-md text-xs font-bold transition-all ${item.courseNumber === cn
+                                                                                            ? 'bg-amber-500 text-black'
+                                                                                            : 'bg-zinc-800 text-zinc-400 hover:text-white hover:bg-zinc-700'
+                                                                                            }`}
+                                                                                    >
+                                                                                        {cn}
+                                                                                    </button>
+                                                                                ))}
                                                                             </div>
 
                                                                             <input

@@ -11,6 +11,7 @@ import { Checkbox } from './ui/checkbox'
 import { RadioGroup, RadioGroupItem } from './ui/radio-group'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from './ui/card'
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger, VisuallyHidden } from './ui/dialog'
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from './ui/alert-dialog'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from './ui/tabs'
 import { Badge } from './ui/badge'
 import { Separator } from './ui/separator'
@@ -574,6 +575,9 @@ const RestaurantDashboard = ({ user, onLogout }: RestaurantDashboardProps) => {
   const [isGeneratingTableQrPdf, setIsGeneratingTableQrPdf] = useState(false)
   const [showTableBillDialog, setShowTableBillDialog] = useState(false)
   const [selectedTableForActions, setSelectedTableForActions] = useState<Table | null>(null)
+  // Confirmation dialog state for close/pay/empty table
+  const [showCloseConfirm, setShowCloseConfirm] = useState(false)
+  const [closeConfirmAction, setCloseConfirmAction] = useState<{ tableId: string; markPaid: boolean } | null>(null)
   const [kitchenViewMode, setKitchenViewMode] = useState<'table' | 'dish'>('table')
   const [selectedKitchenCategories, setSelectedKitchenCategories] = useState<string[]>([])
   const [kitchenZoom, setKitchenZoom] = useState(1)
@@ -964,6 +968,12 @@ const RestaurantDashboard = ({ user, onLogout }: RestaurantDashboardProps) => {
   const getOpenSessionForTable = (tableId: string) =>
     sessions?.find(s => s.table_id === tableId && s.status === 'OPEN')
 
+  // Wrapper that shows confirmation before closing
+  const requestCloseTable = (tableId: string, markPaid: boolean) => {
+    setCloseConfirmAction({ tableId, markPaid })
+    setShowCloseConfirm(true)
+  }
+
   const handleCloseTable = async (tableId: string, markPaid: boolean) => {
     const openSession = getOpenSessionForTable(tableId)
     if (openSession) {
@@ -1006,6 +1016,7 @@ const RestaurantDashboard = ({ user, onLogout }: RestaurantDashboardProps) => {
     const isCopertoEnabled = copertoEnabled && (price || 0) > 0
 
     if (!isAyceEnabled && !isCopertoEnabled) {
+      setPendingAutoOrderTableId(tableId)
       handleActivateTable(tableId, 1)
     } else {
       setTableCopertoOverride(isCopertoEnabled)
@@ -1042,7 +1053,7 @@ const RestaurantDashboard = ({ user, onLogout }: RestaurantDashboardProps) => {
         toast.success('Tavolo attivato')
       }
       setCustomerCount('')
-      setSelectedTable({ ...tableToUpdate })
+      setSelectedTable(null)
       setCurrentSessionPin(session.session_pin || '')
       refreshSessions()
       setShowTableDialog(false)
@@ -1512,9 +1523,13 @@ const RestaurantDashboard = ({ user, onLogout }: RestaurantDashboardProps) => {
             exit={{ opacity: 0, x: -20 }}
             transition={{ type: "spring", stiffness: 300, damping: 30 }}
             onClick={() => setIsSidebarOpen(true)}
-            className="fixed top-6 left-6 z-50 p-2.5 bg-zinc-950/80 backdrop-blur-md border border-white/10 rounded-xl text-zinc-400 hover:text-amber-500 hover:border-amber-500/30 shadow-2xl shadow-black/80 transition-all hover:scale-105"
+            className="fixed top-6 left-6 z-50 flex items-center gap-2 px-3 py-2.5 bg-zinc-950/90 backdrop-blur-md border border-white/10 rounded-xl text-zinc-400 hover:text-amber-500 hover:border-amber-500/30 shadow-2xl shadow-black/80 transition-all hover:scale-105"
+            title="Apri Menu Navigazione"
           >
-            <List size={24} weight="regular" />
+            <List size={22} weight="regular" />
+            <span className="text-xs font-medium tracking-wide hidden sm:inline">
+              {({ orders: 'Ordini', tables: 'Tavoli', menu: 'Menu', reservations: 'Prenotazioni', analytics: 'Analitiche', settings: 'Impostazioni' } as Record<string, string>)[activeTab] || 'Menu'}
+            </span>
           </motion.button>
         )}
       </AnimatePresence>
@@ -2295,10 +2310,11 @@ const RestaurantDashboard = ({ user, onLogout }: RestaurantDashboardProps) => {
                               return
                             }
                             if (isActive) {
-                              setPendingAutoOrderTableId(table.id)
-                              handleToggleTable(table.id)
+                              // For active tables: show management dialog instead of deactivating
+                              setSelectedTableForActions(table)
+                              setShowTableBillDialog(true)
                             } else {
-                              setPendingAutoOrderTableId(table.id)
+                              // For free tables: activate them
                               handleToggleTable(table.id)
                             }
                           }}
@@ -2895,6 +2911,7 @@ const RestaurantDashboard = ({ user, onLogout }: RestaurantDashboardProps) => {
                   refreshBookings()
                   refreshSessions()
                 }}
+                onDateChange={(date) => setSelectedReservationDate(date)}
                 reservationDuration={reservationDuration} // Pass duration here
               />
             </TabsContent >
@@ -3021,6 +3038,7 @@ const RestaurantDashboard = ({ user, onLogout }: RestaurantDashboardProps) => {
             if (!open) {
               setSelectedTable(null);
               setShowTableDialog(false);
+              setPendingAutoOrderTableId(null);
               // Reset overrides for next time
               setTableAyceOverride(true);
               setTableCopertoOverride(true);
@@ -3534,6 +3552,39 @@ const RestaurantDashboard = ({ user, onLogout }: RestaurantDashboardProps) => {
             </DialogContent>
           </Dialog>
 
+          {/* Confirmation Dialog for Close/Pay/Empty */}
+          <AlertDialog open={showCloseConfirm} onOpenChange={setShowCloseConfirm}>
+            <AlertDialogContent className="bg-zinc-950 border-zinc-800 text-white">
+              <AlertDialogHeader>
+                <AlertDialogTitle className="text-xl font-bold">
+                  {closeConfirmAction?.markPaid ? '💳 Conferma Pagamento' : '🗑️ Conferma Liberazione'}
+                </AlertDialogTitle>
+                <AlertDialogDescription className="text-zinc-400">
+                  {closeConfirmAction?.markPaid
+                    ? `Vuoi segnare il tavolo ${tables?.find(t => t.id === closeConfirmAction?.tableId)?.number || ''} come pagato e liberarlo?`
+                    : `Vuoi svuotare e liberare il tavolo ${tables?.find(t => t.id === closeConfirmAction?.tableId)?.number || ''}? Gli ordini attivi verranno annullati.`}
+                </AlertDialogDescription>
+              </AlertDialogHeader>
+              <AlertDialogFooter>
+                <AlertDialogCancel className="border-zinc-700 text-zinc-400 hover:bg-zinc-900 hover:text-white">Annulla</AlertDialogCancel>
+                <AlertDialogAction
+                  className={closeConfirmAction?.markPaid
+                    ? 'bg-amber-500 hover:bg-amber-400 text-black font-bold'
+                    : 'bg-red-600 hover:bg-red-500 text-white font-bold'}
+                  onClick={() => {
+                    if (closeConfirmAction) {
+                      handleCloseTable(closeConfirmAction.tableId, closeConfirmAction.markPaid)
+                    }
+                    setShowCloseConfirm(false)
+                    setCloseConfirmAction(null)
+                  }}
+                >
+                  {closeConfirmAction?.markPaid ? 'Segna come Pagato' : 'Libera Tavolo'}
+                </AlertDialogAction>
+              </AlertDialogFooter>
+            </AlertDialogContent>
+          </AlertDialog>
+
           <TableBillDialog
             isOpen={showTableBillDialog}
             onClose={() => setShowTableBillDialog(false)}
@@ -3542,11 +3593,11 @@ const RestaurantDashboard = ({ user, onLogout }: RestaurantDashboardProps) => {
             orders={orders.filter(o => o.table_session_id === (sessions?.find(s => s.table_id === selectedTableForActions?.id && s.status === 'OPEN')?.id))}
             restaurant={currentRestaurant || null}
             onPaymentComplete={() => {
-              if (selectedTableForActions) handleCloseTable(selectedTableForActions.id, true)
+              if (selectedTableForActions) requestCloseTable(selectedTableForActions.id, true)
               setShowTableBillDialog(false)
             }}
             onEmptyTable={() => {
-              if (selectedTableForActions) handleCloseTable(selectedTableForActions.id, false)
+              if (selectedTableForActions) requestCloseTable(selectedTableForActions.id, false)
               setShowTableBillDialog(false)
             }}
             isWaiter={false}

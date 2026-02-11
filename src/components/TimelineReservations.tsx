@@ -24,6 +24,7 @@ interface TimelineReservationsProps {
   onRefresh?: () => void
   onEditBooking?: (booking: Booking) => void
   onDeleteBooking?: (bookingId: string) => void
+  onDateChange?: (date: Date) => void
 }
 
 interface TimeSlot {
@@ -41,7 +42,7 @@ interface ReservationBlock {
 
 const COLORS = ['#C9A152', '#8B7355', '#F4E6D1', '#E8C547', '#D4B366', '#A68B5B', '#F0D86F', '#C09853']
 
-export default function TimelineReservations({ user, restaurantId, tables, bookings, selectedDate, openingTime = '10:00', closingTime = '23:00', reservationDuration = 120, onRefresh, onEditBooking, onDeleteBooking }: TimelineReservationsProps) {
+export default function TimelineReservations({ user, restaurantId, tables, bookings, selectedDate, openingTime = '10:00', closingTime = '23:00', reservationDuration = 120, onRefresh, onEditBooking, onDeleteBooking, onDateChange }: TimelineReservationsProps) {
   const [showReservationDialog, setShowReservationDialog] = useState(false)
   const [selectedTimeSlot, setSelectedTimeSlot] = useState<{ tableId: string, time: string } | null>(null)
   const [draggedBookingId, setDraggedBookingId] = useState<string | null>(null)
@@ -734,6 +735,36 @@ export default function TimelineReservations({ user, restaurantId, tables, booki
           </DialogHeader>
           <div className="space-y-4 py-4">
             <div className="grid gap-4 md:grid-cols-2">
+              <div className="space-y-2">
+                <Label htmlFor="search-date">Data</Label>
+                <Input
+                  id="search-date"
+                  type="date"
+                  value={selectedDate}
+                  onChange={(e) => {
+                    const newDate = new Date(e.target.value)
+                    if (!isNaN(newDate.getTime()) && onDateChange) {
+                      onDateChange(newDate)
+                      setAvailableTables([]) // Reset results when date changes
+                    }
+                  }}
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="search-date">Data</Label>
+                <Input
+                  id="search-date"
+                  type="date"
+                  value={selectedDate}
+                  onChange={(e) => {
+                    const newDate = new Date(e.target.value)
+                    if (!isNaN(newDate.getTime()) && onDateChange) {
+                      onDateChange(newDate)
+                      setAvailableTables([]) // Reset results when date changes
+                    }
+                  }}
+                />
+              </div>
               <div className="space-y-2">
                 <Label htmlFor="search-time">Orario</Label>
                 <Input

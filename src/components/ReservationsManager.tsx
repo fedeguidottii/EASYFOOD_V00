@@ -33,11 +33,12 @@ interface ReservationsManagerProps {
   closingTime?: string
   reservationDuration?: number
   onRefresh?: () => void
+  onDateChange?: (date: Date) => void
 }
 
 import { generatePdfFromElement } from '../utils/pdfUtils'
 
-export default function ReservationsManager({ user, restaurantId, tables, rooms, bookings, selectedDate, openingTime = '10:00', closingTime = '23:00', reservationDuration = 120, onRefresh }: ReservationsManagerProps) {
+export default function ReservationsManager({ user, restaurantId, tables, rooms, bookings, selectedDate, openingTime = '10:00', closingTime = '23:00', reservationDuration = 120, onRefresh, onDateChange }: ReservationsManagerProps) {
   const [selectedBooking, setSelectedBooking] = useState<Booking | null>(null)
   const [selectedRoomId, setSelectedRoomId] = useState<string>('all')
   const [showEditDialog, setShowEditDialog] = useState(false)
@@ -607,6 +608,7 @@ export default function ReservationsManager({ user, restaurantId, tables, rooms,
             closingTime={closingTime}
             reservationDuration={reservationDuration}
             onRefresh={onRefresh}
+            onDateChange={onDateChange}
             onEditBooking={handleEditBooking}
             onDeleteBooking={handleDeleteBooking}
           />
