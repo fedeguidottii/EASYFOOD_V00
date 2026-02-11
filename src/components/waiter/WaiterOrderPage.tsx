@@ -4,7 +4,7 @@ import { supabase } from '../../lib/supabase'
 import { DatabaseService } from '../../services/DatabaseService'
 import { Table, Dish, Category, Restaurant } from '../../services/types'
 import { toast } from 'sonner'
-import { ArrowLeft, MagnifyingGlass, Plus, Minus, Trash, ShoppingCart, Info, CaretDown, CaretUp, CheckCircle, Warning, PencilSimple } from '@phosphor-icons/react'
+import { ArrowLeft, MagnifyingGlass, Plus, Minus, Trash, ShoppingCart, Info, CaretDown, CaretUp, CheckCircle, Warning, PencilSimple, PaperPlaneRight, Check } from '@phosphor-icons/react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Textarea } from '@/components/ui/textarea'
@@ -12,11 +12,13 @@ import { Badge } from '@/components/ui/badge'
 import { ScrollArea, ScrollBar } from '@/components/ui/scroll-area'
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger, SheetFooter } from "@/components/ui/sheet"
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '@/components/ui/dialog'
+import { AlertDialog, AlertDialogContent, AlertDialogHeader, AlertDialogTitle, AlertDialogDescription, AlertDialogFooter, AlertDialogCancel, AlertDialogAction } from "@/components/ui/alert-dialog"
 import { VisuallyHidden } from '@radix-ui/react-visually-hidden'
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs"
 import { DropdownMenu, DropdownMenuTrigger, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel } from "@/components/ui/dropdown-menu"
 import { DishPlaceholder } from '@/components/ui/DishPlaceholder'
 import { motion, AnimatePresence } from 'framer-motion'
+import { getCurrentCopertoPrice } from '../../utils/pricingUtils'
 
 interface OrderItem {
     dishId: string
@@ -42,6 +44,10 @@ const WaiterOrderPage = () => {
     const [activeCourse, setActiveCourse] = useState(1)
     const [isCartOpen, setIsCartOpen] = useState(false)
     const [submitting, setSubmitting] = useState(false)
+
+    // Confirmation Dialog State
+    const [showConfirmDialog, setShowConfirmDialog] = useState(false)
+    const [confirmActionType, setConfirmActionType] = useState<'standard' | 'delivered'>('standard')
 
     // Refs for scrolling
     const categoryScrollRef = useRef<HTMLDivElement>(null)
@@ -137,10 +143,19 @@ const WaiterOrderPage = () => {
         setOrderItems(prev => prev.map((item, i) => i === index ? { ...item, courseNumber: courseNum } : item))
     }
 
-    // Submit Order
-    const handleSubmit = async () => {
+    // Submit Order Handling
+    const handlePreSubmit = (type: 'standard' | 'delivered') => {
+        if (orderItems.length === 0) return
+        setConfirmActionType(type)
+        setShowConfirmDialog(true)
+    }
+
+    const processOrderSubmission = async () => {
         if (orderItems.length === 0) return
         if (!table || !restaurant) return
+
+        setShowConfirmDialog(false)
+        const isDelivered = confirmActionType === 'delivered'
 
         try {
             setSubmitting(true)
@@ -150,18 +165,22 @@ const WaiterOrderPage = () => {
             let sessionId = activeSession?.id
 
             if (!sessionId) {
-                // Determine cover charge
-                const dayOfWeek = new Date().toLocaleDateString('en-US', { weekday: 'long' }).toLowerCase()
+                // Determine cover charge using utility to respect weekly schedule
+                const copertoInfo = getCurrentCopertoPrice(
+                    restaurant,
+                    restaurant.lunch_time_start || '12:00',
+                    restaurant.dinner_time_start || '19:00'
+                )
 
-                // We'll use simple defaults if complex pricing logic isn't easily reusable without importing large utils
-                const baseCover = restaurant.cover_charge_per_person || 0
-
-                // Create session with minimal required data
+                // Create session with minimal required data AND correct flags
                 const newSession = await DatabaseService.createSession({
                     table_id: table.id,
                     restaurant_id: restaurant.id,
-                    coperto: baseCover,
-                    customer_count: table.seats || 2 // Default if unknown
+                    coperto: copertoInfo.price, // Use calculated price
+                    customer_count: table.seats || 2, // Default if unknown
+                    status: 'OPEN',
+                    coperto_enabled: true, // Default enabled for waiter sessions
+                    ayce_enabled: false // Default disabled for waiter sessions (can be changed in table detail usually)
                 })
 
                 if (!newSession) throw new Error("Errore creazione sessione")
@@ -175,13 +194,19 @@ const WaiterOrderPage = () => {
                 const itemsInCourse = orderItems.filter(i => i.courseNumber === courseNum)
                 const totalAmount = itemsInCourse.reduce((sum, item) => sum + ((item.dish?.price || 0) * item.quantity), 0)
 
-                // Create Order - Use 'OPEN' status which is standard
+                // Determine Statuses
+                // Standard: Order=OPEN, Items=PENDING
+                // Delivered: Order=COMPLETED, Items=SERVED
+                const orderStatus = isDelivered ? 'completed' : 'OPEN'
+                const itemStatus = isDelivered ? 'SERVED' : 'PENDING'
+
+                // Create Order
                 const { data: orderData, error: orderError } = await supabase
                     .from('orders')
                     .insert({
                         table_session_id: sessionId,
                         restaurant_id: restaurant.id,
-                        status: 'OPEN', // Changed from 'pending' to 'OPEN'
+                        status: orderStatus,
                         total_amount: totalAmount
                     })
                     .select()
@@ -195,7 +220,7 @@ const WaiterOrderPage = () => {
                     dish_id: item.dishId,
                     quantity: item.quantity,
                     note: item.notes || null,
-                    status: 'PENDING', // Changed from 'pending' to 'PENDING'
+                    status: itemStatus,
                     course_number: courseNum,
                 }))
 
@@ -206,7 +231,7 @@ const WaiterOrderPage = () => {
                 if (itemsError) throw itemsError
             }
 
-            toast.success('Ordine inviato con successo!')
+            toast.success(isDelivered ? 'Ordine segnato come consegnato!' : 'Ordine inviato in cucina!')
             navigate('/waiter') // Return to dashboard
 
         } catch (error) {
@@ -239,7 +264,6 @@ const WaiterOrderPage = () => {
         setOrderItems(prev => {
             if (detailNotes) {
                 // Items with notes are ALWAYS added as separate entries
-                // Check if there's already an item with the exact same notes
                 const exactMatch = prev.find(i =>
                     i.dishId === selectedDishForDetail.id &&
                     i.courseNumber === activeCourse &&
@@ -248,7 +272,6 @@ const WaiterOrderPage = () => {
                 if (exactMatch) {
                     return prev.map(i => i === exactMatch ? { ...i, quantity: i.quantity + detailQuantity } : i)
                 }
-                // Add as new separate item with notes
                 return [...prev, {
                     dishId: selectedDishForDetail.id,
                     quantity: detailQuantity,
@@ -475,7 +498,6 @@ const WaiterOrderPage = () => {
                                     <span>€{totalAmount.toFixed(2)}</span>
                                 </Button>
                             </SheetTrigger>
-                            {/* FIX: max-h-[90dvh] for better mobile support, overflow-hidden to let ScrollArea handle scroll */}
                             <SheetContent side="bottom" className="max-h-[90dvh] h-[90dvh] bg-zinc-950 border-t border-zinc-800 p-0 flex flex-col rounded-t-[2rem] overflow-hidden">
                                 <SheetHeader className="p-6 pb-2 border-b border-white/5 bg-zinc-900/50 shrink-0">
                                     <SheetTitle className="text-xl text-white flex items-center gap-2">
@@ -579,20 +601,31 @@ const WaiterOrderPage = () => {
                                     )}
                                 </ScrollArea>
 
-                                {/* Fixed Footer */}
+                                {/* Fixed Footer Actions */}
                                 <div className="p-4 bg-zinc-900 border-t border-white/5 space-y-3 pb-8 md:pb-6">
-                                    {/* Increased bottom padding for mobile safe area */}
                                     <div className="flex justify-between items-center text-lg font-bold text-white">
                                         <span>Totale</span>
                                         <span className="text-amber-500 text-2xl">€{totalAmount.toFixed(2)}</span>
                                     </div>
-                                    <Button
-                                        className="w-full h-12 bg-amber-500 hover:bg-amber-400 text-black font-bold rounded-xl text-lg shadow-lg shadow-amber-500/20"
-                                        onClick={handleSubmit}
-                                        disabled={submitting}
-                                    >
-                                        {submitting ? 'Invio in corso...' : 'Invia Ordine in Cucina'}
-                                    </Button>
+                                    <div className="grid grid-cols-1 gap-2">
+                                        <Button
+                                            className="w-full h-12 bg-amber-500 hover:bg-amber-400 text-black font-bold rounded-xl text-lg shadow-lg shadow-amber-500/20"
+                                            onClick={() => handlePreSubmit('standard')}
+                                            disabled={submitting}
+                                        >
+                                            <PaperPlaneRight size={20} weight="fill" className="mr-2" />
+                                            Invia in Cucina
+                                        </Button>
+                                        <Button
+                                            variant="outline"
+                                            className="w-full h-12 border-zinc-700 text-zinc-300 hover:text-white hover:bg-zinc-800 rounded-xl"
+                                            onClick={() => handlePreSubmit('delivered')}
+                                            disabled={submitting}
+                                        >
+                                            <CheckCircle size={20} weight="fill" className="mr-2 text-green-500" />
+                                            Segna come Già Consegnato
+                                        </Button>
+                                    </div>
                                     <div className="h-4 md:hidden" /> {/* Spacer for iOS Home Bar */}
                                 </div>
                             </SheetContent>
@@ -600,6 +633,37 @@ const WaiterOrderPage = () => {
                     </motion.div>
                 )}
             </AnimatePresence>
+
+            {/* Confirmation Alert Dialog */}
+            <AlertDialog open={showConfirmDialog} onOpenChange={setShowConfirmDialog}>
+                <AlertDialogContent className="bg-zinc-900 border-zinc-800 text-white rounded-2xl w-[90vw] max-w-sm">
+                    <AlertDialogHeader>
+                        <AlertDialogTitle>
+                            {confirmActionType === 'standard' ? 'Inviare ordine in cucina?' : 'Confermare ordine consegnato?'}
+                        </AlertDialogTitle>
+                        <AlertDialogDescription className="text-zinc-400">
+                            {confirmActionType === 'standard'
+                                ? 'I piatti verranno stampati in cucina e appariranno nel monitor.'
+                                : 'L\'ordine verrà creato come "Completato" e non apparirà nel monitor cucina. Utile per cose già portate al tavolo.'
+                            }
+                        </AlertDialogDescription>
+                    </AlertDialogHeader>
+                    <AlertDialogFooter>
+                        <AlertDialogCancel className="bg-zinc-800 border-zinc-700 hover:bg-zinc-700 hover:text-white text-zinc-300 rounded-lg">
+                            Annulla
+                        </AlertDialogCancel>
+                        <AlertDialogAction
+                            onClick={processOrderSubmission}
+                            className={`rounded-lg font-bold text-black ${confirmActionType === 'standard'
+                                    ? 'bg-amber-500 hover:bg-amber-400'
+                                    : 'bg-green-500 hover:bg-green-400'
+                                }`}
+                        >
+                            {confirmActionType === 'standard' ? 'Invia Ordine' : 'Conferma Pronta Consegna'}
+                        </AlertDialogAction>
+                    </AlertDialogFooter>
+                </AlertDialogContent>
+            </AlertDialog>
 
             {/* Dish Detail Dialog */}
             <Dialog open={!!selectedDishForDetail} onOpenChange={(open) => !open && setSelectedDishForDetail(null)}>

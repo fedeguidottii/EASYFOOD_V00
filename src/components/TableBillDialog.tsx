@@ -8,6 +8,7 @@ import { Order, Table, TableSession, Restaurant, OrderItem, Dish } from '../serv
 import { DatabaseService } from '../services/DatabaseService'
 import { toast } from 'sonner'
 import { supabase } from '../lib/supabase'
+import { getCurrentCopertoPrice, getCurrentAyceSettings } from '../utils/pricingUtils'
 
 interface TableBillDialogProps {
     isOpen: boolean
@@ -19,6 +20,18 @@ interface TableBillDialogProps {
     onPaymentComplete: () => void
     onEmptyTable?: () => void
     isWaiter?: boolean
+}
+
+interface SplitItem {
+    id: string
+    name: string
+    price: number
+    quantity: number // Always 1 for split items
+    status: string
+    isVirtual?: boolean
+    originalId?: string // Link to original item if this is a split part
+    originalItem?: any
+    dish?: Dish
 }
 
 export default function TableBillDialog({
@@ -49,387 +62,361 @@ export default function TableBillDialog({
     const [processingPayment, setProcessingPayment] = useState(false)
     const [equalSplitMode, setEqualSplitMode] = useState(false)
 
-    // Calculate Virtual Items (Coperto)
+    // Calculate Pricing Settings (Coperto & AYCE)
+    const pricingSettings = useMemo(() => {
+        if (!restaurant) return { copertoPrice: 0, aycePrice: 0 }
+
+        const lunchStart = restaurant.lunch_time_start || '12:00'
+        const dinnerStart = restaurant.dinner_time_start || '19:00'
+
+        const coperto = getCurrentCopertoPrice(restaurant, lunchStart, dinnerStart)
+        const ayce = getCurrentAyceSettings(restaurant, lunchStart, dinnerStart)
+
+        return {
+            copertoPrice: coperto.price,
+            aycePrice: ayce.price
+        }
+    }, [restaurant])
+
+    // Calculate Virtual Items (Coperto & AYCE Cover)
     const virtualItems = useMemo(() => {
-        const items: any[] = []
-        const copertoPrice = restaurant?.cover_charge_per_person || restaurant?.coverChargePerPerson || 0
-        if (session && copertoPrice > 0) {
-            for (let i = 0; i < (session.customer_count || 0); i++) {
+        const items: SplitItem[] = []
+        if (!session || !restaurant) return items
+
+        const customerCount = session.customer_count || 0
+
+        // 1. Coperto Items
+        // Check session flag first (default true if undefined), then pricing enabled check
+        const isCopertoEnabled = session.coperto_enabled !== false // Default true
+        if (isCopertoEnabled && pricingSettings.copertoPrice > 0) {
+            for (let i = 0; i < customerCount; i++) {
                 items.push({
                     id: `coperto-${session.id}-${i}`,
                     name: 'Coperto',
-                    price: copertoPrice,
+                    price: pricingSettings.copertoPrice,
                     quantity: 1,
                     status: 'SERVED',
                     isVirtual: true
                 })
             }
         }
-        return items
-    }, [session, restaurant])
 
-    // Combine Real Orders + Virtual Items (exclude PAID items)
-    const splitPayableItems = useMemo(() => {
-        let allItems: any[] = []
+        // 2. All You Can Eat Items (Per Person Charge)
+        const isAyceEnabled = session.ayce_enabled === true
+        if (isAyceEnabled && pricingSettings.aycePrice > 0) {
+            for (let i = 0; i < customerCount; i++) {
+                items.push({
+                    id: `ayce-cover-${session.id}-${i}`,
+                    name: 'All You Can Eat',
+                    price: pricingSettings.aycePrice,
+                    quantity: 1,
+                    status: 'SERVED',
+                    isVirtual: true
+                })
+            }
+        }
+
+        return items
+    }, [session, restaurant, pricingSettings])
+
+
+    // Flatten Real Items (Handle AYCE price overrides + Expand Quantity > 1 for splitting)
+    const realItemsExpanded = useMemo(() => {
+        let items: SplitItem[] = []
+        const isAyceEnabled = session?.ayce_enabled === true
+
         orders.forEach(order => {
             if (order.items) {
                 order.items.forEach((item: any) => {
-                    // Exclude cancelled AND paid items
-                    if (item.status !== 'CANCELLED' && item.status !== 'PAID' && !paidItemIds.has(item.id)) {
-                        allItems.push({
-                            ...item,
-                            price: item.dish?.price || item.price || 0,
+                    // Skip finished items
+                    if (item.status === 'CANCELLED' || item.status === 'PAID' || paidItemIds.has(item.id)) return
+
+                    // Determine effective price
+                    let price = item.dish?.price || item.price || 0
+
+                    // If AYCE session AND dish is included in AYCE, price is 0
+                    if (isAyceEnabled && item.dish?.is_ayce) {
+                        price = 0
+                    }
+
+                    // For display/logic: Expand quantity into individual items
+                    // e.g. "Coca Cola x3" -> 3 separate "Coca Cola" lines
+                    const qty = item.quantity || 1
+                    for (let i = 0; i < qty; i++) {
+                        items.push({
+                            id: `${item.id}-split-${i}`, // Virtual split ID
+                            originalId: item.id,      // Reference to real DB item
+                            originalItem: item,
                             name: item.dish?.name || item.name || 'Piatto',
-                            originalOrder: order
+                            price: price,
+                            quantity: 1, // Normalized to 1
+                            status: item.status,
+                            dish: item.dish
                         })
                     }
                 })
             }
         })
-        return [...allItems, ...virtualItems]
-    }, [orders, virtualItems, paidItemIds])
+        return items
+    }, [orders, session, paidItemIds])
 
-    // Group real items by order for display (exclude PAID items)
-    const orderGroups = useMemo(() => {
-        const groups: { order: Order; items: any[] }[] = []
-        orders.forEach(order => {
-            const orderItems = (order.items || [])
-                .filter((item: any) => item.status !== 'CANCELLED' && item.status !== 'PAID' && !paidItemIds.has(item.id))
-                .map((item: any) => ({
-                    ...item,
-                    price: item.dish?.price || item.price || 0,
-                    name: item.dish?.name || item.name || 'Piatto',
-                }))
-            if (orderItems.length > 0) {
-                groups.push({ order, items: orderItems })
-            }
-        })
-        return groups
-    }, [orders, paidItemIds])
+    // Specific list for display in "Split" view
+    // (In normal view we show totals, in split view we show the expanded list)
+    const splitPayableItems = useMemo(() => {
+        // Filter out items already in paidItemIds (handled in loop above mostly, but double check virtuals)
+        const virt = virtualItems.filter(i => !paidItemIds.has(i.id))
+        return [...realItemsExpanded, ...virt]
+    }, [realItemsExpanded, virtualItems, paidItemIds])
 
-    // Calculate Totals
+
+    // Calculate Total Amount (Full Bill)
     const totalAmount = useMemo(() => {
-        return splitPayableItems.reduce((acc, item) => acc + ((item.price || 0) * (item.quantity || 1)), 0)
+        return splitPayableItems.reduce((acc, item) => acc + item.price, 0)
     }, [splitPayableItems])
 
-    const foodTotal = useMemo(() => {
-        return splitPayableItems
-            .filter(i => !i.isVirtual)
-            .reduce((acc, item) => acc + ((item.price || 0) * (item.quantity || 1)), 0)
-    }, [splitPayableItems])
 
-    const copertoTotal = useMemo(() => {
-        return virtualItems.reduce((acc, item) => acc + ((item.price || 0) * (item.quantity || 1)), 0)
-    }, [virtualItems])
+    const perPersonAmount = useMemo(() => {
+        const count = Math.max(1, session?.customer_count || 1)
+        return totalAmount / count
+    }, [totalAmount, session])
 
-    const splitTotal = useMemo(() => {
-        let total = 0
-        splitPayableItems.forEach(item => {
-            if (selectedSplitItems.has(item.id)) {
-                total += ((item.price || 0) * (item.quantity || 1))
-            }
-        })
-        return total
-    }, [splitPayableItems, selectedSplitItems])
 
-    // Handle Split Payment
+    // Handle Split Payment Logic
     const handlePaySplit = async () => {
         if (selectedSplitItems.size === 0) return
         setProcessingPayment(true)
+
         try {
+            // Check if paying everything
             if (selectedSplitItems.size === splitPayableItems.length) {
-                // All items selected = full payment
                 onPaymentComplete()
-            } else {
-                // Partial payment: mark selected real items as PAID in DB
-                const realItemIds = Array.from(selectedSplitItems).filter(id => !id.startsWith('coperto-'))
-                for (const itemId of realItemIds) {
-                    await supabase
+                return
+            }
+
+            // Group selected non-virtual items by their Original DB ID
+            // key: originalId, value: count of splits selected
+            const selectedRealGroups = new Map<string, number>()
+            const virtualIdsToHide: string[] = []
+
+            selectedSplitItems.forEach(splitId => {
+                const item = splitPayableItems.find(i => i.id === splitId)
+                if (!item) return
+
+                if (item.isVirtual) {
+                    virtualIdsToHide.push(splitId)
+                } else if (item.originalId) {
+                    const current = selectedRealGroups.get(item.originalId) || 0
+                    selectedRealGroups.set(item.originalId, current + 1)
+                }
+            })
+
+            // Process Database Updates
+            for (const [originalId, countToPay] of selectedRealGroups.entries()) {
+                const itemWrapper = realItemsExpanded.find(i => i.originalId === originalId)
+                if (!itemWrapper || !itemWrapper.originalItem) continue
+
+                const originalItem = itemWrapper.originalItem
+                const currentQty = originalItem.quantity
+
+                if (countToPay >= currentQty) {
+                    // Paying the Full quantity of this item row -> Mark entire row PAID
+                    const { error } = await supabase
                         .from('order_items')
                         .update({ status: 'PAID' })
-                        .eq('id', itemId)
+                        .eq('id', originalId)
+                    if (error) throw error
+                } else {
+                    // Partial payment of a quantity row (e.g. paying 1 of 3 beers)
+                    // 1. Decrement original row
+                    const { error: updateError } = await supabase
+                        .from('order_items')
+                        .update({ quantity: currentQty - countToPay })
+                        .eq('id', originalId)
+
+                    if (updateError) throw updateError
+
+                    // 2. Insert new row for paid items
+                    const { error: insertError } = await supabase
+                        .from('order_items')
+                        .insert({
+                            ...originalItem,
+                            id: undefined, // Let DB generate new ID
+                            created_at: undefined,
+                            quantity: countToPay,
+                            status: 'PAID',
+                            // Ensure foreign keys strictly if needed, usually ...originalItem covers it
+                            order_id: originalItem.order_id,
+                            dish_id: originalItem.dish_id,
+                            course_number: originalItem.course_number,
+                            note: originalItem.note
+                        })
+
+                    if (insertError) throw insertError
                 }
-
-                // Immediately hide paid items from UI
-                setPaidItemIds(prev => {
-                    const newSet = new Set(prev)
-                    realItemIds.forEach(id => newSet.add(id))
-                    // Also hide virtual items (coperto) from selection
-                    Array.from(selectedSplitItems).filter(id => id.startsWith('coperto-')).forEach(id => newSet.add(id))
-                    return newSet
-                })
-
-                toast.success(`Pagamento parziale di €${splitTotal.toFixed(2)} registrato`)
-                setIsSplitMode(false)
-                setSelectedSplitItems(new Set())
             }
+
+            // Update UI State locally to reflect changes immediately
+            // For virtual items: just add to paidItemIds
+            // For real items: The `orders` prop might take a moment to refresh via subscription.
+            // To be instant, we hide the specific Split IDs we acted on.
+            // HOWEVER: Since we modified the DB rows (decrement quantity), the `orders` refresh will eventually come.
+            // But immediate feedback is nice.
+
+            setPaidItemIds(prev => {
+                const newSet = new Set(prev)
+                // Hide virtuals
+                virtualIdsToHide.forEach(id => newSet.add(id))
+
+                // Hide real split items
+                // We just hide the *specific split IDs* we selected.
+                // Since `realItemsExpanded` is re-calculated from `orders`, 
+                // when `orders` updates (qty decreases), the number of splits will decrease automatically.
+                // But until then, we hide the ones we clicked.
+                selectedSplitItems.forEach(id => newSet.add(id))
+                return newSet
+            })
+
+            const totalPaid = Array.from(selectedSplitItems).reduce((sum, id) => {
+                const item = splitPayableItems.find(i => i.id === id)
+                return sum + (item?.price || 0)
+            }, 0)
+
+            toast.success(`Pagamento parziale di €${totalPaid.toFixed(2)} registrato`)
+            setIsSplitMode(false)
+            setSelectedSplitItems(new Set())
+
         } catch (error) {
-            console.error(error)
+            console.error('Payment error:', error)
             toast.error('Errore durante il pagamento')
         } finally {
             setProcessingPayment(false)
         }
     }
-    const [manualPeopleCount, setManualPeopleCount] = useState<string>('')
 
-    const peopleCount = useMemo(() => {
-        if (manualPeopleCount) return parseInt(manualPeopleCount) || 1
-        return session?.customer_count || 1
-    }, [session, manualPeopleCount])
+    const { splitTotal } = useMemo(() => {
+        let total = 0
+        selectedSplitItems.forEach(id => {
+            const item = splitPayableItems.find(i => i.id === id)
+            if (item) total += item.price
+        })
+        return { splitTotal: total }
+    }, [selectedSplitItems, splitPayableItems])
 
-    const perPersonAmount = useMemo(() => {
-        return totalAmount / Math.max(1, peopleCount)
-    }, [totalAmount, peopleCount])
 
-    // Time since session opened
-    const sessionDuration = useMemo(() => {
-        if (!session?.opened_at) return null
-        const opened = new Date(session.opened_at)
-        const now = new Date()
-        const diffMs = now.getTime() - opened.getTime()
-        const hours = Math.floor(diffMs / (1000 * 60 * 60))
-        const minutes = Math.floor((diffMs % (1000 * 60 * 60)) / (1000 * 60))
-        if (hours > 0) return `${hours}h ${minutes}m`
-        return `${minutes}m`
-    }, [session, isOpen])
-
+    // Render Helper
     return (
         <Dialog open={isOpen} onOpenChange={(open) => !open && onClose()}>
             <DialogContent className="sm:max-w-lg w-[95vw] max-h-[90vh] overflow-hidden bg-zinc-950 border-zinc-800/50 text-zinc-100 p-0 rounded-3xl shadow-2xl shadow-black/50">
                 {/* Glow effects */}
                 <div className="absolute -top-20 -right-20 w-40 h-40 bg-amber-500/10 rounded-full blur-3xl pointer-events-none" />
-                <div className="absolute -bottom-20 -left-20 w-40 h-40 bg-amber-500/5 rounded-full blur-3xl pointer-events-none" />
+                <div className="absolute -bottom-20 -left-20 w-40 h-40 bg-blue-500/10 rounded-full blur-3xl pointer-events-none" />
 
-                {/* Header */}
-                <div className="relative p-6 pb-4 border-b border-white/5 bg-gradient-to-b from-zinc-900/80 to-transparent">
-                    <DialogHeader>
-                        <DialogTitle className="text-2xl font-bold text-white flex items-center gap-4">
-                            <div className="w-12 h-12 rounded-2xl bg-gradient-to-br from-amber-500 to-amber-600 flex items-center justify-center text-black shadow-lg shadow-amber-500/20">
-                                <Receipt size={24} weight="duotone" />
-                            </div>
-                            <div className="flex flex-col">
-                                <span className="text-white">Conto Tavolo</span>
-                                <span className="text-lg font-bold text-amber-500">#{table?.number}</span>
-                            </div>
+                <DialogHeader className="p-5 pb-0 relative z-10 flex flex-row items-center justify-between border-b border-white/5 space-y-0 text-left">
+                    <div>
+                        <DialogTitle className="text-xl font-medium tracking-tight flex items-center gap-2">
+                            <Receipt size={24} className="text-amber-500" />
+                            Conto Tavolo {table?.number}
                         </DialogTitle>
-                        <DialogDescription className="text-zinc-500 mt-2 flex items-center gap-4 flex-wrap">
-                            <span>
-                                {isSplitMode ? 'Seleziona i piatti da pagare separatamente.' :
-                                    equalSplitMode ? 'Dividi il conto equamente tra i commensali.' :
-                                        'Riepilogo completo degli ordini del tavolo.'}
-                            </span>
+                        <DialogDescription className="text-zinc-400 text-xs mt-1 font-mono">
+                            Sessione #{session?.session_pin} · {session?.customer_count || 0} Ospiti
                         </DialogDescription>
-                    </DialogHeader>
-
-                    {/* Session info chips */}
-                    <div className="flex items-center gap-2 mt-3 flex-wrap">
-                        {session?.customer_count && (
-                            <div className="flex items-center gap-1.5 px-2.5 py-1 bg-zinc-800/80 rounded-full text-[11px] text-zinc-400 font-medium">
-                                <Users size={12} weight="bold" />
-                                {session.customer_count} persone
-                            </div>
-                        )}
-                        {sessionDuration && (
-                            <div className="flex items-center gap-1.5 px-2.5 py-1 bg-zinc-800/80 rounded-full text-[11px] text-zinc-400 font-medium">
-                                <Clock size={12} weight="bold" />
-                                {sessionDuration}
-                            </div>
-                        )}
-                        <div className="flex items-center gap-1.5 px-2.5 py-1 bg-zinc-800/80 rounded-full text-[11px] text-zinc-400 font-medium">
-                            <ForkKnife size={12} weight="bold" />
-                            {splitPayableItems.filter(i => !i.isVirtual).length} piatti
-                        </div>
                     </div>
-                </div>
-
-                <div className="relative p-6 space-y-5 overflow-y-auto max-h-[calc(90vh-220px)]">
-                    {/* Total Display */}
-                    <div className="relative py-6 px-6 flex flex-col items-center justify-center rounded-2xl border border-white/10 bg-gradient-to-br from-zinc-900 via-zinc-900/80 to-zinc-950 overflow-hidden">
-                        <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_center,_var(--tw-gradient-stops))] from-amber-500/5 via-transparent to-transparent pointer-events-none" />
-
-                        <span className="relative text-xs font-bold text-zinc-500 uppercase tracking-[0.2em] mb-2">
-                            {isSplitMode ? 'Totale Selezionato' : equalSplitMode ? 'Quota a Persona' : 'Totale da Saldare'}
-                        </span>
-                        <div className="relative flex items-baseline gap-2">
-                            <span className="text-2xl font-bold text-amber-500">€</span>
-                            <span className="text-5xl font-black text-white tracking-tight tabular-nums">
-                                {isSplitMode ? splitTotal.toFixed(2) : equalSplitMode ? perPersonAmount.toFixed(2) : totalAmount.toFixed(2)}
-                            </span>
-                        </div>
-                        {equalSplitMode && (
-                            <span className="relative text-xs text-zinc-500 mt-2">
-                                Totale €{totalAmount.toFixed(2)} ÷ {peopleCount} = €{perPersonAmount.toFixed(2)}/persona
-                            </span>
-                        )}
-                        {/* Subtotal breakdown */}
-                        {!isSplitMode && !equalSplitMode && (foodTotal > 0 || copertoTotal > 0) && (
-                            <div className="relative flex items-center gap-4 mt-3">
-                                {foodTotal > 0 && (
-                                    <span className="text-[11px] text-zinc-500">
-                                        <ForkKnife size={10} weight="bold" className="inline mr-1" />
-                                        Piatti €{foodTotal.toFixed(2)}
-                                    </span>
-                                )}
-                                {copertoTotal > 0 && (
-                                    <span className="text-[11px] text-blue-400/70">
-                                        <Sparkle size={10} weight="fill" className="inline mr-1" />
-                                        Coperto €{copertoTotal.toFixed(2)}
-                                    </span>
-                                )}
-                            </div>
-                        )}
+                    <div className="h-10 w-10 rounded-full bg-zinc-900 border border-zinc-800 flex items-center justify-center">
+                        <span className="font-bold text-amber-500">{table?.number}</span>
                     </div>
+                </DialogHeader>
 
-                    {/* Items List - Main View (grouped by order) */}
+                <div className="flex-1 overflow-hidden relative z-10 bg-zinc-950/50 backdrop-blur-sm">
+                    {/* Main Bill View */}
                     {!isSplitMode && !equalSplitMode && (
-                        <div className="space-y-4">
-                            {/* Orders grouped by time */}
-                            {orderGroups.length > 0 && (
-                                <div className="space-y-3">
-                                    <div className="flex items-center justify-between">
-                                        <h3 className="text-xs font-bold text-zinc-500 uppercase tracking-widest flex items-center gap-2">
-                                            <ForkKnife size={14} weight="duotone" />
-                                            Dettaglio Ordini
-                                        </h3>
-                                        <Badge variant="outline" className="text-[10px] border-zinc-700 text-zinc-400">
-                                            {orders.length} {orders.length === 1 ? 'ordine' : 'ordini'}
-                                        </Badge>
-                                    </div>
+                        <div className="h-full flex flex-col p-5 space-y-6">
 
-                                    <div className="space-y-2">
-                                        {orderGroups.map((group, gIdx) => (
-                                            <div key={group.order.id || gIdx} className="rounded-2xl border border-white/5 bg-zinc-900/30 overflow-hidden">
-                                                {/* Order header with timestamp */}
-                                                <div className="flex items-center justify-between px-4 py-2 bg-zinc-800/30 border-b border-white/5">
-                                                    <div className="flex items-center gap-2">
-                                                        <Clock size={12} className="text-zinc-600" />
-                                                        <span className="text-[10px] text-zinc-500 font-medium">
-                                                            {group.order.created_at
-                                                                ? new Date(group.order.created_at).toLocaleTimeString('it-IT', { hour: '2-digit', minute: '2-digit' })
-                                                                : 'N/D'}
-                                                        </span>
+                            {/* Bill Preview Card */}
+                            <div className="bg-white text-zinc-900 p-6 rounded-sm shadow-xl font-mono text-sm relative overflow-hidden">
+                                {/* Paper texture effect */}
+                                <div className="absolute inset-0 bg-[url('https://www.transparenttextures.com/patterns/cream-paper.png')] opacity-20 pointer-events-none"></div>
+
+                                {/* Zigzag border top/bottom */}
+                                <div className="absolute top-0 left-0 right-0 h-1 bg-[linear-gradient(45deg,transparent_75%,#09090b_75%),linear-gradient(-45deg,transparent_75%,#09090b_75%)] bg-[length:10px_10px] transform rotate-180 opacity-10"></div>
+                                <div className="absolute bottom-0 left-0 right-0 h-1 bg-[linear-gradient(45deg,transparent_75%,#09090b_75%),linear-gradient(-45deg,transparent_75%,#09090b_75%)] bg-[length:10px_10px] opacity-10"></div>
+
+                                <div className="text-center mb-6 border-b border-black/10 pb-4">
+                                    <h3 className="font-bold text-xl uppercase tracking-widest">{restaurant?.name || 'EASYFOOD'}</h3>
+                                    <p className="text-xs text-zinc-500 mt-1">{new Date().toLocaleString('it-IT')}</p>
+                                </div>
+
+                                <ScrollArea className="h-[35vh] pr-4 -mr-4">
+                                    <div className="space-y-3">
+                                        {/* Items List - Compact for receipt view */}
+                                        {/* Group items by name/price for cleaner receipt unless they are separate in split mode */}
+                                        {(() => {
+                                            // Temporary grouping for receipt display
+                                            const displayGroups = new Map<string, { name: string, quantity: number, price: number, total: number }>()
+
+                                            splitPayableItems.forEach(item => {
+                                                const key = `${item.name}-${item.price}`
+                                                const existing = displayGroups.get(key)
+                                                if (existing) {
+                                                    existing.quantity += 1
+                                                    existing.total += item.price
+                                                } else {
+                                                    displayGroups.set(key, {
+                                                        name: item.name,
+                                                        quantity: 1,
+                                                        price: item.price,
+                                                        total: item.price
+                                                    })
+                                                }
+                                            })
+
+                                            return Array.from(displayGroups.entries()).map(([key, item]) => (
+                                                <div key={key} className="flex justify-between items-baseline">
+                                                    <div className="flex gap-2">
+                                                        <span className="font-bold opacity-70">{item.quantity}x</span>
+                                                        <span>{item.name}</span>
                                                     </div>
-                                                    <span className="text-[10px] text-zinc-600 font-medium">
-                                                        €{group.items.reduce((sum, i) => sum + (i.price || 0) * (i.quantity || 1), 0).toFixed(2)}
-                                                    </span>
+                                                    <span className="font-bold tabular-nums">€{item.total.toFixed(2)}</span>
                                                 </div>
-                                                {/* Items */}
-                                                <div className="divide-y divide-white/5">
-                                                    {group.items.map((item, idx) => (
-                                                        <div key={item.id || idx} className="flex justify-between items-center py-2.5 px-4 hover:bg-white/[0.02] transition-colors">
-                                                            <div className="flex items-center gap-3 min-w-0 flex-1">
-                                                                {item.quantity > 1 && (
-                                                                    <span className="flex-shrink-0 w-6 h-6 rounded-lg bg-amber-500/10 text-amber-500 text-xs font-bold flex items-center justify-center">
-                                                                        {item.quantity}
-                                                                    </span>
-                                                                )}
-                                                                <span className="text-sm font-medium text-zinc-200 truncate">
-                                                                    {item.name}
-                                                                </span>
-                                                            </div>
-                                                            <span className="text-sm font-bold text-zinc-300 tabular-nums flex-shrink-0 ml-4">
-                                                                €{((item.price || 0) * (item.quantity || 1)).toFixed(2)}
-                                                            </span>
-                                                        </div>
-                                                    ))}
-                                                </div>
-                                            </div>
-                                        ))}
-                                    </div>
-                                </div>
-                            )}
+                                            ))
+                                        })()}
 
-                            {/* Coperto section (separate) */}
-                            {virtualItems.length > 0 && (
-                                <div className="space-y-3">
-                                    <h3 className="text-xs font-bold text-blue-400/60 uppercase tracking-widest flex items-center gap-2">
-                                        <Sparkle size={14} weight="fill" />
-                                        Coperto
-                                    </h3>
-                                    <div className="rounded-2xl border border-blue-500/10 bg-blue-500/5 overflow-hidden">
-                                        <div className="flex justify-between items-center py-3 px-4">
-                                            <div className="flex items-center gap-3">
-                                                <span className="flex-shrink-0 w-6 h-6 rounded-lg bg-blue-500/10 text-blue-400 text-xs font-bold flex items-center justify-center">
-                                                    {virtualItems.length}
-                                                </span>
-                                                <div className="flex flex-col">
-                                                    <span className="text-sm font-medium text-zinc-200">Coperto</span>
-                                                    <span className="text-[10px] text-blue-400/60">€{(virtualItems[0]?.price || 0).toFixed(2)} × {virtualItems.length} persone</span>
-                                                </div>
-                                            </div>
-                                            <span className="text-sm font-bold text-blue-300 tabular-nums">
-                                                €{copertoTotal.toFixed(2)}
-                                            </span>
-                                        </div>
+                                        {splitPayableItems.length === 0 && (
+                                            <p className="text-center text-zinc-400 italic py-4">Tutto saldato per questo tavolo.</p>
+                                        )}
                                     </div>
-                                </div>
-                            )}
+                                </ScrollArea>
 
-                            {/* Empty state */}
-                            {splitPayableItems.length === 0 && (
-                                <div className="py-12 flex flex-col items-center justify-center text-zinc-600 rounded-2xl border border-white/5 bg-zinc-900/30">
-                                    <ForkKnife size={40} className="mb-3 opacity-30" />
-                                    <p className="text-sm">Nessun ordine da saldare</p>
-                                </div>
-                            )}
-                        </div>
-                    )}
-
-                    {/* Equal Split Controls */}
-                    {equalSplitMode && (
-                        <div className="space-y-4">
-                            <div className="p-5 rounded-2xl bg-zinc-900/50 border border-white/5 space-y-4">
-                                <label className="text-xs font-bold text-zinc-400 uppercase tracking-widest">Numero di Persone</label>
-                                <div className="flex items-center gap-3">
-                                    <Button
-                                        variant="outline"
-                                        size="icon"
-                                        className="h-12 w-12 rounded-xl border-zinc-700 bg-zinc-800 hover:bg-zinc-700"
-                                        onClick={() => setManualPeopleCount(Math.max(1, peopleCount - 1).toString())}
-                                    >
-                                        <Minus size={20} weight="bold" />
-                                    </Button>
-                                    <div className="flex-1 h-14 flex items-center justify-center bg-black/50 rounded-xl border border-zinc-700 font-mono text-3xl font-bold text-white">
-                                        {peopleCount}
+                                <div className="border-t-2 border-dashed border-black/10 mt-6 pt-4 space-y-2">
+                                    <div className="flex justify-between items-center text-xl font-bold">
+                                        <span>TOTALE</span>
+                                        <span>€{totalAmount.toFixed(2)}</span>
                                     </div>
-                                    <Button
-                                        variant="outline"
-                                        size="icon"
-                                        className="h-12 w-12 rounded-xl border-zinc-700 bg-zinc-800 hover:bg-zinc-700"
-                                        onClick={() => setManualPeopleCount((peopleCount + 1).toString())}
-                                    >
-                                        <Plus size={20} weight="bold" />
-                                    </Button>
                                 </div>
                             </div>
 
                             {/* Per-person breakdown */}
-                            <div className="rounded-2xl border border-amber-500/10 bg-amber-500/5 p-4">
-                                <div className="flex items-center justify-between">
-                                    <span className="text-xs text-zinc-400 font-medium">Totale conto</span>
-                                    <span className="text-sm font-bold text-zinc-300 tabular-nums">€{totalAmount.toFixed(2)}</span>
+                            <div className="p-4 rounded-xl border border-white/5 bg-zinc-900/50 flex items-center justify-between">
+                                <div className="flex items-center gap-3">
+                                    <Users className="text-zinc-400" />
+                                    <div className="flex flex-col">
+                                        <span className="text-xs text-zinc-500 uppercase font-bold">A persona</span>
+                                        <span className="text-sm font-medium text-zinc-300">Diviso {session?.customer_count || 1}</span>
+                                    </div>
                                 </div>
-                                <div className="flex items-center justify-between mt-1">
-                                    <span className="text-xs text-zinc-400 font-medium">Diviso per</span>
-                                    <span className="text-sm font-bold text-zinc-300">{peopleCount} persone</span>
-                                </div>
-                                <div className="border-t border-amber-500/20 mt-3 pt-3 flex items-center justify-between">
-                                    <span className="text-xs text-amber-400 font-bold uppercase tracking-wider">A persona</span>
-                                    <span className="text-lg font-black text-amber-400 tabular-nums">€{perPersonAmount.toFixed(2)}</span>
-                                </div>
+                                <span className="text-xl font-bold text-amber-500 tabular-nums">€{perPersonAmount.toFixed(2)}</span>
                             </div>
                         </div>
                     )}
 
-                    {/* Split List */}
+                    {/* Split By Item Mode */}
                     {isSplitMode && (
-                        <div className="space-y-3">
-                            <div className="flex items-center justify-between">
-                                <h3 className="text-xs font-bold text-zinc-500 uppercase tracking-widest">Seleziona voci</h3>
+                        <div className="h-full flex flex-col">
+                            <div className="p-4 border-b border-white/5 flex items-center justify-between bg-zinc-900/80">
+                                <h3 className="text-sm font-bold text-zinc-400 uppercase tracking-widest">Seleziona voci da pagare</h3>
                                 <Button
                                     variant="ghost"
                                     size="sm"
-                                    className="text-xs text-amber-500 hover:text-amber-400 h-7"
+                                    className="text-amber-500 hover:text-amber-400 text-xs h-7"
                                     onClick={() => {
                                         if (selectedSplitItems.size === splitPayableItems.length) {
                                             setSelectedSplitItems(new Set())
@@ -442,11 +429,11 @@ export default function TableBillDialog({
                                 </Button>
                             </div>
 
-                            <ScrollArea className="max-h-[40vh]">
-                                <div className="space-y-2 pr-2">
-                                    {splitPayableItems.map((item, idx) => (
+                            <ScrollArea className="flex-1 p-4">
+                                <div className="space-y-2 pb-20">
+                                    {splitPayableItems.map((item) => (
                                         <div
-                                            key={item.id || `idx-${idx}`}
+                                            key={item.id}
                                             className={`flex items-center justify-between p-4 rounded-xl border cursor-pointer transition-all ${selectedSplitItems.has(item.id)
                                                 ? 'bg-amber-500/10 border-amber-500/40 shadow-lg shadow-amber-500/5'
                                                 : 'bg-zinc-900/50 border-white/5 hover:bg-zinc-800/50 hover:border-white/10'
@@ -465,44 +452,62 @@ export default function TableBillDialog({
                                                 <div className="flex flex-col">
                                                     <div className="flex items-center gap-2">
                                                         <span className="text-sm font-medium text-zinc-200">{item.name}</span>
-                                                        {item.quantity > 1 && (
-                                                            <Badge className="text-[9px] h-4 px-1.5 bg-zinc-800 text-zinc-400">
-                                                                x{item.quantity}
-                                                            </Badge>
-                                                        )}
                                                         {item.isVirtual && (
                                                             <Badge variant="outline" className="text-[9px] h-4 px-1 border-blue-500/30 text-blue-400">
-                                                                COPERTO
+                                                                AUTO
+                                                            </Badge>
+                                                        )}
+                                                        {/* If item price is 0 (AYCE), show Badge */}
+                                                        {item.price === 0 && item.dish?.is_ayce && (
+                                                            <Badge variant="outline" className="text-[9px] h-4 px-1 border-amber-500/30 text-amber-500">
+                                                                AYCE
                                                             </Badge>
                                                         )}
                                                     </div>
                                                 </div>
                                             </div>
                                             <span className={`text-sm font-bold tabular-nums ${selectedSplitItems.has(item.id) ? 'text-amber-400' : 'text-zinc-400'}`}>
-                                                €{((item.price || 0) * (item.quantity || 1)).toFixed(2)}
+                                                €{item.price.toFixed(2)}
                                             </span>
                                         </div>
                                     ))}
                                     {splitPayableItems.length === 0 && (
-                                        <p className="text-center text-zinc-500 text-sm py-8">Nessun elemento da pagare.</p>
+                                        <p className="text-center text-zinc-500 text-sm py-12">Nessun elemento da pagare.</p>
                                     )}
                                 </div>
                             </ScrollArea>
                         </div>
                     )}
+
+                    {/* Equal Split Mode (Placeholder for visual, currently handled by manually calculating) */}
+                    {equalSplitMode && (
+                        <div className="h-full flex flex-col p-6 items-center justify-center text-center space-y-4">
+                            <div className="w-16 h-16 rounded-full bg-zinc-900 border border-white/10 flex items-center justify-center mb-2">
+                                <Users size={32} className="text-zinc-400" />
+                            </div>
+                            <h3 className="text-xl font-bold text-white">Divisione alla Romana</h3>
+                            <p className="text-zinc-400 max-w-xs text-sm">
+                                Il totale di <strong className="text-white">€{totalAmount.toFixed(2)}</strong> diviso per <strong className="text-white">{Math.max(1, session?.customer_count || 1)} persone</strong> è:
+                            </p>
+                            <div className="text-4xl font-black text-amber-500 mt-4">
+                                €{perPersonAmount.toFixed(2)}
+                            </div>
+                            <p className="text-xs text-zinc-500 mt-4">Usa la calcolatrice POS per incassare questa cifra da ogni commensale.</p>
+                        </div>
+                    )}
                 </div>
 
                 {/* Actions Footer */}
-                <div className="relative p-5 border-t border-white/5 bg-zinc-900/50">
+                <div className="relative p-5 border-t border-white/5 bg-zinc-900/90 backdrop-blur-xl">
                     {isWaiter && !restaurant?.allow_waiter_payments ? (
-                        <div className="bg-red-500/10 border border-red-500/20 rounded-2xl p-4 text-center">
+                        <div className="bg-red-500/10 border border-red-500/20 rounded-2xl p-4 text-center w-full">
                             <p className="text-red-400 font-bold mb-1">Permessi Negati</p>
                             <p className="text-xs text-red-300/70">Solo l'amministratore può segnare i tavoli come pagati.</p>
                         </div>
                     ) : (
                         <>
                             {isSplitMode || equalSplitMode ? (
-                                <div className="flex gap-2">
+                                <div className="flex gap-2 w-full">
                                     <Button
                                         variant="ghost"
                                         className="h-12 px-5 rounded-xl text-zinc-400 hover:text-white hover:bg-zinc-800"
@@ -526,7 +531,7 @@ export default function TableBillDialog({
                                     )}
                                 </div>
                             ) : (
-                                <div className="space-y-2">
+                                <div className="space-y-2 w-full">
                                     <Button
                                         className="w-full h-12 font-bold bg-amber-500 hover:bg-amber-400 text-black rounded-xl shadow-lg shadow-amber-500/15 transition-all active:scale-[0.98]"
                                         onClick={() => onPaymentComplete()}
@@ -537,15 +542,17 @@ export default function TableBillDialog({
                                     <div className="flex gap-2">
                                         <Button
                                             variant="ghost"
-                                            className="flex-1 h-10 text-xs font-semibold text-zinc-400 hover:text-white hover:bg-zinc-800 rounded-xl"
+                                            className="flex-1 h-10 text-xs font-semibold text-zinc-400 hover:text-white hover:bg-zinc-800 rounded-xl border border-white/5"
                                             onClick={() => setIsSplitMode(true)}
+                                            disabled={totalAmount <= 0}
                                         >
                                             Dividi per Piatti
                                         </Button>
                                         <Button
                                             variant="ghost"
-                                            className="flex-1 h-10 text-xs font-semibold text-zinc-400 hover:text-white hover:bg-zinc-800 rounded-xl"
+                                            className="flex-1 h-10 text-xs font-semibold text-zinc-400 hover:text-white hover:bg-zinc-800 rounded-xl border border-white/5"
                                             onClick={() => setEqualSplitMode(true)}
+                                            disabled={totalAmount <= 0}
                                         >
                                             Dividi Equo
                                         </Button>
@@ -553,7 +560,7 @@ export default function TableBillDialog({
                                     {onEmptyTable && (
                                         <Button
                                             variant="ghost"
-                                            className="w-full h-9 text-xs text-zinc-600 hover:text-red-400 hover:bg-red-500/5 rounded-xl"
+                                            className="w-full h-9 text-xs text-zinc-600 hover:text-red-400 hover:bg-red-500/5 rounded-xl mt-2"
                                             onClick={onEmptyTable}
                                             disabled={totalAmount > 0}
                                         >

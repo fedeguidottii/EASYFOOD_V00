@@ -570,6 +570,7 @@ const RestaurantDashboard = ({ user, onLogout }: RestaurantDashboardProps) => {
   const [tableHistorySort, setTableHistorySort] = useState<'recent' | 'amount' | 'duration' | 'covers'>('recent')
   const [isAddItemDialogOpen, setIsAddItemDialogOpen] = useState(false)
   const [currentSessionPin, setCurrentSessionPin] = useState<string>('')
+  const [showOverbookingAlert, setShowOverbookingAlert] = useState(false)
   const [allergenInput, setAllergenInput] = useState('')
   const [showTableQrDialog, setShowTableQrDialog] = useState(false)
   const [isGeneratingTableQrPdf, setIsGeneratingTableQrPdf] = useState(false)
@@ -3109,13 +3110,48 @@ const RestaurantDashboard = ({ user, onLogout }: RestaurantDashboardProps) => {
 
                 <Button
                   className="w-full bg-amber-600 hover:bg-amber-700 text-white"
-                  onClick={() => selectedTable && handleActivateTable(selectedTable.id, parseInt(customerCount))}
+                  onClick={() => {
+                    if (!selectedTable) return
+                    const count = parseInt(customerCount)
+                    const seats = selectedTable.seats || 0
+                    if (count > seats) {
+                      setShowOverbookingAlert(true)
+                    } else {
+                      handleActivateTable(selectedTable.id, count)
+                    }
+                  }}
                 >
                   Attiva Tavolo
                 </Button>
               </div>
             </DialogContent>
           </Dialog >
+
+          <AlertDialog open={showOverbookingAlert} onOpenChange={setShowOverbookingAlert}>
+            <AlertDialogContent className="bg-zinc-950 border-zinc-800 text-zinc-100">
+              <AlertDialogHeader>
+                <AlertDialogTitle>Capacità Superata</AlertDialogTitle>
+                <AlertDialogDescription className="text-zinc-400">
+                  Il numero di clienti ({customerCount}) supera i posti del tavolo ({selectedTable?.seats || 4}).
+                  Vuoi procedere comunque con l'attivazione?
+                </AlertDialogDescription>
+              </AlertDialogHeader>
+              <AlertDialogFooter>
+                <AlertDialogCancel className="border-zinc-700 hover:bg-zinc-900 text-zinc-300">Annulla</AlertDialogCancel>
+                <AlertDialogAction
+                  className="bg-amber-600 hover:bg-amber-700 text-white border-none"
+                  onClick={() => {
+                    if (selectedTable) {
+                      handleActivateTable(selectedTable.id, parseInt(customerCount))
+                    }
+                    setShowOverbookingAlert(false)
+                  }}
+                >
+                  Procedi
+                </AlertDialogAction>
+              </AlertDialogFooter>
+            </AlertDialogContent>
+          </AlertDialog>
 
           <Dialog open={showCreateTableDialog} onOpenChange={setShowCreateTableDialog}>
             <DialogContent className="bg-zinc-950 border-zinc-800 text-zinc-100">
