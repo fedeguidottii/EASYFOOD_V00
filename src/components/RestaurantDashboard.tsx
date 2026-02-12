@@ -205,47 +205,52 @@ const RestaurantDashboard = ({ user, onLogout }: RestaurantDashboardProps) => {
         const lunchStart = parseTime(lunchTimeStart)
         const dinnerStart = parseTime(dinnerTimeStart)
 
-        // Determine current meal type based on time ranges
-        // The end of lunch is the start of dinner, and vice versa
+        // Improved Logic for "Restaurant Day" (Customer Issue: "wrong date")
+        // If currentTime is before 06:00 AM, we consider it the "late night" of the previous day.
+        // This ensures that a dinner service ending at 2 AM is still linked to Yesterday's menu.
+        const LATE_NIGHT_CUTOFF = 6 * 60 // 06:00 AM
+
+        let effectiveDay = dayOfWeek
+        let checkTime = currentTime
+
+        // If it's late night (e.g. 01:00 AM), treat it as previous day (e.g. 25:00)
+        if (currentTime < LATE_NIGHT_CUTOFF) {
+          effectiveDay = (dayOfWeek + 6) % 7 // Previous day
+          checkTime = currentTime + (24 * 60) // Add 24h for easier comparison
+        }
+
+        // Determine current meal type based on effective ranges
         let currentMealType: string | null = null
 
         if (lunchStart > 0 && dinnerStart > 0) {
           // Both meals configured
           if (lunchStart < dinnerStart) {
-            // Normal day: lunch at 12:00, dinner at 19:00
-            if (currentTime >= lunchStart && currentTime < dinnerStart) {
+            // Standard: Lunch 12:00, Dinner 19:00
+            if (checkTime >= lunchStart && checkTime < dinnerStart) {
               currentMealType = 'lunch'
-            } else if (currentTime >= dinnerStart) {
-              currentMealType = 'dinner'
-            } else {
-              // Before lunch (after midnight to lunch start) - consider it dinner from previous day
+            } else if (checkTime >= dinnerStart) {
               currentMealType = 'dinner'
             }
           } else {
-            // Unusual case: dinner starts before lunch (shouldn't happen in practice)
-            if (currentTime >= dinnerStart && currentTime < lunchStart) {
-              currentMealType = 'dinner'
-            } else {
-              currentMealType = 'lunch'
-            }
+            // Rare: Dinner starts before Lunch? (Logic fallback)
+            currentMealType = checkTime >= lunchStart ? 'lunch' : 'dinner'
           }
         } else if (lunchStart > 0) {
-          // Only lunch configured
-          currentMealType = currentTime >= lunchStart ? 'lunch' : null
+          // Only Lunch
+          // Assume Lunch lasts until ~16:00 or just use start? 
+          // Let's assume valid if > start and < late night cutoff of NEXT day?
+          // Simplification: logic is "Active if > Start".
+          if (checkTime >= lunchStart) currentMealType = 'lunch'
         } else if (dinnerStart > 0) {
-          // Only dinner configured
-          currentMealType = currentTime >= dinnerStart ? 'dinner' : null
+          // Only Dinner
+          if (checkTime >= dinnerStart) currentMealType = 'dinner'
         }
 
-        // Determine which day to check for schedules
-        let scheduleDay = dayOfWeek
-        // If it's early morning (before lunch) and we're in dinner time, use previous day
-        if (currentMealType === 'dinner' && lunchStart > 0 && dinnerStart > 0 &&
-          lunchStart < dinnerStart && currentTime < lunchStart) {
-          scheduleDay = (dayOfWeek + 6) % 7 // Previous day
-        }
+        // Special case: If we are in "late night" mode (e.g. 25:00), but the detected meal type is 'lunch' (unlikely)
+        // or null, we might want to default to 'dinner' if it was valid.
 
-        // Fetch all active schedules for this restaurant, day, and meal type
+        // Valid schedule day is the effective day
+        const scheduleDay = effectiveDay
         const { data: allSchedules } = await supabase
           .from('custom_menu_schedules')
           .select('custom_menu_id, custom_menus!inner(restaurant_id)')
@@ -1671,11 +1676,11 @@ const RestaurantDashboard = ({ user, onLogout }: RestaurantDashboardProps) => {
               >
                 <button
                   onClick={() => setIsSidebarOpen(true)}
-                  className="flex items-center gap-2 px-3 py-2 bg-zinc-900/60 border border-white/5 rounded-xl text-zinc-400 hover:text-amber-500 hover:border-amber-500/20 transition-all text-sm"
+                  className="flex items-center gap-3 px-4 py-3 bg-zinc-800 border border-white/10 rounded-xl text-zinc-300 hover:text-amber-500 hover:border-amber-500/30 hover:bg-zinc-800/80 transition-all shadow-lg shadow-black/20"
                   title="Apri Menu Navigazione"
                 >
-                  <CaretRight size={16} weight="bold" className="transform rotate-180" />
-                  <span className="text-xs font-medium">Indietro</span>
+                  <CaretRight size={20} weight="bold" className="transform rotate-180" />
+                  <span className="text-sm font-semibold tracking-wide">Indietro</span>
                 </button>
               </motion.div>
             )}

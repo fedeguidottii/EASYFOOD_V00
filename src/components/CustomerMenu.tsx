@@ -21,7 +21,7 @@ import { Minus, Plus, ShoppingCart, Trash, User, Info, X, Clock, Wallet, Check, 
 import {
   ShoppingBasket, Utensils, ChefHat, Search,
   RefreshCw, AlertCircle, ChevronUp, ChevronDown, Layers, ArrowLeft, Send,
-  ChevronRight, GripVertical, ArrowUp, ArrowDown, Menu, History, Bell
+  ChevronRight, GripVertical, ArrowUp, ArrowDown, Menu, Bell
 } from 'lucide-react'
 import {
   DndContext, DragOverlay, useSensor, useSensors, PointerSensor,
@@ -1502,7 +1502,7 @@ function AuthorizedMenuContent({ restaurantId, tableId, sessionId, activeSession
 
         {/* Floating Cart Button */}
         <AnimatePresence>
-          {cart.length > 0 && (
+          {cart.length > 0 ? (
             <motion.div
               initial={{ y: 100, opacity: 0 }}
               animate={{ y: 0, opacity: 1 }}
@@ -1511,7 +1511,7 @@ function AuthorizedMenuContent({ restaurantId, tableId, sessionId, activeSession
             >
               <Button
                 onClick={() => setIsCartOpen(true)}
-                className="w-full h-14 text-white rounded-full flex items-center justify-between px-6 transform transition-transform active:scale-95"
+                className="w-full h-14 text-white rounded-full flex items-center justify-between px-6 transform transition-transform active:scale-95 shadow-xl shadow-black/20"
                 style={theme.floatingCartStyle}
               >
                 <div className="flex items-center gap-2">
@@ -1537,6 +1537,26 @@ function AuthorizedMenuContent({ restaurantId, tableId, sessionId, activeSession
                     return (cartTotal + copertoTotal).toFixed(2)
                   })()}
                 </span>
+              </Button>
+            </motion.div>
+          ) : previousOrders.length > 0 && (
+            <motion.div
+              initial={{ y: 100, opacity: 0 }}
+              animate={{ y: 0, opacity: 1 }}
+              exit={{ y: 100, opacity: 0 }}
+              className="fixed bottom-6 left-0 right-0 z-40 flex justify-center pointer-events-none"
+            >
+              <Button
+                onClick={() => setIsCartOpen(true)}
+                className="h-10 rounded-full px-6 shadow-lg backdrop-blur-md border pointer-events-auto transition-transform active:scale-95 flex items-center gap-2"
+                style={{
+                  backgroundColor: `${theme.primary}15`, // Very transparent background
+                  borderColor: `${theme.primary}40`,
+                  color: theme.primary,
+                }}
+              >
+                <Clock size={16} weight="bold" />
+                <span className="font-medium text-sm tracking-wide uppercase">I Miei Ordini</span>
               </Button>
             </motion.div>
           )}

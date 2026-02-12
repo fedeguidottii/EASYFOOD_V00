@@ -972,6 +972,72 @@ export default function AnalyticsCharts({ orders, completedOrders, dishes, categ
         {/* Section: Time Series Data (Table format for PDF) */}
         <div style={{ marginBottom: '40px', background: '#ffffff', borderRadius: '20px', padding: '30px', boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.05)', border: '1px solid #e4e4e7' }}>
           <h3 style={{ fontSize: '20px', fontWeight: 800, color: '#18181b', marginBottom: '20px', borderBottom: '1px solid #f4f4f5', paddingBottom: '15px' }}>Andamento nel Tempo</h3>
+
+          {/* Chart for PDF */}
+          <div style={{ width: '100%', height: '300px', marginBottom: '20px' }}>
+            <ResponsiveContainer width="100%" height="100%">
+              {analytics.isSingleDay ? (
+                <BarChart data={analytics.dailyData} margin={{ top: 10, right: 30, left: 10, bottom: 0 }}>
+                  <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#e4e4e7" />
+                  <XAxis
+                    dataKey="date"
+                    axisLine={false}
+                    tickLine={false}
+                    tick={{ fontSize: 12, fill: '#71717a' }}
+                    dy={10}
+                  />
+                  <YAxis
+                    axisLine={false}
+                    tickLine={false}
+                    tick={{ fontSize: 12, fill: '#71717a' }}
+                    tickFormatter={(value) => timeSeriesMetric === 'orders' ? value : `€${value}`}
+                    dx={-10}
+                  />
+                  <Bar
+                    dataKey={timeSeriesMetric === 'orders' ? 'orders' : timeSeriesMetric === 'revenue' ? 'revenue' : 'averageValue'}
+                    fill="#f59e0b"
+                    radius={[6, 6, 0, 0]}
+                    barSize={60}
+                  />
+                </BarChart>
+              ) : (
+                <AreaChart data={analytics.dailyData} margin={{ top: 10, right: 30, left: 10, bottom: 0 }}>
+                  <defs>
+                    <linearGradient id="colorMetricPdf" x1="0" y1="0" x2="0" y2="1">
+                      <stop offset="5%" stopColor="#f59e0b" stopOpacity={0.4} />
+                      <stop offset="95%" stopColor="#f59e0b" stopOpacity={0} />
+                    </linearGradient>
+                  </defs>
+                  <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#e4e4e7" />
+                  <XAxis
+                    dataKey="date"
+                    axisLine={false}
+                    tickLine={false}
+                    tick={{ fontSize: 12, fill: '#71717a' }}
+                    dy={10}
+                  />
+                  <YAxis
+                    axisLine={false}
+                    tickLine={false}
+                    tick={{ fontSize: 12, fill: '#71717a' }}
+                    tickFormatter={(value) => timeSeriesMetric === 'orders' ? value : `€${value}`}
+                    dx={-10}
+                  />
+                  <Area
+                    type="monotone"
+                    dataKey={timeSeriesMetric === 'orders' ? 'orders' : timeSeriesMetric === 'revenue' ? 'revenue' : 'averageValue'}
+                    stroke="#fbbf24"
+                    strokeWidth={3}
+                    fillOpacity={1}
+                    fill="url(#colorMetricPdf)"
+                    activeDot={{ r: 6, strokeWidth: 0, fill: '#fff' }}
+                    isAnimationActive={false}
+                  />
+                </AreaChart>
+              )}
+            </ResponsiveContainer>
+          </div>
+
           <table style={{ width: '100%', borderCollapse: 'collapse' }}>
             <thead>
               <tr style={{ textAlign: 'left' }}>

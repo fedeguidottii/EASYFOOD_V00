@@ -398,60 +398,7 @@ export function SettingsView({
                                 </div>
                             </div>
 
-                            {/* Stile Menù Cliente */}
-                            {/* Stile Menù Cliente */}
-                            <div className="col-span-full p-6 rounded-2xl bg-zinc-900/50 border border-white/5 backdrop-blur-sm space-y-5">
-                                <div className="space-y-1">
-                                    <h3 className="text-lg font-bold">Stile Menù Cliente</h3>
-                                    <p className="text-sm text-zinc-400">Personalizza l'aspetto del menù digitale.</p>
-                                </div>
 
-                                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                                    <div className="space-y-3">
-                                        <Label>Stile Visivo</Label>
-                                        <Select value={menuStyle} onValueChange={setMenuStyle}>
-                                            <SelectTrigger className="w-full bg-zinc-950/50 border-white/10 h-11">
-                                                <SelectValue placeholder="Seleziona uno stile" />
-                                            </SelectTrigger>
-                                            <SelectContent side="bottom">
-                                                {STYLE_PRESETS.map((preset) => (
-                                                    <SelectItem key={preset.key} value={preset.key}>
-                                                        <span className="font-medium">{preset.label}</span>
-                                                        <span className="hidden sm:inline text-zinc-500 ml-2 text-xs">
-                                                            — {preset.description}
-                                                        </span>
-                                                    </SelectItem>
-                                                ))}
-                                            </SelectContent>
-                                        </Select>
-                                        <p className="text-xs text-zinc-500">
-                                            {STYLE_PRESETS.find(p => p.key === menuStyle)?.description}
-                                        </p>
-                                    </div>
-
-                                    <div className="space-y-3">
-                                        <Label>Colore Principale</Label>
-                                        <Select value={menuPrimaryColor} onValueChange={setMenuPrimaryColor}>
-                                            <SelectTrigger className="w-full bg-zinc-950/50 border-white/10 h-11">
-                                                <SelectValue placeholder="Seleziona un colore" />
-                                            </SelectTrigger>
-                                            <SelectContent side="bottom">
-                                                {COLOR_OPTIONS.map((color) => (
-                                                    <SelectItem key={color.hex} value={color.hex}>
-                                                        <div className="flex items-center gap-2">
-                                                            <div className="w-4 h-4 rounded-full shadow-sm ring-1 ring-white/10" style={{ backgroundColor: color.hex }} />
-                                                            <span>{color.name}</span>
-                                                        </div>
-                                                    </SelectItem>
-                                                ))}
-                                            </SelectContent>
-                                        </Select>
-                                        <p className="text-xs text-zinc-500">
-                                            Colore utilizzato per pulsanti ed evidenziazioni.
-                                        </p>
-                                    </div>
-                                </div>
-                            </div>
                         </div>
                     </motion.div>
                 </TabsContent>
