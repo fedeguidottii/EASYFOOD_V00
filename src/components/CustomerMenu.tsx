@@ -17,9 +17,9 @@ import { Textarea } from '@/components/ui/textarea'
 import { toast } from 'sonner'
 import { DishPlaceholder } from '@/components/ui/DishPlaceholder'
 // Icons
-import { Minus, Plus, ShoppingCart, Trash, User, Info, X, Clock, Wallet, Check, Warning, ForkKnife, Note, Storefront, Rocket } from '@phosphor-icons/react'
+import { Minus, Plus, ShoppingCart, Trash, User, Info, X, Clock, Wallet, Check, Warning, ForkKnife, Note, Storefront, Rocket, ListNumbers, CheckCircle } from '@phosphor-icons/react'
 import {
-  ShoppingBasket, Utensils, CheckCircle, ChefHat, Search,
+  ShoppingBasket, Utensils, ChefHat, Search,
   RefreshCw, AlertCircle, ChevronUp, ChevronDown, Layers, ArrowLeft, Send,
   ChevronRight, GripVertical, ArrowUp, ArrowDown, Menu, History, Bell
 } from 'lucide-react'
@@ -544,6 +544,10 @@ const CustomerMenu = () => {
       }, (payload) => {
         const newSettings = payload.new as Restaurant
         if (newSettings) {
+          // Update full restaurant object for theme sync
+          setFullRestaurant((prev: any) => ({ ...prev, ...newSettings }))
+          setRestaurantName(newSettings.name)
+
           // Update course splitting setting immediately
           setCourseSplittingEnabled(newSettings.enable_course_splitting !== false)
 
@@ -793,11 +797,12 @@ const CustomerMenu = () => {
     activeSession={activeSession!}
     isViewOnly={isViewOnly}
     isAuthenticated={isAuthenticated}
+    fullRestaurant={fullRestaurant}
   />
 }
 
 // Refactored Content Component to keep logic clean
-function AuthorizedMenuContent({ restaurantId, tableId, sessionId, activeSession, isViewOnly, isAuthenticated }: { restaurantId: string, tableId: string, sessionId: string, activeSession: TableSession, isViewOnly?: boolean, isAuthenticated: boolean }) {
+function AuthorizedMenuContent({ restaurantId, tableId, sessionId, activeSession, isViewOnly, isAuthenticated, fullRestaurant: propsFullRestaurant }: { restaurantId: string, tableId: string, sessionId: string, activeSession: TableSession, isViewOnly?: boolean, isAuthenticated: boolean, fullRestaurant?: any }) {
   // Using passed props instead of resolving them
   const isWaiterMode = false // Or pass as prop if needed
 
@@ -837,7 +842,10 @@ function AuthorizedMenuContent({ restaurantId, tableId, sessionId, activeSession
   const [isCartAnimating, setIsCartAnimating] = useState(false)
   const [activeWaitCourse, setActiveWaitCourse] = useState(1) // Waiter Mode: Selected course for new items
   const [courseSplittingEnabled, setCourseSplittingEnabled] = useState(true) // Default to true
-  const [fullRestaurant, setFullRestaurant] = useState<any>(null) // Restaurant data for pricing
+  const [fullRestaurantState, setFullRestaurantState] = useState<any>(null) // Local state if needed
+
+  // Use prop if available, otherwise local state
+  const fullRestaurant = propsFullRestaurant || fullRestaurantState
 
   // Compute menu theme from restaurant settings
   const theme = useMemo(() => getMenuTheme(
@@ -1000,7 +1008,11 @@ function AuthorizedMenuContent({ restaurantId, tableId, sessionId, activeSession
       if (tableData) setTableName(tableData.number || '')
       if (restData) {
         setRestaurantName(restData.name || '')
-        setFullRestaurant(restData)
+        if (restData) {
+          setRestaurantName(restData.name || '')
+          if (!propsFullRestaurant) setFullRestaurantState(restData)
+          setCourseSplittingEnabled(restData.enable_course_splitting ?? true)
+        }
         setCourseSplittingEnabled(restData.enable_course_splitting ?? true)
       }
       if (catsData) setCategories(catsData)
@@ -1031,7 +1043,8 @@ function AuthorizedMenuContent({ restaurantId, tableId, sessionId, activeSession
 
   const filteredDishes = useMemo(() => {
     let d = dishes
-    if (activeCategory !== 'all') d = d.filter(dish => dish.category_id === activeCategory)
+    // REMOVED CATEGORY FILTERING TO ALLOW SCROLLING
+    // if (activeCategory !== 'all') d = d.filter(dish => dish.category_id === activeCategory)
     if (searchTerm.trim()) {
       const lowerTerm = searchTerm.toLowerCase()
       d = d.filter(dish => dish.name.toLowerCase().includes(lowerTerm) || dish.description?.toLowerCase().includes(lowerTerm))
@@ -1041,7 +1054,8 @@ function AuthorizedMenuContent({ restaurantId, tableId, sessionId, activeSession
 
   // Group dishes by category for dividers
   const dishesByCategory = useMemo(() => {
-    if (activeCategory !== 'all') return null
+    // REMOVED EARLY RETURN TO ALLOW SCROLLING - ALWAYS GROUP ALL
+    // if (activeCategory !== 'all') return null
     const grouped: { category: Category, dishes: Dish[] }[] = []
     sortedCategories.forEach(cat => {
       const categoryDishes = filteredDishes.filter(d => d.category_id === cat.id)
@@ -1539,10 +1553,22 @@ function AuthorizedMenuContent({ restaurantId, tableId, sessionId, activeSession
                     {fullRestaurant?.enable_course_splitting && (
                       <button
                         onClick={() => setIsCourseSplittingMode(!isCourseSplittingMode)}
-                        className="text-sm px-3 py-1.5 rounded-full border transition-all font-medium"
-                        style={isCourseSplittingMode ? { backgroundColor: theme.primary, color: '#000', borderColor: theme.primary, fontWeight: 700 } : { color: theme.textSecondary, borderColor: theme.textMuted }}
+                        className={`text-xs px-4 py-2 rounded-full font-bold uppercase tracking-wider transition-all shadow-sm flex items-center gap-2 ${isCourseSplittingMode ? 'ring-2 ring-offset-2 ring-offset-zinc-900' : ''}`}
+                        style={isCourseSplittingMode
+                          ? { backgroundColor: theme.primary, color: '#000', borderColor: theme.primary, boxShadow: `0 0 15px ${theme.primaryAlpha(0.4)}` }
+                          : { backgroundColor: theme.primaryAlpha(0.1), color: theme.primary, border: `1px solid ${theme.primaryAlpha(0.3)}` }}
                       >
-                        {isCourseSplittingMode ? '✓ Portate Attive' : 'Dividi in Portate'}
+                        {isCourseSplittingMode ? (
+                          <>
+                            <CheckCircle size={14} weight="bold" />
+                            Portate Attive
+                          </>
+                        ) : (
+                          <>
+                            <ListNumbers size={14} weight="bold" />
+                            Dividi in Portate
+                          </>
+                        )}
                       </button>
                     )}
                   </div>
@@ -1582,7 +1608,7 @@ function AuthorizedMenuContent({ restaurantId, tableId, sessionId, activeSession
 
                               <div className="flex items-center justify-between mt-2">
                                 {/* Quantity Controls */}
-                                <div className="flex items-center gap-3 rounded-lg p-0.5 shadow-inner" style={{ backgroundColor: theme.inputBg, border: `1px solid ${theme.cardBorder}` }}>
+                                <div className="flex items-center gap-3 rounded-lg p-0.5 shadow-inner shrink-0" style={{ backgroundColor: theme.inputBg, border: `1px solid ${theme.cardBorder}` }}>
                                   <button
                                     onClick={() => updateCartItemQuantity(item.id, -1)}
                                     className="w-7 h-7 flex items-center justify-center text-zinc-400 hover:text-white hover:bg-zinc-800 rounded-md transition-colors"
@@ -1600,8 +1626,8 @@ function AuthorizedMenuContent({ restaurantId, tableId, sessionId, activeSession
 
                                 {/* Course Selection (Only if mode active) */}
                                 {isCourseSplittingMode && (
-                                  <div className="flex items-center gap-1.5 ml-2">
-                                    {[1, 2, 3, 4].map(num => (
+                                  <div className="flex items-center gap-1.5 ml-2 overflow-x-auto no-scrollbar pb-1 max-w-[140px]" style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}>
+                                    {[1, 2, 3, 4, 5, 6, 7, 8].map(num => (
                                       <button
                                         key={num}
                                         onClick={() => {
@@ -1609,10 +1635,10 @@ function AuthorizedMenuContent({ restaurantId, tableId, sessionId, activeSession
                                             moveItemToCourse(item.id, num)
                                           }
                                         }}
-                                        className="w-8 h-8 flex items-center justify-center rounded-full text-xs font-bold border-2 transition-all"
+                                        className="w-7 h-7 flex-shrink-0 flex items-center justify-center rounded-full text-[10px] font-bold border transition-all"
                                         style={(item.course_number || 1) === num
-                                          ? { backgroundColor: theme.primary, color: '#000', borderColor: theme.primary, transform: 'scale(1.1)', boxShadow: `0 10px 15px -3px ${theme.primaryAlpha(0.3)}` }
-                                          : { color: theme.textSecondary, borderColor: theme.textMuted }
+                                          ? { backgroundColor: theme.primary, color: '#000', borderColor: theme.primary, transform: 'scale(1.1)', boxShadow: `0 4px 10px -2px ${theme.primaryAlpha(0.3)}` }
+                                          : { color: theme.textSecondary, borderColor: theme.cardBorder, backgroundColor: theme.inputBg }
                                         }
                                       >
                                         {num}

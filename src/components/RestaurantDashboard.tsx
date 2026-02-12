@@ -3558,7 +3558,7 @@ const RestaurantDashboard = ({ user, onLogout }: RestaurantDashboardProps) => {
                     flexDirection: 'column',
                     alignItems: 'center',
                     justifyContent: 'center',
-                    gap: '28px',
+                    gap: '32px',
                     color: '#000000',
                     width: '120mm',
                     maxWidth: '100%'
@@ -3570,21 +3570,21 @@ const RestaurantDashboard = ({ user, onLogout }: RestaurantDashboardProps) => {
                     <div style={{ textAlign: 'center' }}>
                       <p style={{
                         fontSize: '11px',
-                        fontWeight: '600',
+                        fontWeight: '700',
                         margin: '0 0 10px 0',
                         textTransform: 'uppercase',
                         letterSpacing: '0.35em',
-                        color: '#71717a',
+                        color: '#000000',
                         fontFamily: 'system-ui, -apple-system, sans-serif'
                       }}>
                         TAVOLO
                       </p>
                       <h1 style={{
                         fontSize: '72px',
-                        lineHeight: '1',
-                        fontWeight: '300',
+                        lineHeight: '1.2',
+                        fontWeight: '400',
                         margin: 0,
-                        color: '#18181b',
+                        color: '#000000',
                         fontFamily: 'Georgia, "Times New Roman", serif'
                       }}>
                         {selectedTableForActions?.number}
@@ -3594,11 +3594,11 @@ const RestaurantDashboard = ({ user, onLogout }: RestaurantDashboardProps) => {
                     {/* CTA */}
                     <p style={{
                       fontSize: '10px',
-                      fontWeight: '500',
+                      fontWeight: '700',
                       margin: 0,
                       textTransform: 'uppercase',
                       letterSpacing: '0.2em',
-                      color: '#a1a1aa',
+                      color: '#000000',
                       fontFamily: 'system-ui, -apple-system, sans-serif',
                       textAlign: 'center'
                     }}>
@@ -3606,7 +3606,7 @@ const RestaurantDashboard = ({ user, onLogout }: RestaurantDashboardProps) => {
                     </p>
 
                     {/* QR Code */}
-                    <div style={{ padding: '8px', border: '1px solid #f4f4f5', borderRadius: '8px' }}>
+                    <div style={{ padding: '8px', border: '1px solid #e4e4e7', borderRadius: '8px' }}>
                       <QRCodeGenerator value={generateQrCode(selectedTableForActions?.id || '')} size={200} />
                     </div>
 
@@ -3614,9 +3614,9 @@ const RestaurantDashboard = ({ user, onLogout }: RestaurantDashboardProps) => {
                     <div style={{ textAlign: 'center' }}>
                       <p style={{
                         fontSize: '11px',
-                        fontWeight: '500',
+                        fontWeight: '700',
                         margin: 0,
-                        color: '#a1a1aa',
+                        color: '#000000',
                         textTransform: 'uppercase',
                         letterSpacing: '0.25em',
                         fontFamily: 'system-ui, -apple-system, sans-serif'
@@ -3809,7 +3809,7 @@ const RestaurantDashboard = ({ user, onLogout }: RestaurantDashboardProps) => {
                       flexDirection: 'column',
                       alignItems: 'center',
                       justifyContent: 'center',
-                      gap: '4mm',
+                      gap: '5mm', // Increased gap
                       color: '#000000',
                       boxSizing: 'border-box'
                     }}>
@@ -3820,21 +3820,21 @@ const RestaurantDashboard = ({ user, onLogout }: RestaurantDashboardProps) => {
                       <div style={{ textAlign: 'center' }}>
                         <p style={{
                           fontSize: '9px',
-                          fontWeight: '600',
-                          margin: '0 0 4px 0',
+                          fontWeight: '700',
+                          margin: '0 0 6px 0',
                           textTransform: 'uppercase',
                           letterSpacing: '0.35em',
-                          color: '#71717a',
+                          color: '#000000',
                           fontFamily: 'system-ui, -apple-system, sans-serif'
                         }}>
                           TAVOLO
                         </p>
                         <h1 style={{
                           fontSize: '48px',
-                          lineHeight: '1',
-                          fontWeight: '300',
+                          lineHeight: '1.2',
+                          fontWeight: '400',
                           margin: 0,
-                          color: '#18181b',
+                          color: '#000000',
                           fontFamily: 'Georgia, "Times New Roman", serif'
                         }}>
                           {table.number}
@@ -3844,11 +3844,11 @@ const RestaurantDashboard = ({ user, onLogout }: RestaurantDashboardProps) => {
                       {/* CTA */}
                       <p style={{
                         fontSize: '7px',
-                        fontWeight: '500',
+                        fontWeight: '700',
                         margin: 0,
                         textTransform: 'uppercase',
                         letterSpacing: '0.2em',
-                        color: '#a1a1aa',
+                        color: '#000000',
                         fontFamily: 'system-ui, -apple-system, sans-serif',
                         textAlign: 'center'
                       }}>
@@ -3856,16 +3856,16 @@ const RestaurantDashboard = ({ user, onLogout }: RestaurantDashboardProps) => {
                       </p>
 
                       {/* QR Code */}
-                      <div style={{ padding: '2mm', border: '1px solid #f4f4f5', borderRadius: '6px', display: 'flex', justifyContent: 'center', alignItems: 'center' }}>
+                      <div style={{ padding: '2mm', border: '1px solid #e4e4e7', borderRadius: '6px', display: 'flex', justifyContent: 'center', alignItems: 'center' }}>
                         <QRCodeGenerator value={generateQrCode(table.id)} size={140} />
                       </div>
 
                       {/* Restaurant Name */}
                       <p style={{
                         fontSize: '8px',
-                        fontWeight: '500',
+                        fontWeight: '700',
                         margin: 0,
-                        color: '#a1a1aa',
+                        color: '#000000',
                         textTransform: 'uppercase',
                         letterSpacing: '0.25em',
                         fontFamily: 'system-ui, -apple-system, sans-serif',

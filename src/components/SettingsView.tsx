@@ -413,7 +413,7 @@ export function SettingsView({
                                             <SelectTrigger className="w-full bg-zinc-950/50 border-white/10 h-11">
                                                 <SelectValue placeholder="Seleziona uno stile" />
                                             </SelectTrigger>
-                                            <SelectContent>
+                                            <SelectContent side="bottom">
                                                 {STYLE_PRESETS.map((preset) => (
                                                     <SelectItem key={preset.key} value={preset.key}>
                                                         <span className="font-medium">{preset.label}</span>
@@ -435,7 +435,7 @@ export function SettingsView({
                                             <SelectTrigger className="w-full bg-zinc-950/50 border-white/10 h-11">
                                                 <SelectValue placeholder="Seleziona un colore" />
                                             </SelectTrigger>
-                                            <SelectContent>
+                                            <SelectContent side="bottom">
                                                 {COLOR_OPTIONS.map((color) => (
                                                     <SelectItem key={color.hex} value={color.hex}>
                                                         <div className="flex items-center gap-2">
