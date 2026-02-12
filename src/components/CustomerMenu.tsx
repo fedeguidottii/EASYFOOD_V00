@@ -1491,6 +1491,7 @@ function AuthorizedMenuContent({ restaurantId, tableId, sessionId, activeSession
                       index={index}
                       onSelect={setSelectedDish}
                       onAdd={(d) => quickAddToCart(d)}
+                      isViewOnly={isViewOnly}
                       theme={theme}
                     />
                   ))}

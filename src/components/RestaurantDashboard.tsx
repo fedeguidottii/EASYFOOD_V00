@@ -833,9 +833,11 @@ const RestaurantDashboard = ({ user, onLogout }: RestaurantDashboardProps) => {
     }
   }
   // View Only Menu State
-  const viewOnlyMenuEnabled = currentRestaurant?.view_only_menu_enabled ?? false
+  const [optimisticViewOnly, setOptimisticViewOnly] = useState<boolean | null>(null)
+  const viewOnlyMenuEnabled = optimisticViewOnly ?? currentRestaurant?.view_only_menu_enabled ?? false
 
   const updateViewOnlyMenuEnabled = async (enabled: boolean) => {
+    setOptimisticViewOnly(enabled)
     if (!restaurantId) return
     try {
       await DatabaseService.updateRestaurant({
@@ -846,6 +848,7 @@ const RestaurantDashboard = ({ user, onLogout }: RestaurantDashboardProps) => {
     } catch (error) {
       console.error('Error updating view only settings:', error)
       toast.error('Errore durante l\'aggiornamento delle impostazioni')
+      setOptimisticViewOnly(null) // Revert on error
     }
   }
 
@@ -1676,7 +1679,7 @@ const RestaurantDashboard = ({ user, onLogout }: RestaurantDashboardProps) => {
               >
                 <button
                   onClick={() => setIsSidebarOpen(true)}
-                  className="flex items-center gap-3 px-4 py-3 bg-zinc-800 border border-white/10 rounded-xl text-zinc-300 hover:text-amber-500 hover:border-amber-500/30 hover:bg-zinc-800/80 transition-all shadow-lg shadow-black/20"
+                  className="flex items-center gap-3 px-4 py-3 bg-zinc-950 border border-white/10 rounded-xl text-zinc-300 hover:text-amber-500 hover:border-amber-500/30 hover:bg-zinc-900 transition-all shadow-lg shadow-black/20"
                   title="Apri Menu Navigazione"
                 >
                   <CaretRight size={20} weight="bold" className="transform rotate-180" />
