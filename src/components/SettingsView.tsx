@@ -399,60 +399,56 @@ export function SettingsView({
                             </div>
 
                             {/* Stile Menù Cliente */}
+                            {/* Stile Menù Cliente */}
                             <div className="col-span-full p-6 rounded-2xl bg-zinc-900/50 border border-white/5 backdrop-blur-sm space-y-5">
                                 <div className="space-y-1">
                                     <h3 className="text-lg font-bold">Stile Menù Cliente</h3>
-                                    <p className="text-sm text-zinc-400">Scegli l'aspetto del menù che vedranno i tuoi clienti.</p>
+                                    <p className="text-sm text-zinc-400">Personalizza l'aspetto del menù digitale.</p>
                                 </div>
 
-                                {/* Style Preset Cards */}
-                                <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-                                    {STYLE_PRESETS.map((preset) => (
-                                        <button
-                                            key={preset.key}
-                                            onClick={() => setMenuStyle(preset.key)}
-                                            className={`p-4 rounded-xl border-2 text-left transition-all duration-300 ${menuStyle === preset.key
-                                                ? 'border-amber-500 bg-amber-500/10 shadow-lg shadow-amber-500/10'
-                                                : 'border-white/5 bg-zinc-800/30 hover:border-white/20 hover:bg-zinc-800/60'
-                                                }`}
-                                        >
-                                            <div className="text-sm font-bold text-white mb-1">{preset.label}</div>
-                                            <div className="text-[11px] text-zinc-400 leading-tight">{preset.description}</div>
-                                            {menuStyle === preset.key && (
-                                                <div className="mt-2 text-amber-500 text-[10px] font-bold uppercase tracking-wider">✓ Attivo</div>
-                                            )}
-                                        </button>
-                                    ))}
-                                </div>
-
-                                {/* Primary Color Selection */}
-                                <div className="pt-4 border-t border-white/5 space-y-3">
-                                    <div className="space-y-1">
-                                        <h4 className="text-sm font-bold text-white">Colore Principale</h4>
-                                        <p className="text-xs text-zinc-500">Il colore che i clienti vedranno nei pulsanti, accenti e elementi interattivi.</p>
+                                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                                    <div className="space-y-3">
+                                        <Label>Stile Visivo</Label>
+                                        <Select value={menuStyle} onValueChange={setMenuStyle}>
+                                            <SelectTrigger className="w-full bg-zinc-950/50 border-white/10 h-11">
+                                                <SelectValue placeholder="Seleziona uno stile" />
+                                            </SelectTrigger>
+                                            <SelectContent>
+                                                {STYLE_PRESETS.map((preset) => (
+                                                    <SelectItem key={preset.key} value={preset.key}>
+                                                        <span className="font-medium">{preset.label}</span>
+                                                        <span className="hidden sm:inline text-zinc-500 ml-2 text-xs">
+                                                            — {preset.description}
+                                                        </span>
+                                                    </SelectItem>
+                                                ))}
+                                            </SelectContent>
+                                        </Select>
+                                        <p className="text-xs text-zinc-500">
+                                            {STYLE_PRESETS.find(p => p.key === menuStyle)?.description}
+                                        </p>
                                     </div>
-                                    <div className="flex gap-3 flex-wrap">
-                                        {COLOR_OPTIONS.map((color) => (
-                                            <button
-                                                key={color.hex}
-                                                onClick={() => setMenuPrimaryColor(color.hex)}
-                                                className={`w-10 h-10 rounded-full transition-all duration-300 relative flex items-center justify-center ${menuPrimaryColor === color.hex
-                                                    ? 'ring-2 ring-offset-2 ring-offset-zinc-900 scale-110'
-                                                    : 'hover:scale-110'
-                                                    }`}
-                                                style={{
-                                                    backgroundColor: color.hex,
-                                                    boxShadow: menuPrimaryColor === color.hex
-                                                        ? `0 0 0 2px #18181b, 0 0 0 4px ${color.hex}, 0 0 20px ${color.hex}40`
-                                                        : undefined
-                                                }}
-                                                title={color.name}
-                                            >
-                                                {menuPrimaryColor === color.hex && (
-                                                    <CheckCircle size={18} weight="fill" className="text-white drop-shadow-md" />
-                                                )}
-                                            </button>
-                                        ))}
+
+                                    <div className="space-y-3">
+                                        <Label>Colore Principale</Label>
+                                        <Select value={menuPrimaryColor} onValueChange={setMenuPrimaryColor}>
+                                            <SelectTrigger className="w-full bg-zinc-950/50 border-white/10 h-11">
+                                                <SelectValue placeholder="Seleziona un colore" />
+                                            </SelectTrigger>
+                                            <SelectContent>
+                                                {COLOR_OPTIONS.map((color) => (
+                                                    <SelectItem key={color.hex} value={color.hex}>
+                                                        <div className="flex items-center gap-2">
+                                                            <div className="w-4 h-4 rounded-full shadow-sm ring-1 ring-white/10" style={{ backgroundColor: color.hex }} />
+                                                            <span>{color.name}</span>
+                                                        </div>
+                                                    </SelectItem>
+                                                ))}
+                                            </SelectContent>
+                                        </Select>
+                                        <p className="text-xs text-zinc-500">
+                                            Colore utilizzato per pulsanti ed evidenziazioni.
+                                        </p>
                                     </div>
                                 </div>
                             </div>

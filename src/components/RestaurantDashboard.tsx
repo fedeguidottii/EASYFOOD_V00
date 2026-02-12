@@ -844,11 +844,15 @@ const RestaurantDashboard = ({ user, onLogout }: RestaurantDashboardProps) => {
     }
   }
 
-  // Menu Theming State
-  const menuStyle = (currentRestaurant?.menu_style as any) || 'elegant'
-  const menuPrimaryColor = currentRestaurant?.menu_primary_color || '#f59e0b'
+  // Menu Theming State with Optimistic Updates
+  const [optimisticMenuStyle, setOptimisticMenuStyle] = useState<string | null>(null)
+  const [optimisticMenuColor, setOptimisticMenuColor] = useState<string | null>(null)
+
+  const menuStyle = optimisticMenuStyle || (currentRestaurant?.menu_style as any) || 'elegant'
+  const menuPrimaryColor = optimisticMenuColor || currentRestaurant?.menu_primary_color || '#f59e0b'
 
   const updateMenuStyle = async (style: string) => {
+    setOptimisticMenuStyle(style)
     if (!restaurantId) return
     try {
       await DatabaseService.updateRestaurant({ id: restaurantId, menu_style: style as any })
@@ -856,10 +860,12 @@ const RestaurantDashboard = ({ user, onLogout }: RestaurantDashboardProps) => {
     } catch (error) {
       console.error('Error updating menu style:', error)
       toast.error('Errore aggiornamento stile')
+      setOptimisticMenuStyle(null) // Revert on error
     }
   }
 
   const updateMenuPrimaryColor = async (color: string) => {
+    setOptimisticMenuColor(color)
     if (!restaurantId) return
     try {
       await DatabaseService.updateRestaurant({ id: restaurantId, menu_primary_color: color })
@@ -867,6 +873,7 @@ const RestaurantDashboard = ({ user, onLogout }: RestaurantDashboardProps) => {
     } catch (error) {
       console.error('Error updating menu color:', error)
       toast.error('Errore aggiornamento colore')
+      setOptimisticMenuColor(null) // Revert on error
     }
   }
 
