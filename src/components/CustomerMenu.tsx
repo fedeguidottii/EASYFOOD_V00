@@ -33,6 +33,7 @@ import { CSS } from '@dnd-kit/utilities'
 import { motion, AnimatePresence } from 'framer-motion'
 import type { Category, Dish, Order, TableSession, Restaurant } from '../services/types'
 import { getCurrentCopertoPrice } from '../utils/pricingUtils'
+import { getMenuTheme, type MenuTheme, type MenuStyleKey } from '../utils/menuTheme'
 
 // --- HELPER COMPONENTS ---
 
@@ -88,19 +89,21 @@ function SortableDishItem({ item, courseNum }: { item: CartItem, courseNum: numb
   )
 }
 
-// Extract DishCard outside to prevent re-renders - Luxury Design
+// Extract DishCard outside to prevent re-renders - Themed Design
 const DishCard = ({
   dish,
   index,
   onSelect,
   onAdd,
-  isViewOnly
+  isViewOnly,
+  theme
 }: {
   dish: Dish,
   index: number,
   onSelect: (dish: Dish) => void,
   onAdd: (dish: Dish) => void,
-  isViewOnly?: boolean
+  isViewOnly?: boolean,
+  theme: MenuTheme
 }) => (
   <motion.div
     layout
@@ -108,7 +111,13 @@ const DishCard = ({
     animate={{ opacity: 1, y: 0 }}
     exit={{ opacity: 0, y: -20 }}
     transition={{ duration: 0.3, delay: index * 0.03 }}
-    className="flex items-center gap-4 p-4 bg-zinc-900/90 backdrop-blur-sm rounded-xl border border-amber-500/20 hover:border-amber-500/40 shadow-lg shadow-black/30 hover:shadow-amber-500/10 transition-all duration-500 cursor-pointer group active:scale-[0.98]"
+    className="flex items-center gap-4 p-4 backdrop-blur-sm shadow-lg transition-all duration-500 cursor-pointer group active:scale-[0.98]"
+    style={{
+      backgroundColor: theme.cardBg,
+      borderRadius: theme.cardRadius,
+      border: `1px solid ${theme.primaryAlpha(0.2)}`,
+      boxShadow: theme.cardShadow,
+    }}
     onClick={() => onSelect(dish)}
   >
     <div className="w-18 h-18 shrink-0 relative rounded-lg overflow-hidden bg-gradient-to-br from-zinc-800 to-zinc-900 shadow-inner border border-white/5">
@@ -118,26 +127,31 @@ const DishCard = ({
         <DishPlaceholder className="group-hover:scale-110 transition-transform duration-700" iconSize={24} variant="pot" />
       )}
       {dish.allergens && dish.allergens.length > 0 && (
-        <div className="absolute bottom-1 right-1 bg-zinc-900/90 p-0.5 rounded-full shadow-sm border border-amber-500/20">
-          <Info className="w-2.5 h-2.5 text-amber-400" />
+        <div className="absolute bottom-1 right-1 p-0.5 rounded-full shadow-sm" style={{ backgroundColor: 'rgba(9,9,11,0.9)', border: `1px solid ${theme.primaryAlpha(0.2)}` }}>
+          <Info className="w-2.5 h-2.5" style={{ color: theme.primary }} />
         </div>
       )}
     </div>
 
     <div className="flex-1 min-w-0 py-0.5">
-      <h3 className="font-normal text-base leading-tight text-white line-clamp-1 mb-1 tracking-wide" style={{ fontFamily: 'Georgia, serif' }}>{dish.name}</h3>
+      <h3 className="font-normal text-base leading-tight line-clamp-1 mb-1 tracking-wide" style={{ color: theme.textPrimary, fontFamily: theme.headerFont }}>{dish.name}</h3>
       {dish.description && (
-        <p className="text-xs text-white/60 line-clamp-1 leading-snug font-light">{dish.description}</p>
+        <p className="text-xs line-clamp-1 leading-snug font-light" style={{ color: `${theme.textPrimary}99` }}>{dish.description}</p>
       )}
       <div className="flex items-center justify-between mt-2">
-        <span className="font-medium text-sm text-amber-400 tracking-wide">€ {dish.price.toFixed(2)}</span>
+        <span className="font-medium text-sm tracking-wide" style={{ color: theme.primary }}>€ {dish.price.toFixed(2)}</span>
       </div>
     </div>
 
     {!isViewOnly && (
       <Button
         size="sm"
-        className="h-10 w-10 rounded-full p-0 bg-amber-500/10 border border-amber-500/40 hover:bg-amber-500/20 hover:border-amber-500/60 text-amber-400 transition-all duration-300 hover:scale-110 shrink-0"
+        className="h-10 w-10 rounded-full p-0 transition-all duration-300 hover:scale-110 shrink-0"
+        style={{
+          backgroundColor: theme.primaryAlpha(0.1),
+          border: `1px solid ${theme.primaryAlpha(0.4)}`,
+          color: theme.primary,
+        }}
         onClick={(e) => { e.stopPropagation(); onAdd(dish); }}
       >
         <Plus className="w-4 h-4" strokeWidth={1.5} />
@@ -177,15 +191,16 @@ function NewCourseDropZone({ onClick }: { onClick: () => void }) {
 }
 
 // Helper for course container drop zone
-function DroppableCourse({ id, children, className }: { id: string, children: React.ReactNode, className?: string }) {
+function DroppableCourse({ id, children, className, style }: { id: string, children: React.ReactNode, className?: string, style?: React.CSSProperties }) {
   const { setNodeRef, isOver } = useDroppable({ id })
   return (
     <div
       ref={setNodeRef}
       className={`${className} transition-all duration-300 ease-out ${isOver
-        ? 'border-amber-500/60 bg-amber-500/5 shadow-lg shadow-amber-500/5 scale-[1.01]'
-        : 'border-zinc-800'
+        ? 'scale-[1.01]'
+        : ''
         }`}
+      style={style}
     >
       {children}
     </div>
@@ -664,23 +679,29 @@ const CustomerMenu = () => {
     </div>
   )
 
+  // Compute menu theme from restaurant settings
+  const theme = useMemo(() => getMenuTheme(
+    (fullRestaurant?.menu_style as MenuStyleKey) || 'elegant',
+    fullRestaurant?.menu_primary_color || '#f59e0b'
+  ), [fullRestaurant?.menu_style, fullRestaurant?.menu_primary_color])
+
   if (sessionLoading || authChecking || isInitLoading) return (
-    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-zinc-950 via-neutral-950 to-zinc-900">
+    <div className="min-h-screen flex items-center justify-center" style={{ background: theme.pageBgGradient }}>
       <div className="flex flex-col items-center gap-6">
         <div className="relative">
-          <div className="w-20 h-20 border border-amber-500/20 rounded-full"></div>
-          <div className="absolute inset-0 w-20 h-20 border border-transparent border-t-amber-500 rounded-full animate-spin"></div>
-          <div className="absolute inset-2 w-16 h-16 border border-amber-500/10 rounded-full"></div>
+          <div className="w-20 h-20 rounded-full" style={{ border: `1px solid ${theme.primaryAlpha(0.2)}` }}></div>
+          <div className="absolute inset-0 w-20 h-20 rounded-full animate-spin" style={{ border: '1px solid transparent', borderTopColor: theme.primary }}></div>
+          <div className="absolute inset-2 w-16 h-16 rounded-full" style={{ border: `1px solid ${theme.primaryAlpha(0.1)}` }}></div>
         </div>
-        <p className="text-amber-200/60 font-light tracking-[0.2em] text-sm uppercase">Caricamento</p>
+        <p className="font-light tracking-[0.2em] text-sm uppercase" style={{ color: `${theme.primary}99` }}>Caricamento</p>
       </div>
     </div>
   )
 
-  // LOGIN SCREEN (PIN) - Minimalist Luxury Design
+  // LOGIN SCREEN (PIN) - Themed Design
   if (!isAuthenticated && !isViewOnly) {
     return (
-      <div className="min-h-screen bg-zinc-950 flex flex-col items-center justify-center p-6 text-white">
+      <div className="min-h-screen flex flex-col items-center justify-center p-6" style={{ backgroundColor: theme.pageBg, color: theme.textPrimary }}>
 
         <div className="w-full max-w-sm flex flex-col items-center gap-12">
 
@@ -691,22 +712,23 @@ const CustomerMenu = () => {
                 <img
                   src={fullRestaurant.logo_url}
                   alt={restaurantName}
-                  className="h-32 w-auto max-w-[200px] object-contain drop-shadow-[0_0_25px_rgba(245,158,11,0.2)]"
+                  className="h-32 w-auto max-w-[200px] object-contain"
+                  style={{ filter: `drop-shadow(0 0 25px ${theme.primaryAlpha(0.2)})` }}
                 />
               </div>
             ) : (
               <>
-                <h1 className="text-2xl font-light tracking-[0.2em] uppercase text-white" style={{ fontFamily: 'Georgia, serif' }}>
+                <h1 className="text-2xl font-light tracking-[0.2em] uppercase" style={{ fontFamily: theme.headerFont, color: theme.textPrimary }}>
                   {restaurantName || 'Ristorante'}
                 </h1>
-                <div className="w-8 h-px bg-amber-500/50 mx-auto"></div>
+                <div className="w-8 h-px mx-auto" style={{ backgroundColor: theme.primaryAlpha(0.5) }}></div>
               </>
             )}
           </div>
 
           {/* Minimal PIN Input */}
           <div className="w-full">
-            <p className="text-center text-zinc-500 text-xs tracking-widest uppercase mb-8">Inserisci codice tavolo</p>
+            <p className="text-center text-xs tracking-widest uppercase mb-8" style={{ color: theme.textMuted }}>Inserisci codice tavolo</p>
 
             <div className="flex justify-center gap-3">
               {[0, 1, 2, 3].map((index) => {
@@ -720,21 +742,19 @@ const CustomerMenu = () => {
                     value={pin[index]}
                     onChange={(e) => handlePinDigitChange(index, e.target.value)}
                     onKeyDown={(e) => handlePinKeyDown(index, e)}
-                    className={`w-12 h-16 text-center text-2xl font-light bg-transparent border-b-2 outline-none transition-all duration-300 rounded-none
-                      ${pinError
-                        ? 'border-red-500 text-red-500 animate-shake'
+                    className="w-12 h-16 text-center text-2xl font-light bg-transparent border-b-2 outline-none transition-all duration-300 rounded-none"
+                    style={{
+                      fontFamily: theme.headerFont,
+                      ...(pinError
+                        ? { borderColor: '#ef4444', color: '#ef4444' }
                         : pin[index]
-                          ? 'border-amber-500 text-white'
-                          : 'border-zinc-800 text-zinc-600 focus:border-zinc-600'
-                      }`}
-                    style={{ fontFamily: 'Georgia, serif' }}
-                    // Force focus to first empty or clicked if valid
+                          ? { borderColor: theme.primary, color: theme.textPrimary }
+                          : { borderColor: theme.textMuted, color: theme.textSecondary }
+                      )
+                    }}
                     onClick={(e) => {
-                      // Find first empty index
                       const firstEmptyIndex = pin.findIndex(d => d === '')
                       const targetIndex = firstEmptyIndex === -1 ? 3 : firstEmptyIndex
-
-                      // If user clicked a field ahead of the sequence, refocus the correct one
                       if (index !== targetIndex) {
                         const targetInput = document.getElementById(`pin-${targetIndex}`)
                         targetInput?.focus()
@@ -755,7 +775,7 @@ const CustomerMenu = () => {
           </div>
 
           {/* Footer Info */}
-          <p className="text-zinc-700 text-[10px] tracking-widest uppercase mt-auto">
+          <p className="text-[10px] tracking-widest uppercase mt-auto" style={{ color: theme.textMuted }}>
             Il codice è sul segnaposto
           </p>
 
@@ -818,6 +838,12 @@ function AuthorizedMenuContent({ restaurantId, tableId, sessionId, activeSession
   const [activeWaitCourse, setActiveWaitCourse] = useState(1) // Waiter Mode: Selected course for new items
   const [courseSplittingEnabled, setCourseSplittingEnabled] = useState(true) // Default to true
   const [fullRestaurant, setFullRestaurant] = useState<any>(null) // Restaurant data for pricing
+
+  // Compute menu theme from restaurant settings
+  const theme = useMemo(() => getMenuTheme(
+    (fullRestaurant?.menu_style as MenuStyleKey) || 'elegant',
+    fullRestaurant?.menu_primary_color || '#f59e0b'
+  ), [fullRestaurant?.menu_style, fullRestaurant?.menu_primary_color])
 
   // Scroll to category helper
   const scrollToCategory = (categoryId: string) => {
@@ -1326,31 +1352,31 @@ function AuthorizedMenuContent({ restaurantId, tableId, sessionId, activeSession
 
   // RENDER HELPERS - LUXURY THEME
   if (isLoading) return (
-    <div className="min-h-screen flex items-center justify-center bg-zinc-950">
-      <div className="w-10 h-10 border-2 border-amber-500 border-t-transparent rounded-full animate-spin"></div>
+    <div className="min-h-screen flex items-center justify-center" style={{ backgroundColor: theme.pageBg }}>
+      <div className="w-10 h-10 border-2 rounded-full animate-spin" style={theme.spinnerBorderStyle}></div>
     </div>
   )
 
   if (error) return (
-    <div className="min-h-screen flex items-center justify-center p-6 bg-zinc-950 text-white">
+    <div className="min-h-screen flex items-center justify-center p-6" style={{ backgroundColor: theme.pageBg, color: theme.textPrimary }}>
       <div className="text-center">
         <AlertCircle className="w-12 h-12 text-red-500 mx-auto mb-4" />
         <p className="text-lg mb-4">{error}</p>
-        <Button onClick={() => window.location.reload()} variant="outline" className="border-amber-500 text-amber-500 hover:bg-amber-500/10">Riprova</Button>
+        <Button onClick={() => window.location.reload()} variant="outline" style={{ borderColor: theme.primary, color: theme.primary }}>Riprova</Button>
       </div>
     </div>
   )
 
   return (
-    <div className="h-[100dvh] bg-gradient-to-b from-zinc-950 via-neutral-950 to-zinc-900 font-sans select-none flex flex-col overflow-hidden">
+    <div className="h-[100dvh] font-sans select-none flex flex-col overflow-hidden" style={{ background: theme.pageBgGradient }}>
       <div className="flex-1 flex flex-col min-h-0 relative w-full">
 
-        <header className="flex-none z-20 bg-zinc-950/90 backdrop-blur-xl border-b border-amber-500/10">
+        <header className="flex-none z-20 backdrop-blur-xl" style={{ backgroundColor: theme.headerBg, borderBottom: `1px solid ${theme.primaryAlpha(0.1)}` }}>
           <div className="w-full px-4 py-3">
             {/* Restaurant Name - Compact Header */}
             {restaurantName && (
-              <div className="text-center mb-2 pb-2 border-b border-white/5">
-                <h1 className="text-base font-light text-white tracking-widest uppercase" style={{ fontFamily: 'Georgia, serif' }}>
+              <div className="text-center mb-2 pb-2" style={{ borderBottom: `1px solid ${theme.divider}` }}>
+                <h1 className="text-base font-light tracking-widest uppercase" style={{ fontFamily: theme.headerFont, color: theme.textPrimary }}>
                   {restaurantName}
                 </h1>
               </div>
@@ -1360,25 +1386,26 @@ function AuthorizedMenuContent({ restaurantId, tableId, sessionId, activeSession
             <div className="flex items-center justify-between mb-3">
               <div className="flex items-center gap-2">
                 <div className="relative">
-                  <div className="w-8 h-8 rounded-full border border-amber-500/30 flex items-center justify-center bg-zinc-900">
-                    <Utensils className="w-3.5 h-3.5 text-amber-400" strokeWidth={1.5} />
+                  <div className="w-8 h-8 rounded-full flex items-center justify-center" style={{ border: `1px solid ${theme.primaryAlpha(0.3)}`, backgroundColor: theme.cardBg }}>
+                    <Utensils className="w-3.5 h-3.5" strokeWidth={1.5} style={{ color: theme.primary }} />
                   </div>
-                  {activeSession && <div className="absolute -top-0.5 -right-0.5 w-2 h-2 rounded-full bg-amber-500 border-2 border-zinc-950" />}
+                  {activeSession && <div className="absolute -top-0.5 -right-0.5 w-2 h-2 rounded-full" style={{ backgroundColor: theme.primary, border: `2px solid ${theme.pageBg}` }} />}
                 </div>
                 <div>
-                  <h2 className="text-sm font-medium text-white tracking-wide">Tavolo {tableName}</h2>
+                  <h2 className="text-sm font-medium tracking-wide" style={{ color: theme.textPrimary }}>Tavolo {tableName}</h2>
                 </div>
               </div>
 
               <div className="flex items-center gap-2">
                 <div className="relative">
-                  <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-zinc-500" />
+                  <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5" style={{ color: theme.textMuted }} />
                   <input
                     type="text"
                     placeholder="Cerca..."
                     value={searchTerm}
                     onChange={(e) => setSearchTerm(e.target.value)}
-                    className="w-28 bg-zinc-900/50 border border-white/10 rounded-full pl-8 pr-3 py-1.5 text-xs text-white placeholder:text-zinc-600 focus:outline-none focus:border-amber-500/50 focus:w-36 transition-all duration-300"
+                    className="w-28 rounded-full pl-8 pr-3 py-1.5 text-xs placeholder:text-zinc-600 focus:outline-none focus:w-36 transition-all duration-300"
+                    style={{ backgroundColor: theme.inputBg, border: `1px solid ${theme.inputBorder}`, color: theme.textPrimary }}
                   />
                 </div>
               </div>
@@ -1389,10 +1416,14 @@ function AuthorizedMenuContent({ restaurantId, tableId, sessionId, activeSession
               <div className="flex space-x-2 w-max">
                 <button
                   onClick={() => scrollToCategory('all')}
-                  className={`px-3 py-1.5 rounded-full text-xs font-medium transition-all duration-300 border flex-shrink-0 ${activeCategory === 'all'
-                    ? 'bg-amber-500 text-zinc-950 border-amber-500 shadow-lg shadow-amber-500/20'
-                    : 'bg-zinc-900/50 text-zinc-400 border-white/5 hover:border-amber-500/30 hover:text-white'
-                    }`}
+                  className="px-3 py-1.5 text-xs font-medium transition-all duration-300 border flex-shrink-0"
+                  style={{
+                    borderRadius: theme.badgeRadius,
+                    ...(activeCategory === 'all'
+                      ? theme.categoryActiveStyle
+                      : { backgroundColor: theme.inputBg, color: theme.textSecondary, borderColor: theme.cardBorder }
+                    )
+                  }}
                 >
                   Tutto
                 </button>
@@ -1400,10 +1431,14 @@ function AuthorizedMenuContent({ restaurantId, tableId, sessionId, activeSession
                   <button
                     key={cat.id}
                     onClick={() => scrollToCategory(cat.id)}
-                    className={`px-3 py-1.5 rounded-full text-xs font-medium transition-all duration-300 border flex-shrink-0 whitespace-nowrap ${activeCategory === cat.id
-                      ? 'bg-amber-500 text-zinc-950 border-amber-500 shadow-lg shadow-amber-500/20'
-                      : 'bg-zinc-900/50 text-zinc-400 border-white/5 hover:border-amber-500/30 hover:text-white'
-                      }`}
+                    className="px-3 py-1.5 text-xs font-medium transition-all duration-300 border flex-shrink-0 whitespace-nowrap"
+                    style={{
+                      borderRadius: theme.badgeRadius,
+                      ...(activeCategory === cat.id
+                        ? theme.categoryActiveStyle
+                        : { backgroundColor: theme.inputBg, color: theme.textSecondary, borderColor: theme.cardBorder }
+                      )
+                    }}
                   >
                     {cat.name}
                   </button>
@@ -1424,7 +1459,7 @@ function AuthorizedMenuContent({ restaurantId, tableId, sessionId, activeSession
                 transition={{ delay: groupIndex * 0.1 }}
                 className="mb-8 scroll-mt-40"
               >
-                <h3 className="text-amber-500/80 text-xs font-bold uppercase tracking-[0.2em] mb-4 pl-1" style={{ fontFamily: 'Georgia, serif' }}>
+                <h3 className="text-xs font-bold uppercase tracking-[0.2em] mb-4 pl-1" style={{ color: `${theme.primary}cc`, fontFamily: theme.headerFont }}>
                   {group.category.name}
                 </h3>
                 <div className="grid gap-4">
@@ -1435,6 +1470,7 @@ function AuthorizedMenuContent({ restaurantId, tableId, sessionId, activeSession
                       index={index}
                       onSelect={setSelectedDish}
                       onAdd={(d) => quickAddToCart(d)}
+                      theme={theme}
                     />
                   ))}
                 </div>
@@ -1454,7 +1490,8 @@ function AuthorizedMenuContent({ restaurantId, tableId, sessionId, activeSession
             >
               <Button
                 onClick={() => setIsCartOpen(true)}
-                className="w-full h-14 bg-gradient-to-r from-amber-500 to-orange-600 hover:from-amber-400 hover:to-orange-500 text-white rounded-full shadow-2xl shadow-amber-900/40 flex items-center justify-between px-6 transform transition-transform active:scale-95"
+                className="w-full h-14 text-white rounded-full flex items-center justify-between px-6 transform transition-transform active:scale-95"
+                style={theme.floatingCartStyle}
               >
                 <div className="flex items-center gap-2">
                   <span className="bg-white/20 px-2 py-0.5 rounded-full text-sm font-bold">{cart.reduce((a, b) => a + b.quantity, 0)}</span>
@@ -1487,9 +1524,9 @@ function AuthorizedMenuContent({ restaurantId, tableId, sessionId, activeSession
 
         {/* CART & HISTORY MODAL */}
         <Dialog open={isCartOpen} onOpenChange={setIsCartOpen}>
-          <DialogContent className="sm:max-w-md bg-zinc-950 border-amber-500/20 text-white p-0 gap-0 overflow-hidden shadow-2xl rounded-3xl h-[85vh] flex flex-col w-[95vw]">
-            <DialogHeader className="p-4 border-b border-white/10 bg-zinc-900/50 backdrop-blur-xl flex-none">
-              <DialogTitle className="text-center text-xl font-light uppercase tracking-widest text-white" style={{ fontFamily: 'Georgia, serif' }}>Riepilogo</DialogTitle>
+          <DialogContent className="sm:max-w-md p-0 gap-0 overflow-hidden shadow-2xl rounded-3xl h-[85vh] flex flex-col w-[95vw]" style={{ backgroundColor: theme.dialogBg, borderColor: theme.primaryAlpha(0.2), color: theme.textPrimary }}>
+            <DialogHeader className="p-4 backdrop-blur-xl flex-none" style={{ borderBottom: `1px solid ${theme.divider}`, backgroundColor: theme.cardBg }}>
+              <DialogTitle className="text-center text-xl font-light uppercase tracking-widest" style={{ fontFamily: theme.headerFont, color: theme.textPrimary }}>Riepilogo</DialogTitle>
             </DialogHeader>
 
             <div className="flex-1 overflow-y-auto scrollbar-hide p-4 space-y-6">
@@ -1498,21 +1535,22 @@ function AuthorizedMenuContent({ restaurantId, tableId, sessionId, activeSession
               <div className="space-y-4">
                 <div className="flex items-center justify-between">
                   <div className="flex items-center gap-2">
-                    <h3 className="text-amber-500 text-xs font-bold uppercase tracking-wider">Nel Carrello</h3>
+                    <h3 className="text-xs font-bold uppercase tracking-wider" style={{ color: theme.primary }}>Nel Carrello</h3>
                     {fullRestaurant?.enable_course_splitting && (
                       <button
                         onClick={() => setIsCourseSplittingMode(!isCourseSplittingMode)}
-                        className={`text-sm px-3 py-1.5 rounded-full border transition-all font-medium ${isCourseSplittingMode ? 'bg-amber-500 text-black border-amber-500 font-bold' : 'text-zinc-400 border-zinc-600 hover:border-amber-500 hover:text-amber-500'}`}
+                        className="text-sm px-3 py-1.5 rounded-full border transition-all font-medium"
+                        style={isCourseSplittingMode ? { backgroundColor: theme.primary, color: '#000', borderColor: theme.primary, fontWeight: 700 } : { color: theme.textSecondary, borderColor: theme.textMuted }}
                       >
                         {isCourseSplittingMode ? '✓ Portate Attive' : 'Dividi in Portate'}
                       </button>
                     )}
                   </div>
-                  <span className="text-xs text-zinc-500">{cart.length} articoli</span>
+                  <span className="text-xs" style={{ color: theme.textMuted }}>{cart.length} articoli</span>
                 </div>
 
                 {cart.length === 0 ? (
-                  <p className="text-zinc-500 text-sm italic text-center py-8 bg-zinc-900/30 rounded-xl border border-white/5">Il carrello è vuoto</p>
+                  <p className="text-sm italic text-center py-8 rounded-xl" style={{ color: theme.textMuted, backgroundColor: theme.cardBg, border: `1px solid ${theme.cardBorder}` }}>Il carrello è vuoto</p>
                 ) : (
                   <div className="space-y-3">
                     {sortedCart.map((item, index) => {
@@ -1522,11 +1560,11 @@ function AuthorizedMenuContent({ restaurantId, tableId, sessionId, activeSession
                       return (
                         <React.Fragment key={item.id}>
                           {showCourseHeader && (
-                            <div className="text-xs font-bold text-zinc-400 mt-2 mb-1 px-1 uppercase tracking-widest">
+                            <div className="text-xs font-bold mt-2 mb-1 px-1 uppercase tracking-widest" style={{ color: theme.textSecondary }}>
                               Portata {item.course_number || 1}
                             </div>
                           )}
-                          <div className="bg-zinc-900/50 rounded-xl p-3 border border-white/5 flex gap-3 shadow-sm relative overflow-hidden">
+                          <div className="rounded-xl p-3 flex gap-3 shadow-sm relative overflow-hidden" style={{ backgroundColor: theme.cardBg, border: `1px solid ${theme.cardBorder}` }}>
                             {/* Image if available */}
                             {item.dish?.image_url ? (
                               <img src={item.dish.image_url} className="w-16 h-16 rounded-lg object-cover bg-zinc-800" />
@@ -1538,13 +1576,13 @@ function AuthorizedMenuContent({ restaurantId, tableId, sessionId, activeSession
                             <div className="flex-1 min-w-0 flex flex-col justify-between">
                               <div className="flex justify-between items-start gap-2">
                                 <h4 className="font-medium text-white line-clamp-1 text-sm">{item.dish?.name}</h4>
-                                <span className="text-amber-400 font-bold text-sm whitespace-nowrap">€{((item.dish?.price || 0) * item.quantity).toFixed(2)}</span>
+                                <span className="font-medium text-sm whitespace-nowrap" style={{ color: theme.primary }}>€{((item.dish?.price || 0) * item.quantity).toFixed(2)}</span>
                               </div>
                               {item.notes && <p className="text-[10px] text-zinc-500 line-clamp-1 italic">{item.notes}</p>}
 
                               <div className="flex items-center justify-between mt-2">
                                 {/* Quantity Controls */}
-                                <div className="flex items-center gap-3 bg-zinc-950/50 rounded-lg p-0.5 border border-white/5 shadow-inner">
+                                <div className="flex items-center gap-3 rounded-lg p-0.5 shadow-inner" style={{ backgroundColor: theme.inputBg, border: `1px solid ${theme.cardBorder}` }}>
                                   <button
                                     onClick={() => updateCartItemQuantity(item.id, -1)}
                                     className="w-7 h-7 flex items-center justify-center text-zinc-400 hover:text-white hover:bg-zinc-800 rounded-md transition-colors"
@@ -1571,10 +1609,11 @@ function AuthorizedMenuContent({ restaurantId, tableId, sessionId, activeSession
                                             moveItemToCourse(item.id, num)
                                           }
                                         }}
-                                        className={`w-8 h-8 flex items-center justify-center rounded-full text-xs font-bold border-2 transition-all ${(item.course_number || 1) === num
-                                          ? 'bg-amber-500 text-black border-amber-500 scale-110 shadow-lg shadow-amber-500/30'
-                                          : 'text-zinc-400 border-zinc-600 hover:border-amber-500 hover:text-amber-500 hover:scale-105'
-                                          }`}
+                                        className="w-8 h-8 flex items-center justify-center rounded-full text-xs font-bold border-2 transition-all"
+                                        style={(item.course_number || 1) === num
+                                          ? { backgroundColor: theme.primary, color: '#000', borderColor: theme.primary, transform: 'scale(1.1)', boxShadow: `0 10px 15px -3px ${theme.primaryAlpha(0.3)}` }
+                                          : { color: theme.textSecondary, borderColor: theme.textMuted }
+                                        }
                                       >
                                         {num}
                                       </button>
@@ -1584,7 +1623,6 @@ function AuthorizedMenuContent({ restaurantId, tableId, sessionId, activeSession
 
                                 <button
                                   onClick={() => {
-                                    // Remove logic: calling with negative quantity equal to current will set to 0 and remove
                                     updateCartItemQuantity(item.id, -item.quantity)
                                   }}
                                   className="text-red-400/50 hover:text-red-400 p-1.5 hover:bg-red-400/10 rounded-md transition-colors ml-auto"
@@ -1603,8 +1641,8 @@ function AuthorizedMenuContent({ restaurantId, tableId, sessionId, activeSession
 
               {/* SEND BUTTON AREA */}
               {cart.length > 0 && (
-                <div className="bg-zinc-900/30 p-4 rounded-2xl border border-white/5 space-y-4 shadow-lg">
-                  <div className="flex justify-between items-center text-zinc-400 text-sm border-b border-white/5 pb-3">
+                <div className="p-4 rounded-2xl space-y-4 shadow-lg" style={{ backgroundColor: theme.cardBg, border: `1px solid ${theme.cardBorder}` }}>
+                  <div className="flex justify-between items-center text-sm pb-3" style={{ color: theme.textSecondary, borderBottom: `1px solid ${theme.divider}` }}>
                     <span>Totale Carrello</span>
                     <span>€{cartTotal.toFixed(2)}</span>
                   </div>
@@ -1632,7 +1670,8 @@ function AuthorizedMenuContent({ restaurantId, tableId, sessionId, activeSession
                   })()}
 
                   <Button
-                    className="w-full bg-gradient-to-r from-amber-500 to-orange-600 hover:from-amber-400 hover:to-orange-500 text-white font-bold h-12 rounded-xl shadow-lg shadow-amber-900/20"
+                    className="w-full font-bold h-12 rounded-xl shadow-lg text-white"
+                    style={theme.floatingCartStyle}
                     onClick={() => {
                       handleSubmitClick()
                       // Close modal after successful submission? 
@@ -1659,13 +1698,13 @@ function AuthorizedMenuContent({ restaurantId, tableId, sessionId, activeSession
 
               {/* HISTORY */}
               {previousOrders.length > 0 && (
-                <div className="pt-6 border-t border-white/10 space-y-4">
-                  <h3 className="text-zinc-500 text-xs font-bold uppercase tracking-wider mb-2">Storico Ordini</h3>
+                <div className="pt-6 space-y-4" style={{ borderTop: `1px solid ${theme.divider}` }}>
+                  <h3 className="text-xs font-bold uppercase tracking-wider mb-2" style={{ color: theme.textMuted }}>Storico Ordini</h3>
                   {previousOrders.map(order => (
-                    <div key={order.id} className="bg-zinc-900/30 rounded-xl p-3 border border-white/5 opacity-80 hover:opacity-100 transition-opacity">
-                      <div className="flex justify-between text-sm mb-3 pb-2 border-b border-white/5">
-                        <span className="text-zinc-400 text-xs">Ordine delle {new Date(order.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>
-                        <span className="text-zinc-200 font-bold">€{order.total_amount?.toFixed(2)}</span>
+                    <div key={order.id} className="rounded-xl p-3 opacity-80 hover:opacity-100 transition-opacity" style={{ backgroundColor: theme.cardBg, border: `1px solid ${theme.cardBorder}` }}>
+                      <div className="flex justify-between text-sm mb-3 pb-2" style={{ borderBottom: `1px solid ${theme.divider}` }}>
+                        <span className="text-xs" style={{ color: theme.textSecondary }}>Ordine delle {new Date(order.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>
+                        <span className="font-bold" style={{ color: theme.textPrimary }}>€{order.total_amount?.toFixed(2)}</span>
                       </div>
                       <div className="space-y-2">
                         {order.items?.map((item: any, i: number) => (
@@ -1696,13 +1735,13 @@ function AuthorizedMenuContent({ restaurantId, tableId, sessionId, activeSession
 
         {/* Dish Detail Dialog */}
         <Dialog open={!!selectedDish} onOpenChange={(open) => !open && setSelectedDish(null)}>
-          <DialogContent className="sm:max-w-[380px] bg-zinc-950 border-amber-500/20 text-white p-0 gap-0 overflow-hidden shadow-2xl rounded-3xl">
+          <DialogContent className="sm:max-w-[380px] p-0 gap-0 overflow-hidden shadow-2xl rounded-3xl" style={{ backgroundColor: theme.dialogBg, borderColor: theme.primaryAlpha(0.2), color: theme.textPrimary }}>
             {selectedDish && (
-              <div className="flex flex-col h-full bg-zinc-950 text-white">
+              <div className="flex flex-col h-full" style={{ backgroundColor: theme.dialogBg, color: theme.textPrimary }}>
                 {selectedDish.image_url ? (
                   <div className="relative h-48 w-full">
                     <img src={selectedDish.image_url} alt={selectedDish.name} className="w-full h-full object-cover" />
-                    <div className="absolute inset-0 bg-gradient-to-t from-zinc-950/80 to-transparent" />
+                    <div className="absolute inset-0" style={{ background: `linear-gradient(to top, ${theme.dialogBg}cc, transparent)` }} />
                   </div>
                 ) : (
                   <div className="relative h-48 w-full">
@@ -1713,22 +1752,22 @@ function AuthorizedMenuContent({ restaurantId, tableId, sessionId, activeSession
 
                 <div className="flex items-start justify-between p-5 pb-0">
                   <div>
-                    <h2 className="text-2xl font-light leading-tight pr-4 tracking-wide" style={{ fontFamily: 'Georgia, serif' }}>{selectedDish.name}</h2>
-                    <p className="text-amber-400 font-bold mt-2 text-xl">€{selectedDish.price.toFixed(2)}</p>
+                    <h2 className="text-2xl font-light leading-tight pr-4 tracking-wide" style={{ fontFamily: theme.headerFont }}>{selectedDish.name}</h2>
+                    <p className="font-bold mt-2 text-xl" style={{ color: theme.primary }}>€{selectedDish.price.toFixed(2)}</p>
                   </div>
-                  <Button variant="ghost" size="icon" onClick={() => setSelectedDish(null)} className="-mt-2 -mr-2 text-zinc-400 hover:text-white hover:bg-zinc-800 rounded-full h-10 w-10">
+                  <Button variant="ghost" size="icon" onClick={() => setSelectedDish(null)} className="-mt-2 -mr-2 hover:bg-zinc-800 rounded-full h-10 w-10" style={{ color: theme.textSecondary }}>
                     <X className="w-6 h-6" />
                   </Button>
                 </div>
 
                 <div className="p-5 space-y-5 flex-1 overflow-y-auto scrollbar-hide">
                   {selectedDish.description && (
-                    <p className="text-zinc-400 text-sm font-light leading-relaxed">{selectedDish.description}</p>
+                    <p className="text-sm font-light leading-relaxed" style={{ color: theme.textSecondary }}>{selectedDish.description}</p>
                   )}
 
                   {/* Quantity */}
-                  <div className="flex items-center justify-between bg-zinc-900/50 p-2 rounded-xl border border-white/5">
-                    <span className="text-sm font-medium pl-2 text-zinc-300">Quantità</span>
+                  <div className="flex items-center justify-between p-2 rounded-xl" style={{ backgroundColor: theme.inputBg, border: `1px solid ${theme.cardBorder}` }}>
+                    <span className="text-sm font-medium pl-2" style={{ color: theme.textSecondary }}>Quantità</span>
                     <div className="flex items-center gap-3">
                       <Button variant="outline" size="icon" className="h-10 w-10 border-white/10 bg-zinc-800 hover:bg-zinc-700 hover:text-white text-zinc-400 rounded-lg" onClick={() => setDishQuantity(q => Math.max(1, q - 1))} disabled={dishQuantity <= 1}><Minus className="w-5 h-5" /></Button>
                       <span className="w-8 text-center font-bold text-xl">{dishQuantity}</span>
@@ -1738,10 +1777,11 @@ function AuthorizedMenuContent({ restaurantId, tableId, sessionId, activeSession
 
                   {/* Notes */}
                   <div className="space-y-2">
-                    <span className="text-xs font-bold text-zinc-500 uppercase tracking-wider">Note speciali</span>
+                    <span className="text-xs font-bold uppercase tracking-wider" style={{ color: theme.textMuted }}>Note speciali</span>
                     <Textarea
                       placeholder="Es. Senza cipolla, cottura media..."
-                      className="bg-zinc-900/50 border-white/10 text-white min-h-[80px] focus:ring-amber-500/50 focus:border-amber-500 placeholder:text-zinc-600"
+                      className="min-h-[80px] placeholder:text-zinc-600"
+                      style={{ backgroundColor: theme.inputBg, borderColor: theme.inputBorder, color: theme.textPrimary }}
                       value={dishNote}
                       onChange={(e) => setDishNote(e.target.value)}
                     />
@@ -1750,7 +1790,8 @@ function AuthorizedMenuContent({ restaurantId, tableId, sessionId, activeSession
 
                 <div className="p-5 pt-0">
                   <Button
-                    className="w-full bg-amber-500 hover:bg-amber-600 text-zinc-900 font-bold rounded-xl text-lg shadow-lg shadow-amber-500/20 active:scale-[0.98] transition-transform h-14"
+                    className="w-full font-bold rounded-xl text-lg shadow-lg active:scale-[0.98] transition-transform h-14"
+                    style={{ ...theme.ctaButtonStyle, borderRadius: theme.buttonRadius }}
                     onClick={() => addToCart(selectedDish, dishQuantity, dishNote)}
                   >
                     AGGIUNGI - €{(selectedDish.price * dishQuantity).toFixed(2)}
@@ -1763,16 +1804,16 @@ function AuthorizedMenuContent({ restaurantId, tableId, sessionId, activeSession
 
         {/* Confirm Send Dialog */}
         <Dialog open={showConfirmDialog} onOpenChange={setShowConfirmDialog}>
-          <DialogContent className="sm:max-w-sm bg-zinc-950 border-amber-500/20 text-white shadow-2xl shadow-black/80">
+          <DialogContent className="sm:max-w-sm shadow-2xl shadow-black/80" style={{ backgroundColor: theme.dialogBg, borderColor: theme.primaryAlpha(0.2), color: theme.textPrimary }}>
             <DialogHeader>
-              <DialogTitle className="text-amber-500" style={{ fontFamily: 'Georgia, serif' }}>Conferma invio</DialogTitle>
-              <DialogDescription className="text-zinc-400">Inviare l'ordine in cucina?</DialogDescription>
+              <DialogTitle style={{ color: theme.primary, fontFamily: theme.headerFont }}>Conferma invio</DialogTitle>
+              <DialogDescription style={{ color: theme.textSecondary }}>Inviare l'ordine in cucina?</DialogDescription>
             </DialogHeader>
             <div className="py-3">
-              <div className="bg-zinc-900/50 rounded-xl p-3 space-y-2 border border-white/5">
+              <div className="rounded-xl p-3 space-y-2" style={{ backgroundColor: theme.cardBg, border: `1px solid ${theme.cardBorder}` }}>
                 {courseNumbers.map(num => (
                   <div key={num} className="mb-2">
-                    <p className="text-xs font-bold text-amber-500 uppercase tracking-widest mb-1">• Portata {num}</p>
+                    <p className="text-xs font-bold uppercase tracking-widest mb-1" style={{ color: theme.primary }}>• Portata {num}</p>
                     <ul className="pl-2 space-y-1">
                       {cartByCourse[num]?.map((item, idx) => (
                         <li key={idx} className="text-xs text-zinc-300 flex justify-between">
@@ -1783,22 +1824,22 @@ function AuthorizedMenuContent({ restaurantId, tableId, sessionId, activeSession
                     </ul>
                   </div>
                 ))}
-                <p className="text-sm font-bold pt-2 border-t border-white/10 mt-2 text-white">Totale Ordine: €{cartTotal.toFixed(2)}</p>
+                <p className="text-sm font-bold pt-2 mt-2" style={{ borderTop: `1px solid ${theme.divider}`, color: theme.textPrimary }}>Totale Ordine: €{cartTotal.toFixed(2)}</p>
               </div>
             </div>
             <div className="flex gap-2">
-              <Button variant="outline" className="flex-1 border-white/10 bg-white/5 text-zinc-300 hover:bg-white/10 hover:text-white" onClick={() => setShowConfirmDialog(false)}>Annulla</Button>
-              <Button className="flex-1 bg-amber-500 hover:bg-amber-600 text-zinc-950 font-bold" onClick={submitOrder} disabled={isOrderSubmitting}>{isOrderSubmitting ? 'Invio...' : 'Conferma'}</Button>
+              <Button variant="outline" className="flex-1" style={{ borderColor: theme.cardBorder, backgroundColor: theme.cardBg, color: theme.textSecondary }} onClick={() => setShowConfirmDialog(false)}>Annulla</Button>
+              <Button className="flex-1 font-bold" style={theme.ctaButtonStyle} onClick={submitOrder} disabled={isOrderSubmitting}>{isOrderSubmitting ? 'Invio...' : 'Conferma'}</Button>
             </div>
           </DialogContent>
         </Dialog>
 
         {/* Course Management (Drag & Drop) */}
         <Dialog open={showCourseManagement} onOpenChange={setShowCourseManagement}>
-          <DialogContent className="max-w-lg bg-zinc-950 max-h-[85vh] overflow-hidden flex flex-col p-0 rounded-3xl border border-amber-500/20 shadow-2xl shadow-black">
-            <DialogHeader className="p-4 bg-zinc-950 border-b border-amber-500/10 z-10">
-              <DialogTitle className="text-amber-500" style={{ fontFamily: 'Georgia, serif' }}>Organizza Portate</DialogTitle>
-              <DialogDescription className="text-zinc-400">Trascina i piatti per cambiare l'ordine di uscita</DialogDescription>
+          <DialogContent className="max-w-lg max-h-[85vh] overflow-hidden flex flex-col p-0 rounded-3xl shadow-2xl shadow-black" style={{ backgroundColor: theme.dialogBg, border: `1px solid ${theme.primaryAlpha(0.2)}` }}>
+            <DialogHeader className="p-4 z-10" style={{ backgroundColor: theme.dialogBg, borderBottom: `1px solid ${theme.primaryAlpha(0.1)}` }}>
+              <DialogTitle style={{ color: theme.primary, fontFamily: theme.headerFont }}>Organizza Portate</DialogTitle>
+              <DialogDescription style={{ color: theme.textSecondary }}>Trascina i piatti per cambiare l'ordine di uscita</DialogDescription>
             </DialogHeader>
 
             <div className="flex-1 min-h-0 relative flex flex-col overflow-hidden">
@@ -1815,10 +1856,11 @@ function AuthorizedMenuContent({ restaurantId, tableId, sessionId, activeSession
                       <DroppableCourse
                         key={courseNum}
                         id={`course-${courseNum}`}
-                        className="bg-zinc-950/80 rounded-2xl p-3 shadow-lg border border-white/5"
+                        className="bg-zinc-950/80 rounded-2xl p-3 shadow-lg"
+                        style={{ border: `1px solid ${theme.cardBorder}` }}
                       >
                         <div className="flex items-center justify-center mb-3">
-                          <h3 className="font-bold text-amber-500 uppercase tracking-widest text-xs flex items-center gap-2 bg-amber-500/10 px-4 py-2 rounded-full border border-amber-500/20" style={{ fontFamily: 'Georgia, serif' }}>
+                          <h3 className="font-bold uppercase tracking-widest text-xs flex items-center gap-2 px-4 py-2 rounded-full" style={{ color: theme.primary, fontFamily: theme.headerFont, backgroundColor: theme.primaryAlpha(0.1), border: `1px solid ${theme.primaryAlpha(0.2)}` }}>
                             <Layers className="w-4 h-4" />
                             {getCourseTitle(courseNum)}
                           </h3>
@@ -1864,8 +1906,8 @@ function AuthorizedMenuContent({ restaurantId, tableId, sessionId, activeSession
               </DndContext>
             </div>
 
-            <div className="p-4 bg-zinc-950 border-t border-amber-500/10 z-20 relative">
-              <Button className="w-full h-12 bg-amber-500 hover:bg-amber-600 text-zinc-900 font-bold rounded-xl shadow-lg shadow-amber-500/20" onClick={() => setShowCourseManagement(false)}>
+            <div className="p-4 z-20 relative" style={{ backgroundColor: theme.dialogBg, borderTop: `1px solid ${theme.primaryAlpha(0.1)}` }}>
+              <Button className="w-full h-12 font-bold rounded-xl shadow-lg" style={theme.ctaButtonStyle} onClick={() => setShowCourseManagement(false)}>
                 Fatto
               </Button>
             </div>
@@ -1874,15 +1916,15 @@ function AuthorizedMenuContent({ restaurantId, tableId, sessionId, activeSession
 
         {/* Course Alert Dialog */}
         <AlertDialog open={showCourseAlert} onOpenChange={setShowCourseAlert}>
-          <AlertDialogContent className="bg-zinc-950 border-amber-500/20 text-white shadow-2xl shadow-black/80 rounded-3xl max-w-sm">
+          <AlertDialogContent className="rounded-3xl max-w-sm" style={{ backgroundColor: theme.dialogBg, borderColor: theme.primaryAlpha(0.2), color: theme.textPrimary }}>
             <AlertDialogHeader>
-              <AlertDialogTitle className="text-center text-xl text-amber-500" style={{ fontFamily: 'Georgia, serif' }}>Come vuoi procedere?</AlertDialogTitle>
-              <AlertDialogDescription className="text-center text-zinc-400">
+              <AlertDialogTitle className="text-center text-xl" style={{ color: theme.primary, fontFamily: theme.headerFont }}>Come vuoi procedere?</AlertDialogTitle>
+              <AlertDialogDescription className="text-center" style={{ color: theme.textSecondary }}>
                 Hai inserito tutti i piatti in un'unica portata. Vuoi inviare tutto subito o dividere in più uscite?
               </AlertDialogDescription>
             </AlertDialogHeader>
             <div className="flex flex-col gap-3 py-4">
-              <Button className="h-14 bg-gradient-to-r from-amber-600 to-amber-500 hover:from-amber-700 hover:to-amber-600 text-white font-bold rounded-xl shadow-lg shadow-amber-500/20" onClick={() => {
+              <Button className="h-14 text-white font-bold rounded-xl shadow-lg" style={{ ...theme.primaryGradientStyle, boxShadow: `0 10px 15px -3px ${theme.primaryAlpha(0.2)}` }} onClick={() => {
                 setShowCourseAlert(false);
                 setShowConfirmDialog(true);
               }}>
@@ -1890,35 +1932,36 @@ function AuthorizedMenuContent({ restaurantId, tableId, sessionId, activeSession
                 Invia tutto insieme
               </Button>
               {courseSplittingEnabled && (
-                <Button variant="outline" className="h-14 border-zinc-800 bg-zinc-900/50 text-white hover:bg-zinc-800 hover:text-amber-500 hover:border-amber-500/30 rounded-xl font-medium transition-all" onClick={() => {
+                <Button variant="outline" className="h-14 rounded-xl font-medium transition-all" style={{ borderColor: theme.cardBorder, backgroundColor: theme.cardBg, color: theme.textPrimary }} onClick={() => {
                   setShowCourseAlert(false);
                   setShowCourseManagement(true);
                 }}>
-                  <Layers className="w-5 h-5 mr-2 text-amber-500" />
+                  <Layers className="w-5 h-5 mr-2" style={{ color: theme.primary }} />
                   Dividi in portate
                 </Button>
               )}
             </div>
             <AlertDialogFooter>
-              <AlertDialogCancel className="rounded-xl h-12 border-zinc-800 bg-transparent text-zinc-400 hover:bg-zinc-900 hover:text-white w-full">Annulla</AlertDialogCancel>
+              <AlertDialogCancel className="rounded-xl h-12 bg-transparent w-full" style={{ borderColor: theme.cardBorder, color: theme.textSecondary }}>Annulla</AlertDialogCancel>
             </AlertDialogFooter>
           </AlertDialogContent>
         </AlertDialog>
 
-        {/* Call Waiter FAB - Floating Action Button (Top Right) */}
+        {/* Call Waiter FAB */}
         <Button
           onClick={handleCallWaiter}
           disabled={callWaiterDisabled}
-          className={`fixed top-4 right-4 z-50 h-12 w-12 rounded-full shadow-xl border-2 transition-all duration-300 ${callWaiterDisabled
-            ? 'bg-zinc-800 border-zinc-700 text-zinc-500 cursor-not-allowed'
-            : 'bg-zinc-900 border-amber-500/50 text-amber-500 hover:bg-amber-500 hover:text-white hover:border-amber-500 hover:shadow-amber-500/20'
-            }`}
+          className={`fixed top-4 right-4 z-50 h-12 w-12 rounded-full shadow-xl border-2 transition-all duration-300 ${callWaiterDisabled ? 'cursor-not-allowed' : ''}`}
+          style={callWaiterDisabled
+            ? { backgroundColor: '#27272a', borderColor: '#3f3f46', color: '#71717a' }
+            : theme.fabStyle
+          }
           title={callWaiterDisabled ? 'Attendi 30 secondi...' : 'Chiama cameriere'}
         >
           <Bell className="w-5 h-5" fill="currentColor" />
         </Button>
       </div>
-    </div>
+    </div >
   )
 }
 

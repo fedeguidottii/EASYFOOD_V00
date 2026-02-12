@@ -23,6 +23,7 @@ import {
     Gear
 } from '@phosphor-icons/react'
 import { SoundType } from '../utils/SoundManager'
+import { STYLE_PRESETS, COLOR_OPTIONS } from '../utils/menuTheme'
 import WeeklyScheduleEditor from './WeeklyScheduleEditor'
 import type { WeeklyCopertoSchedule, WeeklyAyceSchedule } from '@/services/types'
 import { createDefaultCopertoSchedule, createDefaultAyceSchedule } from '@/utils/pricingUtils'
@@ -88,6 +89,11 @@ interface SettingsViewProps {
 
     viewOnlyMenuEnabled: boolean
     setViewOnlyMenuEnabled: (enabled: boolean) => void
+
+    menuStyle: string
+    setMenuStyle: (style: string) => void
+    menuPrimaryColor: string
+    setMenuPrimaryColor: (color: string) => void
 }
 
 export function SettingsView({
@@ -136,7 +142,11 @@ export function SettingsView({
     weeklyAyce,
     setWeeklyAyce,
     viewOnlyMenuEnabled,
-    setViewOnlyMenuEnabled
+    setViewOnlyMenuEnabled,
+    menuStyle,
+    setMenuStyle,
+    menuPrimaryColor,
+    setMenuPrimaryColor
 }: SettingsViewProps) {
 
     const containerVariants = {
@@ -366,6 +376,84 @@ export function SettingsView({
                                         }}
                                         className="data-[state=checked]:bg-amber-500"
                                     />
+                                </div>
+                            </div>
+
+                            {/* Menu Solo Visualizzazione */}
+                            <div className="col-span-full p-6 rounded-2xl bg-zinc-900/50 border border-white/5 backdrop-blur-sm">
+                                <div className="flex items-center justify-between">
+                                    <div className="space-y-1">
+                                        <h3 className="text-lg font-bold flex items-center gap-2">
+                                            Menu Solo Visualizzazione
+                                        </h3>
+                                        <p className="text-sm text-zinc-400 max-w-prose">
+                                            Se attivo, i clienti potranno visualizzare il menù senza la possibilità di ordinare. I QR code mostreranno "Scansiona per visualizzare il menù".
+                                        </p>
+                                    </div>
+                                    <Switch
+                                        checked={viewOnlyMenuEnabled}
+                                        onCheckedChange={setViewOnlyMenuEnabled}
+                                        className="data-[state=checked]:bg-amber-500"
+                                    />
+                                </div>
+                            </div>
+
+                            {/* Stile Menù Cliente */}
+                            <div className="col-span-full p-6 rounded-2xl bg-zinc-900/50 border border-white/5 backdrop-blur-sm space-y-5">
+                                <div className="space-y-1">
+                                    <h3 className="text-lg font-bold">Stile Menù Cliente</h3>
+                                    <p className="text-sm text-zinc-400">Scegli l'aspetto del menù che vedranno i tuoi clienti.</p>
+                                </div>
+
+                                {/* Style Preset Cards */}
+                                <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+                                    {STYLE_PRESETS.map((preset) => (
+                                        <button
+                                            key={preset.key}
+                                            onClick={() => setMenuStyle(preset.key)}
+                                            className={`p-4 rounded-xl border-2 text-left transition-all duration-300 ${menuStyle === preset.key
+                                                ? 'border-amber-500 bg-amber-500/10 shadow-lg shadow-amber-500/10'
+                                                : 'border-white/5 bg-zinc-800/30 hover:border-white/20 hover:bg-zinc-800/60'
+                                                }`}
+                                        >
+                                            <div className="text-sm font-bold text-white mb-1">{preset.label}</div>
+                                            <div className="text-[11px] text-zinc-400 leading-tight">{preset.description}</div>
+                                            {menuStyle === preset.key && (
+                                                <div className="mt-2 text-amber-500 text-[10px] font-bold uppercase tracking-wider">✓ Attivo</div>
+                                            )}
+                                        </button>
+                                    ))}
+                                </div>
+
+                                {/* Primary Color Selection */}
+                                <div className="pt-4 border-t border-white/5 space-y-3">
+                                    <div className="space-y-1">
+                                        <h4 className="text-sm font-bold text-white">Colore Principale</h4>
+                                        <p className="text-xs text-zinc-500">Il colore che i clienti vedranno nei pulsanti, accenti e elementi interattivi.</p>
+                                    </div>
+                                    <div className="flex gap-3 flex-wrap">
+                                        {COLOR_OPTIONS.map((color) => (
+                                            <button
+                                                key={color.hex}
+                                                onClick={() => setMenuPrimaryColor(color.hex)}
+                                                className={`w-10 h-10 rounded-full transition-all duration-300 relative flex items-center justify-center ${menuPrimaryColor === color.hex
+                                                    ? 'ring-2 ring-offset-2 ring-offset-zinc-900 scale-110'
+                                                    : 'hover:scale-110'
+                                                    }`}
+                                                style={{
+                                                    backgroundColor: color.hex,
+                                                    boxShadow: menuPrimaryColor === color.hex
+                                                        ? `0 0 0 2px #18181b, 0 0 0 4px ${color.hex}, 0 0 20px ${color.hex}40`
+                                                        : undefined
+                                                }}
+                                                title={color.name}
+                                            >
+                                                {menuPrimaryColor === color.hex && (
+                                                    <CheckCircle size={18} weight="fill" className="text-white drop-shadow-md" />
+                                                )}
+                                            </button>
+                                        ))}
+                                    </div>
                                 </div>
                             </div>
                         </div>

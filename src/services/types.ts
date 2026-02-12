@@ -57,6 +57,8 @@ export interface Restaurant {
     weekly_coperto?: WeeklyCopertoSchedule
     weekly_ayce?: WeeklyAyceSchedule
     view_only_menu_enabled?: boolean
+    menu_style?: 'elegant' | 'friendly' | 'minimal' | 'bold'
+    menu_primary_color?: string
 }
 
 export interface DayMealConfig {
