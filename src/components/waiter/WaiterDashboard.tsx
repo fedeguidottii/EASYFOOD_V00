@@ -170,7 +170,7 @@ const WaiterDashboard = ({ user, onLogout }: WaiterDashboardProps) => {
             .channel(`waiter-dashboard:${restaurantId}`)
             .on('postgres_changes', { event: '*', schema: 'public', table: 'table_sessions', filter: `restaurant_id=eq.${restaurantId}` }, () => refreshData())
             .on('postgres_changes', { event: '*', schema: 'public', table: 'orders', filter: `restaurant_id=eq.${restaurantId}` }, () => refreshData())
-            .on('postgres_changes', { event: '*', schema: 'public', table: 'order_items' }, () => refreshData()) // Added order_items subscription
+            .on('postgres_changes', { event: '*', schema: 'public', table: 'order_items', filter: `restaurant_id=eq.${restaurantId}` }, () => refreshData()) // Filtered order_items subscription
             .on('postgres_changes', { event: '*', schema: 'public', table: 'tables', filter: `restaurant_id=eq.${restaurantId}` }, async () => {
                 // Refresh tables for assistance requests
                 const tbs = await DatabaseService.getTables(restaurantId)
@@ -780,7 +780,7 @@ const WaiterDashboard = ({ user, onLogout }: WaiterDashboardProps) => {
             <div className="fixed inset-0 bg-[url('https://grainy-gradients.vercel.app/noise.svg')] opacity-20 pointer-events-none brightness-100 contrast-150 mix-blend-overlay"></div>
 
             {/* Header */}
-            <header className="relative z-10 flex flex-col md:flex-row items-center justify-between mb-8 gap-4 bg-zinc-900/50 backdrop-blur-xl p-4 rounded-3xl border border-white/5 shadow-2xl">
+            <header className="sticky top-0 z-50 flex flex-col md:flex-row items-center justify-between mb-8 gap-4 bg-zinc-950/80 backdrop-blur-xl p-4 rounded-b-3xl border-b border-white/5 shadow-2xl transition-all duration-300">
                 <div className="flex items-center gap-5 w-full md:w-auto">
                     <div className="w-14 h-14 rounded-2xl bg-gradient-to-br from-amber-500 to-amber-600 flex items-center justify-center text-black shadow-lg shadow-amber-500/20 ring-1 ring-white/10">
                         <User size={28} weight="duotone" />

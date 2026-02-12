@@ -498,7 +498,7 @@ const WaiterOrderPage = () => {
                                     <span>€{totalAmount.toFixed(2)}</span>
                                 </Button>
                             </SheetTrigger>
-                            <SheetContent side="bottom" className="max-h-[90dvh] h-[90dvh] bg-zinc-950 border-t border-zinc-800 p-0 flex flex-col rounded-t-[2rem] overflow-hidden">
+                            <SheetContent side="bottom" className="max-h-[90dvh] h-[90dvh] bg-zinc-950 border-t border-zinc-800 p-0 flex flex-col rounded-t-[2rem] overflow-hidden z-[100]">
                                 <SheetHeader className="p-6 pb-2 border-b border-white/5 bg-zinc-900/50 shrink-0">
                                     <SheetTitle className="text-xl text-white flex items-center gap-2">
                                         <ShoppingCart className="text-amber-500" weight="duotone" />
@@ -655,8 +655,8 @@ const WaiterOrderPage = () => {
                         <AlertDialogAction
                             onClick={processOrderSubmission}
                             className={`rounded-lg font-bold text-black ${confirmActionType === 'standard'
-                                    ? 'bg-amber-500 hover:bg-amber-400'
-                                    : 'bg-green-500 hover:bg-green-400'
+                                ? 'bg-amber-500 hover:bg-amber-400'
+                                : 'bg-green-500 hover:bg-green-400'
                                 }`}
                         >
                             {confirmActionType === 'standard' ? 'Invia Ordine' : 'Conferma Pronta Consegna'}

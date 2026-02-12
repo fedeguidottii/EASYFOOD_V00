@@ -533,7 +533,15 @@ const CustomerMenu = () => {
       })
       .subscribe()
 
-    // Real-time subscription for Restaurant Settings (enable_course_splitting)
+    return () => {
+      supabase.removeChannel(sessionChannel)
+    }
+  }, [tableId, isAuthenticated, activeSession?.id])
+
+  // Real-time subscription for Restaurant Settings (Independent of session/auth)
+  useEffect(() => {
+    if (!restaurantId) return
+
     const restaurantChannel = supabase
       .channel(`restaurant-settings-watch:${restaurantId}`)
       .on('postgres_changes', {
@@ -561,10 +569,9 @@ const CustomerMenu = () => {
       .subscribe()
 
     return () => {
-      supabase.removeChannel(sessionChannel)
       supabase.removeChannel(restaurantChannel)
     }
-  }, [tableId, isAuthenticated, restaurantId, activeSession?.id])
+  }, [restaurantId])
 
   const handlePinSubmit = async (enteredPin: string) => {
     // Retry joining session if missing (connection recovery)

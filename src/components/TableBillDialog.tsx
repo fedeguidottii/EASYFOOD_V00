@@ -3,12 +3,13 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, Di
 import { Button } from '@/components/ui/button'
 import { ScrollArea } from '@/components/ui/scroll-area'
 import { Badge } from '@/components/ui/badge'
-import { CheckCircle, Receipt, Trash, Circle, Check, Plus, Minus, ForkKnife, CurrencyEur, Clock, Users, Sparkle } from '@phosphor-icons/react'
+import { CheckCircle, Receipt, Trash, Circle, Check, Plus, Minus, ForkKnife, CurrencyEur, Clock, Users, Sparkle, X, ArrowLeft, Wallet } from '@phosphor-icons/react'
 import { Order, Table, TableSession, Restaurant, OrderItem, Dish } from '../services/types'
 import { DatabaseService } from '../services/DatabaseService'
 import { toast } from 'sonner'
 import { supabase } from '../lib/supabase'
 import { getCurrentCopertoPrice, getCurrentAyceSettings } from '../utils/pricingUtils'
+import { motion, AnimatePresence } from 'framer-motion'
 
 interface TableBillDialogProps {
     isOpen: boolean
@@ -255,23 +256,10 @@ export default function TableBillDialog({
                 }
             }
 
-            // Update UI State locally to reflect changes immediately
-            // For virtual items: just add to paidItemIds
-            // For real items: The `orders` prop might take a moment to refresh via subscription.
-            // To be instant, we hide the specific Split IDs we acted on.
-            // HOWEVER: Since we modified the DB rows (decrement quantity), the `orders` refresh will eventually come.
-            // But immediate feedback is nice.
-
+            // Update UI State locally
             setPaidItemIds(prev => {
                 const newSet = new Set(prev)
-                // Hide virtuals
                 virtualIdsToHide.forEach(id => newSet.add(id))
-
-                // Hide real split items
-                // We just hide the *specific split IDs* we selected.
-                // Since `realItemsExpanded` is re-calculated from `orders`, 
-                // when `orders` updates (qty decreases), the number of splits will decrease automatically.
-                // But until then, we hide the ones we clicked.
                 selectedSplitItems.forEach(id => newSet.add(id))
                 return newSet
             })
@@ -306,51 +294,48 @@ export default function TableBillDialog({
     // Render Helper
     return (
         <Dialog open={isOpen} onOpenChange={(open) => !open && onClose()}>
-            <DialogContent className="sm:max-w-lg w-[95vw] max-h-[90vh] overflow-hidden bg-zinc-950 border-zinc-800/50 text-zinc-100 p-0 rounded-3xl shadow-2xl shadow-black/50">
-                {/* Glow effects */}
-                <div className="absolute -top-20 -right-20 w-40 h-40 bg-amber-500/10 rounded-full blur-3xl pointer-events-none" />
-                <div className="absolute -bottom-20 -left-20 w-40 h-40 bg-blue-500/10 rounded-full blur-3xl pointer-events-none" />
+            <DialogContent className="sm:max-w-lg w-[95vw] max-h-[90vh] overflow-hidden bg-zinc-950 border-zinc-800 text-zinc-100 p-0 rounded-3xl shadow-2xl flex flex-col">
 
-                <DialogHeader className="p-5 pb-0 relative z-10 flex flex-row items-center justify-between border-b border-white/5 space-y-0 text-left">
-                    <div>
-                        <DialogTitle className="text-xl font-medium tracking-tight flex items-center gap-2">
-                            <Receipt size={24} className="text-amber-500" />
-                            Conto Tavolo {table?.number}
-                        </DialogTitle>
-                        <DialogDescription className="text-zinc-400 text-xs mt-1 font-mono">
-                            Sessione #{session?.session_pin} · {session?.customer_count || 0} Ospiti
-                        </DialogDescription>
+                {/* Header */}
+                <div className="p-5 border-b border-white/5 bg-zinc-900/50 backdrop-blur-xl flex items-center justify-between shrink-0 relative z-20">
+                    <div className="flex flex-col">
+                        <div className="flex items-center gap-2">
+                            <div className="w-8 h-8 rounded-lg bg-amber-500/10 flex items-center justify-center text-amber-500">
+                                <Receipt size={18} weight="fill" />
+                            </div>
+                            <h2 className="text-lg font-bold">Conto Tavolo {table?.number}</h2>
+                        </div>
+                        <p className="text-xs text-zinc-500 ml-10">
+                            {session?.customer_count || 1} Ospiti · Sessione {session?.session_pin}
+                        </p>
                     </div>
-                    <div className="h-10 w-10 rounded-full bg-zinc-900 border border-zinc-800 flex items-center justify-center">
-                        <span className="font-bold text-amber-500">{table?.number}</span>
-                    </div>
-                </DialogHeader>
+                    <Button variant="ghost" size="icon" className="h-8 w-8 rounded-full text-zinc-400 hover:text-white bg-zinc-900 border border-zinc-800" onClick={onClose}>
+                        <X size={16} />
+                    </Button>
+                </div>
 
-                <div className="flex-1 overflow-hidden relative z-10 bg-zinc-950/50 backdrop-blur-sm">
-                    {/* Main Bill View */}
+                {/* Content Area */}
+                <div className="flex-1 overflow-hidden relative bg-zinc-950">
+
+                    {/* Mode 1: Main Overview */}
                     {!isSplitMode && !equalSplitMode && (
-                        <div className="h-full flex flex-col p-5 space-y-6">
+                        <div className="h-full flex flex-col p-5 animate-in fade-in slide-in-from-bottom-2 duration-300">
 
-                            {/* Bill Preview Card */}
-                            <div className="bg-white text-zinc-900 p-6 rounded-sm shadow-xl font-mono text-sm relative overflow-hidden">
-                                {/* Paper texture effect */}
-                                <div className="absolute inset-0 bg-[url('https://www.transparenttextures.com/patterns/cream-paper.png')] opacity-20 pointer-events-none"></div>
-
-                                {/* Zigzag border top/bottom */}
-                                <div className="absolute top-0 left-0 right-0 h-1 bg-[linear-gradient(45deg,transparent_75%,#09090b_75%),linear-gradient(-45deg,transparent_75%,#09090b_75%)] bg-[length:10px_10px] transform rotate-180 opacity-10"></div>
-                                <div className="absolute bottom-0 left-0 right-0 h-1 bg-[linear-gradient(45deg,transparent_75%,#09090b_75%),linear-gradient(-45deg,transparent_75%,#09090b_75%)] bg-[length:10px_10px] opacity-10"></div>
-
-                                <div className="text-center mb-6 border-b border-black/10 pb-4">
-                                    <h3 className="font-bold text-xl uppercase tracking-widest">{restaurant?.name || 'EASYFOOD'}</h3>
-                                    <p className="text-xs text-zinc-500 mt-1">{new Date().toLocaleString('it-IT')}</p>
+                            {/* Receipt Card */}
+                            <div className="bg-white text-zinc-900 rounded-2xl p-0 overflow-hidden shadow-2xl relative flex-1 flex flex-col">
+                                {/* Receipt Header */}
+                                <div className="bg-zinc-100 p-4 border-b border-dashed border-zinc-300 flex items-center justify-between">
+                                    <div className="flex flex-col">
+                                        <span className="font-bold uppercase tracking-wider text-xs text-zinc-500">{restaurant?.name || 'Ristorante'}</span>
+                                        <span className="text-zinc-400 text-[10px]">{new Date().toLocaleString('it-IT')}</span>
+                                    </div>
+                                    <div className="h-8 w-8 rounded-full bg-zinc-200 flex items-center justify-center font-bold text-zinc-500">{table?.number}</div>
                                 </div>
 
-                                <ScrollArea className="h-[35vh] pr-4 -mr-4">
-                                    <div className="space-y-3">
-                                        {/* Items List - Compact for receipt view */}
-                                        {/* Group items by name/price for cleaner receipt unless they are separate in split mode */}
+                                <ScrollArea className="flex-1">
+                                    <div className="p-4 space-y-1">
                                         {(() => {
-                                            // Temporary grouping for receipt display
+                                            // Group items for clean receipt display
                                             const displayGroups = new Map<string, { name: string, quantity: number, price: number, total: number }>()
 
                                             splitPayableItems.forEach(item => {
@@ -369,203 +354,209 @@ export default function TableBillDialog({
                                                 }
                                             })
 
+                                            if (displayGroups.size === 0) {
+                                                return <div className="py-10 text-center text-zinc-400 italic text-sm">Conto saldato o vuoto</div>
+                                            }
+
                                             return Array.from(displayGroups.entries()).map(([key, item]) => (
-                                                <div key={key} className="flex justify-between items-baseline">
-                                                    <div className="flex gap-2">
-                                                        <span className="font-bold opacity-70">{item.quantity}x</span>
-                                                        <span>{item.name}</span>
+                                                <div key={key} className="flex justify-between items-baseline py-1 border-b border-zinc-100 last:border-0">
+                                                    <div className="flex gap-2 text-sm">
+                                                        <span className="font-bold min-w-[20px]">{item.quantity}x</span>
+                                                        <span className="font-medium text-zinc-700">{item.name}</span>
                                                     </div>
-                                                    <span className="font-bold tabular-nums">€{item.total.toFixed(2)}</span>
+                                                    <span className="font-bold text-sm tabular-nums">€{item.total.toFixed(2)}</span>
                                                 </div>
                                             ))
                                         })()}
-
-                                        {splitPayableItems.length === 0 && (
-                                            <p className="text-center text-zinc-400 italic py-4">Tutto saldato per questo tavolo.</p>
-                                        )}
                                     </div>
                                 </ScrollArea>
 
-                                <div className="border-t-2 border-dashed border-black/10 mt-6 pt-4 space-y-2">
-                                    <div className="flex justify-between items-center text-xl font-bold">
-                                        <span>TOTALE</span>
-                                        <span>€{totalAmount.toFixed(2)}</span>
+                                {/* Receipt Footer */}
+                                <div className="bg-zinc-50 p-4 border-t-2 border-dashed border-zinc-300">
+                                    <div className="flex justify-between items-center">
+                                        <span className="text-sm font-bold text-zinc-500 uppercase">Totale</span>
+                                        <span className="text-2xl font-black text-zinc-900">€{totalAmount.toFixed(2)}</span>
                                     </div>
                                 </div>
+
+                                {/* ZigZag Bottom */}
+                                <div className="absolute bottom-0 left-0 right-0 h-1.5 bg-[linear-gradient(45deg,transparent_75%,#09090b_75%),linear-gradient(-45deg,transparent_75%,#09090b_75%)] bg-[length:10px_10px] opacity-0"></div>
                             </div>
 
-                            {/* Per-person breakdown */}
-                            <div className="p-4 rounded-xl border border-white/5 bg-zinc-900/50 flex items-center justify-between">
-                                <div className="flex items-center gap-3">
-                                    <Users className="text-zinc-400" />
-                                    <div className="flex flex-col">
-                                        <span className="text-xs text-zinc-500 uppercase font-bold">A persona</span>
-                                        <span className="text-sm font-medium text-zinc-300">Diviso {session?.customer_count || 1}</span>
-                                    </div>
-                                </div>
-                                <span className="text-xl font-bold text-amber-500 tabular-nums">€{perPersonAmount.toFixed(2)}</span>
+                            {/* Split Options - Floating above bottom */}
+                            <div className="mt-4 grid grid-cols-2 gap-3">
+                                <Button
+                                    variant="outline"
+                                    className="h-12 rounded-xl bg-zinc-900 border-zinc-800 text-zinc-300 hover:text-white hover:bg-zinc-800 hover:border-zinc-700 transition-all font-medium"
+                                    onClick={() => { setIsSplitMode(true); setEqualSplitMode(false) }}
+                                    disabled={totalAmount <= 0}
+                                >
+                                    <ForkKnife className="mr-2" size={18} />
+                                    Dividi per Piatti
+                                </Button>
+                                <Button
+                                    variant="outline"
+                                    className="h-12 rounded-xl bg-zinc-900 border-zinc-800 text-zinc-300 hover:text-white hover:bg-zinc-800 hover:border-zinc-700 transition-all font-medium"
+                                    onClick={() => { setEqualSplitMode(true); setIsSplitMode(false) }}
+                                    disabled={totalAmount <= 0}
+                                >
+                                    <Users className="mr-2" size={18} />
+                                    Dividi alla Romana
+                                </Button>
                             </div>
                         </div>
                     )}
 
-                    {/* Split By Item Mode */}
+
+                    {/* Mode 2: Split by Items */}
                     {isSplitMode && (
-                        <div className="h-full flex flex-col">
-                            <div className="p-4 border-b border-white/5 flex items-center justify-between bg-zinc-900/80">
-                                <h3 className="text-sm font-bold text-zinc-400 uppercase tracking-widest">Seleziona voci da pagare</h3>
-                                <Button
-                                    variant="ghost"
-                                    size="sm"
-                                    className="text-amber-500 hover:text-amber-400 text-xs h-7"
-                                    onClick={() => {
-                                        if (selectedSplitItems.size === splitPayableItems.length) {
-                                            setSelectedSplitItems(new Set())
-                                        } else {
-                                            setSelectedSplitItems(new Set(splitPayableItems.map(i => i.id)))
-                                        }
-                                    }}
-                                >
-                                    {selectedSplitItems.size === splitPayableItems.length ? 'Deseleziona tutti' : 'Seleziona tutti'}
-                                </Button>
+                        <div className="h-full flex flex-col animate-in fade-in slide-in-from-right-4 duration-300">
+                            <div className="px-5 py-3 bg-zinc-900/50 border-b border-white/5 flex items-center justify-between text-xs font-bold uppercase tracking-wider text-zinc-500 sticky top-0 z-10 backdrop-blur-md">
+                                <span>Seleziona Piatti</span>
+                                <button className="text-amber-500 hover:text-amber-400 transition-colors" onClick={() => {
+                                    if (selectedSplitItems.size === splitPayableItems.length) setSelectedSplitItems(new Set())
+                                    else setSelectedSplitItems(new Set(splitPayableItems.map(i => i.id)))
+                                }}>
+                                    {selectedSplitItems.size === splitPayableItems.length ? 'Deseleziona Tutto' : 'Seleziona Tutto'}
+                                </button>
                             </div>
 
                             <ScrollArea className="flex-1 p-4">
-                                <div className="space-y-2 pb-20">
-                                    {splitPayableItems.map((item) => (
-                                        <div
-                                            key={item.id}
-                                            className={`flex items-center justify-between p-4 rounded-xl border cursor-pointer transition-all ${selectedSplitItems.has(item.id)
-                                                ? 'bg-amber-500/10 border-amber-500/40 shadow-lg shadow-amber-500/5'
-                                                : 'bg-zinc-900/50 border-white/5 hover:bg-zinc-800/50 hover:border-white/10'
-                                                }`}
-                                            onClick={() => {
-                                                const newSet = new Set(selectedSplitItems)
-                                                if (newSet.has(item.id)) newSet.delete(item.id)
-                                                else newSet.add(item.id)
-                                                setSelectedSplitItems(newSet)
-                                            }}
-                                        >
-                                            <div className="flex items-center gap-3">
-                                                <div className={`w-6 h-6 rounded-lg border-2 flex items-center justify-center transition-all ${selectedSplitItems.has(item.id) ? 'bg-amber-500 border-amber-500' : 'border-zinc-600'}`}>
-                                                    {selectedSplitItems.has(item.id) && <Check size={14} weight="bold" className="text-black" />}
-                                                </div>
-                                                <div className="flex flex-col">
-                                                    <div className="flex items-center gap-2">
-                                                        <span className="text-sm font-medium text-zinc-200">{item.name}</span>
-                                                        {item.isVirtual && (
-                                                            <Badge variant="outline" className="text-[9px] h-4 px-1 border-blue-500/30 text-blue-400">
-                                                                AUTO
-                                                            </Badge>
-                                                        )}
-                                                        {/* If item price is 0 (AYCE), show Badge */}
-                                                        {item.price === 0 && item.dish?.is_ayce && (
-                                                            <Badge variant="outline" className="text-[9px] h-4 px-1 border-amber-500/30 text-amber-500">
-                                                                AYCE
-                                                            </Badge>
-                                                        )}
+                                <div className="space-y-2 pb-6">
+                                    {splitPayableItems.map((item) => {
+                                        const isSelected = selectedSplitItems.has(item.id)
+                                        return (
+                                            <div
+                                                key={item.id}
+                                                onClick={() => {
+                                                    const newSet = new Set(selectedSplitItems)
+                                                    if (newSet.has(item.id)) newSet.delete(item.id)
+                                                    else newSet.add(item.id)
+                                                    setSelectedSplitItems(newSet)
+                                                }}
+                                                className={`flex items-center justify-between p-3 rounded-xl border transition-all cursor-pointer select-none ${isSelected
+                                                        ? 'bg-amber-500/10 border-amber-500/50 shadow-[0_0_15px_-5px_rgba(245,158,11,0.2)]'
+                                                        : 'bg-zinc-900/40 border-white/5 hover:bg-zinc-800/60 hover:border-white/10'
+                                                    }`}
+                                            >
+                                                <div className="flex items-center gap-3">
+                                                    <div className={`w-5 h-5 rounded-full border flex items-center justify-center transition-all ${isSelected ? 'bg-amber-500 border-amber-500' : 'border-zinc-600 bg-transparent'
+                                                        }`}>
+                                                        {isSelected && <Check size={12} weight="bold" className="text-black" />}
+                                                    </div>
+                                                    <div className="flex flex-col">
+                                                        <span className={`text-sm font-medium ${isSelected ? 'text-white' : 'text-zinc-400'}`}>{item.name}</span>
+                                                        {item.isVirtual && <span className="text-[10px] text-zinc-500 uppercase font-bold tracking-wider">Autom</span>}
                                                     </div>
                                                 </div>
+                                                <span className={`font-mono font-bold ${isSelected ? 'text-amber-500' : 'text-zinc-500'}`}>€{item.price.toFixed(2)}</span>
                                             </div>
-                                            <span className={`text-sm font-bold tabular-nums ${selectedSplitItems.has(item.id) ? 'text-amber-400' : 'text-zinc-400'}`}>
-                                                €{item.price.toFixed(2)}
-                                            </span>
-                                        </div>
-                                    ))}
+                                        )
+                                    })}
                                     {splitPayableItems.length === 0 && (
-                                        <p className="text-center text-zinc-500 text-sm py-12">Nessun elemento da pagare.</p>
+                                        <div className="py-20 flex flex-col items-center justify-center text-zinc-600 text-sm">
+                                            <Sparkle size={32} className="mb-2 opacity-20" />
+                                            <p>Nessun elemento da dividere</p>
+                                        </div>
                                     )}
                                 </div>
                             </ScrollArea>
                         </div>
                     )}
 
-                    {/* Equal Split Mode (Placeholder for visual, currently handled by manually calculating) */}
+
+                    {/* Mode 3: Equal Split */}
                     {equalSplitMode && (
-                        <div className="h-full flex flex-col p-6 items-center justify-center text-center space-y-4">
-                            <div className="w-16 h-16 rounded-full bg-zinc-900 border border-white/10 flex items-center justify-center mb-2">
-                                <Users size={32} className="text-zinc-400" />
+                        <div className="h-full flex flex-col items-center justify-center p-8 text-center animate-in fade-in zoom-in-95 duration-300">
+                            <div className="w-20 h-20 rounded-full bg-linear-to-br from-zinc-800 to-zinc-900 border border-white/10 flex items-center justify-center mb-6 shadow-xl relative">
+                                <Users size={32} className="text-zinc-400" weight="duotone" />
+                                <div className="absolute -bottom-2 -right-2 bg-amber-500 text-black text-xs font-bold px-2 py-0.5 rounded-full shadow-lg">
+                                    {Math.max(1, session?.customer_count || 1)}
+                                </div>
                             </div>
-                            <h3 className="text-xl font-bold text-white">Divisione alla Romana</h3>
-                            <p className="text-zinc-400 max-w-xs text-sm">
-                                Il totale di <strong className="text-white">€{totalAmount.toFixed(2)}</strong> diviso per <strong className="text-white">{Math.max(1, session?.customer_count || 1)} persone</strong> è:
-                            </p>
-                            <div className="text-4xl font-black text-amber-500 mt-4">
+
+                            <h3 className="text-lg text-zinc-400 mb-1 font-medium">Quota a Persona</h3>
+                            <div className="text-5xl font-black text-white tracking-tight mb-2 tabular-nums">
                                 €{perPersonAmount.toFixed(2)}
                             </div>
-                            <p className="text-xs text-zinc-500 mt-4">Usa la calcolatrice POS per incassare questa cifra da ogni commensale.</p>
+                            <p className="text-xs text-zinc-500 max-w-[200px] leading-relaxed">
+                                Calcolato su un totale di <span className="text-zinc-300 font-bold">€{totalAmount.toFixed(2)}</span> diviso per {session?.customer_count || 1} ospiti.
+                            </p>
+
+                            <div className="mt-8 p-4 bg-amber-500/5 border border-amber-500/10 rounded-xl text-amber-500 text-sm flex items-center gap-2">
+                                <Wallet size={20} weight="duotone" />
+                                <span>Incassa <strong>€{perPersonAmount.toFixed(2)}</strong> da ciascuno</span>
+                            </div>
                         </div>
                     )}
+
                 </div>
 
-                {/* Actions Footer */}
-                <div className="relative p-5 border-t border-white/5 bg-zinc-900/90 backdrop-blur-xl">
+                {/* Footer Action Bar */}
+                <div className="p-5 border-t border-white/5 bg-zinc-900/90 backdrop-blur-xl relative z-20">
                     {isWaiter && !restaurant?.allow_waiter_payments ? (
-                        <div className="bg-red-500/10 border border-red-500/20 rounded-2xl p-4 text-center w-full">
-                            <p className="text-red-400 font-bold mb-1">Permessi Negati</p>
-                            <p className="text-xs text-red-300/70">Solo l'amministratore può segnare i tavoli come pagati.</p>
+                        <div className="w-full py-3 bg-red-500/10 border border-red-500/20 rounded-xl flex items-center justify-center gap-2 text-red-400 text-sm font-bold">
+                            <X size={16} />
+                            Pagamenti disabilitati per i camerieri
                         </div>
                     ) : (
                         <>
                             {isSplitMode || equalSplitMode ? (
-                                <div className="flex gap-2 w-full">
+                                <div className="flex gap-3">
                                     <Button
-                                        variant="ghost"
-                                        className="h-12 px-5 rounded-xl text-zinc-400 hover:text-white hover:bg-zinc-800"
-                                        onClick={() => {
-                                            setIsSplitMode(false)
-                                            setEqualSplitMode(false)
-                                            setSelectedSplitItems(new Set())
-                                        }}
-                                        disabled={processingPayment}
+                                        variant="outline"
+                                        className="h-12 px-6 rounded-xl border-white/10 text-zinc-400 hover:text-white hover:bg-white/5"
+                                        onClick={() => { setIsSplitMode(false); setEqualSplitMode(false); setSelectedSplitItems(new Set()) }}
                                     >
-                                        ← Indietro
+                                        <ArrowLeft className="mr-2" /> Indietro
                                     </Button>
+
                                     {isSplitMode && (
                                         <Button
-                                            className="flex-1 h-12 font-bold bg-amber-500 hover:bg-amber-400 text-black rounded-xl transition-all active:scale-[0.98]"
-                                            onClick={handlePaySplit}
+                                            className="flex-1 h-12 bg-amber-500 hover:bg-amber-400 text-black font-bold text-lg rounded-xl shadow-lg shadow-amber-500/20"
                                             disabled={selectedSplitItems.size === 0 || processingPayment}
+                                            onClick={handlePaySplit}
                                         >
-                                            {processingPayment ? 'Attendere...' : `Paga €${splitTotal.toFixed(2)}`}
+                                            {processingPayment ? <span className="animate-pulse">Attendi...</span> : `Paga €${splitTotal.toFixed(2)}`}
+                                        </Button>
+                                    )}
+
+                                    {equalSplitMode && (
+                                        <Button
+                                            className="flex-1 h-12 bg-amber-500 hover:bg-amber-400 text-black font-bold text-lg rounded-xl shadow-lg shadow-amber-500/20"
+                                            // Logic for paying "one share" is tricky as it's not tied to items. Usually just pay custom amount.
+                                            // So for now we just show "Back" or maybe "Mark All Paid" if they collected cash?
+                                            // Or implement partial custom payment. 
+                                            // For simplicity, revert to main to pay full, or use split items for partial.
+                                            // Let's allow "Pay Full" from here too as shortcut
+                                            onClick={() => onPaymentComplete()}
+                                        >
+                                            Salda Intero Tavolo
                                         </Button>
                                     )}
                                 </div>
                             ) : (
-                                <div className="space-y-2 w-full">
+                                <div className="flex flex-col gap-3">
                                     <Button
-                                        className="w-full h-12 font-bold bg-amber-500 hover:bg-amber-400 text-black rounded-xl shadow-lg shadow-amber-500/15 transition-all active:scale-[0.98]"
+                                        className="w-full h-14 bg-amber-500 hover:bg-amber-400 text-black font-bold text-xl rounded-2xl shadow-xl shadow-amber-500/20 flex items-center justify-between px-6"
                                         onClick={() => onPaymentComplete()}
+                                        disabled={totalAmount <= 0}
                                     >
-                                        <CheckCircle className="mr-2 h-5 w-5" weight="fill" />
-                                        Salda Tutto · €{totalAmount.toFixed(2)}
+                                        <div className="flex items-center gap-2">
+                                            <CheckCircle weight="fill" size={24} />
+                                            <span>Salda Tutto</span>
+                                        </div>
+                                        <span>€{totalAmount.toFixed(2)}</span>
                                     </Button>
-                                    <div className="flex gap-2">
-                                        <Button
-                                            variant="ghost"
-                                            className="flex-1 h-10 text-xs font-semibold text-zinc-400 hover:text-white hover:bg-zinc-800 rounded-xl border border-white/5"
-                                            onClick={() => setIsSplitMode(true)}
-                                            disabled={totalAmount <= 0}
-                                        >
-                                            Dividi per Piatti
-                                        </Button>
-                                        <Button
-                                            variant="ghost"
-                                            className="flex-1 h-10 text-xs font-semibold text-zinc-400 hover:text-white hover:bg-zinc-800 rounded-xl border border-white/5"
-                                            onClick={() => setEqualSplitMode(true)}
-                                            disabled={totalAmount <= 0}
-                                        >
-                                            Dividi Equo
-                                        </Button>
-                                    </div>
+
                                     {onEmptyTable && (
                                         <Button
                                             variant="ghost"
-                                            className="w-full h-9 text-xs text-zinc-600 hover:text-red-400 hover:bg-red-500/5 rounded-xl mt-2"
+                                            className="text-zinc-500 hover:text-red-400 hover:bg-red-500/5 h-10 rounded-xl text-xs uppercase font-bold tracking-wider"
                                             onClick={onEmptyTable}
                                             disabled={totalAmount > 0}
                                         >
-                                            <Trash className="mr-1.5 h-3.5 w-3.5" weight="duotone" />
-                                            {totalAmount > 0 ? 'Libera Tavolo (prima salda)' : 'Libera Tavolo'}
+                                            {totalAmount > 0 ? 'Salda prima di liberare' : 'Libera Tavolo e Chiudi'}
                                         </Button>
                                     )}
                                 </div>
@@ -573,6 +564,7 @@ export default function TableBillDialog({
                         </>
                     )}
                 </div>
+
             </DialogContent>
         </Dialog>
     )
