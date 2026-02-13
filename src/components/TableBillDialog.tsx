@@ -237,19 +237,17 @@ export default function TableBillDialog({
                     if (updateError) throw updateError
 
                     // 2. Insert new row for paid items
+                    // SANITIZATION FIX: Explicitly select fields
                     const { error: insertError } = await supabase
                         .from('order_items')
                         .insert({
-                            ...originalItem,
-                            id: undefined, // Let DB generate new ID
-                            created_at: undefined,
-                            quantity: countToPay,
-                            status: 'PAID',
-                            // Ensure foreign keys strictly if needed, usually ...originalItem covers it
                             order_id: originalItem.order_id,
                             dish_id: originalItem.dish_id,
                             course_number: originalItem.course_number,
-                            note: originalItem.note
+                            note: originalItem.note,
+                            price: originalItem.price,
+                            quantity: countToPay,
+                            status: 'PAID'
                         })
 
                     if (insertError) throw insertError
@@ -435,8 +433,8 @@ export default function TableBillDialog({
                                                     setSelectedSplitItems(newSet)
                                                 }}
                                                 className={`flex items-center justify-between p-3 rounded-xl border transition-all cursor-pointer select-none ${isSelected
-                                                        ? 'bg-amber-500/10 border-amber-500/50 shadow-[0_0_15px_-5px_rgba(245,158,11,0.2)]'
-                                                        : 'bg-zinc-900/40 border-white/5 hover:bg-zinc-800/60 hover:border-white/10'
+                                                    ? 'bg-amber-500/10 border-amber-500/50 shadow-[0_0_15px_-5px_rgba(245,158,11,0.2)]'
+                                                    : 'bg-zinc-900/40 border-white/5 hover:bg-zinc-800/60 hover:border-white/10'
                                                     }`}
                                             >
                                                 <div className="flex items-center gap-3">

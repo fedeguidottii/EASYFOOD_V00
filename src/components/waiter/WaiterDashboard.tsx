@@ -303,7 +303,7 @@ const WaiterDashboard = ({ user, onLogout }: WaiterDashboardProps) => {
     const handleMarkAsDelivered = async (orderId: string, itemId: string) => {
         await supabase
             .from('order_items')
-            .update({ status: 'delivered' })
+            .update({ status: 'served' })
             .eq('id', itemId)
 
         // Optimistic update
@@ -311,12 +311,12 @@ const WaiterDashboard = ({ user, onLogout }: WaiterDashboardProps) => {
             if (o.id === orderId) {
                 return {
                     ...o,
-                    items: o.items?.map(i => i.id === itemId ? { ...i, status: 'delivered' } : i)
+                    items: o.items?.map(i => i.id === itemId ? { ...i, status: 'served' } : i)
                 }
             }
             return o
         }))
-        toast.success('Piatto consegnato!')
+        // REMOVED toast.success('Piatto consegnato!')
     }
 
     // Resolve assistance request
@@ -676,40 +676,40 @@ const WaiterDashboard = ({ user, onLogout }: WaiterDashboardProps) => {
                     <div className="absolute top-0 right-0 w-16 h-16 bg-emerald-500/5 blur-xl rounded-full -mr-8 -mt-8 pointer-events-none"></div>
                 )}
 
-                <CardContent className="p-0 flex flex-col h-full min-h-[160px]">
+                <CardContent className="p-0 flex flex-col h-full min-h-[130px] md:min-h-[160px]">
                     {/* Header */}
-                    <div className="p-4 flex flex-wrap items-center justify-between gap-2 border-b border-white/5 z-10 relative">
-                        <div className="flex items-center gap-3">
-                            <span className={`text-2xl font-bold tracking-tight whitespace-nowrap ${isActive ? 'text-amber-500' : 'text-zinc-100'}`}>
+                    <div className="p-3 md:p-4 flex flex-wrap items-center justify-between gap-2 border-b border-white/5 z-10 relative">
+                        <div className="flex items-center gap-2 md:gap-3">
+                            <span className={`text-xl md:text-2xl font-bold tracking-tight whitespace-nowrap ${isActive ? 'text-amber-500' : 'text-zinc-100'}`}>
                                 {table.number}
                             </span>
-                            <div className="flex items-center gap-1.5 text-zinc-400 bg-white/5 px-3 py-1 rounded-full">
-                                <User size={14} weight="bold" />
-                                <span className="text-xs font-bold">{table.seats || 4}</span>
+                            <div className="flex items-center gap-1 text-zinc-400 bg-white/5 px-2 md:px-3 py-0.5 md:py-1 rounded-full">
+                                <User size={12} weight="bold" className="md:w-3.5 md:h-3.5" />
+                                <span className="text-[10px] md:text-xs font-bold">{table.seats || 4}</span>
                             </div>
                         </div>
                         <Badge
                             variant={isActive ? 'default' : 'outline'}
-                            className={`text-[10px] uppercase tracking-wider font-bold ${isActive ? 'bg-amber-500 text-black border-none' : 'bg-transparent text-zinc-500 border-zinc-700'}`}
+                            className={`text-[9px] md:text-[10px] uppercase tracking-wider font-bold h-5 ${isActive ? 'bg-amber-500 text-black border-none' : 'bg-transparent text-zinc-500 border-zinc-700'}`}
                         >
                             {isActive ? (statusInfo.step === 'eating' ? 'Mangiando' : statusInfo.step === 'waiting' ? 'Attesa' : 'Occupato') : 'Libero'}
                         </Badge>
                     </div>
 
                     {/* Center Content */}
-                    <div className="flex-1 p-5 flex flex-col items-center justify-center gap-3 z-10 relative">
+                    <div className="flex-1 p-2 md:p-5 flex flex-col items-center justify-center gap-2 md:gap-3 z-10 relative">
                         {isActive ? (
                             <>
                                 <div className="text-center">
-                                    <p className="text-[9px] text-amber-500/70 mb-1 uppercase tracking-[0.2em] font-semibold">PIN</p>
-                                    <div className="bg-black/40 px-4 py-2 rounded-xl border border-amber-500/20 shadow-inner min-w-[100px]">
-                                        <span className="text-2xl font-mono font-bold tracking-widest text-amber-500 whitespace-nowrap">
+                                    <p className="text-[8px] md:text-[9px] text-amber-500/70 mb-0.5 md:mb-1 uppercase tracking-[0.2em] font-semibold">PIN</p>
+                                    <div className="bg-black/40 px-3 md:px-4 py-1.5 md:py-2 rounded-xl border border-amber-500/20 shadow-inner min-w-[80px] md:min-w-[100px]">
+                                        <span className="text-lg md:text-2xl font-mono font-bold tracking-widest text-amber-500 whitespace-nowrap">
                                             {session?.session_pin || '...'}
                                         </span>
                                     </div>
                                 </div>
                                 {activeOrder && (
-                                    <Badge variant="outline" className="text-[9px] bg-black/40 border-amber-500/30 text-amber-200">
+                                    <Badge variant="outline" className="text-[9px] bg-black/40 border-amber-500/30 text-amber-200 h-5">
                                         <CheckCircle size={10} className="mr-1" weight="fill" />
                                         {activeOrder.items?.filter(i => i.status === 'served').length || 0} serviti
                                     </Badge>
@@ -717,26 +717,26 @@ const WaiterDashboard = ({ user, onLogout }: WaiterDashboardProps) => {
                             </>
                         ) : (
                             <div className="text-center text-zinc-700 group-hover:text-zinc-500 transition-all duration-300">
-                                <Plus size={32} className="mx-auto mb-1" weight="duotone" />
-                                <p className="text-xs font-medium">Clicca per Attivare</p>
+                                <Plus size={24} className="mx-auto mb-1 md:w-8 md:h-8" weight="duotone" />
+                                <p className="text-[10px] md:text-xs font-medium">Clicca per Attivare</p>
                             </div>
                         )}
                     </div>
 
                     {/* Footer Actions */}
-                    <div className="p-3 bg-gradient-to-t from-zinc-900/50 to-transparent border-t border-white/5 grid gap-2 z-10 relative">
+                    <div className="p-2 md:p-3 bg-gradient-to-t from-zinc-900/50 to-transparent border-t border-white/5 grid gap-2 z-10 relative">
                         {isActive ? (
                             <div className="grid grid-cols-2 gap-2">
                                 <Button
                                     variant="outline"
                                     size="sm"
-                                    className="shadow-sm hover:shadow transition-shadow h-8 text-xs border-white/10 text-zinc-300 hover:text-white hover:bg-white/5"
+                                    className="shadow-sm hover:shadow transition-shadow h-7 md:h-8 text-[10px] md:text-xs border-white/10 text-zinc-300 hover:text-white hover:bg-white/5 px-2"
                                     onClick={(e) => {
                                         e.stopPropagation()
                                         handleQuickOrderClick(table)
                                     }}
                                 >
-                                    <Plus size={14} className="mr-1.5" />
+                                    <Plus size={12} className="mr-1 md:mr-1.5 md:w-3.5 md:h-3.5" />
                                     Ordina
                                 </Button>
 
@@ -744,26 +744,26 @@ const WaiterDashboard = ({ user, onLogout }: WaiterDashboardProps) => {
                                 <Button
                                     variant="secondary"
                                     size="sm"
-                                    className="h-8 px-3 rounded-xl bg-zinc-800 text-zinc-200 border border-white/5 hover:bg-zinc-700 hover:text-white"
+                                    className="h-7 md:h-8 px-2 md:px-3 rounded-xl bg-zinc-800 text-zinc-200 border border-white/5 hover:bg-zinc-700 hover:text-white text-[10px] md:text-xs"
                                     onClick={(e) => {
                                         e.stopPropagation()
                                         openPaymentDialog(e, table)
                                     }}
                                 >
-                                    <Receipt size={14} className="mr-1.5" />
+                                    <Receipt size={12} className="mr-1 md:mr-1.5 md:w-3.5 md:h-3.5" />
                                     Conto
                                 </Button>
                             </div>
                         ) : (
                             <Button
-                                className="w-full shadow-sm hover:shadow transition-shadow h-8 text-xs bg-zinc-800 hover:bg-zinc-700 text-zinc-300"
+                                className="w-full shadow-sm hover:shadow transition-shadow h-7 md:h-8 text-[10px] md:text-xs bg-zinc-800 hover:bg-zinc-700 text-zinc-300"
                                 size="sm"
                                 onClick={(e) => {
                                     e.stopPropagation()
                                     activateTable(table)
                                 }}
                             >
-                                <Plus size={14} className="mr-1.5" />
+                                <Plus size={12} className="mr-1 md:mr-1.5 md:w-3.5 md:h-3.5" />
                                 Attiva Tavolo
                             </Button>
                         )}

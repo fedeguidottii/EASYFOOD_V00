@@ -513,7 +513,7 @@ const WaiterOrderPage = () => {
                                             <p>Nessun piatto selezionato</p>
                                         </div>
                                     ) : (
-                                        <div className="space-y-6 pb-24">
+                                        <div className="space-y-6 pb-32 md:pb-24">
                                             {[1, 2, 3, 4, 5].map(courseNum => {
                                                 const items = orderItems.filter(i => i.courseNumber === courseNum)
                                                 if (items.length === 0) return null
@@ -602,7 +602,7 @@ const WaiterOrderPage = () => {
                                 </ScrollArea>
 
                                 {/* Fixed Footer Actions */}
-                                <div className="p-4 bg-zinc-900 border-t border-white/5 space-y-3 pb-8 md:pb-6">
+                                <div className="p-4 bg-zinc-900 border-t border-white/5 space-y-3 pb-8 md:pb-6 z-20 relative">
                                     <div className="flex justify-between items-center text-lg font-bold text-white">
                                         <span>Totale</span>
                                         <span className="text-amber-500 text-2xl">€{totalAmount.toFixed(2)}</span>
