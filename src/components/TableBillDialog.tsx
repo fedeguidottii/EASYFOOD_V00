@@ -317,21 +317,28 @@ export default function TableBillDialog({
 
                     {/* Mode 1: Main Overview */}
                     {!isSplitMode && !equalSplitMode && (
-                        <div className="h-full flex flex-col p-5 animate-in fade-in slide-in-from-bottom-2 duration-300">
+                        <div className="h-full flex flex-col p-5 animate-in fade-in slide-in-from-bottom-4 duration-500 ease-out">
 
-                            {/* Receipt Card */}
-                            <div className="bg-white text-zinc-900 rounded-2xl p-0 overflow-hidden shadow-2xl relative flex-1 flex flex-col">
+                            {/* Receipt Card - Dark Glassmorphism */}
+                            <div className="bg-black/40 backdrop-blur-xl border border-white/10 text-zinc-100 rounded-3xl overflow-hidden shadow-2xl relative flex-1 flex flex-col ring-1 ring-white/5">
+
+                                {/* Fluid Background Effect */}
+                                <div className="absolute top-0 right-0 w-64 h-64 bg-amber-500/10 blur-[100px] rounded-full pointer-events-none -mr-32 -mt-32"></div>
+                                <div className="absolute bottom-0 left-0 w-64 h-64 bg-indigo-500/10 blur-[100px] rounded-full pointer-events-none -ml-32 -mb-32"></div>
+
                                 {/* Receipt Header */}
-                                <div className="bg-zinc-100 p-4 border-b border-dashed border-zinc-300 flex items-center justify-between">
-                                    <div className="flex flex-col">
-                                        <span className="font-bold uppercase tracking-wider text-xs text-zinc-500">{restaurant?.name || 'Ristorante'}</span>
-                                        <span className="text-zinc-400 text-[10px]">{new Date().toLocaleString('it-IT')}</span>
+                                <div className="p-6 border-b border-white/5 flex items-center justify-between relative z-10 bg-gradient-to-b from-white/5 to-transparent">
+                                    <div className="flex flex-col gap-1">
+                                        <span className="font-bold uppercase tracking-widest text-[10px] text-amber-500">{restaurant?.name || 'Ristorante'}</span>
+                                        <span className="text-zinc-400 text-xs font-medium">{new Date().toLocaleString('it-IT', { dateStyle: 'long', timeStyle: 'short' })}</span>
                                     </div>
-                                    <div className="h-8 w-8 rounded-full bg-zinc-200 flex items-center justify-center font-bold text-zinc-500">{table?.number}</div>
+                                    <div className="h-10 w-10 rounded-full bg-white/5 border border-white/10 flex items-center justify-center font-bold text-zinc-200 shadow-inner">
+                                        {table?.number}
+                                    </div>
                                 </div>
 
-                                <ScrollArea className="flex-1">
-                                    <div className="p-4 space-y-1">
+                                <ScrollArea className="flex-1 relative z-10">
+                                    <div className="p-6 space-y-3">
                                         {(() => {
                                             // Group items for clean receipt display
                                             const displayGroups = new Map<string, { name: string, quantity: number, price: number, total: number }>()
@@ -353,16 +360,21 @@ export default function TableBillDialog({
                                             })
 
                                             if (displayGroups.size === 0) {
-                                                return <div className="py-10 text-center text-zinc-400 italic text-sm">Conto saldato o vuoto</div>
+                                                return (
+                                                    <div className="py-12 flex flex-col items-center justify-center text-zinc-500 space-y-3 opacity-50">
+                                                        <Receipt size={40} weight="duotone" />
+                                                        <p className="font-medium">Conto saldato o vuoto</p>
+                                                    </div>
+                                                )
                                             }
 
                                             return Array.from(displayGroups.entries()).map(([key, item]) => (
-                                                <div key={key} className="flex justify-between items-baseline py-1 border-b border-zinc-100 last:border-0">
-                                                    <div className="flex gap-2 text-sm">
-                                                        <span className="font-bold min-w-[20px]">{item.quantity}x</span>
-                                                        <span className="font-medium text-zinc-700">{item.name}</span>
+                                                <div key={key} className="flex justify-between items-baseline py-2 border-b border-white/5 last:border-0 group hover:bg-white/5 transition-colors rounded-lg px-2 -mx-2">
+                                                    <div className="flex gap-3 text-sm items-center">
+                                                        <span className="font-bold min-w-[24px] h-6 rounded bg-white/10 flex items-center justify-center text-xs text-zinc-300">{item.quantity}x</span>
+                                                        <span className="font-medium text-zinc-200">{item.name}</span>
                                                     </div>
-                                                    <span className="font-bold text-sm tabular-nums">€{item.total.toFixed(2)}</span>
+                                                    <span className="font-mono font-bold text-sm tabular-nums text-zinc-300">€{item.total.toFixed(2)}</span>
                                                 </div>
                                             ))
                                         })()}
@@ -370,36 +382,35 @@ export default function TableBillDialog({
                                 </ScrollArea>
 
                                 {/* Receipt Footer */}
-                                <div className="bg-zinc-50 p-4 border-t-2 border-dashed border-zinc-300">
-                                    <div className="flex justify-between items-center">
-                                        <span className="text-sm font-bold text-zinc-500 uppercase">Totale</span>
-                                        <span className="text-2xl font-black text-zinc-900">€{totalAmount.toFixed(2)}</span>
+                                <div className="p-6 border-t border-white/10 bg-black/20 backdrop-blur-md relative z-10">
+                                    <div className="flex justify-between items-end">
+                                        <span className="text-xs font-bold text-zinc-500 uppercase tracking-widest mb-1">Totale</span>
+                                        <div className="text-right">
+                                            <span className="text-3xl font-black text-white tracking-tight drop-shadow-lg">€{totalAmount.toFixed(2)}</span>
+                                        </div>
                                     </div>
                                 </div>
-
-                                {/* ZigZag Bottom */}
-                                <div className="absolute bottom-0 left-0 right-0 h-1.5 bg-[linear-gradient(45deg,transparent_75%,#09090b_75%),linear-gradient(-45deg,transparent_75%,#09090b_75%)] bg-[length:10px_10px] opacity-0"></div>
                             </div>
 
                             {/* Split Options - Floating above bottom */}
                             <div className="mt-4 grid grid-cols-2 gap-3">
                                 <Button
                                     variant="outline"
-                                    className="h-12 rounded-xl bg-zinc-900 border-zinc-800 text-zinc-300 hover:text-white hover:bg-zinc-800 hover:border-zinc-700 transition-all font-medium"
+                                    className="h-14 rounded-2xl bg-zinc-900/50 backdrop-blur-md border-zinc-700/50 text-zinc-300 hover:text-amber-400 hover:bg-zinc-800 hover:border-amber-500/50 transition-all duration-300 group"
                                     onClick={() => { setIsSplitMode(true); setEqualSplitMode(false) }}
                                     disabled={totalAmount <= 0}
                                 >
-                                    <ForkKnife className="mr-2" size={18} />
-                                    Dividi per Piatti
+                                    <ForkKnife className="mr-2 group-hover:scale-110 transition-transform" size={20} weight="duotone" />
+                                    <span className="font-medium">Dividi per Piatti</span>
                                 </Button>
                                 <Button
                                     variant="outline"
-                                    className="h-12 rounded-xl bg-zinc-900 border-zinc-800 text-zinc-300 hover:text-white hover:bg-zinc-800 hover:border-zinc-700 transition-all font-medium"
+                                    className="h-14 rounded-2xl bg-zinc-900/50 backdrop-blur-md border-zinc-700/50 text-zinc-300 hover:text-indigo-400 hover:bg-zinc-800 hover:border-indigo-500/50 transition-all duration-300 group"
                                     onClick={() => { setEqualSplitMode(true); setIsSplitMode(false) }}
                                     disabled={totalAmount <= 0}
                                 >
-                                    <Users className="mr-2" size={18} />
-                                    Dividi alla Romana
+                                    <Users className="mr-2 group-hover:scale-110 transition-transform" size={20} weight="duotone" />
+                                    <span className="font-medium">Dividi alla Romana</span>
                                 </Button>
                             </div>
                         </div>
@@ -408,82 +419,95 @@ export default function TableBillDialog({
 
                     {/* Mode 2: Split by Items */}
                     {isSplitMode && (
-                        <div className="h-full flex flex-col animate-in fade-in slide-in-from-right-4 duration-300">
-                            <div className="px-5 py-3 bg-zinc-900/50 border-b border-white/5 flex items-center justify-between text-xs font-bold uppercase tracking-wider text-zinc-500 sticky top-0 z-10 backdrop-blur-md">
-                                <span>Seleziona Piatti</span>
-                                <button className="text-amber-500 hover:text-amber-400 transition-colors" onClick={() => {
-                                    if (selectedSplitItems.size === splitPayableItems.length) setSelectedSplitItems(new Set())
-                                    else setSelectedSplitItems(new Set(splitPayableItems.map(i => i.id)))
-                                }}>
-                                    {selectedSplitItems.size === splitPayableItems.length ? 'Deseleziona Tutto' : 'Seleziona Tutto'}
-                                </button>
-                            </div>
+                        <div className="h-full flex flex-col p-5 animate-in fade-in slide-in-from-right-8 duration-500 ease-out">
 
-                            <ScrollArea className="flex-1 p-4">
-                                <div className="space-y-2 pb-6">
-                                    {splitPayableItems.map((item) => {
-                                        const isSelected = selectedSplitItems.has(item.id)
-                                        return (
-                                            <div
-                                                key={item.id}
-                                                onClick={() => {
-                                                    const newSet = new Set(selectedSplitItems)
-                                                    if (newSet.has(item.id)) newSet.delete(item.id)
-                                                    else newSet.add(item.id)
-                                                    setSelectedSplitItems(newSet)
-                                                }}
-                                                className={`flex items-center justify-between p-3 rounded-xl border transition-all cursor-pointer select-none ${isSelected
-                                                    ? 'bg-amber-500/10 border-amber-500/50 shadow-[0_0_15px_-5px_rgba(245,158,11,0.2)]'
-                                                    : 'bg-zinc-900/40 border-white/5 hover:bg-zinc-800/60 hover:border-white/10'
-                                                    }`}
-                                            >
-                                                <div className="flex items-center gap-3">
-                                                    <div className={`w-5 h-5 rounded-full border flex items-center justify-center transition-all ${isSelected ? 'bg-amber-500 border-amber-500' : 'border-zinc-600 bg-transparent'
-                                                        }`}>
-                                                        {isSelected && <Check size={12} weight="bold" className="text-black" />}
-                                                    </div>
-                                                    <div className="flex flex-col">
-                                                        <span className={`text-sm font-medium ${isSelected ? 'text-white' : 'text-zinc-400'}`}>{item.name}</span>
-                                                        {item.isVirtual && <span className="text-[10px] text-zinc-500 uppercase font-bold tracking-wider">Autom</span>}
-                                                    </div>
-                                                </div>
-                                                <span className={`font-mono font-bold ${isSelected ? 'text-amber-500' : 'text-zinc-500'}`}>€{item.price.toFixed(2)}</span>
-                                            </div>
-                                        )
-                                    })}
-                                    {splitPayableItems.length === 0 && (
-                                        <div className="py-20 flex flex-col items-center justify-center text-zinc-600 text-sm">
-                                            <Sparkle size={32} className="mb-2 opacity-20" />
-                                            <p>Nessun elemento da dividere</p>
-                                        </div>
-                                    )}
+                            {/* Glass Container */}
+                            <div className="bg-black/40 backdrop-blur-xl border border-white/10 text-zinc-100 rounded-3xl overflow-hidden shadow-2xl relative flex-1 flex flex-col ring-1 ring-white/5">
+
+                                {/* Fluid Background Effect */}
+                                <div className="absolute top-0 right-0 w-64 h-64 bg-amber-500/10 blur-[100px] rounded-full pointer-events-none -mr-32 -mt-32"></div>
+
+                                <div className="px-6 py-4 border-b border-white/5 flex items-center justify-between text-xs font-bold uppercase tracking-widest text-zinc-500 sticky top-0 z-10 bg-black/20 backdrop-blur-md">
+                                    <span>Seleziona Piatti</span>
+                                    <button className="text-amber-500 hover:text-amber-400 transition-colors" onClick={() => {
+                                        if (selectedSplitItems.size === splitPayableItems.length) setSelectedSplitItems(new Set())
+                                        else setSelectedSplitItems(new Set(splitPayableItems.map(i => i.id)))
+                                    }}>
+                                        {selectedSplitItems.size === splitPayableItems.length ? 'Deseleziona Tutto' : 'Seleziona Tutto'}
+                                    </button>
                                 </div>
-                            </ScrollArea>
+
+                                <ScrollArea className="flex-1 relative z-10">
+                                    <div className="p-4 space-y-2 pb-6">
+                                        {splitPayableItems.map((item) => {
+                                            const isSelected = selectedSplitItems.has(item.id)
+                                            return (
+                                                <div
+                                                    key={item.id}
+                                                    onClick={() => {
+                                                        const newSet = new Set(selectedSplitItems)
+                                                        if (newSet.has(item.id)) newSet.delete(item.id)
+                                                        else newSet.add(item.id)
+                                                        setSelectedSplitItems(newSet)
+                                                    }}
+                                                    className={`flex items-center justify-between p-4 rounded-xl border transition-all cursor-pointer select-none group ${isSelected
+                                                        ? 'bg-amber-500/10 border-amber-500/50 shadow-[0_0_20px_-5px_rgba(245,158,11,0.2)]'
+                                                        : 'bg-white/5 border-white/5 hover:bg-white/10 hover:border-white/10'
+                                                        }`}
+                                                >
+                                                    <div className="flex items-center gap-4">
+                                                        <div className={`w-6 h-6 rounded-full border flex items-center justify-center transition-all ${isSelected ? 'bg-amber-500 border-amber-500 scale-110' : 'border-zinc-600 bg-transparent group-hover:border-zinc-500'
+                                                            }`}>
+                                                            {isSelected && <Check size={14} weight="bold" className="text-black" />}
+                                                        </div>
+                                                        <div className="flex flex-col">
+                                                            <span className={`text-sm font-medium transition-colors ${isSelected ? 'text-white' : 'text-zinc-400 group-hover:text-zinc-300'}`}>{item.name}</span>
+                                                            {item.isVirtual && <span className="text-[10px] text-zinc-600 uppercase font-bold tracking-wider">Autom</span>}
+                                                        </div>
+                                                    </div>
+                                                    <span className={`font-mono font-bold transition-colors ${isSelected ? 'text-amber-500' : 'text-zinc-500 group-hover:text-zinc-400'}`}>€{item.price.toFixed(2)}</span>
+                                                </div>
+                                            )
+                                        })}
+                                        {splitPayableItems.length === 0 && (
+                                            <div className="py-20 flex flex-col items-center justify-center text-zinc-600 text-sm">
+                                                <Sparkle size={32} className="mb-2 opacity-20" />
+                                                <p>Nessun elemento da dividere</p>
+                                            </div>
+                                        )}
+                                    </div>
+                                </ScrollArea>
+                            </div>
                         </div>
                     )}
 
 
                     {/* Mode 3: Equal Split */}
                     {equalSplitMode && (
-                        <div className="h-full flex flex-col items-center justify-center p-8 text-center animate-in fade-in zoom-in-95 duration-300">
-                            <div className="w-20 h-20 rounded-full bg-linear-to-br from-zinc-800 to-zinc-900 border border-white/10 flex items-center justify-center mb-6 shadow-xl relative">
-                                <Users size={32} className="text-zinc-400" weight="duotone" />
-                                <div className="absolute -bottom-2 -right-2 bg-amber-500 text-black text-xs font-bold px-2 py-0.5 rounded-full shadow-lg">
-                                    {Math.max(1, session?.customer_count || 1)}
+                        <div className="h-full flex flex-col p-5 animate-in fade-in zoom-in-95 duration-500 ease-out">
+                            {/* Glass Container */}
+                            <div className="bg-black/40 backdrop-blur-xl border border-white/10 text-zinc-100 rounded-3xl overflow-hidden shadow-2xl relative flex-1 flex flex-col items-center justify-center p-8 text-center ring-1 ring-white/5">
+
+                                {/* Fluid Background Effect */}
+                                <div className="absolute top-0 left-0 w-64 h-64 bg-indigo-500/10 blur-[100px] rounded-full pointer-events-none -ml-32 -mt-32"></div>
+                                <div className="absolute bottom-0 right-0 w-64 h-64 bg-fuchsia-500/10 blur-[100px] rounded-full pointer-events-none -mr-32 -mb-32"></div>
+
+                                <div className="relative z-10 flex flex-col items-center">
+                                    <div className="w-24 h-24 rounded-full bg-linear-to-br from-zinc-800 to-black border border-white/10 flex items-center justify-center mb-8 shadow-2xl relative group">
+                                        <Users size={40} className="text-zinc-400 group-hover:text-white transition-colors" weight="duotone" />
+                                        <div className="absolute -bottom-2 -right-2 bg-amber-500 text-black text-sm font-bold px-3 py-1 rounded-full shadow-lg border border-black/20">
+                                            {Math.max(1, session?.customer_count || 1)}
+                                        </div>
+                                    </div>
+
+                                    <h3 className="text-xl text-zinc-400 mb-2 font-medium tracking-wide">Quota a Persona</h3>
+                                    <div className="text-6xl font-black text-white tracking-tighter mb-4 tabular-nums drop-shadow-2xl">
+                                        €{perPersonAmount.toFixed(2)}
+                                    </div>
+                                    <p className="text-sm text-zinc-500 max-w-[240px] leading-relaxed mx-auto">
+                                        Calcolato su un totale di <span className="text-zinc-300 font-bold">€{totalAmount.toFixed(2)}</span> diviso per <span className="text-zinc-300 font-bold">{session?.customer_count || 1}</span> ospiti.
+                                    </p>
                                 </div>
-                            </div>
-
-                            <h3 className="text-lg text-zinc-400 mb-1 font-medium">Quota a Persona</h3>
-                            <div className="text-5xl font-black text-white tracking-tight mb-2 tabular-nums">
-                                €{perPersonAmount.toFixed(2)}
-                            </div>
-                            <p className="text-xs text-zinc-500 max-w-[200px] leading-relaxed">
-                                Calcolato su un totale di <span className="text-zinc-300 font-bold">€{totalAmount.toFixed(2)}</span> diviso per {session?.customer_count || 1} ospiti.
-                            </p>
-
-                            <div className="mt-8 p-4 bg-amber-500/5 border border-amber-500/10 rounded-xl text-amber-500 text-sm flex items-center gap-2">
-                                <Wallet size={20} weight="duotone" />
-                                <span>Incassa <strong>€{perPersonAmount.toFixed(2)}</strong> da ciascuno</span>
                             </div>
                         </div>
                     )}

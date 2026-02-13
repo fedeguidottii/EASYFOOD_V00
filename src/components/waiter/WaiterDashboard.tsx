@@ -303,7 +303,7 @@ const WaiterDashboard = ({ user, onLogout }: WaiterDashboardProps) => {
     const handleMarkAsDelivered = async (orderId: string, itemId: string) => {
         await supabase
             .from('order_items')
-            .update({ status: 'served' })
+            .update({ status: 'SERVED' })
             .eq('id', itemId)
 
         // Optimistic update
@@ -311,7 +311,7 @@ const WaiterDashboard = ({ user, onLogout }: WaiterDashboardProps) => {
             if (o.id === orderId) {
                 return {
                     ...o,
-                    items: o.items?.map(i => i.id === itemId ? { ...i, status: 'served' } : i)
+                    items: o.items?.map(i => i.id === itemId ? { ...i, status: 'SERVED' } : i)
                 }
             }
             return o
@@ -711,7 +711,7 @@ const WaiterDashboard = ({ user, onLogout }: WaiterDashboardProps) => {
                                 {activeOrder && (
                                     <Badge variant="outline" className="text-[9px] bg-black/40 border-amber-500/30 text-amber-200 h-5">
                                         <CheckCircle size={10} className="mr-1" weight="fill" />
-                                        {activeOrder.items?.filter(i => i.status === 'served').length || 0} serviti
+                                        {activeOrder.items?.filter(i => i.status === 'SERVED').length || 0} serviti
                                     </Badge>
                                 )}
                             </>

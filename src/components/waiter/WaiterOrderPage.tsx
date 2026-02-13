@@ -506,7 +506,8 @@ const WaiterOrderPage = () => {
                                     </SheetTitle>
                                 </SheetHeader>
 
-                                <ScrollArea className="flex-1 p-4">
+                                {/* Native scrolling for better mobile reliability */}
+                                <div className="flex-1 overflow-y-auto p-4">
                                     {orderItems.length === 0 ? (
                                         <div className="flex flex-col items-center justify-center py-20 text-zinc-500">
                                             <ShoppingCart size={48} weight="duotone" className="mb-4 opacity-50" />
@@ -599,7 +600,7 @@ const WaiterOrderPage = () => {
                                             })}
                                         </div>
                                     )}
-                                </ScrollArea>
+                                </div>
 
                                 {/* Fixed Footer Actions */}
                                 <div className="p-4 bg-zinc-900 border-t border-white/5 space-y-3 pb-8 md:pb-6 z-20 relative">
@@ -636,7 +637,7 @@ const WaiterOrderPage = () => {
 
             {/* Confirmation Alert Dialog */}
             <AlertDialog open={showConfirmDialog} onOpenChange={setShowConfirmDialog}>
-                <AlertDialogContent className="bg-zinc-900 border-zinc-800 text-white rounded-2xl w-[90vw] max-w-sm">
+                <AlertDialogContent className="bg-zinc-900 border-zinc-800 text-white rounded-2xl w-[90vw] max-w-sm z-[200]">
                     <AlertDialogHeader>
                         <AlertDialogTitle>
                             {confirmActionType === 'standard' ? 'Inviare ordine in cucina?' : 'Confermare ordine consegnato?'}
