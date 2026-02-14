@@ -797,15 +797,78 @@ const CustomerMenu = () => {
 
   // MAIN MENU CONTENT
   // Pass restaurantId to hooks
-  return <AuthorizedMenuContent
-    restaurantId={activeSession?.restaurant_id || restaurantId!}
-    tableId={tableId}
-    sessionId={sessionId!}
-    activeSession={activeSession!}
-    isViewOnly={isViewOnly}
-    isAuthenticated={isAuthenticated}
-    fullRestaurant={fullRestaurant}
-  />
+
+  if (!activeSession?.restaurant_id && !restaurantId) {
+    return (
+      <div className="min-h-screen flex items-center justify-center p-6" style={{ backgroundColor: theme.pageBg, color: theme.textPrimary }}>
+        <div className="text-center">
+          <div className="w-12 h-12 border-2 rounded-full animate-spin mx-auto mb-4" style={theme.spinnerBorderStyle}></div>
+          <p className="text-sm opacity-70 animate-pulse">Inizializzazione menu...</p>
+        </div>
+      </div>
+    )
+  }
+
+  return (
+    <ErrorBoundary>
+      <AuthorizedMenuContent
+        restaurantId={activeSession?.restaurant_id || restaurantId!}
+        tableId={tableId}
+        sessionId={sessionId!}
+        activeSession={activeSession!}
+        isViewOnly={isViewOnly}
+        isAuthenticated={isAuthenticated}
+        fullRestaurant={fullRestaurant}
+      />
+    </ErrorBoundary>
+  )
+}
+
+// Error Boundary Component
+class ErrorBoundary extends React.Component<{ children: React.ReactNode }, { hasError: boolean, error: Error | null }> {
+  constructor(props: { children: React.ReactNode }) {
+    super(props)
+    this.state = { hasError: false, error: null }
+  }
+
+  static getDerivedStateFromError(error: Error) {
+    return { hasError: true, error }
+  }
+
+  componentDidCatch(error: Error, errorInfo: React.ErrorInfo) {
+    console.error("Menu Crash:", error, errorInfo)
+  }
+
+  render() {
+    if (this.state.hasError) {
+      return (
+        <div className="min-h-screen flex items-center justify-center bg-zinc-950 p-6 text-center">
+          <div>
+            <div className="mb-4 text-amber-500">
+              <Warning size={48} weight="duotone" className="mx-auto" />
+            </div>
+            <h2 className="text-xl font-bold text-white mb-2">Si è verificato un problema</h2>
+            <p className="text-zinc-400 mb-6 text-sm max-w-xs mx-auto">
+              Il menu ha riscontrato un errore imprevisto. Prova a ricaricare la pagina.
+            </p>
+            <button
+              onClick={() => window.location.reload()}
+              className="px-6 py-2 bg-amber-500 hover:bg-amber-600 text-black font-bold rounded-full transition-colors"
+            >
+              Ricarica Pagina
+            </button>
+            {process.env.NODE_ENV === 'development' && (
+              <pre className="mt-8 p-4 bg-zinc-900 rounded text-left text-xs text-red-400 overflow-auto max-w-sm mx-auto">
+                {this.state.error?.toString()}
+              </pre>
+            )}
+          </div>
+        </div>
+      )
+    }
+
+    return this.props.children
+  }
 }
 
 // Refactored Content Component to keep logic clean
@@ -1037,6 +1100,21 @@ function AuthorizedMenuContent({ restaurantId, tableId, sessionId, activeSession
   useEffect(() => {
     initMenu()
   }, [initMenu])
+
+  // Safety Timeout for Loading State
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      if (isLoading) {
+        console.warn("Forcing loading completion after timeout")
+        setIsLoading(false)
+        if (!restaurantName && !error) {
+          setError("Tempo di attesa scaduto. Riprova.")
+        }
+      }
+    }, 10000) // 10 seconds timeout
+
+    return () => clearTimeout(timer)
+  }, [isLoading, restaurantName, error])
 
   // Sort categories by order field properly
   const sortedCategories = useMemo(() => {
