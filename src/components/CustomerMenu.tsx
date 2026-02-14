@@ -1,6 +1,46 @@
 import React, { useState, useMemo, useCallback, useEffect } from 'react'
-import { useParams, useNavigate } from 'react-router-dom' // Added useNavigate
-import { useSession } from '../context/SessionContext' // Import context
+import { useParams, useNavigate } from 'react-router-dom'
+import { useSession } from '../context/SessionContext'
+
+// Error Boundary Component
+class ErrorBoundary extends React.Component<{ children: React.ReactNode }, { hasError: boolean, error: Error | null }> {
+  constructor(props: { children: React.ReactNode }) {
+    super(props)
+    this.state = { hasError: false, error: null }
+  }
+
+  static getDerivedStateFromError(error: Error) {
+    return { hasError: true, error }
+  }
+
+  componentDidCatch(error: Error, errorInfo: React.ErrorInfo) {
+    console.error("Critical Menu Crash:", error, errorInfo)
+  }
+
+  render() {
+    if (this.state.hasError) {
+      return (
+        <div className="min-h-screen flex items-center justify-center bg-zinc-950 p-6 text-center text-white">
+          <div className="max-w-md">
+            <h2 className="text-xl font-bold text-red-500 mb-4">Errore Critico</h2>
+            <p className="mb-4">Si è verificato un errore durante il caricamento del menu.</p>
+            <p className="text-xs text-zinc-500 mb-6 font-mono bg-zinc-900 p-2 rounded text-left overflow-auto max-h-32">
+              {this.state.error?.message}
+            </p>
+            <button
+              onClick={() => window.location.reload()}
+              className="px-6 py-2 bg-amber-500 hover:bg-amber-600 text-black font-bold rounded-full transition-colors"
+            >
+              Ricarica Pagina
+            </button>
+          </div>
+        </div>
+      )
+    }
+
+    return this.props.children
+  }
+}
 import { useSupabaseData } from '../hooks/useSupabaseData'
 import { DatabaseService } from '../services/DatabaseService'
 import { supabase } from '../lib/supabase'
@@ -232,7 +272,7 @@ function SortableItem({ id, children }: { id: string, children: React.ReactNode 
   )
 }
 
-const CustomerMenu = () => {
+const CustomerMenuBase = () => {
   // 1. Get Table ID from URL params (via generic Route)
   const { tableId } = useParams<{ tableId: string }>()
   const navigate = useNavigate()
@@ -252,6 +292,17 @@ const CustomerMenu = () => {
   const [isAuthenticated, setIsAuthenticated] = useState(false)
   const [authChecking, setAuthChecking] = useState(true)
   const [isInitLoading, setIsInitLoading] = useState(true) // Prevent PIN flicker during init
+
+  // Safe timeout for initialization
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      if (isInitLoading) {
+        console.warn("Forcing init loading completion after timeout")
+        setIsInitLoading(false)
+      }
+    }, 8000)
+    return () => clearTimeout(timer)
+  }, [isInitLoading])
 
   // Data hooks
   const [activeSession, setActiveSession] = useState<TableSession | null>(null)
@@ -824,52 +875,7 @@ const CustomerMenu = () => {
   )
 }
 
-// Error Boundary Component
-class ErrorBoundary extends React.Component<{ children: React.ReactNode }, { hasError: boolean, error: Error | null }> {
-  constructor(props: { children: React.ReactNode }) {
-    super(props)
-    this.state = { hasError: false, error: null }
-  }
 
-  static getDerivedStateFromError(error: Error) {
-    return { hasError: true, error }
-  }
-
-  componentDidCatch(error: Error, errorInfo: React.ErrorInfo) {
-    console.error("Menu Crash:", error, errorInfo)
-  }
-
-  render() {
-    if (this.state.hasError) {
-      return (
-        <div className="min-h-screen flex items-center justify-center bg-zinc-950 p-6 text-center">
-          <div>
-            <div className="mb-4 text-amber-500">
-              <Warning size={48} weight="duotone" className="mx-auto" />
-            </div>
-            <h2 className="text-xl font-bold text-white mb-2">Si è verificato un problema</h2>
-            <p className="text-zinc-400 mb-6 text-sm max-w-xs mx-auto">
-              Il menu ha riscontrato un errore imprevisto. Prova a ricaricare la pagina.
-            </p>
-            <button
-              onClick={() => window.location.reload()}
-              className="px-6 py-2 bg-amber-500 hover:bg-amber-600 text-black font-bold rounded-full transition-colors"
-            >
-              Ricarica Pagina
-            </button>
-            {process.env.NODE_ENV === 'development' && (
-              <pre className="mt-8 p-4 bg-zinc-900 rounded text-left text-xs text-red-400 overflow-auto max-w-sm mx-auto">
-                {this.state.error?.toString()}
-              </pre>
-            )}
-          </div>
-        </div>
-      )
-    }
-
-    return this.props.children
-  }
-}
 
 // Refactored Content Component to keep logic clean
 function AuthorizedMenuContent({ restaurantId, tableId, sessionId, activeSession, isViewOnly, isAuthenticated, fullRestaurant: propsFullRestaurant }: { restaurantId: string, tableId: string, sessionId: string, activeSession: TableSession, isViewOnly?: boolean, isAuthenticated: boolean, fullRestaurant?: any }) {
@@ -2097,4 +2103,10 @@ function AuthorizedMenuContent({ restaurantId, tableId, sessionId, activeSession
   )
 }
 
-export default CustomerMenu
+export default function CustomerMenu() {
+  return (
+    <ErrorBoundary>
+      <CustomerMenuBase />
+    </ErrorBoundary>
+  )
+}
