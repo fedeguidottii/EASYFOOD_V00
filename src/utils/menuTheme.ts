@@ -284,5 +284,7 @@ function getStyleTokens(style: MenuStyleKey): StyleTokens {
                 badgeRadius: '8px',
                 buttonRadius: '12px',
             }
+        default:
+            return getStyleTokens('elegant')
     }
 }
