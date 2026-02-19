@@ -705,6 +705,13 @@ const CustomerMenuBase = () => {
     }
   }
 
+  // Compute menu theme from restaurant settings
+  // IMPORTANT: This hook MUST be called before any conditional returns (React Rules of Hooks)
+  const theme = useMemo(() => getMenuTheme(
+    (fullRestaurant?.menu_style as MenuStyleKey) || 'elegant',
+    fullRestaurant?.menu_primary_color || '#f59e0b'
+  ), [fullRestaurant?.menu_style, fullRestaurant?.menu_primary_color])
+
   // --- RENDER GATES ---
 
   if (restaurantSuspended) return (
@@ -740,12 +747,6 @@ const CustomerMenuBase = () => {
       </p>
     </div>
   )
-
-  // Compute menu theme from restaurant settings
-  const theme = useMemo(() => getMenuTheme(
-    (fullRestaurant?.menu_style as MenuStyleKey) || 'elegant',
-    fullRestaurant?.menu_primary_color || '#f59e0b'
-  ), [fullRestaurant?.menu_style, fullRestaurant?.menu_primary_color])
 
   if (sessionLoading || authChecking || isInitLoading) return (
     <div className="min-h-screen flex items-center justify-center" style={{ background: theme.pageBgGradient }}>
