@@ -1,5 +1,5 @@
 import React, { useEffect, useState, Suspense, lazy } from 'react'
-import { Routes, Route, Navigate, useLocation } from 'react-router-dom'
+import { Routes, Route, Navigate, useLocation, useSearchParams } from 'react-router-dom'
 import { Toaster } from 'sonner'
 import { SessionProvider } from './context/SessionContext'
 import { supabase } from './lib/supabase'
@@ -31,6 +31,27 @@ const ProtectedRoute = ({ children, user, loading }: { children: React.ReactNode
   if (!user) return <Navigate to="/" replace />
 
   return React.cloneElement(children as React.ReactElement<any>, { user })
+}
+
+// Redirect wrapper for legacy QR Codes that hit `/menu?tableId=XYZ`
+const LegacyCustomerMenuRedirect = () => {
+  const [searchParams] = useSearchParams()
+  const tableId = searchParams.get('tableId')
+  if (tableId) {
+    return <Navigate to={`/client/table/${tableId}`} replace />
+  }
+  return <Navigate to="/" replace />
+}
+
+// Redirect wrapper for legacy QR Codes that hit `/menu/XYZ`
+const LegacyPathRedirect = () => {
+  const location = useLocation()
+  const pathParts = location.pathname.split('/')
+  const tableId = pathParts[pathParts.length - 1]
+  if (tableId && tableId !== 'menu') {
+    return <Navigate to={`/client/table/${tableId}`} replace />
+  }
+  return <Navigate to="/" replace />
 }
 
 const AppContent = () => {
@@ -131,6 +152,9 @@ const AppContent = () => {
 
           {/* CUSTOMER ROUTES */}
           <Route path="/client/table/:tableId" element={<CustomerMenu />} />
+          {/* Support for existing physical QR codes */}
+          <Route path="/menu/:tableId" element={<LegacyPathRedirect />} />
+          <Route path="/menu" element={<LegacyCustomerMenuRedirect />} />
           <Route path="/book/:restaurantId" element={<PublicReservationPage />} />
 
           {/* Fallback for unknown routes */}
