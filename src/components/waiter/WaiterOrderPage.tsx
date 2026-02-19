@@ -5,6 +5,7 @@ import { DatabaseService } from '../../services/DatabaseService'
 import { Table, Dish, Category, Restaurant } from '../../services/types'
 import { toast } from 'sonner'
 import { ArrowLeft, MagnifyingGlass, Plus, Minus, Trash, ShoppingCart, Info, CaretDown, CaretUp, CheckCircle, Warning, PencilSimple, PaperPlaneRight, Check } from '@phosphor-icons/react'
+import { Layers } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Textarea } from '@/components/ui/textarea'
@@ -41,9 +42,14 @@ const WaiterOrderPage = () => {
 
     // Order State
     const [orderItems, setOrderItems] = useState<OrderItem[]>([])
-    const [activeCourse, setActiveCourse] = useState(1)
+    const [activeCourse, setActiveCourse] = useState(1) // Legacy fallback
     const [isCartOpen, setIsCartOpen] = useState(false)
     const [submitting, setSubmitting] = useState(false)
+
+    // Course Selection Modal State
+    const [showCourseSelectionModal, setShowCourseSelectionModal] = useState(false)
+    const [pendingDishToAdd, setPendingDishToAdd] = useState<{ dish: Dish, quantity: number, notes: string, isFromDetail: boolean } | null>(null)
+    const [maxCourse, setMaxCourse] = useState(2)
 
     // Confirmation Dialog State
     const [showConfirmDialog, setShowConfirmDialog] = useState(false)
@@ -108,16 +114,40 @@ const WaiterOrderPage = () => {
     }, [dishes, searchQuery, selectedCategory])
 
     // Cart Logic
-    const addToOrder = (dish: Dish) => {
+    const handleAddClick = (dish: Dish, quantity: number = 1, notes: string = '', isFromDetail: boolean = false) => {
+        if (restaurant?.enable_course_splitting) {
+            setPendingDishToAdd({ dish, quantity, notes, isFromDetail })
+            if (maxCourse < 2) setMaxCourse(2)
+            setShowCourseSelectionModal(true)
+        } else {
+            performAddToOrder(dish, quantity, notes, 1, isFromDetail)
+        }
+    }
+
+    const performAddToOrder = (dish: Dish, quantity: number, notes: string, courseNum: number, isFromDetail: boolean) => {
         setOrderItems(prev => {
-            // Only merge with items that have NO notes (same dish, same course, no notes)
-            const existing = prev.find(i => i.dishId === dish.id && i.courseNumber === activeCourse && !i.notes)
-            if (existing) {
-                return prev.map(i => i === existing ? { ...i, quantity: i.quantity + 1 } : i)
+            if (notes) {
+                const exactMatch = prev.find(i => i.dishId === dish.id && i.courseNumber === courseNum && i.notes === notes)
+                if (exactMatch) {
+                    return prev.map(i => i === exactMatch ? { ...i, quantity: i.quantity + quantity } : i)
+                }
+                return [...prev, { dishId: dish.id, quantity, notes, courseNumber: courseNum, dish }]
+            } else {
+                const existing = prev.find(i => i.dishId === dish.id && i.courseNumber === courseNum && !i.notes)
+                if (existing) {
+                    return prev.map(i => i === existing ? { ...i, quantity: i.quantity + quantity } : i)
+                }
+                return [...prev, { dishId: dish.id, quantity, notes: '', courseNumber: courseNum, dish }]
             }
-            return [...prev, { dishId: dish.id, quantity: 1, notes: '', courseNumber: activeCourse, dish }]
         })
-        toast.success(`Aggiunto: ${dish.name}`, { duration: 1500, position: 'top-center' })
+
+        toast.success(`Aggiunto: ${dish.name}${notes ? ' (con note)' : ''}`, { duration: 1500, position: 'top-center' })
+
+        if (isFromDetail) {
+            setSelectedDishForDetail(null)
+        }
+        setShowCourseSelectionModal(false)
+        setPendingDishToAdd(null)
     }
 
     const updateQuantity = (index: number, delta: number) => {
@@ -260,47 +290,7 @@ const WaiterOrderPage = () => {
 
     const addFromDetail = () => {
         if (!selectedDishForDetail) return
-
-        setOrderItems(prev => {
-            if (detailNotes) {
-                // Items with notes are ALWAYS added as separate entries
-                const exactMatch = prev.find(i =>
-                    i.dishId === selectedDishForDetail.id &&
-                    i.courseNumber === activeCourse &&
-                    i.notes === detailNotes
-                )
-                if (exactMatch) {
-                    return prev.map(i => i === exactMatch ? { ...i, quantity: i.quantity + detailQuantity } : i)
-                }
-                return [...prev, {
-                    dishId: selectedDishForDetail.id,
-                    quantity: detailQuantity,
-                    notes: detailNotes,
-                    courseNumber: activeCourse,
-                    dish: selectedDishForDetail
-                }]
-            } else {
-                // No notes: merge with existing no-notes item if exists
-                const existing = prev.find(i =>
-                    i.dishId === selectedDishForDetail.id &&
-                    i.courseNumber === activeCourse &&
-                    !i.notes
-                )
-                if (existing) {
-                    return prev.map(i => i === existing ? { ...i, quantity: i.quantity + detailQuantity } : i)
-                }
-                return [...prev, {
-                    dishId: selectedDishForDetail.id,
-                    quantity: detailQuantity,
-                    notes: '',
-                    courseNumber: activeCourse,
-                    dish: selectedDishForDetail
-                }]
-            }
-        })
-
-        toast.success(`Aggiunto: ${selectedDishForDetail.name}${detailNotes ? ' (con note)' : ''}`)
-        setSelectedDishForDetail(null)
+        handleAddClick(selectedDishForDetail, detailQuantity, detailNotes, true)
     }
 
     if (loading) return (
@@ -340,23 +330,6 @@ const WaiterOrderPage = () => {
 
             {/* 2. Course & Category Sticky Navigation */}
             <div className="fixed top-16 left-0 right-0 z-30 bg-zinc-950 border-b border-white/5 shadow-2xl shadow-black/50">
-                {/* Course Selector - Compact */}
-                <div className="px-4 py-2 flex items-center justify-between border-b border-white/5 bg-zinc-900/50">
-                    <span className="text-xs font-bold text-zinc-500 uppercase tracking-wider">Stai ordinando per:</span>
-                    <div className="flex items-center bg-black/40 rounded-lg p-0.5 border border-white/5">
-                        {[1, 2, 3, 4, 5].map(num => (
-                            <button
-                                key={num}
-                                onClick={() => setActiveCourse(num)}
-                                className={`px-3 py-1.5 text-xs font-bold rounded-md transition-all ${activeCourse === num
-                                    ? 'bg-amber-500 text-black shadow-lg shadow-amber-500/20'
-                                    : 'text-zinc-400 hover:text-white hover:bg-white/5'}`}
-                            >
-                                Portata {num}
-                            </button>
-                        ))}
-                    </div>
-                </div>
 
                 {/* Horizontal Category Scroll */}
                 <ScrollArea className="w-full whitespace-nowrap bg-zinc-950">
@@ -423,7 +396,7 @@ const WaiterOrderPage = () => {
                                     ? 'bg-amber-500/5 border-amber-500/30 shadow-lg shadow-amber-500/5'
                                     : 'bg-zinc-900/40 border-white/5 hover:border-white/10'
                                     }`}
-                                onClick={() => addToOrder(dish)}
+                                onClick={() => handleAddClick(dish)}
                             >
                                 {/* Image / Placeholder */}
                                 <div className="shrink-0 w-16 h-16 rounded-xl overflow-hidden bg-zinc-900 border border-white/5 relative">
@@ -431,11 +404,6 @@ const WaiterOrderPage = () => {
                                         <img src={dish.image_url} alt={dish.name} className="w-full h-full object-cover" loading="lazy" />
                                     ) : (
                                         <DishPlaceholder iconSize={24} className="text-zinc-700" variant="fork" />
-                                    )}
-                                    {qtyInCurrentCourse > 0 && (
-                                        <div className="absolute inset-0 bg-black/40 flex items-center justify-center backdrop-blur-[1px]">
-                                            <span className="text-xl font-bold text-white shadow-black drop-shadow-md">{qtyInCurrentCourse}</span>
-                                        </div>
                                     )}
                                 </div>
 
@@ -465,8 +433,13 @@ const WaiterOrderPage = () => {
                                         <PencilSimple weight="bold" size={14} />
                                     </div>
 
-                                    <div className={`w-8 h-8 rounded-full flex items-center justify-center border transition-colors ${qtyInCurrentCourse > 0 ? 'bg-amber-500 text-black border-amber-500' : 'bg-transparent text-zinc-600 border-zinc-800'
-                                        }`}>
+                                    <div
+                                        className="w-8 h-8 rounded-full flex items-center justify-center border transition-colors bg-transparent text-zinc-600 border-zinc-800 hover:text-amber-500 hover:border-amber-500"
+                                        onClick={(e) => {
+                                            e.stopPropagation()
+                                            handleAddClick(dish)
+                                        }}
+                                    >
                                         <Plus weight="bold" size={14} />
                                     </div>
                                 </div>
@@ -731,6 +704,52 @@ const WaiterOrderPage = () => {
                             </div>
                         </>
                     )}
+                </DialogContent>
+            </Dialog>
+
+            {/* Course Selection Modal */}
+            <Dialog open={showCourseSelectionModal} onOpenChange={(open) => {
+                setShowCourseSelectionModal(open)
+                if (!open) setPendingDishToAdd(null)
+            }}>
+                <DialogContent className="sm:max-w-xs bg-zinc-900 border-zinc-800 text-zinc-100 rounded-3xl p-6 shadow-2xl z-[250]">
+                    <DialogHeader>
+                        <DialogTitle className="text-center text-xl text-amber-500">Scegli la Portata</DialogTitle>
+                        <DialogDescription className="text-center text-zinc-400 mt-1">
+                            Quando vuoi ricevere questo piatto?
+                        </DialogDescription>
+                    </DialogHeader>
+                    <div className="flex flex-col gap-3 mt-4">
+                        {Array.from({ length: maxCourse }, (_, i) => i + 1).map((courseNum) => (
+                            <Button
+                                key={courseNum}
+                                variant="outline"
+                                className="h-14 rounded-xl font-bold transition-all text-lg border-zinc-700 bg-zinc-800 text-white hover:bg-zinc-700 hover:text-white"
+                                onClick={() => {
+                                    if (pendingDishToAdd) {
+                                        performAddToOrder(
+                                            pendingDishToAdd.dish,
+                                            pendingDishToAdd.quantity,
+                                            pendingDishToAdd.notes,
+                                            courseNum,
+                                            pendingDishToAdd.isFromDetail
+                                        )
+                                    }
+                                }}
+                            >
+                                <Layers className="w-5 h-5 mr-3 text-amber-500" />
+                                Portata {courseNum}
+                            </Button>
+                        ))}
+                        <Button
+                            variant="ghost"
+                            className="h-14 rounded-xl font-medium mt-2 text-amber-500 hover:bg-amber-500/10 hover:text-amber-500 text-base"
+                            onClick={() => setMaxCourse(prev => prev + 1)}
+                        >
+                            <Plus className="w-5 h-5 mr-2" />
+                            Aggiungi nuova portata
+                        </Button>
+                    </div>
                 </DialogContent>
             </Dialog>
         </div>

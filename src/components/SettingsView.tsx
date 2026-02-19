@@ -20,7 +20,8 @@ import {
     ForkKnife,
     Info,
     CheckCircle,
-    Gear
+    Gear,
+    Palette
 } from '@phosphor-icons/react'
 import { SoundType } from '../utils/SoundManager'
 import { STYLE_PRESETS, COLOR_OPTIONS } from '../utils/menuTheme'
@@ -295,6 +296,61 @@ export function SettingsView({
                                 )}
                             </div>
                         </div>
+
+                        {/* Personalizzazione Tema Menu */}
+                        <div className="p-6 rounded-2xl bg-zinc-900/50 border border-white/5 backdrop-blur-sm">
+                            <div className="flex items-center justify-between mb-6">
+                                <h3 className="text-xl font-bold flex items-center gap-2">
+                                    <Palette className="text-amber-500" />
+                                    Personalizzazione Menu Cliente
+                                </h3>
+                            </div>
+
+                            <div className="space-y-8">
+                                {/* Style Selection */}
+                                <div className="space-y-4">
+                                    <Label className="text-base font-semibold">Stile Interfaccia</Label>
+                                    <p className="text-sm text-zinc-400">Scegli il design generale del menu visualizzato dai clienti.</p>
+                                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                        {STYLE_PRESETS.map((preset) => (
+                                            <div
+                                                key={preset.key}
+                                                onClick={() => setMenuStyle(preset.key)}
+                                                className={`cursor-pointer p-4 rounded-xl border transition-all ${menuStyle === preset.key ? 'bg-amber-500/10 border-amber-500/50' : 'bg-black/20 border-white/5 hover:bg-white/5 hover:border-white/20'}`}
+                                            >
+                                                <div className="flex items-center justify-between mb-1">
+                                                    <span className={`font-semibold ${menuStyle === preset.key ? 'text-amber-400' : 'text-zinc-200'}`}>{preset.label}</span>
+                                                    {menuStyle === preset.key && <CheckCircle className="text-amber-500" weight="fill" />}
+                                                </div>
+                                                <p className="text-xs text-zinc-400">{preset.description}</p>
+                                            </div>
+                                        ))}
+                                    </div>
+                                </div>
+
+                                {/* Color Selection */}
+                                <div className="space-y-4">
+                                    <Label className="text-base font-semibold">Colore Principale</Label>
+                                    <p className="text-sm text-zinc-400">Seleziona il colore principale per bottoni, icone e accenti.</p>
+                                    <div className="flex flex-wrap gap-4">
+                                        {COLOR_OPTIONS.map((color) => (
+                                            <div
+                                                key={color.hex}
+                                                onClick={() => setMenuPrimaryColor(color.hex)}
+                                                className={`cursor-pointer group flex flex-col items-center gap-2 transition-all p-2 rounded-xl ${menuPrimaryColor === color.hex ? 'bg-white/5 shadow-sm' : 'hover:bg-white/5'}`}
+                                            >
+                                                <div
+                                                    className={`w-12 h-12 rounded-full ring-2 ring-offset-2 ring-offset-zinc-950 transition-all ${menuPrimaryColor === color.hex ? 'ring-amber-500 scale-110' : 'ring-transparent scale-100 group-hover:scale-110 group-hover:ring-white/20'}`}
+                                                    style={{ backgroundColor: color.hex, backgroundImage: `linear-gradient(135deg, ${color.lightHex} 0%, ${color.hex} 50%, ${color.darkHex} 100%)` }}
+                                                />
+                                                <span className={`text-xs font-medium ${menuPrimaryColor === color.hex ? 'text-amber-400' : 'text-zinc-400'}`}>{color.name}</span>
+                                            </div>
+                                        ))}
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
                     </motion.div>
                 </TabsContent>
 

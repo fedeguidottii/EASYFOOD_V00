@@ -763,7 +763,7 @@ const CustomerMenuBase = () => {
   // LOGIN SCREEN (PIN) - Themed Design
   if (!isAuthenticated && !isViewOnly) {
     return (
-      <div className="min-h-screen flex flex-col items-center justify-center p-6" style={{ backgroundColor: theme.pageBg, color: theme.textPrimary }}>
+      <div className="min-h-screen flex flex-col items-center justify-center p-6" style={{ background: theme.pageBgGradient, color: theme.textPrimary }}>
 
         <div className="w-full max-w-sm flex flex-col items-center gap-12">
 
@@ -851,7 +851,7 @@ const CustomerMenuBase = () => {
 
   if (!activeSession?.restaurant_id && !restaurantId) {
     return (
-      <div className="min-h-screen flex items-center justify-center p-6" style={{ backgroundColor: theme.pageBg, color: theme.textPrimary }}>
+      <div className="min-h-screen flex items-center justify-center p-6" style={{ background: theme.pageBgGradient, color: theme.textPrimary }}>
         <div className="text-center">
           <div className="w-12 h-12 border-2 rounded-full animate-spin mx-auto mb-4" style={theme.spinnerBorderStyle}></div>
           <p className="text-sm opacity-70 animate-pulse">Inizializzazione menu...</p>
@@ -897,14 +897,14 @@ function AuthorizedMenuContent({ restaurantId, tableId, sessionId, activeSession
   const [searchTerm, setSearchTerm] = useState('')
   const [selectedDish, setSelectedDish] = useState<Dish | null>(null)
 
-  // New state for course splitting mode
-  const [isCourseSplittingMode, setIsCourseSplittingMode] = useState(false)
+  // New state for course splitting modal
+  const [showCourseSelectionModal, setShowCourseSelectionModal] = useState(false)
+  const [pendingDishToAdd, setPendingDishToAdd] = useState<{ dish: Dish, quantity: number, notes: string } | null>(null)
 
   // Derived state for sorted cart
   const sortedCart = useMemo(() => {
-    if (!isCourseSplittingMode) return cart
     return [...cart].sort((a, b) => (a.course_number || 1) - (b.course_number || 1))
-  }, [cart, isCourseSplittingMode])
+  }, [cart])
   const [previousOrders, setPreviousOrders] = useState<Order[]>([])
   const [isOrderSubmitting, setIsOrderSubmitting] = useState(false)
   const [dishNote, setDishNote] = useState('')
@@ -912,9 +912,7 @@ function AuthorizedMenuContent({ restaurantId, tableId, sessionId, activeSession
 
   const [maxCourse, setMaxCourse] = useState(1)
   const [currentCourse, setCurrentCourse] = useState(1)
-  const [showCourseAlert, setShowCourseAlert] = useState(false)
   const [showConfirmDialog, setShowConfirmDialog] = useState(false)
-  const [showCourseManagement, setShowCourseManagement] = useState(false) // Waiter Mode: Course management
   const [isCartAnimating, setIsCartAnimating] = useState(false)
   const [activeWaitCourse, setActiveWaitCourse] = useState(1) // Waiter Mode: Selected course for new items
   const [courseSplittingEnabled, setCourseSplittingEnabled] = useState(true) // Default to true
@@ -1219,6 +1217,16 @@ function AuthorizedMenuContent({ restaurantId, tableId, sessionId, activeSession
     setDishNote('')
   }
 
+  const handleAddClick = (dish: Dish, quantity: number, notes: string) => {
+    if (fullRestaurant?.enable_course_splitting) {
+      setPendingDishToAdd({ dish, quantity, notes })
+      if (maxCourse < 2) setMaxCourse(2) // Ensure at least 2 courses are shown initially
+      setShowCourseSelectionModal(true)
+    } else {
+      addToCart(dish, quantity, notes, 1)
+    }
+  }
+
   const addToCart = async (dish: Dish, quantity: number = 1, notes: string = '', courseNum?: number) => {
     if (!sessionId) return
     const targetCourse = courseNum !== undefined ? courseNum : currentCourse
@@ -1240,6 +1248,8 @@ function AuthorizedMenuContent({ restaurantId, tableId, sessionId, activeSession
       setSelectedDish(null)
       setDishNote('')
       setDishQuantity(1)
+      setPendingDishToAdd(null)
+      setShowCourseSelectionModal(false)
     } catch (err) {
       console.error("Error adding to cart:", err)
       toast.error("Errore aggiunta al carrello")
@@ -1375,15 +1385,7 @@ function AuthorizedMenuContent({ restaurantId, tableId, sessionId, activeSession
     }
     if (cart.length === 0) return
 
-    const uniqueCourses = [...new Set(cart.map(item => item.course_number || 1))]
-
-    if (isWaiterMode) {
-      setShowConfirmDialog(true)
-    } else if (uniqueCourses.length === 1 && uniqueCourses[0] === 1) {
-      setShowCourseAlert(true)
-    } else {
-      setShowConfirmDialog(true)
-    }
+    setShowConfirmDialog(true)
   }
 
   const submitOrder = async () => {
@@ -1444,7 +1446,6 @@ function AuthorizedMenuContent({ restaurantId, tableId, sessionId, activeSession
       setMaxCourse(1)
       setCurrentCourse(1)
       setIsCartOpen(false)
-      setShowCourseAlert(false)
       setShowConfirmDialog(false)
       toast.success('Ordine inviato! 👨‍🍳', { duration: 2000, style: { background: '#10B981', color: 'white' } })
     } catch (error) {
@@ -1457,13 +1458,13 @@ function AuthorizedMenuContent({ restaurantId, tableId, sessionId, activeSession
 
   // RENDER HELPERS - LUXURY THEME
   if (isLoading) return (
-    <div className="min-h-screen flex items-center justify-center" style={{ backgroundColor: theme.pageBg }}>
+    <div className="min-h-screen flex items-center justify-center" style={{ background: theme.pageBgGradient }}>
       <div className="w-10 h-10 border-2 rounded-full animate-spin" style={theme.spinnerBorderStyle}></div>
     </div>
   )
 
   if (error) return (
-    <div className="min-h-screen flex items-center justify-center p-6" style={{ backgroundColor: theme.pageBg, color: theme.textPrimary }}>
+    <div className="min-h-screen flex items-center justify-center p-6" style={{ background: theme.pageBgGradient, color: theme.textPrimary }}>
       <div className="text-center">
         <AlertCircle className="w-12 h-12 text-red-500 mx-auto mb-4" />
         <p className="text-lg mb-4">{error}</p>
@@ -1662,27 +1663,6 @@ function AuthorizedMenuContent({ restaurantId, tableId, sessionId, activeSession
                 <div className="flex items-center justify-between">
                   <div className="flex items-center gap-2">
                     <h3 className="text-xs font-bold uppercase tracking-wider" style={{ color: theme.primary }}>Nel Carrello</h3>
-                    {fullRestaurant?.enable_course_splitting && (
-                      <button
-                        onClick={() => setIsCourseSplittingMode(!isCourseSplittingMode)}
-                        className={`text-xs px-4 py-2 rounded-full font-bold uppercase tracking-wider transition-all shadow-sm flex items-center gap-2 ${isCourseSplittingMode ? 'ring-2 ring-offset-2 ring-offset-zinc-900' : ''}`}
-                        style={isCourseSplittingMode
-                          ? { backgroundColor: theme.primary, color: '#000', borderColor: theme.primary, boxShadow: `0 0 15px ${theme.primaryAlpha(0.4)}` }
-                          : { backgroundColor: theme.primaryAlpha(0.1), color: theme.primary, border: `1px solid ${theme.primaryAlpha(0.3)}` }}
-                      >
-                        {isCourseSplittingMode ? (
-                          <>
-                            <CheckCircle size={14} weight="bold" />
-                            Portate Attive
-                          </>
-                        ) : (
-                          <>
-                            <ListNumbers size={14} weight="bold" />
-                            Dividi in Portate
-                          </>
-                        )}
-                      </button>
-                    )}
                   </div>
                   <span className="text-xs" style={{ color: theme.textMuted }}>{cart.length} articoli</span>
                 </div>
@@ -1693,7 +1673,7 @@ function AuthorizedMenuContent({ restaurantId, tableId, sessionId, activeSession
                   <div className="space-y-3">
                     {sortedCart.map((item, index) => {
                       // Logic for grouping headers
-                      const showCourseHeader = isCourseSplittingMode && (index === 0 || (item.course_number || 1) !== (sortedCart[index - 1].course_number || 1));
+                      const showCourseHeader = fullRestaurant?.enable_course_splitting && (index === 0 || (item.course_number || 1) !== (sortedCart[index - 1].course_number || 1));
 
                       return (
                         <React.Fragment key={item.id}>
@@ -1736,28 +1716,7 @@ function AuthorizedMenuContent({ restaurantId, tableId, sessionId, activeSession
                                   </button>
                                 </div>
 
-                                {/* Course Selection (Only if mode active) */}
-                                {isCourseSplittingMode && (
-                                  <div className="flex items-center gap-1.5 ml-2 overflow-x-auto no-scrollbar pb-1 max-w-[140px]" style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}>
-                                    {[1, 2, 3, 4, 5, 6, 7, 8].map(num => (
-                                      <button
-                                        key={num}
-                                        onClick={() => {
-                                          if ((item.course_number || 1) !== num) {
-                                            moveItemToCourse(item.id, num)
-                                          }
-                                        }}
-                                        className="w-7 h-7 flex-shrink-0 flex items-center justify-center rounded-full text-[10px] font-bold border transition-all"
-                                        style={(item.course_number || 1) === num
-                                          ? { backgroundColor: theme.primary, color: '#000', borderColor: theme.primary, transform: 'scale(1.1)', boxShadow: `0 4px 10px -2px ${theme.primaryAlpha(0.3)}` }
-                                          : { color: theme.textSecondary, borderColor: theme.cardBorder, backgroundColor: theme.inputBg }
-                                        }
-                                      >
-                                        {num}
-                                      </button>
-                                    ))}
-                                  </div>
-                                )}
+                                {/* Removed old course selection bubbles in cart */}
 
                                 <button
                                   onClick={() => {
@@ -1930,7 +1889,7 @@ function AuthorizedMenuContent({ restaurantId, tableId, sessionId, activeSession
                   <Button
                     className="w-full font-bold rounded-xl text-lg shadow-lg active:scale-[0.98] transition-transform h-14"
                     style={{ ...theme.ctaButtonStyle, borderRadius: theme.buttonRadius }}
-                    onClick={() => addToCart(selectedDish, dishQuantity, dishNote)}
+                    onClick={() => handleAddClick(selectedDish, dishQuantity, dishNote)}
                   >
                     AGGIUNGI - €{(selectedDish.price * dishQuantity).toFixed(2)}
                   </Button>
@@ -1972,118 +1931,47 @@ function AuthorizedMenuContent({ restaurantId, tableId, sessionId, activeSession
           </DialogContent>
         </Dialog>
 
-        {/* Course Management (Drag & Drop) */}
-        <Dialog open={showCourseManagement} onOpenChange={setShowCourseManagement}>
-          <DialogContent className="max-w-lg max-h-[85vh] overflow-hidden flex flex-col p-0 rounded-3xl shadow-2xl shadow-black" style={{ backgroundColor: theme.dialogBg, border: `1px solid ${theme.primaryAlpha(0.2)}` }}>
-            <DialogHeader className="p-4 z-10" style={{ backgroundColor: theme.dialogBg, borderBottom: `1px solid ${theme.primaryAlpha(0.1)}` }}>
-              <DialogTitle style={{ color: theme.primary, fontFamily: theme.headerFont }}>Organizza Portate</DialogTitle>
-              <DialogDescription style={{ color: theme.textSecondary }}>Trascina i piatti per cambiare l'ordine di uscita</DialogDescription>
+        {/* Course Selection Modal */}
+        <Dialog open={showCourseSelectionModal} onOpenChange={(open) => {
+          setShowCourseSelectionModal(open)
+          if (!open) {
+            setPendingDishToAdd(null)
+          }
+        }}>
+          <DialogContent className="sm:max-w-xs shadow-2xl rounded-3xl p-6" style={{ backgroundColor: theme.dialogBg, borderColor: theme.primaryAlpha(0.2), color: theme.textPrimary }}>
+            <DialogHeader>
+              <DialogTitle className="text-center text-xl" style={{ color: theme.primary, fontFamily: theme.headerFont }}>Scegli la Portata</DialogTitle>
+              <DialogDescription className="text-center mt-1" style={{ color: theme.textSecondary }}>Quando vuoi ricevere questo piatto?</DialogDescription>
             </DialogHeader>
-
-            <div className="flex-1 min-h-0 relative flex flex-col overflow-hidden">
-              <DndContext
-                sensors={sensors}
-                collisionDetection={closestCenter}
-                onDragStart={handleDragStart}
-                onDragOver={handleDragOver}
-                onDragEnd={handleDragEnd}
+            <div className="flex flex-col gap-3 mt-4">
+              {Array.from({ length: maxCourse }, (_, i) => i + 1).map((courseNum) => (
+                <Button
+                  key={courseNum}
+                  variant="outline"
+                  className="h-14 rounded-xl font-bold transition-all text-lg"
+                  style={{ borderColor: theme.cardBorder, backgroundColor: theme.cardBg, color: theme.textPrimary }}
+                  onClick={() => {
+                    if (pendingDishToAdd) {
+                      addToCart(pendingDishToAdd.dish, pendingDishToAdd.quantity, pendingDishToAdd.notes, courseNum)
+                    }
+                  }}
+                >
+                  <Layers className="w-5 h-5 mr-3" style={{ color: theme.primary }} />
+                  Portata {courseNum}
+                </Button>
+              ))}
+              <Button
+                variant="ghost"
+                className="h-14 rounded-xl font-medium mt-2"
+                style={{ color: theme.primary }}
+                onClick={() => setMaxCourse(prev => prev + 1)}
               >
-                <div className="flex-1 overflow-y-auto scrollbar-hide p-4 bg-zinc-900/50">
-                  <div className="space-y-4 pb-20">
-                    {Array.from({ length: maxCourse }, (_, i) => i + 1).map((courseNum) => (
-                      <DroppableCourse
-                        key={courseNum}
-                        id={`course-${courseNum}`}
-                        className="bg-zinc-950/80 rounded-2xl p-3 shadow-lg"
-                        style={{ border: `1px solid ${theme.cardBorder}` }}
-                      >
-                        <div className="flex items-center justify-center mb-3">
-                          <h3 className="font-bold uppercase tracking-widest text-xs flex items-center gap-2 px-4 py-2 rounded-full" style={{ color: theme.primary, fontFamily: theme.headerFont, backgroundColor: theme.primaryAlpha(0.1), border: `1px solid ${theme.primaryAlpha(0.2)}` }}>
-                            <Layers className="w-4 h-4" />
-                            {getCourseTitle(courseNum)}
-                          </h3>
-                        </div>
-
-                        <div className="space-y-2 min-h-[40px]">
-                          <SortableContext
-                            id={`course-${courseNum}`}
-                            items={cartByCourse[courseNum]?.map(i => i.id) || []}
-                            strategy={verticalListSortingStrategy}
-                          >
-                            {cartByCourse[courseNum]?.length === 0 ? (
-                              <DroppableCoursePlaceholder id={`course-${courseNum}`} />
-                            ) : (
-                              cartByCourse[courseNum]?.map((item) => (
-                                <SortableDishItem key={item.id} item={item} courseNum={courseNum} />
-                              ))
-                            )}
-                          </SortableContext>
-                        </div>
-                      </DroppableCourse>
-                    ))}
-
-                    <NewCourseDropZone onClick={addNewCourse} />
-                  </div>
-                </div>
-
-                <DragOverlay dropAnimation={dropAnimation}>
-                  {activeDragItem ? (
-                    <div className="flex items-center justify-between bg-zinc-800 p-2 rounded-xl border border-amber-500 shadow-xl opacity-90 scale-105 cursor-grabbing">
-                      <div className="flex items-center gap-3">
-                        <div className="p-1 text-amber-500">
-                          <GripVertical className="w-4 h-4" />
-                        </div>
-                        <div>
-                          <p className="font-bold text-white text-xs">{activeDragItem.dish?.name}</p>
-                          <p className="text-[10px] text-zinc-400">{activeDragItem.quantity}x</p>
-                        </div>
-                      </div>
-                    </div>
-                  ) : null}
-                </DragOverlay>
-              </DndContext>
-            </div>
-
-            <div className="p-4 z-20 relative" style={{ backgroundColor: theme.dialogBg, borderTop: `1px solid ${theme.primaryAlpha(0.1)}` }}>
-              <Button className="w-full h-12 font-bold rounded-xl shadow-lg" style={theme.ctaButtonStyle} onClick={() => setShowCourseManagement(false)}>
-                Fatto
+                <Plus className="w-5 h-5 mr-2" />
+                Aggiungi nuova portata
               </Button>
             </div>
           </DialogContent>
         </Dialog>
-
-        {/* Course Alert Dialog */}
-        <AlertDialog open={showCourseAlert} onOpenChange={setShowCourseAlert}>
-          <AlertDialogContent className="rounded-3xl max-w-sm" style={{ backgroundColor: theme.dialogBg, borderColor: theme.primaryAlpha(0.2), color: theme.textPrimary }}>
-            <AlertDialogHeader>
-              <AlertDialogTitle className="text-center text-xl" style={{ color: theme.primary, fontFamily: theme.headerFont }}>Come vuoi procedere?</AlertDialogTitle>
-              <AlertDialogDescription className="text-center" style={{ color: theme.textSecondary }}>
-                Hai inserito tutti i piatti in un'unica portata. Vuoi inviare tutto subito o dividere in più uscite?
-              </AlertDialogDescription>
-            </AlertDialogHeader>
-            <div className="flex flex-col gap-3 py-4">
-              <Button className="h-14 text-white font-bold rounded-xl shadow-lg" style={{ ...theme.primaryGradientStyle, boxShadow: `0 10px 15px -3px ${theme.primaryAlpha(0.2)}` }} onClick={() => {
-                setShowCourseAlert(false);
-                setShowConfirmDialog(true);
-              }}>
-                <ChefHat className="w-5 h-5 mr-2" />
-                Invia tutto insieme
-              </Button>
-              {courseSplittingEnabled && (
-                <Button variant="outline" className="h-14 rounded-xl font-medium transition-all" style={{ borderColor: theme.cardBorder, backgroundColor: theme.cardBg, color: theme.textPrimary }} onClick={() => {
-                  setShowCourseAlert(false);
-                  setShowCourseManagement(true);
-                }}>
-                  <Layers className="w-5 h-5 mr-2" style={{ color: theme.primary }} />
-                  Dividi in portate
-                </Button>
-              )}
-            </div>
-            <AlertDialogFooter>
-              <AlertDialogCancel className="rounded-xl h-12 bg-transparent w-full" style={{ borderColor: theme.cardBorder, color: theme.textSecondary }}>Annulla</AlertDialogCancel>
-            </AlertDialogFooter>
-          </AlertDialogContent>
-        </AlertDialog>
 
         {/* Call Waiter FAB */}
         <Button
