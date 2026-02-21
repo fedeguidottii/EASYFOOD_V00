@@ -258,13 +258,20 @@ export const DatabaseService = {
 
     // Staff
     async getStaff(restaurantId: string) {
-        const { data, error } = await supabase
-            .from('restaurant_staff')
-            .select('*')
-            .eq('restaurant_id', restaurantId)
-            .order('created_at', { ascending: true })
-        if (error) throw error
-        return data
+        try {
+            const { data, error } = await supabase
+                .from('restaurant_staff')
+                .select('*')
+                .eq('restaurant_id', restaurantId)
+                .order('created_at', { ascending: true })
+            if (error) {
+                console.warn('restaurant_staff table not available:', error.message)
+                return []
+            }
+            return data || []
+        } catch {
+            return []
+        }
     },
 
     async verifyWaiterCredentials(username: string, password: string): Promise<any> {
