@@ -53,6 +53,7 @@ const COLORS = ['#C9A152', '#8B7355', '#F4E6D1', '#E8C547', '#D4B366', '#A68B5B'
 
 interface DailyData {
   date: string
+  fullDate?: string
   orders: number
   revenue: number
   averageValue: number
@@ -213,7 +214,8 @@ export default function AnalyticsCharts({ orders, completedOrders, dishes, categ
       const date = new Date(dayStart)
       const dayRevenue = dayOrders.reduce((sum, order) => sum + (order.filteredAmount || order.total_amount || 0), 0)
       dailyData.push({
-        date: isSingleDay ? 'Oggi' : date.toLocaleDateString('it-IT', { month: 'short', day: 'numeric' }),
+        date: isSingleDay ? 'Oggi' : `${date.getDate()}/${date.getMonth() + 1}`,
+        fullDate: isSingleDay ? 'Oggi' : date.toLocaleDateString('it-IT', { day: 'numeric', month: 'long', year: 'numeric' }),
         orders: dayOrders.length,
         revenue: dayRevenue,
         averageValue: dayOrders.length > 0 ? dayRevenue / dayOrders.length : 0
@@ -663,8 +665,9 @@ export default function AnalyticsCharts({ orders, completedOrders, dishes, categ
                           dataKey="date"
                           axisLine={false}
                           tickLine={false}
-                          tick={{ fontSize: 12, fill: '#71717a' }}
+                          tick={{ fontSize: 11, fill: '#71717a' }}
                           dy={10}
+                          interval={analytics.dailyData.length > 14 ? Math.ceil(analytics.dailyData.length / 10) - 1 : 0}
                         />
                         <YAxis
                           axisLine={false}
@@ -703,8 +706,9 @@ export default function AnalyticsCharts({ orders, completedOrders, dishes, categ
                           dataKey="date"
                           axisLine={false}
                           tickLine={false}
-                          tick={{ fontSize: 12, fill: '#71717a' }}
+                          tick={{ fontSize: 11, fill: '#71717a' }}
                           dy={10}
+                          interval={analytics.dailyData.length > 14 ? Math.ceil(analytics.dailyData.length / 10) - 1 : 0}
                         />
                         <YAxis
                           axisLine={false}
