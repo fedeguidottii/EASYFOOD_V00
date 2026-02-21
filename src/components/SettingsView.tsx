@@ -198,7 +198,8 @@ export function SettingsView({
                 restaurant_id: restaurantId,
                 name: staffForm.name,
                 username: `${restaurantName.toLowerCase().replace(/\\s+/g, '-')}.${staffForm.username.toLowerCase().replace(/\\s+/g, '')}`,
-                is_active: staffForm.is_active
+                is_active: staffForm.is_active,
+                role: 'waiter'
             }
             if (staffForm.password) {
                 payload.password = staffForm.password

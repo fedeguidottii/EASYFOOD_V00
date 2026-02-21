@@ -1595,7 +1595,7 @@ function AuthorizedMenuContent({ restaurantId, tableId, sessionId, activeSession
 
         {/* Floating Cart Button */}
         <AnimatePresence>
-          {cart.length > 0 ? (
+          {!isViewOnly && cart.length > 0 ? (
             <motion.div
               initial={{ y: 100, opacity: 0 }}
               animate={{ y: 0, opacity: 1 }}
@@ -1632,7 +1632,7 @@ function AuthorizedMenuContent({ restaurantId, tableId, sessionId, activeSession
                 </span>
               </Button>
             </motion.div>
-          ) : previousOrders.length > 0 && (
+          ) : !isViewOnly && previousOrders.length > 0 && (
             <motion.div
               initial={{ y: 100, opacity: 0 }}
               animate={{ y: 0, opacity: 1 }}
@@ -1657,206 +1657,203 @@ function AuthorizedMenuContent({ restaurantId, tableId, sessionId, activeSession
 
 
         {/* CART & HISTORY MODAL */}
-        <Dialog open={isCartOpen} onOpenChange={setIsCartOpen}>
-          <DialogContent className="sm:max-w-md p-0 gap-0 overflow-hidden shadow-2xl rounded-3xl h-[85vh] flex flex-col w-[95vw]" style={{ backgroundColor: theme.dialogBg, borderColor: theme.primaryAlpha(0.2), color: theme.textPrimary }}>
-            <DialogHeader className="p-4 backdrop-blur-xl flex-none" style={{ borderBottom: `1px solid ${theme.divider}`, backgroundColor: theme.cardBg }}>
-              <DialogTitle className="text-center text-xl font-light uppercase tracking-widest" style={{ fontFamily: theme.headerFont, color: theme.textPrimary }}>Riepilogo</DialogTitle>
-            </DialogHeader>
+        {!isViewOnly && (
+          <Dialog open={isCartOpen} onOpenChange={setIsCartOpen}>
+            <DialogContent className="sm:max-w-md p-0 gap-0 overflow-hidden shadow-2xl rounded-3xl h-[85vh] flex flex-col w-[95vw]" style={{ backgroundColor: theme.dialogBg, borderColor: theme.primaryAlpha(0.2), color: theme.textPrimary }}>
+              <DialogHeader className="p-4 backdrop-blur-xl flex-none" style={{ borderBottom: `1px solid ${theme.divider}`, backgroundColor: theme.cardBg }}>
+                <DialogTitle className="text-center text-xl font-light uppercase tracking-widest" style={{ fontFamily: theme.headerFont, color: theme.textPrimary }}>Riepilogo</DialogTitle>
+              </DialogHeader>
 
-            <div className="flex-1 overflow-y-auto scrollbar-hide p-4 space-y-6">
+              <div className="flex-1 overflow-y-auto scrollbar-hide p-4 space-y-6">
 
-              {/* CURRENT CART */}
-              <div className="space-y-4">
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-2">
-                    <h3 className="text-xs font-bold uppercase tracking-wider" style={{ color: theme.primary }}>Nel Carrello</h3>
+                {/* CURRENT CART */}
+                <div className="space-y-4">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-2">
+                      <h3 className="text-xs font-bold uppercase tracking-wider" style={{ color: theme.primary }}>Nel Carrello</h3>
+                    </div>
+                    <span className="text-xs" style={{ color: theme.textMuted }}>{cart.length} articoli</span>
                   </div>
-                  <span className="text-xs" style={{ color: theme.textMuted }}>{cart.length} articoli</span>
-                </div>
 
-                {cart.length === 0 ? (
-                  <p className="text-sm italic text-center py-8 rounded-xl" style={{ color: theme.textMuted, backgroundColor: theme.cardBg, border: `1px solid ${theme.cardBorder}` }}>Il carrello è vuoto</p>
-                ) : (
-                  <div className="space-y-3">
-                    {sortedCart.map((item, index) => {
-                      // Logic for grouping headers
-                      const showCourseHeader = fullRestaurant?.enable_course_splitting && (index === 0 || (item.course_number || 1) !== (sortedCart[index - 1].course_number || 1));
+                  {cart.length === 0 ? (
+                    <p className="text-sm italic text-center py-8 rounded-xl" style={{ color: theme.textMuted, backgroundColor: theme.cardBg, border: `1px solid ${theme.cardBorder}` }}>Il carrello è vuoto</p>
+                  ) : (
+                    <div className="space-y-3">
+                      {sortedCart.map((item, index) => {
+                        // Logic for grouping headers
+                        const showCourseHeader = fullRestaurant?.enable_course_splitting && (index === 0 || (item.course_number || 1) !== (sortedCart[index - 1].course_number || 1));
 
-                      return (
-                        <React.Fragment key={item.id}>
-                          {showCourseHeader && (
-                            <div className="text-xs font-bold mt-2 mb-1 px-1 uppercase tracking-widest" style={{ color: theme.textSecondary }}>
-                              Portata {item.course_number || 1}
-                            </div>
-                          )}
-                          <div className="rounded-xl p-3 flex gap-3 shadow-sm relative overflow-hidden" style={{ backgroundColor: theme.cardBg, border: `1px solid ${theme.cardBorder}` }}>
-                            {/* Image if available */}
-                            {item.dish?.image_url ? (
-                              <img src={item.dish.image_url} className="w-16 h-16 rounded-lg object-cover bg-zinc-800" />
-                            ) : (
-                              <div className="w-16 h-16 rounded-lg bg-zinc-800 flex items-center justify-center text-zinc-600">
-                                <ForkKnife weight="duotone" size={24} />
+                        return (
+                          <React.Fragment key={item.id}>
+                            {showCourseHeader && (
+                              <div className="text-xs font-bold mt-2 mb-1 px-1 uppercase tracking-widest" style={{ color: theme.textSecondary }}>
+                                Portata {item.course_number || 1}
                               </div>
                             )}
-                            <div className="flex-1 min-w-0 flex flex-col justify-between">
-                              <div className="flex justify-between items-start gap-2">
-                                <h4 className="font-medium text-white line-clamp-1 text-sm">{item.dish?.name}</h4>
-                                <span className="font-medium text-sm whitespace-nowrap" style={{ color: theme.primary }}>€{((item.dish?.price || 0) * item.quantity).toFixed(2)}</span>
-                              </div>
-                              {item.notes && <p className="text-[10px] text-zinc-500 line-clamp-1 italic">{item.notes}</p>}
+                            <div className="rounded-xl p-3 flex gap-3 shadow-sm relative overflow-hidden" style={{ backgroundColor: theme.cardBg, border: `1px solid ${theme.cardBorder}` }}>
+                              {/* Image if available */}
+                              {item.dish?.image_url ? (
+                                <img src={item.dish.image_url} className="w-16 h-16 rounded-lg object-cover bg-zinc-800" />
+                              ) : (
+                                <div className="w-16 h-16 rounded-lg bg-zinc-800 flex items-center justify-center text-zinc-600">
+                                  <ForkKnife weight="duotone" size={24} />
+                                </div>
+                              )}
+                              <div className="flex-1 min-w-0 flex flex-col justify-between">
+                                <div className="flex justify-between items-start gap-2">
+                                  <h4 className="font-medium text-white line-clamp-1 text-sm">{item.dish?.name}</h4>
+                                  <span className="font-medium text-sm whitespace-nowrap" style={{ color: theme.primary }}>€{((item.dish?.price || 0) * item.quantity).toFixed(2)}</span>
+                                </div>
+                                {item.notes && <p className="text-[10px] text-zinc-500 line-clamp-1 italic">{item.notes}</p>}
 
-                              <div className="flex items-center justify-between mt-2">
-                                {/* Quantity Controls */}
-                                <div className="flex items-center gap-3 rounded-lg p-0.5 shadow-inner shrink-0" style={{ backgroundColor: theme.inputBg, border: `1px solid ${theme.cardBorder}` }}>
+                                <div className="flex items-center justify-between mt-2">
+                                  {/* Quantity Controls */}
+                                  <div className="flex items-center gap-3 rounded-lg p-0.5 shadow-inner shrink-0" style={{ backgroundColor: theme.inputBg, border: `1px solid ${theme.cardBorder}` }}>
+                                    <button
+                                      onClick={() => updateCartItemQuantity(item.id, -1)}
+                                      className="w-7 h-7 flex items-center justify-center text-zinc-400 hover:text-white hover:bg-zinc-800 rounded-md transition-colors"
+                                    >
+                                      <Minus size={14} weight="bold" />
+                                    </button>
+                                    <span className="text-sm font-bold w-4 text-center">{item.quantity}</span>
+                                    <button
+                                      onClick={() => updateCartItemQuantity(item.id, 1)}
+                                      className="w-7 h-7 flex items-center justify-center text-zinc-400 hover:text-white hover:bg-zinc-800 rounded-md transition-colors"
+                                    >
+                                      <Plus size={14} weight="bold" />
+                                    </button>
+                                  </div>
+
+                                  {/* Removed old course selection bubbles in cart */}
+
                                   <button
-                                    onClick={() => updateCartItemQuantity(item.id, -1)}
-                                    className="w-7 h-7 flex items-center justify-center text-zinc-400 hover:text-white hover:bg-zinc-800 rounded-md transition-colors"
+                                    onClick={() => {
+                                      updateCartItemQuantity(item.id, -item.quantity)
+                                    }}
+                                    className="text-red-400/50 hover:text-red-400 p-1.5 hover:bg-red-400/10 rounded-md transition-colors ml-auto"
                                   >
-                                    <Minus size={14} weight="bold" />
-                                  </button>
-                                  <span className="text-sm font-bold w-4 text-center">{item.quantity}</span>
-                                  <button
-                                    onClick={() => updateCartItemQuantity(item.id, 1)}
-                                    className="w-7 h-7 flex items-center justify-center text-zinc-400 hover:text-white hover:bg-zinc-800 rounded-md transition-colors"
-                                  >
-                                    <Plus size={14} weight="bold" />
+                                    <Trash size={16} />
                                   </button>
                                 </div>
-
-                                {/* Removed old course selection bubbles in cart */}
-
-                                <button
-                                  onClick={() => {
-                                    updateCartItemQuantity(item.id, -item.quantity)
-                                  }}
-                                  className="text-red-400/50 hover:text-red-400 p-1.5 hover:bg-red-400/10 rounded-md transition-colors ml-auto"
-                                >
-                                  <Trash size={16} />
-                                </button>
                               </div>
                             </div>
-                          </div>
-                        </React.Fragment>
-                      )
-                    })}
-                  </div>
-                )}
+                          </React.Fragment>
+                        )
+                      })}
+                    </div>
+                  )}
 
-                {/* DIVIDE IN PORTATE BUTTON */}
-                {cart.length > 0 && fullRestaurant?.enable_course_splitting && (
-                  <div className="pt-2 pb-1">
+                  {/* DIVIDE IN PORTATE BUTTON */}
+                  {cart.length > 0 && fullRestaurant?.enable_course_splitting && (
+                    <div className="pt-2 pb-1">
+                      <Button
+                        variant="outline"
+                        className="w-full font-bold h-12 rounded-xl shadow-sm border-dashed gap-2 transition-all hover:bg-zinc-800/50"
+                        style={{
+                          borderColor: theme.primary,
+                          color: theme.primary,
+                          backgroundColor: theme.primaryAlpha(0.05)
+                        }}
+                        onClick={() => {
+                          setIsCartOpen(false)
+                          setShowCourseDivisionModal(true)
+                        }}
+                      >
+                        <Layers size={20} />
+                        <span className="uppercase tracking-wide text-sm">Dividi in Portate</span>
+                      </Button>
+                    </div>
+                  )}
+                </div>
+
+                {/* SEND BUTTON AREA */}
+                {cart.length > 0 && (
+                  <div className="p-4 rounded-2xl space-y-4 shadow-lg" style={{ backgroundColor: theme.cardBg, border: `1px solid ${theme.cardBorder}` }}>
+                    <div className="flex justify-between items-center text-sm pb-3" style={{ color: theme.textSecondary, borderBottom: `1px solid ${theme.divider}` }}>
+                      <span>Totale Carrello</span>
+                      <span>€{cartTotal.toFixed(2)}</span>
+                    </div>
+                    {/* Coperto Display in Modal */}
+                    {(() => {
+                      const isCopertoEnabled = activeSession?.coperto_enabled ?? true
+                      if (!isCopertoEnabled) return null;
+                      const currentCoperto = fullRestaurant
+                        ? getCurrentCopertoPrice(
+                          fullRestaurant,
+                          fullRestaurant.lunch_time_start || '12:00',
+                          fullRestaurant.dinner_time_start || '19:00'
+                        ).price
+                        : (fullRestaurant?.cover_charge_per_person || 0)
+                      if (currentCoperto <= 0) return null;
+
+                      const personCount = activeSession?.customer_count || 1;
+                      const totalCoperto = currentCoperto * personCount;
+                      return (
+                        <div className="flex justify-between items-center text-zinc-500 text-xs pb-3 border-b border-white/5">
+                          <span>Coperto ({personCount} pers.)</span>
+                          <span>€{totalCoperto.toFixed(2)}</span>
+                        </div>
+                      )
+                    })()}
+
                     <Button
-                      variant="outline"
-                      className="w-full font-bold h-12 rounded-xl shadow-sm border-dashed gap-2 transition-all hover:bg-zinc-800/50"
-                      style={{
-                        borderColor: theme.primary,
-                        color: theme.primary,
-                        backgroundColor: theme.primaryAlpha(0.05)
-                      }}
+                      className="w-full font-bold h-12 rounded-xl shadow-lg text-white"
+                      style={theme.floatingCartStyle}
                       onClick={() => {
-                        setIsCartOpen(false)
-                        setShowCourseDivisionModal(true)
+                        handleSubmitClick()
+                        // Close modal after successful submission? 
+                        // Check handleSubmitClick logic: it doesn't close modal but clears cart. 
+                        // We should probably wait or close.
+                        // Looking at handleSubmitClick: it calls submitOrder which resets cart and sets IsCartOpen(false)
                       }}
+                      disabled={isOrderSubmitting}
                     >
-                      <Layers size={20} />
-                      <span className="uppercase tracking-wide text-sm">Dividi in Portate</span>
+                      {isOrderSubmitting ? (
+                        <div className="flex items-center gap-2">
+                          <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                          <span>Invio...</span>
+                        </div>
+                      ) : (
+                        <div className="flex items-center gap-2">
+                          <Rocket weight="fill" size={18} />
+                          <span>Conferma e Invia Ordine</span>
+                        </div>
+                      )}
                     </Button>
                   </div>
                 )}
-              </div>
 
-              {/* SEND BUTTON AREA */}
-              {cart.length > 0 && (
-                <div className="p-4 rounded-2xl space-y-4 shadow-lg" style={{ backgroundColor: theme.cardBg, border: `1px solid ${theme.cardBorder}` }}>
-                  <div className="flex justify-between items-center text-sm pb-3" style={{ color: theme.textSecondary, borderBottom: `1px solid ${theme.divider}` }}>
-                    <span>Totale Carrello</span>
-                    <span>€{cartTotal.toFixed(2)}</span>
+                {/* HISTORY */}
+                {previousOrders.length > 0 && (
+                  <div className="pt-6 space-y-4" style={{ borderTop: `1px solid ${theme.divider}` }}>
+                    <h3 className="text-xs font-bold uppercase tracking-wider mb-2" style={{ color: theme.textMuted }}>Storico Ordini</h3>
+                    {previousOrders.map(order => (
+                      <div key={order.id} className="rounded-xl p-3 opacity-80 hover:opacity-100 transition-opacity" style={{ backgroundColor: theme.cardBg, border: `1px solid ${theme.cardBorder}` }}>
+                        <div className="flex justify-between text-sm mb-3 pb-2" style={{ borderBottom: `1px solid ${theme.divider}` }}>
+                          <span className="text-xs" style={{ color: theme.textSecondary }}>Ordine delle {new Date(order.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>
+                          <span className="font-bold" style={{ color: theme.textPrimary }}>€{order.total_amount?.toFixed(2)}</span>
+                        </div>
+                        <div className="space-y-2">
+                          {order.items?.map((item: any, i: number) => (
+                            <div key={i} className="flex justify-between text-xs text-zinc-500 items-start">
+                              <span className="line-clamp-1 flex-1 pr-2">
+                                <span className="font-bold text-zinc-400">{item.quantity}x</span> {(item.dish || dishes.find(d => d.id === item.dish_id))?.name || 'Piatto'}
+                              </span>
+                              <span className={`whitespace-nowrap ${item.status === 'SERVED' ? 'text-emerald-500 font-medium' : 'text-amber-500/80'}`}>
+                                {item.status === 'SERVED' ? 'Servito' : 'In prep.'}
+                              </span>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    ))}
                   </div>
-                  {/* Coperto Display in Modal */}
-                  {(() => {
-                    const isCopertoEnabled = activeSession?.coperto_enabled ?? true
-                    if (!isCopertoEnabled) return null;
-                    const currentCoperto = fullRestaurant
-                      ? getCurrentCopertoPrice(
-                        fullRestaurant,
-                        fullRestaurant.lunch_time_start || '12:00',
-                        fullRestaurant.dinner_time_start || '19:00'
-                      ).price
-                      : (fullRestaurant?.cover_charge_per_person || 0)
-                    if (currentCoperto <= 0) return null;
+                )}
 
-                    const personCount = activeSession?.customer_count || 1;
-                    const totalCoperto = currentCoperto * personCount;
-                    return (
-                      <div className="flex justify-between items-center text-zinc-500 text-xs pb-3 border-b border-white/5">
-                        <span>Coperto ({personCount} pers.)</span>
-                        <span>€{totalCoperto.toFixed(2)}</span>
-                      </div>
-                    )
-                  })()}
-
-                  <Button
-                    className="w-full font-bold h-12 rounded-xl shadow-lg text-white"
-                    style={theme.floatingCartStyle}
-                    onClick={() => {
-                      handleSubmitClick()
-                      // Close modal after successful submission? 
-                      // Check handleSubmitClick logic: it doesn't close modal but clears cart. 
-                      // We should probably wait or close.
-                      // Looking at handleSubmitClick: it calls submitOrder which resets cart and sets IsCartOpen(false)
-                    }}
-                    disabled={isOrderSubmitting}
-                  >
-                    {isOrderSubmitting ? (
-                      <div className="flex items-center gap-2">
-                        <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
-                        <span>Invio...</span>
-                      </div>
-                    ) : (
-                      <div className="flex items-center gap-2">
-                        <Rocket weight="fill" size={18} />
-                        <span>Conferma e Invia Ordine</span>
-                      </div>
-                    )}
-                  </Button>
-                </div>
-              )}
-
-              {/* HISTORY */}
-              {previousOrders.length > 0 && (
-                <div className="pt-6 space-y-4" style={{ borderTop: `1px solid ${theme.divider}` }}>
-                  <h3 className="text-xs font-bold uppercase tracking-wider mb-2" style={{ color: theme.textMuted }}>Storico Ordini</h3>
-                  {previousOrders.map(order => (
-                    <div key={order.id} className="rounded-xl p-3 opacity-80 hover:opacity-100 transition-opacity" style={{ backgroundColor: theme.cardBg, border: `1px solid ${theme.cardBorder}` }}>
-                      <div className="flex justify-between text-sm mb-3 pb-2" style={{ borderBottom: `1px solid ${theme.divider}` }}>
-                        <span className="text-xs" style={{ color: theme.textSecondary }}>Ordine delle {new Date(order.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>
-                        <span className="font-bold" style={{ color: theme.textPrimary }}>€{order.total_amount?.toFixed(2)}</span>
-                      </div>
-                      <div className="space-y-2">
-                        {order.items?.map((item: any, i: number) => (
-                          <div key={i} className="flex justify-between text-xs text-zinc-500 items-start">
-                            <span className="line-clamp-1 flex-1 pr-2">
-                              <span className="font-bold text-zinc-400">{item.quantity}x</span> {(item.dish || dishes.find(d => d.id === item.dish_id))?.name || 'Piatto'}
-                            </span>
-                            <span className={`whitespace-nowrap ${item.status === 'SERVED' ? 'text-emerald-500 font-medium' : 'text-amber-500/80'}`}>
-                              {item.status === 'SERVED' ? 'Servito' : 'In prep.'}
-                            </span>
-                          </div>
-                        ))}
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              )}
-
-            </div>
-          </DialogContent>
-        </Dialog>
-
-
-
-
-
+              </div>
+            </DialogContent>
+          </Dialog>
+        )}
 
 
         {/* Dish Detail Dialog */}
@@ -1891,38 +1888,43 @@ function AuthorizedMenuContent({ restaurantId, tableId, sessionId, activeSession
                     <p className="text-sm font-light leading-relaxed" style={{ color: theme.textSecondary }}>{selectedDish.description}</p>
                   )}
 
-                  {/* Quantity */}
-                  <div className="flex items-center justify-between p-2 rounded-xl" style={{ backgroundColor: theme.inputBg, border: `1px solid ${theme.cardBorder}` }}>
-                    <span className="text-sm font-medium pl-2" style={{ color: theme.textSecondary }}>Quantità</span>
-                    <div className="flex items-center gap-3">
-                      <Button variant="outline" size="icon" className="h-10 w-10 border-white/10 bg-zinc-800 hover:bg-zinc-700 hover:text-white text-zinc-400 rounded-lg" onClick={() => setDishQuantity(q => Math.max(1, q - 1))} disabled={dishQuantity <= 1}><Minus className="w-5 h-5" /></Button>
-                      <span className="w-8 text-center font-bold text-xl">{dishQuantity}</span>
-                      <Button variant="outline" size="icon" className="h-10 w-10 border-white/10 bg-zinc-800 hover:bg-zinc-700 hover:text-white text-zinc-400 rounded-lg" onClick={() => setDishQuantity(q => q + 1)}><Plus className="w-5 h-5" /></Button>
-                    </div>
-                  </div>
+                  {/* Quantity, Notes, Add Button - hidden in view-only mode */}
+                  {!isViewOnly && (
+                    <>
+                      <div className="flex items-center justify-between p-2 rounded-xl" style={{ backgroundColor: theme.inputBg, border: `1px solid ${theme.cardBorder}` }}>
+                        <span className="text-sm font-medium pl-2" style={{ color: theme.textSecondary }}>Quantità</span>
+                        <div className="flex items-center gap-3">
+                          <Button variant="outline" size="icon" className="h-10 w-10 border-white/10 bg-zinc-800 hover:bg-zinc-700 hover:text-white text-zinc-400 rounded-lg" onClick={() => setDishQuantity(q => Math.max(1, q - 1))} disabled={dishQuantity <= 1}><Minus className="w-5 h-5" /></Button>
+                          <span className="w-8 text-center font-bold text-xl">{dishQuantity}</span>
+                          <Button variant="outline" size="icon" className="h-10 w-10 border-white/10 bg-zinc-800 hover:bg-zinc-700 hover:text-white text-zinc-400 rounded-lg" onClick={() => setDishQuantity(q => q + 1)}><Plus className="w-5 h-5" /></Button>
+                        </div>
+                      </div>
 
-                  {/* Notes */}
-                  <div className="space-y-2">
-                    <span className="text-xs font-bold uppercase tracking-wider" style={{ color: theme.textMuted }}>Note speciali</span>
-                    <Textarea
-                      placeholder="Es. Senza cipolla, cottura media..."
-                      className="min-h-[80px] placeholder:text-zinc-600"
-                      style={{ backgroundColor: theme.inputBg, borderColor: theme.inputBorder, color: theme.textPrimary }}
-                      value={dishNote}
-                      onChange={(e) => setDishNote(e.target.value)}
-                    />
-                  </div>
+                      <div className="space-y-2">
+                        <span className="text-xs font-bold uppercase tracking-wider" style={{ color: theme.textMuted }}>Note speciali</span>
+                        <Textarea
+                          placeholder="Es. Senza cipolla, cottura media..."
+                          className="min-h-[80px] placeholder:text-zinc-600"
+                          style={{ backgroundColor: theme.inputBg, borderColor: theme.inputBorder, color: theme.textPrimary }}
+                          value={dishNote}
+                          onChange={(e) => setDishNote(e.target.value)}
+                        />
+                      </div>
+                    </>
+                  )}
                 </div>
 
-                <div className="p-5 pt-0">
-                  <Button
-                    className="w-full font-bold rounded-xl text-lg shadow-lg active:scale-[0.98] transition-transform h-14"
-                    style={{ ...theme.ctaButtonStyle, borderRadius: theme.buttonRadius }}
-                    onClick={() => handleAddClick(selectedDish, dishQuantity, dishNote)}
-                  >
-                    AGGIUNGI - €{(selectedDish.price * dishQuantity).toFixed(2)}
-                  </Button>
-                </div>
+                {!isViewOnly && (
+                  <div className="p-5 pt-0">
+                    <Button
+                      className="w-full font-bold rounded-xl text-lg shadow-lg active:scale-[0.98] transition-transform h-14"
+                      style={{ ...theme.ctaButtonStyle, borderRadius: theme.buttonRadius }}
+                      onClick={() => handleAddClick(selectedDish, dishQuantity, dishNote)}
+                    >
+                      AGGIUNGI - €{(selectedDish.price * dishQuantity).toFixed(2)}
+                    </Button>
+                  </div>
+                )}
               </div>
             )}
           </DialogContent>
