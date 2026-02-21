@@ -155,50 +155,81 @@ const PublicReservationPage = () => {
 
                 const reservationDuration = restaurant.reservation_duration || 120
 
+                const checkAvailable = (slotTime: string) => {
+                    const [sH, sM] = slotTime.split(':').map(Number)
+                    const slotMinutes = sH * 60 + sM
+                    const slotEndMinutes = slotMinutes + reservationDuration
+
+                    const capableTables = activeTables.filter(t => (t.seats || 4) >= formData.guests)
+                    if (capableTables.length === 0) return false
+
+                    return capableTables.some(table => {
+                        const tableBookings = (dayBookings as any[])?.filter(b => b.table_id === table.id) || []
+                        const hasConflict = tableBookings.some(b => {
+                            const bTime = new Date(b.date_time)
+                            const bStartMinutes = bTime.getHours() * 60 + bTime.getMinutes()
+                            const bEndMinutes = bStartMinutes + reservationDuration
+                            return (slotMinutes < bEndMinutes && slotEndMinutes > bStartMinutes)
+                        })
+                        return !hasConflict
+                    })
+                }
+
                 const generateSlots = () => {
                     const slots: TimeSlot[] = []
-                    const startLunch = 12
-                    const endLunch = 15
-                    const startDinner = 19
-                    const endDinner = 23
 
-                    const checkAvailable = (slotTime: string) => {
-                        const [sH, sM] = slotTime.split(':').map(Number)
-                        const slotMinutes = sH * 60 + sM
-                        const slotEndMinutes = slotMinutes + reservationDuration
+                    // Read service hours from restaurant settings
+                    const schedule = restaurant.weekly_service_hours as any
+                    const days = ['sunday', 'monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday'] as const
+                    const selectedDay = formData.date ? days[formData.date.getDay()] : null
 
-                        // Filter tables by capacity first
-                        const capableTables = activeTables.filter(t => (t.seats || 4) >= formData.guests)
-                        if (capableTables.length === 0) return false
+                    let lunchEnabled = true
+                    let dinnerEnabled = true
+                    let startLunchH = 12, endLunchH = 15
+                    let startDinnerH = 19, endDinnerH = 23
+                    let startLunchM = 0, endLunchM = 0
+                    let startDinnerM = 0, endDinnerM = 0
 
-                        // Check if at least one capable table is free
-                        return capableTables.some(table => {
-                            const tableBookings = (dayBookings as any[])?.filter(b => b.table_id === table.id) || []
-                            const hasConflict = tableBookings.some(b => {
-                                const bTime = new Date(b.date_time)
-                                const bStartMinutes = bTime.getHours() * 60 + bTime.getMinutes()
-                                const bEndMinutes = bStartMinutes + reservationDuration
+                    if (schedule?.useWeeklySchedule && selectedDay && schedule.schedule?.[selectedDay]) {
+                        const dayConfig = schedule.schedule[selectedDay]
+                        const lunch = dayConfig?.lunch
+                        const dinner = dayConfig?.dinner
 
-                                return (slotMinutes < bEndMinutes && slotEndMinutes > bStartMinutes)
-                            })
-                            return !hasConflict
-                        })
+                        lunchEnabled = lunch?.enabled ?? false
+                        dinnerEnabled = dinner?.enabled ?? false
+
+                        if (lunch?.start) {
+                            const [h, m] = lunch.start.split(':').map(Number)
+                            startLunchH = h; startLunchM = m
+                        }
+                        if (lunch?.end) {
+                            const [h, m] = lunch.end.split(':').map(Number)
+                            endLunchH = h; endLunchM = m
+                        }
+                        if (dinner?.start) {
+                            const [h, m] = dinner.start.split(':').map(Number)
+                            startDinnerH = h; startDinnerM = m
+                        }
+                        if (dinner?.end) {
+                            const [h, m] = dinner.end.split(':').map(Number)
+                            endDinnerH = h; endDinnerM = m
+                        }
                     }
 
-                    // Lunch slots: 15m intervals
-                    for (let h = startLunch; h < endLunch; h++) {
-                        for (let m = 0; m < 60; m += 15) {
-                            const time = `${h}:${m === 0 ? '00' : m}`
+                    const addSlots = (fromH: number, fromM: number, toH: number, toM: number) => {
+                        const startMin = fromH * 60 + fromM
+                        const endMin = toH * 60 + toM
+                        for (let min = startMin; min < endMin; min += 15) {
+                            const h = Math.floor(min / 60)
+                            const m = min % 60
+                            const time = `${h}:${m === 0 ? '00' : m.toString().padStart(2, '0')}`
                             slots.push({ time, available: checkAvailable(time) })
                         }
                     }
-                    // Dinner slots: 15m intervals
-                    for (let h = startDinner; h < endDinner; h++) {
-                        for (let m = 0; m < 60; m += 15) {
-                            const time = `${h}:${m === 0 ? '00' : m}`
-                            slots.push({ time, available: checkAvailable(time) })
-                        }
-                    }
+
+                    if (lunchEnabled) addSlots(startLunchH, startLunchM, endLunchH, endLunchM)
+                    if (dinnerEnabled) addSlots(startDinnerH, startDinnerM, endDinnerH, endDinnerM)
+
                     setAvailableSlots(slots)
                 }
 
