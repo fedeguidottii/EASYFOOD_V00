@@ -53,6 +53,8 @@ export default function CustomMenusManager({ restaurantId, dishes, categories, o
     const [newMenuName, setNewMenuName] = useState('')
     const [dishSearch, setDishSearch] = useState('')
     const [editorTab, setEditorTab] = useState<'dishes' | 'schedule'>('dishes')
+    const [editingName, setEditingName] = useState(false)
+    const [editNameValue, setEditNameValue] = useState('')
 
     // Data Fetching
     const fetchCustomMenus = async () => {
@@ -106,7 +108,25 @@ export default function CustomMenusManager({ restaurantId, dishes, categories, o
         setSelectedMenu(menu)
         setViewMode('editor')
         setEditorTab('dishes')
+        setEditingName(false)
         await fetchMenuDetails(menu.id)
+    }
+
+    const handleRenameMenu = async () => {
+        if (!selectedMenu || !editNameValue.trim() || editNameValue.trim() === selectedMenu.name) {
+            setEditingName(false)
+            return
+        }
+        const newName = editNameValue.trim()
+        const { error } = await supabase.from('custom_menus').update({ name: newName }).eq('id', selectedMenu.id)
+        if (!error) {
+            setSelectedMenu({ ...selectedMenu, name: newName })
+            setCustomMenus(prev => prev.map(m => m.id === selectedMenu.id ? { ...m, name: newName } : m))
+            toast.success('Nome aggiornato')
+        } else {
+            toast.error('Errore aggiornamento nome')
+        }
+        setEditingName(false)
     }
 
     const closeEditor = () => {
@@ -422,7 +442,25 @@ export default function CustomMenusManager({ restaurantId, dishes, categories, o
                     </Button>
                     <div className="h-6 w-px bg-zinc-800 mx-2 hidden sm:block" />
                     <div>
-                        <h2 className="font-bold text-lg leading-none tracking-tight text-white">{selectedMenu?.name}</h2>
+                        {editingName ? (
+                            <Input
+                                autoFocus
+                                value={editNameValue}
+                                onChange={(e) => setEditNameValue(e.target.value)}
+                                onBlur={handleRenameMenu}
+                                onKeyDown={(e) => { if (e.key === 'Enter') handleRenameMenu(); if (e.key === 'Escape') setEditingName(false) }}
+                                className="h-8 text-lg font-bold bg-zinc-900 border-amber-500/50 text-white w-[200px]"
+                            />
+                        ) : (
+                            <h2
+                                className="font-bold text-lg leading-none tracking-tight text-white cursor-pointer hover:text-amber-400 transition-colors"
+                                onClick={() => { setEditNameValue(selectedMenu?.name || ''); setEditingName(true) }}
+                                title="Clicca per rinominare"
+                            >
+                                {selectedMenu?.name}
+                                <Pencil size={12} className="inline ml-2 text-zinc-500" />
+                            </h2>
+                        )}
                         <div className="flex items-center gap-2 mt-1.5">
                             <span className="text-[10px] font-semibold text-zinc-400 bg-zinc-900 px-2 py-0.5 rounded-full border border-white/5">
                                 {menuDishes.length} Piatti
@@ -623,12 +661,7 @@ export default function CustomMenusManager({ restaurantId, dishes, categories, o
                                     </div>
                                 </div>
 
-                                <div className="mt-4 flex items-start gap-2.5 p-3 bg-zinc-800/50 text-zinc-400 rounded-xl text-xs border border-zinc-700/30">
-                                    <Info size={16} weight="fill" className="shrink-0 mt-0.5 text-zinc-500" />
-                                    <p className="leading-relaxed">
-                                        Il sistema attiverà automaticamente questo menu all'inizio del servizio selezionato. Il menu rimane attivo fino all'inizio del pasto successivo impostato nelle impostazioni.
-                                    </p>
-                                </div>
+
                             </div>
                         </div>
                     )}
