@@ -2213,24 +2213,41 @@ const RestaurantDashboard = ({ user, onLogout }: RestaurantDashboardProps) => {
                           placeholder="Nuova Sala (es. Dehor, Interna...)"
                           value={newRoomName}
                           onChange={(e) => setNewRoomName(e.target.value)}
+                          onKeyDown={(e) => {
+                            if (e.key === 'Enter') {
+                              e.preventDefault();
+                              (e.target as HTMLInputElement).closest('div')?.querySelector('button')?.click()
+                            }
+                          }}
                           className="bg-zinc-900 border-zinc-800 focus:border-amber-500"
                         />
                         <Button
                           onClick={async () => {
-                            if (!newRoomName.trim() || !restaurantId) return;
+                            if (!newRoomName.trim()) {
+                              toast.error('Inserisci un nome per la sala')
+                              return
+                            }
+                            if (!restaurantId) {
+                              toast.error('ID ristorante mancante')
+                              return
+                            }
                             try {
-                              await DatabaseService.createRoom({
+                              const { error } = await supabase.from('rooms').insert({
                                 restaurant_id: restaurantId,
                                 name: newRoomName.trim(),
-                                is_active: true,
-                                order: rooms?.length || 0
+                                is_active: true
                               })
+                              if (error) {
+                                console.error('Room creation error:', error)
+                                toast.error(`Errore: ${error.message}`)
+                                return
+                              }
                               setNewRoomName('')
-                              toast.success('Sala creata')
+                              toast.success('Sala creata!')
                               refreshRooms()
-                            } catch (e) {
-                              console.error(e)
-                              toast.error('Errore creazione sala: verifica permessi')
+                            } catch (e: any) {
+                              console.error('Room creation exception:', e)
+                              toast.error(`Errore: ${e?.message || 'Sconosciuto'}`)
                             }
                           }}
                           className="bg-amber-600 hover:bg-amber-700 text-white"
