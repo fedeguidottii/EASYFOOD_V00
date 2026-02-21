@@ -582,7 +582,7 @@ export default function TimelineReservations({ user, restaurantId, tables, booki
               })
 
               return (
-                <div key={table.id} className={`flex h-24 border-b border-border/10 ${bgClass} ${borderClass}`}>
+                <div key={table.id} className={`flex h-24 border-b border-white/10 ${bgClass} ${borderClass}`}>
 
                   {/* LEFT COLUMN: TABLE INFO */}
                   <div className="w-40 shrink-0 flex flex-col justify-center px-4 border-r border-border/10 relative">
