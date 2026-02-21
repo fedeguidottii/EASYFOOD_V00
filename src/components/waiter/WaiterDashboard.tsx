@@ -1,0 +1,1440 @@
+import { useRef, useState, useEffect, useMemo } from 'react'
+import { v4 as uuidv4 } from 'uuid'
+import { useNavigate } from 'react-router-dom' // Restored
+
+import { DatabaseService } from '../../services/DatabaseService' // Corrected path (../services -> ../../services)
+import { Table, Order, TableSession, Restaurant, Room, Dish, Category } from '../../services/types'
+import { Badge } from '@/components/ui/badge'
+import { Button } from '@/components/ui/button'
+import { Card, CardContent } from '@/components/ui/card' // Restored
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '@/components/ui/dialog' // Restored DialogFooter
+import { Input } from '@/components/ui/input'
+import { Label } from '@/components/ui/label'
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
+import { BellRinging, Users, Plus, Pencil, Trash, SignOut, ForkKnife, MagnifyingGlass, CheckCircle, WarningCircle, X, CaretDown, CaretUp, GearSix, House, BellSimple, Receipt, User, Clock, Check, ArrowLeft, ChefHat, Funnel, ArrowsClockwise } from '@phosphor-icons/react' // Restored icons
+import { toast } from 'sonner'
+import { supabase } from '../../lib/supabase' // Corrected path (../../supabaseClient -> ../../lib/supabase usually, or just check file tree)
+import { cn } from '@/lib/utils'
+import { ScrollArea } from '@/components/ui/scroll-area'
+import { motion, AnimatePresence } from 'framer-motion'
+import TableBillDialog from '../TableBillDialog'
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger } from '@/components/ui/dropdown-menu' // Restored
+
+interface WaiterDashboardProps {
+    user: any
+    onLogout: () => void
+}
+
+const WaiterDashboard = ({ user, onLogout }: WaiterDashboardProps) => {
+    const [tables, setTables] = useState<Table[]>([])
+    const [rooms, setRooms] = useState<any[]>([])
+    const [sessions, setSessions] = useState<TableSession[]>([])
+    const [activeOrders, setActiveOrders] = useState<Order[]>([])
+    const [loading, setLoading] = useState(true)
+    const [restaurantId, setRestaurantId] = useState<string | null>(null)
+    const [restaurant, setRestaurant] = useState<Restaurant | null>(null)
+    const [activatingTable, setActivatingTable] = useState(false)
+    const [dishes, setDishes] = useState<Dish[]>([])
+    const [categories, setCategories] = useState<Category[]>([])
+    const navigate = useNavigate()
+
+    // Sorting State
+    const [sortBy, setSortBy] = useState<'alpha' | 'seats' | 'status'>('status')
+    const [now, setNow] = useState(new Date())
+
+    // Payment Dialog State
+    const [selectedTableForPayment, setSelectedTableForPayment] = useState<Table | null>(null)
+    const [isPaymentDialogOpen, setIsPaymentDialogOpen] = useState(false)
+    const [isReadyDrawerOpen, setIsReadyDrawerOpen] = useState(false)
+    const [selectedTable, setSelectedTable] = useState<Table | null>(null)
+    const [isTableModalOpen, setIsTableModalOpen] = useState(false)
+
+    // Room Filter State
+    const [selectedRoomFilter, setSelectedRoomFilter] = useState<string>('all')
+
+    // Table/Room Management State
+    const [isManageDialogOpen, setIsManageDialogOpen] = useState(false)
+    const [isAddTableDialogOpen, setIsAddTableDialogOpen] = useState(false)
+    const [isEditTableDialogOpen, setIsEditTableDialogOpen] = useState(false)
+    const [tableToEdit, setTableToEdit] = useState<Table | null>(null)
+    const [newTableNumber, setNewTableNumber] = useState('')
+    const [newTableSeats, setNewTableSeats] = useState('4')
+    const [newTableRoomId, setNewTableRoomId] = useState<string>('')
+
+    const [isAddRoomDialogOpen, setIsAddRoomDialogOpen] = useState(false)
+    const [isEditRoomDialogOpen, setIsEditRoomDialogOpen] = useState(false)
+    const [roomToEdit, setRoomToEdit] = useState<Room | null>(null)
+    const [newRoomName, setNewRoomName] = useState('')
+
+    const handleQuickOrderClick = (table: Table) => {
+        navigate(`/waiter/table/${table.id}/order`)
+    }
+
+    // Ready Items View Mode (like gestione ordini)
+    const [readyViewMode, setReadyViewMode] = useState<'table' | 'dish'>('table')
+
+    // Timer effect for timeline
+    useEffect(() => {
+        const interval = setInterval(() => setNow(new Date()), 60000) // Update every minute
+        return () => clearInterval(interval)
+    }, [])
+
+    // Fetch initial data
+    useEffect(() => {
+        const initDashboard = async () => {
+            try {
+                setLoading(true)
+                let rId = user.restaurant_id
+
+                if (!rId) {
+                    const { data: staffData } = await supabase
+                        .from('restaurant_staff')
+                        .select('restaurant_id')
+                        .eq('user_id', user.id)
+                        .single()
+                    rId = staffData?.restaurant_id
+                }
+
+                if (!rId) {
+                    const { data: restData } = await supabase
+                        .from('restaurants')
+                        .select('id')
+                        .eq('owner_id', user.id)
+                        .single()
+                    rId = restData?.id
+                }
+
+                if (!rId) {
+                    toast.error('Nessun ristorante associato a questo utente')
+                    return
+                }
+
+                setRestaurantId(rId)
+
+                const { data: restMeta } = await supabase
+                    .from('restaurants')
+                    .select('waiter_mode_enabled, allow_waiter_payments, enable_course_splitting')
+                    .eq('id', rId)
+                    .single()
+                if (restMeta) {
+                    setRestaurant(restMeta as Restaurant)
+                }
+
+                const tbs = await DatabaseService.getTables(rId)
+                setTables(tbs)
+
+                // Fetch rooms
+                const rms = await DatabaseService.getRooms(rId)
+                setRooms(rms)
+
+                // Fetch dishes and categories for Quick Order
+                const ds = await DatabaseService.getDishes(rId)
+                setDishes(ds)
+                const cats = await DatabaseService.getCategories(rId)
+                setCategories(cats)
+
+                const { data: sess } = await supabase
+                    .from('table_sessions')
+                    .select('*')
+                    .eq('restaurant_id', rId)
+                    .eq('status', 'OPEN')
+                if (sess) setSessions(sess)
+
+                // FIX: Added 'OPEN' to the status list so new orders are counted!
+                const { data: ords } = await supabase
+                    .from('orders')
+                    .select('*, items:order_items(*, dish:dishes(*))')
+                    .eq('restaurant_id', rId)
+                    .in('status', ['OPEN', 'pending', 'preparing', 'ready', 'served', 'completed', 'CANCELLED'])
+                if (ords) setActiveOrders(ords)
+
+            } catch (error) {
+                console.error('Error loading waiter dashboard:', error)
+                toast.error('Errore caricamento dashboard')
+            } finally {
+                setLoading(false)
+            }
+        }
+
+        initDashboard()
+    }, [user])
+
+
+
+
+    // Realtime Subscriptions
+    useEffect(() => {
+        if (!restaurantId) return
+
+        const channel = supabase
+            .channel(`waiter-dashboard:${restaurantId}`)
+            .on('postgres_changes', { event: '*', schema: 'public', table: 'table_sessions', filter: `restaurant_id=eq.${restaurantId}` }, () => refreshData())
+            .on('postgres_changes', { event: '*', schema: 'public', table: 'orders', filter: `restaurant_id=eq.${restaurantId}` }, () => refreshData())
+            .on('postgres_changes', { event: '*', schema: 'public', table: 'order_items', filter: `restaurant_id=eq.${restaurantId}` }, () => refreshData()) // Filtered order_items subscription
+            .on('postgres_changes', { event: '*', schema: 'public', table: 'tables', filter: `restaurant_id=eq.${restaurantId}` }, async () => {
+                // Refresh tables for assistance requests
+                const tbs = await DatabaseService.getTables(restaurantId)
+                setTables(tbs)
+            })
+            .subscribe()
+
+        return () => {
+            supabase.removeChannel(channel)
+        }
+    }, [restaurantId])
+
+    const refreshData = async () => {
+        if (!restaurantId) return
+        const { data: sess } = await supabase.from('table_sessions').select('*').eq('restaurant_id', restaurantId).eq('status', 'OPEN')
+        if (sess) setSessions(sess)
+
+        // FIX: Added 'OPEN' and 'completed' here too, and synced query with initDashboard
+        const { data: ords } = await supabase
+            .from('orders')
+            .select('*, items:order_items(*, dish:dishes(*))')
+            .eq('restaurant_id', restaurantId)
+            .in('status', ['OPEN', 'pending', 'preparing', 'ready', 'served', 'completed', 'CANCELLED'])
+        if (ords) setActiveOrders(ords)
+    }
+
+    // ... (getTableTotal, getSplitTotal, getDetailedTableStatus functions remain same) ...
+
+    // ... (getTableTotal, getSplitTotal, getDetailedTableStatus functions remain same) ...
+
+    const getTableTotal = (sessionId: string) => {
+        const sessionOrders = activeOrders.filter(o => o.table_session_id === sessionId && o.status !== 'CANCELLED')
+        // Sum only items that are not PAID
+        return sessionOrders.reduce((sum, order) => {
+            const validItems = order.items?.filter((i: any) => i.status !== 'CANCELLED' && i.status !== 'PAID') || []
+            return sum + validItems.reduce((acc: number, item: any) => acc + ((item.dish?.price || 0) * item.quantity), 0)
+        }, 0)
+    }
+
+    const getDetailedTableStatus = (tableId: string): { step: 'seated' | 'waiting' | 'eating' | 'free', label: string, time: string, color: string } => {
+        const session = sessions.find(s => s.table_id === tableId)
+        if (!session) return { step: 'free', label: 'Libero', time: '', color: 'bg-zinc-900/40 border-zinc-800' }
+
+        const sessionOrders = activeOrders.filter(o => o.table_session_id === session.id && o.status !== 'CANCELLED')
+
+        // 1. Seduti (Seated) - No orders yet
+        if (sessionOrders.length === 0) {
+            const duration = Math.floor((now.getTime() - new Date(session.opened_at).getTime()) / 60000)
+            return {
+                step: 'seated',
+                label: 'Seduti',
+                time: `${duration}m`,
+                color: 'bg-blue-900/10 border-blue-500/20 ring-1 ring-blue-500/20 shadow-[0_0_15px_-3px_rgba(59,130,246,0.1)]'
+            }
+        }
+
+        // 2. Attesa Cibo (Waiting) - Has orders that are NOT fully served
+        const pendingOrders = sessionOrders.filter(o => ['OPEN', 'pending', 'preparing', 'ready'].includes(o.status))
+
+        if (pendingOrders.length > 0) {
+            const oldestPending = pendingOrders.sort((a, b) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime())[0]
+            const duration = Math.floor((now.getTime() - new Date(oldestPending.created_at).getTime()) / 60000)
+            return {
+                step: 'waiting',
+                label: 'In Attesa',
+                time: `${duration}m`,
+                color: 'bg-amber-900/10 border-amber-500/30 ring-1 ring-amber-500/20 shadow-[0_0_15px_-3px_rgba(245,158,11,0.15)] animate-pulse-slow'
+            }
+        }
+
+        // 3. Mangiando (Eating) - All orders served
+        const lastServed = sessionOrders.sort((a, b) => new Date(b.updated_at || b.created_at).getTime() - new Date(a.updated_at || a.created_at).getTime())[0]
+        const duration = lastServed ? Math.floor((now.getTime() - new Date(lastServed.updated_at || lastServed.created_at).getTime()) / 60000) : 0
+
+        return {
+            step: 'eating',
+            label: 'Mangiando',
+            time: `${duration}m`,
+            color: 'bg-emerald-900/10 border-emerald-500/20 ring-1 ring-emerald-500/20 shadow-[0_0_15px_-3px_rgba(16,185,129,0.1)]'
+        }
+    }
+
+    // Assistance Requests Calculation (moved up for use in effect)
+    const assistanceRequests = tables.filter(table => {
+        if (!table.last_assistance_request) return false
+        // Show all unresolved assistance requests (no time filter)
+        return true
+    })
+
+    // Sound Logic for "Ready" items AND Assistance Requests
+    const prevReadyCountRef = useRef(0)
+    const prevAssistanceCountRef = useRef(0)
+    const isFirstLoadRef = useRef(true)
+
+    useEffect(() => {
+        if (loading) return
+
+        const currentReadyCount = activeOrders.reduce((acc, order) => {
+            return acc + (order.items?.filter(i => i.status?.toLowerCase() === 'ready').length || 0)
+        }, 0)
+
+        const currentAssistanceCount = assistanceRequests.length
+
+        if (isFirstLoadRef.current) {
+            prevReadyCountRef.current = currentReadyCount
+            prevAssistanceCountRef.current = currentAssistanceCount
+            isFirstLoadRef.current = false
+            return
+        }
+
+        // Check for new Ready Items
+        if (currentReadyCount > prevReadyCountRef.current) {
+            const audio = new Audio('https://assets.mixkit.co/active_storage/sfx/2869/2869-preview.mp3')
+            audio.play().catch(console.error)
+            toast.success('Ci sono piatti pronti da servire!', { icon: '🔔' })
+        }
+
+        // Check for new Assistance Requests
+        if (currentAssistanceCount > prevAssistanceCountRef.current) {
+            const audio = new Audio('https://assets.mixkit.co/active_storage/sfx/2869/2869-preview.mp3') // You might want a different sound
+            audio.play().catch(console.error)
+            toast.info('Nuova richiesta assistenza al tavolo!', { icon: '👋' })
+        }
+
+        prevReadyCountRef.current = currentReadyCount
+        prevAssistanceCountRef.current = currentAssistanceCount
+
+    }, [activeOrders, assistanceRequests, loading])
+
+    const handleMarkAsDelivered = async (orderId: string, itemId: string) => {
+        await supabase
+            .from('order_items')
+            .update({ status: 'SERVED' })
+            .eq('id', itemId)
+
+        if (restaurantId && user?.role === 'STAFF') {
+            DatabaseService.logWaiterActivity(restaurantId, user.id, 'DISH_DELIVERED', { orderId, itemId })
+        }
+
+        // Optimistic update
+        setActiveOrders(prev => prev.map(o => {
+            if (o.id === orderId) {
+                return {
+                    ...o,
+                    items: o.items?.map(i => i.id === itemId ? { ...i, status: 'SERVED' } : i)
+                }
+            }
+            return o
+        }))
+        // REMOVED toast.success('Piatto consegnato!')
+    }
+
+    // Resolve assistance request
+    const handleResolveAssistance = async (tableId: string) => {
+        await supabase
+            .from('tables')
+            .update({ last_assistance_request: null })
+            .eq('id', tableId)
+
+        if (restaurantId && user?.role === 'STAFF') {
+            DatabaseService.logWaiterActivity(restaurantId, user.id, 'BELL_RESOLVED', { tableId })
+        }
+
+        // Optimistic update
+        setTables(prev => prev.map(t =>
+            t.id === tableId ? { ...t, last_assistance_request: undefined } : t
+        ))
+        toast.success('Richiesta assistenza risolta')
+    }
+
+    const readyItems = activeOrders.flatMap(o => {
+        const session = sessions.find(s => s.id === o.table_session_id)
+        // Only show ready items for OPEN sessions
+        if (!session) return []
+
+        const table = tables.find(t => t.id === session.table_id)
+        if (!table) return []
+
+        return (o.items || [])
+            .filter(i => i.status?.toLowerCase() === 'ready') // Only 'ready', not 'delivered' or 'served'
+            .map(i => ({
+                ...i,
+                tableId: table.id,
+                order_id: o.id,
+                // Ensure dish is available (either from join or state lookup)
+                dish: i.dish || dishes.find(d => d.id === i.dish_id)
+            }))
+    }).sort((a, b) => new Date(a.created_at || Date.now()).getTime() - new Date(b.created_at || Date.now()).getTime())
+
+    const sortTables = (tables: Table[]) => {
+        return [...tables].sort((a, b) => {
+            if (sortBy === 'alpha') return a.number.localeCompare(b.number)
+            if (sortBy === 'seats') return (b.seats || 0) - (a.seats || 0)
+            if (sortBy === 'status') {
+                const statusA = getDetailedTableStatus(a.id).step
+                const statusB = getDetailedTableStatus(b.id).step
+                const priority = { 'waiting': 3, 'seated': 2, 'eating': 1, 'free': 0 }
+                return priority[statusB] - priority[statusA]
+            }
+            return 0
+        })
+    }
+
+    const handleTableClick = (table: Table) => {
+        setSelectedTable(table)
+        setIsTableModalOpen(true)
+    }
+
+    const openPaymentDialog = (e: React.MouseEvent, table: Table) => {
+        e.stopPropagation()
+        setSelectedTableForPayment(table)
+        setIsPaymentDialogOpen(true)
+    }
+
+    const handleCloseTable = async (markAsPaid: boolean) => {
+        if (!selectedTableForPayment) return
+
+        // Permission Check
+        if (!restaurant?.allow_waiter_payments) {
+            toast.error('Non hai i permessi per effettuare pagamenti.')
+            return
+        }
+
+        const session = sessions.find(s => s.table_id === selectedTableForPayment.id)
+        if (!session) return
+
+        // Check if there are unpaid items before closing?
+        // Logic: Mark as Paid sets everything to PAID.
+        // Logic: Empty Table (markAsPaid=false) sets everything to COMPLETED/CANCELLED?
+
+        try {
+            // Update orders if marking as paid
+            const sessionOrders = activeOrders.filter(o => o.table_session_id === session.id)
+            if (sessionOrders.length > 0) {
+                // If closing, we update all UNPAID orders/items
+                // Actually, handleCloseTable is "Close Session". 
+                // Using DatabaseService logic.
+
+                await supabase
+                    .from('orders')
+                    .update({ status: markAsPaid ? 'PAID' : 'completed' })
+                    .in('id', sessionOrders.map(o => o.id))
+
+                // Also ensure items are marked if we track them individually?
+                const allItemIds = sessionOrders.flatMap(o => o.items?.map((i: any) => i.id) || [])
+                if (allItemIds.length > 0) {
+                    await supabase.from('order_items').update({ status: markAsPaid ? 'PAID' : 'SERVED' }).in('id', allItemIds)
+                }
+            }
+
+            // Close session
+            await DatabaseService.updateSession({
+                ...session,
+                status: 'CLOSED',
+                closed_at: new Date().toISOString()
+            })
+
+            await DatabaseService.clearCart(session.id)
+
+            setSessions(prev => prev.filter(s => s.id !== session.id))
+            setActiveOrders(prev => prev.filter(o => o.table_session_id !== session.id))
+
+            toast.success(markAsPaid ? 'Tavolo pagato e liberato' : 'Tavolo liberato')
+            setIsPaymentDialogOpen(false)
+            refreshData()
+        } catch (error) {
+            console.error('Error closing table:', error)
+            toast.error('Errore durante la chiusura del tavolo')
+        }
+    }
+
+    // Activate a free table (create session)
+    const activateTable = async (table: Table) => {
+        if (!restaurantId) return
+        setActivatingTable(true)
+        try {
+            const pin = Math.floor(1000 + Math.random() * 9000).toString()
+            const newSession = await DatabaseService.createSession({
+                table_id: table.id,
+                restaurant_id: restaurantId,
+                status: 'OPEN',
+                session_pin: pin,
+                opened_at: new Date().toISOString(),
+                customer_count: table.seats || 2
+            })
+            setSessions(prev => [...prev, newSession])
+            toast.success(`Tavolo ${table.number} attivato! PIN: ${pin}`)
+            setIsTableModalOpen(false)
+            refreshData()
+        } catch (error) {
+            console.error('Error activating table:', error)
+            toast.error('Errore attivazione tavolo')
+        } finally {
+            setActivatingTable(false)
+        }
+    }
+
+
+
+
+    // TABLE MANAGEMENT FUNCTIONS
+    const handleAddTable = async () => {
+        if (!restaurantId || !newTableNumber.trim()) {
+            toast.error('Inserisci un numero/nome per il tavolo')
+            return
+        }
+        try {
+            const newTable = await DatabaseService.createTable({
+                restaurant_id: restaurantId,
+                number: newTableNumber.trim(),
+                seats: parseInt(newTableSeats) || 4,
+                room_id: (newTableRoomId && newTableRoomId !== 'none') ? newTableRoomId : undefined,
+                is_active: true
+            })
+            setTables(prev => [...prev, newTable])
+            setNewTableNumber('')
+            setNewTableSeats('4')
+            setNewTableRoomId('')
+            setIsAddTableDialogOpen(false)
+            toast.success(`Tavolo "${newTableNumber}" creato!`)
+        } catch (error) {
+            console.error('Error creating table:', error)
+            toast.error('Errore nella creazione del tavolo')
+        }
+    }
+
+    const handleEditTable = async () => {
+        if (!tableToEdit) return
+        try {
+            await DatabaseService.updateTable(tableToEdit.id, {
+                number: newTableNumber.trim(),
+                seats: parseInt(newTableSeats) || 4,
+                room_id: (newTableRoomId && newTableRoomId !== 'none') ? newTableRoomId : undefined
+            })
+            setTables(prev => prev.map(t => t.id === tableToEdit.id ? {
+                ...t,
+                number: newTableNumber.trim(),
+                seats: parseInt(newTableSeats) || 4,
+                room_id: (newTableRoomId && newTableRoomId !== 'none') ? newTableRoomId : undefined
+            } : t))
+            setTableToEdit(null)
+            setIsEditTableDialogOpen(false)
+            toast.success('Tavolo aggiornato!')
+        } catch (error) {
+            console.error('Error updating table:', error)
+            toast.error('Errore nell\'aggiornamento del tavolo')
+        }
+    }
+
+    const handleDeleteTable = async (tableId: string) => {
+        const session = sessions.find(s => s.table_id === tableId)
+        if (session) {
+            toast.error('Impossibile eliminare un tavolo con una sessione attiva')
+            return
+        }
+        try {
+            await DatabaseService.deleteTable(tableId)
+            setTables(prev => prev.filter(t => t.id !== tableId))
+            setIsEditTableDialogOpen(false)
+            setTableToEdit(null)
+            toast.success('Tavolo eliminato!')
+        } catch (error) {
+            console.error('Error deleting table:', error)
+            toast.error('Errore nell\'eliminazione del tavolo')
+        }
+    }
+
+    const openEditTableDialog = (table: Table) => {
+        setTableToEdit(table)
+        setNewTableNumber(table.number)
+        setNewTableSeats(String(table.seats || 4))
+        setNewTableRoomId(table.room_id || '')
+        setIsEditTableDialogOpen(true)
+    }
+
+    // ROOM MANAGEMENT FUNCTIONS
+    const handleAddRoom = async () => {
+        if (!restaurantId || !newRoomName.trim()) {
+            toast.error('Inserisci un nome per la sala')
+            return
+        }
+        try {
+            await DatabaseService.createRoom({
+                restaurant_id: restaurantId,
+                name: newRoomName.trim(),
+                is_active: true,
+                order: rooms.length
+            })
+            const updatedRooms = await DatabaseService.getRooms(restaurantId)
+            setRooms(updatedRooms)
+            setNewRoomName('')
+            setIsAddRoomDialogOpen(false)
+            toast.success(`Sala "${newRoomName}" creata!`)
+        } catch (error) {
+            console.error('Error creating room:', error)
+            toast.error('Errore nella creazione della sala')
+        }
+    }
+
+    const handleEditRoom = async () => {
+        if (!roomToEdit || !newRoomName.trim()) return
+        try {
+            await DatabaseService.updateRoom(roomToEdit.id, {
+                name: newRoomName.trim()
+            })
+            setRooms(prev => prev.map(r => r.id === roomToEdit.id ? { ...r, name: newRoomName.trim() } : r))
+            setRoomToEdit(null)
+            setIsEditRoomDialogOpen(false)
+            toast.success('Sala aggiornata!')
+        } catch (error) {
+            console.error('Error updating room:', error)
+            toast.error('Errore nell\'aggiornamento della sala')
+        }
+    }
+
+    const handleDeleteRoom = async (roomId: string) => {
+        const tablesInRoom = tables.filter(t => t.room_id === roomId)
+        if (tablesInRoom.length > 0) {
+            toast.error('Impossibile eliminare una sala con tavoli assegnati. Riassegna prima i tavoli.')
+            return
+        }
+        try {
+            await DatabaseService.deleteRoom(roomId)
+            setRooms(prev => prev.filter(r => r.id !== roomId))
+            setIsEditRoomDialogOpen(false)
+            setRoomToEdit(null)
+            toast.success('Sala eliminata!')
+        } catch (error) {
+            console.error('Error deleting room:', error)
+            toast.error('Errore nell\'eliminazione della sala')
+        }
+    }
+
+    const openEditRoomDialog = (room: Room) => {
+        setRoomToEdit(room)
+        setNewRoomName(room.name)
+        setIsEditRoomDialogOpen(true)
+    }
+
+    // Filtered tables based on room selection
+    const filteredTables = selectedRoomFilter === 'all'
+        ? tables
+        : selectedRoomFilter === 'no-room'
+            ? tables.filter(t => !t.room_id)
+            : tables.filter(t => t.room_id === selectedRoomFilter)
+
+    if (loading) return (
+        <div className="min-h-screen bg-zinc-950 flex flex-col items-center justify-center text-amber-500">
+            <div className="w-12 h-12 border-4 border-amber-500/30 border-t-amber-500 rounded-full animate-spin mb-4" />
+            <p className="font-medium tracking-widest uppercase text-xs">Caricamento...</p>
+        </div>
+    )
+
+    const sortedTables = sortTables(filteredTables)
+    const readyCount = readyItems.length
+
+    // Helper function to render a table card - MATCHING ADMIN DASHBOARD GRAPHICS
+    const renderTableCard = (table: Table) => {
+        const session = sessions.find(s => s.table_id === table.id)
+        const isActive = !!session
+        const statusInfo = getDetailedTableStatus(table.id)
+        const activeOrder = activeOrders.find(o => o.table_session_id === session?.id && o.status !== 'CANCELLED' && o.status !== 'PAID')
+
+        const isTableMarkedInactive = table.is_active === false
+
+        // Exact styles from RestaurantDashboard.tsx
+        const tableCardClasses = isTableMarkedInactive
+            ? 'opacity-60 grayscale'
+            : (() => {
+                if (!isActive) return 'bg-black/40 border-emerald-500/20 shadow-[0_0_15px_-5px_rgba(16,185,129,0.1)] hover:border-emerald-500/40' // Green (Free)
+                if (statusInfo.step === 'waiting') return 'bg-red-900/20 border-red-500/50 shadow-[0_0_15px_-5px_rgba(239,68,68,0.3)]' // Red (Waiting for food)
+                return 'bg-amber-900/20 border-amber-500/50 shadow-[0_0_15px_-5px_rgba(245,158,11,0.3)]' // Yellow (Eating)
+            })()
+
+        return (
+            <Card
+                key={table.id}
+                className={`relative overflow-hidden transition-all duration-300 group cursor-pointer ${tableCardClasses}`}
+                onClick={() => {
+                    if (isTableMarkedInactive) return
+                    handleTableClick(table)
+                }}
+            >
+                {isTableMarkedInactive && (
+                    <div className="absolute inset-0 z-10 flex items-center justify-center bg-black/40">
+                        <span className="text-[10px] font-black uppercase tracking-[0.3em] text-white/40 -rotate-12 border-2 border-white/20 px-3 py-1 rounded">Disattivato</span>
+                    </div>
+                )}
+                {isActive && (
+                    <div className="absolute top-0 right-0 w-16 h-16 bg-amber-500/10 blur-xl rounded-full -mr-8 -mt-8 pointer-events-none"></div>
+                )}
+                {!isActive && (
+                    <div className="absolute top-0 right-0 w-16 h-16 bg-emerald-500/5 blur-xl rounded-full -mr-8 -mt-8 pointer-events-none"></div>
+                )}
+
+                <CardContent className="p-0 flex flex-col h-full">
+                    {/* Header */}
+                    <div className="p-4 flex flex-wrap items-center justify-between gap-2 border-b border-white/5 relative z-10">
+                        <div className="flex items-center gap-3">
+                            <span className={`text-2xl font-bold tracking-tight whitespace-nowrap ${isActive ? 'text-amber-500' : 'text-zinc-100'}`}>
+                                {table.number}
+                            </span>
+                            <div className="flex items-center gap-1.5 text-zinc-400 bg-white/5 px-3 py-1 rounded-full">
+                                <User size={16} weight="bold" />
+                                <span className="text-sm font-bold">{table.seats || 4}</span>
+                            </div>
+                        </div>
+                        <Badge
+                            variant={isActive ? 'default' : 'outline'}
+                            className={`text-[10px] uppercase tracking-wider font-bold h-6 ${isActive ? 'bg-amber-500 text-black border-none' : 'bg-transparent text-zinc-500 border-zinc-700'}`}
+                        >
+                            {isActive ? (statusInfo.step === 'eating' ? 'Mangiando' : statusInfo.step === 'waiting' ? 'Attesa' : 'Occupato') : 'Libero'}
+                        </Badge>
+                    </div>
+
+                    {/* Center Content */}
+                    <div className="flex-1 p-5 flex flex-col items-center justify-center gap-3 relative z-10">
+                        {isActive ? (
+                            <>
+                                <div className="text-center">
+                                    <p className="text-[9px] text-amber-500/70 mb-1 uppercase tracking-[0.2em] font-semibold">PIN</p>
+                                    <div className="bg-black/40 px-6 py-3 rounded-xl border border-amber-500/20 shadow-inner min-w-[120px]">
+                                        <span className="text-4xl font-mono font-bold tracking-widest text-amber-500 whitespace-nowrap">
+                                            {session?.session_pin || '...'}
+                                        </span>
+                                    </div>
+                                </div>
+                                {activeOrder && (
+                                    <Badge variant="outline" className="text-[10px] bg-black/40 border-amber-500/30 text-amber-200 mt-1">
+                                        <CheckCircle size={10} className="mr-1" weight="fill" />
+                                        {activeOrder.items?.filter(i => i.status === 'SERVED').length || 0} serviti
+                                    </Badge>
+                                )}
+                            </>
+                        ) : (
+                            <div className="text-center text-zinc-700 group-hover:text-zinc-500 transition-all duration-300">
+                                <ForkKnife size={32} className="mx-auto mb-1" weight="duotone" />
+                                <p className="text-xs font-medium">Clicca per Attivare</p>
+                            </div>
+                        )}
+                    </div>
+
+                    {/* Footer Actions */}
+                    <div className="p-3 bg-gradient-to-t from-muted/10 to-transparent border-t border-border/5 grid gap-2 relative z-10">
+                        {isActive ? (
+                            <div className="grid grid-cols-2 gap-2">
+                                <Button
+                                    variant="outline"
+                                    size="sm"
+                                    className="shadow-sm hover:shadow transition-shadow h-8 text-xs bg-zinc-900 border-zinc-700 hover:bg-zinc-800 hover:text-white"
+                                    onClick={(e) => {
+                                        e.stopPropagation()
+                                        handleQuickOrderClick(table)
+                                    }}
+                                >
+                                    <Plus size={14} className="mr-1.5" />
+                                    Ordina
+                                </Button>
+                                <Button
+                                    className="bg-gradient-to-r from-primary to-primary/80 text-primary-foreground hover:from-primary/90 hover:to-primary/70 shadow-sm hover:shadow transition-all h-8 text-xs"
+                                    size="sm"
+                                    onClick={(e) => {
+                                        e.stopPropagation()
+                                        openPaymentDialog(e, table)
+                                    }}
+                                >
+                                    <Receipt size={14} className="mr-1.5" />
+                                    Conto
+                                </Button>
+                            </div>
+                        ) : (
+                            <Button
+                                className="w-full shadow-sm hover:shadow transition-shadow h-8 text-xs bg-zinc-800 hover:bg-zinc-700 text-zinc-200"
+                                size="sm"
+                                onClick={(e) => {
+                                    e.stopPropagation()
+                                    activateTable(table)
+                                }}
+                            >
+                                <Plus size={14} className="mr-1.5" />
+                                Attiva Tavolo
+                            </Button>
+                        )}
+                    </div>
+                </CardContent>
+            </Card>
+        )
+    }
+
+    return (
+        <div className="min-h-screen bg-zinc-950 p-4 md:p-6 pb-24 text-zinc-100 font-sans selection:bg-amber-500/30">
+            {/* Background Ambience */}
+            <div className="fixed inset-0 bg-[radial-gradient(ellipse_at_top,_var(--tw-gradient-stops))] from-amber-900/10 via-zinc-950 to-zinc-950 pointer-events-none" />
+            <div className="fixed inset-0 bg-[url('https://grainy-gradients.vercel.app/noise.svg')] opacity-20 pointer-events-none brightness-100 contrast-150 mix-blend-overlay"></div>
+
+            {/* Header */}
+            <header className="sticky top-0 z-50 flex flex-col md:flex-row items-center justify-between mb-8 gap-4 bg-zinc-950/80 backdrop-blur-xl p-4 rounded-b-3xl border-b border-white/5 shadow-2xl transition-all duration-300">
+                <div className="flex items-center gap-5 w-full md:w-auto">
+                    <div className="w-14 h-14 rounded-2xl bg-gradient-to-br from-amber-500 to-amber-600 flex items-center justify-center text-black shadow-lg shadow-amber-500/20 ring-1 ring-white/10">
+                        <User size={28} weight="duotone" />
+                    </div>
+                    <div>
+                        <h1 className="text-2xl font-bold text-white tracking-tight">Gestione Sala</h1>
+                        <div className="flex items-center gap-2 mt-1">
+                            <span className="relative flex h-2.5 w-2.5">
+                                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-green-400 opacity-75"></span>
+                                <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-green-500"></span>
+                            </span>
+                            <p className="text-sm font-medium text-zinc-400">Sistema Attivo</p>
+                        </div>
+                    </div>
+                </div>
+
+                <div className="flex items-center gap-3 w-full md:w-auto overflow-x-auto pb-1 md:pb-0 scrollbar-hide">
+                    {/* Activity Button - Ready items + Assistance requests */}
+                    <Button
+                        variant={(readyCount + assistanceRequests.length) > 0 ? "default" : "outline"}
+                        size="sm"
+                        className={`md:mr-4 h-10 px-4 rounded-xl font-bold transition-all shadow-lg ${(readyCount + assistanceRequests.length) > 0
+                            ? 'bg-amber-500 hover:bg-amber-400 text-black border-transparent animate-pulse shadow-amber-500/20'
+                            : 'text-zinc-400 bg-zinc-900/50 border-white/5 hover:bg-zinc-800 hover:text-white'
+                            }`}
+                        onClick={() => setIsReadyDrawerOpen(true)}
+                    >
+                        {assistanceRequests.length > 0 ? (
+                            <BellSimple size={20} weight="fill" className="mr-2 animate-bounce text-yellow-400" />
+                        ) : readyCount > 0 ? (
+                            <BellRinging size={20} weight="fill" className="mr-2 animate-bounce" />
+                        ) : (
+                            <CheckCircle size={20} className="mr-2" />
+                        )}
+                        Attività: {readyCount + assistanceRequests.length}
+                    </Button>
+
+                    <div className="flex bg-zinc-900/80 p-1 rounded-xl border border-white/5">
+                        <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => setSortBy('status')}
+                            className={`text-xs font-bold h-8 rounded-lg transition-all ${sortBy === 'status' ? 'bg-zinc-800 text-amber-500 shadow-sm' : 'text-zinc-500 hover:text-zinc-300'}`}
+                        >
+                            Stato
+                        </Button>
+                        <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => setSortBy('alpha')}
+                            className={`text-xs font-bold h-8 rounded-lg transition-all ${sortBy === 'alpha' ? 'bg-zinc-800 text-amber-500 shadow-sm' : 'text-zinc-500 hover:text-zinc-300'}`}
+                        >
+                            A-Z
+                        </Button>
+                        <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => setSortBy('seats')}
+                            className={`text-xs font-bold h-8 rounded-lg transition-all ${sortBy === 'seats' ? 'bg-zinc-800 text-amber-500 shadow-sm' : 'text-zinc-500 hover:text-zinc-300'}`}
+                        >
+                            Posti
+                        </Button>
+                    </div>
+
+                    <div className="h-6 w-px bg-white/10 mx-2 hidden md:block"></div>
+
+                    {/* Room Filter */}
+                    <Select value={selectedRoomFilter} onValueChange={setSelectedRoomFilter}>
+                        <SelectTrigger className="w-[140px] h-10 bg-zinc-900/80 border-white/5 text-xs font-bold rounded-xl">
+                            <House size={16} className="mr-2 text-amber-500" />
+                            <SelectValue placeholder="Sala" />
+                        </SelectTrigger>
+                        <SelectContent className="bg-zinc-950 border-zinc-800">
+                            <SelectItem value="all">Tutte le Sale</SelectItem>
+                            <SelectItem value="no-room">Senza Sala</SelectItem>
+                            {rooms.map(room => (
+                                <SelectItem key={room.id} value={room.id}>{room.name}</SelectItem>
+                            ))}
+                        </SelectContent>
+                    </Select>
+
+                    {/* Management Button */}
+                    <Button
+                        variant="ghost"
+                        size="sm"
+                        className="text-zinc-400 hover:text-amber-500 hover:bg-amber-500/10 h-10 w-10 p-0 rounded-xl"
+                        onClick={() => setIsManageDialogOpen(true)}
+                    >
+                        <GearSix size={20} weight="duotone" />
+                    </Button>
+
+                    <Button
+                        variant="ghost"
+                        size="sm"
+                        className="text-red-400 hover:text-red-300 hover:bg-red-500/10 h-10 w-10 p-0 rounded-xl"
+                        onClick={onLogout}
+                    >
+                        <SignOut size={20} weight="duotone" />
+                    </Button>
+                </div>
+            </header>
+
+            {/* Tables grouped by Room */}
+            <div className="relative z-10 space-y-8">
+                {(() => {
+                    // Group tables by room
+                    const tablesByRoom = new Map<string, Table[]>()
+                    const noRoomTables: Table[] = []
+
+                    sortedTables.forEach(table => {
+                        if (table.room_id) {
+                            const existing = tablesByRoom.get(table.room_id) || []
+                            existing.push(table)
+                            tablesByRoom.set(table.room_id, existing)
+                        } else {
+                            noRoomTables.push(table)
+                        }
+                    })
+
+                    // Render each room section
+                    const roomSections: React.ReactNode[] = []
+
+                    // Render rooms in order
+                    rooms.forEach(room => {
+                        const roomTables = tablesByRoom.get(room.id) || []
+                        if (roomTables.length > 0) {
+                            roomSections.push(
+                                <div key={room.id} className="space-y-4">
+                                    <div className="flex items-center gap-3">
+                                        <h3 className="text-lg font-bold text-white">{room.name}</h3>
+                                        <div className="flex-1 h-px bg-white/10" />
+                                        <span className="text-xs text-zinc-500">{roomTables.length} tavoli</span>
+                                    </div>
+                                    <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 md:gap-4">
+                                        {roomTables.map(table => renderTableCard(table))}
+                                    </div>
+                                </div>
+                            )
+                        }
+                    })
+
+                    // No-room tables
+                    if (noRoomTables.length > 0) {
+                        roomSections.push(
+                            <div key="no-room" className="space-y-4">
+                                {rooms.length > 0 && (
+                                    <div className="flex items-center gap-3">
+                                        <h3 className="text-lg font-bold text-white">Sala Principale</h3>
+                                        <div className="flex-1 h-px bg-white/10" />
+                                        <span className="text-xs text-zinc-500">{noRoomTables.length} tavoli</span>
+                                    </div>
+                                )}
+                                <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 md:gap-4">
+                                    {noRoomTables.map(table => renderTableCard(table))}
+                                </div>
+                            </div>
+                        )
+                    }
+
+                    return roomSections
+                })()}
+            </div>
+
+            {/* Activity Center View (Full Screen) */}
+            <AnimatePresence>
+                {isReadyDrawerOpen && (
+                    <motion.div
+                        initial={{ opacity: 0, x: '100%' }}
+                        animate={{ opacity: 1, x: 0 }}
+                        exit={{ opacity: 0, x: '100%' }}
+                        transition={{ type: 'spring', damping: 25, stiffness: 200 }}
+                        className="fixed inset-0 z-50 bg-zinc-950 flex flex-col"
+                    >
+                        {/* Header */}
+                        <div className="h-16 px-4 flex items-center justify-between border-b border-white/10 bg-zinc-900/50 backdrop-blur-md shrink-0">
+                            <div className="flex items-center gap-3">
+                                <Button
+                                    variant="ghost"
+                                    size="icon"
+                                    onClick={() => setIsReadyDrawerOpen(false)} // Close activity view
+                                    className="text-zinc-400 hover:text-white"
+                                >
+                                    <ArrowLeft size={24} />
+                                </Button>
+                                <h2 className="text-xl font-bold text-white flex items-center gap-2">
+                                    <BellRinging className="text-amber-500" weight="fill" />
+                                    Centro Attività
+                                </h2>
+                            </div>
+                            <Badge variant="outline" className="border-amber-500/30 text-amber-500">
+                                {readyItems.length + assistanceRequests.length} Notifiche
+                            </Badge>
+                        </div>
+
+                        {/* Content */}
+                        <div className="flex-1 overflow-y-auto p-4 space-y-6 pb-24">
+                            {/* Assistance Requests Section */}
+                            {assistanceRequests.length > 0 && (
+                                <div className="space-y-3">
+                                    <h3 className="text-xs font-bold uppercase tracking-widest text-red-500 flex items-center gap-2">
+                                        <WarningCircle size={16} weight="fill" />
+                                        Richieste Assistenza
+                                    </h3>
+                                    {assistanceRequests.map(t => (
+                                        <div key={t.id} className="bg-red-500/10 border border-red-500/30 p-4 rounded-xl flex items-center justify-between animate-pulse-slow">
+                                            <div className="flex items-center gap-4">
+                                                <div className="w-10 h-10 rounded-full bg-red-500 flex items-center justify-center text-black font-bold text-lg">
+                                                    {t.number}
+                                                </div>
+                                                <div>
+                                                    <p className="font-bold text-red-400">Richiesta Cameriere</p>
+                                                    <p className="text-xs text-red-300/60">
+                                                        {t.last_assistance_request ? new Date(t.last_assistance_request).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : 'Adesso'}
+                                                    </p>
+                                                </div>
+                                            </div>
+                                            <Button
+                                                size="sm"
+                                                className="bg-red-500 hover:bg-red-400 text-black font-bold h-9 px-4 rounded-lg"
+                                                onClick={() => handleResolveAssistance(t.id)}
+                                            >
+                                                <CheckCircle size={18} className="mr-2" weight="fill" />
+                                                Risolvi
+                                            </Button>
+                                        </div>
+                                    ))}
+                                </div>
+                            )}
+
+                            {/* Ready Items Section */}
+                            <div className="space-y-3">
+                                <h3 className="text-xs font-bold uppercase tracking-widest text-zinc-500 flex items-center gap-2">
+                                    <ChefHat size={16} />
+                                    Piatti Pronti in Cucina
+                                </h3>
+
+                                {readyItems.length === 0 ? (
+                                    <div className="py-12 flex flex-col items-center justify-center text-zinc-600 border border-dashed border-white/5 rounded-2xl bg-zinc-900/20">
+                                        <ForkKnife size={48} className="mb-4 opacity-20" />
+                                        <p>Nessun piatto pronto da servire</p>
+                                    </div>
+                                ) : (
+                                    readyItems.map((item, idx) => (
+                                        <div key={item.id + idx} className="bg-zinc-900 border border-amber-500/20 rounded-xl overflow-hidden flex shadow-lg shadow-black/50">
+                                            {/* Left Stripe */}
+                                            <div className="w-1.5 bg-amber-500"></div>
+
+                                            <div className="flex-1 p-4 flex gap-4">
+                                                {/* Content */}
+                                                <div className="flex-1 min-w-0">
+                                                    <div className="flex items-start justify-between mb-1">
+                                                        <div className="flex items-center gap-2">
+                                                            <Badge className="bg-zinc-800 text-white border-zinc-700 font-mono text-sm px-2 py-0.5 rounded-md">
+                                                                TAVOLO {tables.find(t => t.id === item.tableId)?.number}
+                                                            </Badge>
+                                                            <span className="text-xs text-zinc-500">
+                                                                {new Date(item.created_at || new Date()).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                                                            </span>
+                                                        </div>
+                                                    </div>
+                                                    <h4 className="font-bold text-lg text-white mb-1 leading-tight">{item.dish?.name}</h4>
+                                                    {item.note && (
+                                                        <p className="text-sm text-amber-500/80 italic mb-2">Note: {item.note}</p>
+                                                    )}
+                                                    <p className="text-xs text-zinc-500">Quantità: <span className="text-white font-bold">{item.quantity}</span></p>
+                                                </div>
+
+                                                {/* Action */}
+                                                <div className="flex flex-col justify-center">
+                                                    <Button
+                                                        className="h-12 w-12 rounded-full bg-amber-500 hover:bg-amber-400 text-black shadow-lg shadow-amber-500/20 p-0"
+                                                        onClick={() => handleMarkAsDelivered(item.order_id, item.id)}
+                                                    >
+                                                        <Check size={24} weight="bold" />
+                                                    </Button>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    ))
+                                )}
+                            </div>
+                        </div>
+                    </motion.div>
+                )}
+            </AnimatePresence>
+
+            {/* Payment Dialog */}
+            {/* Payment / Bill Dialog */}
+            <TableBillDialog
+                isOpen={isPaymentDialogOpen}
+                onClose={() => setIsPaymentDialogOpen(false)}
+                table={selectedTableForPayment}
+                session={selectedTableForPayment ? (sessions.find(s => s.table_id === selectedTableForPayment.id) || null) : null}
+                orders={selectedTableForPayment
+                    ? activeOrders.filter(o => {
+                        const sess = sessions.find(s => s.table_id === selectedTableForPayment.id)
+                        return sess && o.table_session_id === sess.id
+                    })
+                    : []
+                }
+                restaurant={restaurant}
+                onPaymentComplete={() => {
+                    handleCloseTable(true)
+                    setIsPaymentDialogOpen(false)
+                }}
+                isWaiter={true}
+            />
+
+            {/* Table Management Modal */}
+            <Dialog open={isTableModalOpen} onOpenChange={setIsTableModalOpen}>
+                <DialogContent className="sm:max-w-lg bg-zinc-950/90 backdrop-blur-2xl border-white/10 text-zinc-100 p-0 overflow-hidden max-h-[85vh] rounded-[2rem] shadow-[0_0_50px_-12px_rgba(0,0,0,0.8)] outline-none">
+                    {selectedTable && (() => {
+                        const session = sessions.find(s => s.table_id === selectedTable.id)
+                        const tableOrders = session
+                            ? activeOrders.filter(o => o.table_session_id === session.id && o.status !== 'CANCELLED')
+                            : []
+                        const tableTotal = session ? getTableTotal(session.id) : 0
+                        const statusInfo = getDetailedTableStatus(selectedTable.id)
+
+                        return (
+                            <>
+                                {/* Header */}
+                                <div className="p-6 bg-gradient-to-b from-zinc-900 to-zinc-950 border-b border-white/5">
+                                    <DialogHeader>
+                                        <DialogTitle className="text-2xl font-bold text-white flex items-center gap-3">
+                                            <span className="bg-amber-500/10 border border-amber-500/20 px-4 py-2 rounded-xl text-2xl text-amber-500 font-serif">{selectedTable.number}</span>
+                                            <div className="flex flex-col">
+                                                <span className="bg-gradient-to-r from-white to-zinc-400 bg-clip-text text-transparent">Gestione Tavolo</span>
+                                                <span className={`text-sm font-medium ${statusInfo.step === 'free' ? 'text-zinc-500' :
+                                                    statusInfo.step === 'seated' ? 'text-blue-400' :
+                                                        statusInfo.step === 'waiting' ? 'text-amber-400' :
+                                                            'text-emerald-400'
+                                                    }`}>
+                                                    {statusInfo.label} {statusInfo.time && `• ${statusInfo.time}`}
+                                                </span>
+                                            </div>
+                                        </DialogTitle>
+                                    </DialogHeader>
+                                </div>
+
+                                {/* Content */}
+                                <ScrollArea className="flex-1 max-h-[50vh]">
+                                    <div className="p-4">
+                                        {!session ? (
+                                            <div className="text-center py-12">
+                                                <div className="w-16 h-16 mx-auto mb-4 rounded-full bg-zinc-900 flex items-center justify-center">
+                                                    <User size={32} className="text-zinc-700" />
+                                                </div>
+                                                <p className="text-zinc-500 mb-2">Tavolo libero</p>
+                                                <p className="text-xs text-zinc-600">Nessun cliente seduto</p>
+                                            </div>
+                                        ) : tableOrders.length === 0 ? (
+                                            <div className="text-center py-12">
+                                                <div className="w-16 h-16 mx-auto mb-4 rounded-full bg-blue-500/10 flex items-center justify-center">
+                                                    <Clock size={32} className="text-blue-500" />
+                                                </div>
+                                                <p className="text-zinc-400 mb-2">Clienti appena seduti</p>
+                                                <p className="text-xs text-zinc-500">In attesa di ordinare</p>
+                                            </div>
+                                        ) : (
+                                            <div className="space-y-3">
+                                                <h4 className="text-xs font-bold text-zinc-500 uppercase tracking-wider mb-3">Ordini attivi</h4>
+                                                {tableOrders.map(order => (
+                                                    <div key={order.id} className="bg-zinc-900/80 border border-white/5 rounded-xl p-4">
+                                                        <div className="flex justify-between items-center mb-3">
+                                                            <Badge variant="outline" className={`text-[10px] ${order.status?.toLowerCase() === 'ready' ? 'text-amber-400 border-amber-500/30' :
+                                                                order.status === 'served' ? 'text-emerald-400 border-emerald-500/30' :
+                                                                    'text-blue-400 border-blue-500/30'
+                                                                }`}>
+                                                                {order.status?.toLowerCase() === 'ready' ? 'Pronto' :
+                                                                    order.status === 'served' ? 'Servito' :
+                                                                        order.status === 'preparing' ? 'In Preparazione' : 'In Attesa'}
+                                                            </Badge>
+                                                            <span className="text-xs text-zinc-500">
+                                                                {new Date(order.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                                                            </span>
+                                                        </div>
+                                                        <div className="space-y-2">
+                                                            {order.items?.map(item => (
+                                                                <div key={item.id} className="flex justify-between items-center text-sm">
+                                                                    <div className="flex items-center gap-2">
+                                                                        <span className="text-amber-500 font-bold">{item.quantity}x</span>
+                                                                        <span className={item.status === 'served' ? 'text-zinc-500 line-through' : 'text-white'}>
+                                                                            {item.dish?.name || 'Piatto'}
+                                                                        </span>
+                                                                        {item.status?.toLowerCase() === 'ready' && (
+                                                                            <Badge className="bg-amber-500 text-black text-[8px] px-1">PRONTO</Badge>
+                                                                        )}
+                                                                    </div>
+                                                                    <span className="text-zinc-400">€{((item.dish?.price || 0) * item.quantity).toFixed(2)}</span>
+                                                                </div>
+                                                            ))}
+                                                        </div>
+                                                        <div className="mt-3 pt-3 border-t border-white/5 flex justify-between">
+                                                            <span className="text-xs text-zinc-500">Subtotale</span>
+                                                            <span className="text-sm font-bold text-white">€{(order.total_amount || 0).toFixed(2)}</span>
+                                                        </div>
+                                                    </div>
+                                                ))}
+                                            </div>
+                                        )}
+                                    </div>
+                                </ScrollArea>
+
+                                {/* Footer */}
+                                {session && (
+                                    <div className="p-4 border-t border-white/5 bg-zinc-900/50 space-y-3">
+                                        <div className="flex justify-between items-center py-3 px-4 bg-black/30 rounded-xl">
+                                            <span className="text-sm font-bold text-zinc-400">Totale Tavolo</span>
+                                            <span className="text-2xl font-black text-amber-500">€{tableTotal.toFixed(2)}</span>
+                                        </div>
+
+                                        {restaurant?.allow_waiter_payments && (
+                                            <Button
+                                                className="w-full h-12 text-base font-bold bg-amber-500 hover:bg-amber-400 text-black shadow-lg shadow-amber-500/20 rounded-xl"
+                                                onClick={() => {
+                                                    setIsTableModalOpen(false)
+                                                    setSelectedTableForPayment(selectedTable)
+                                                    setIsPaymentDialogOpen(true)
+                                                }}
+                                            >
+                                                <Receipt size={20} className="mr-2" />
+                                                Vai al Conto
+                                            </Button>
+                                        )}
+
+                                        <Button
+                                            variant="outline"
+                                            className="w-full h-10 text-sm border-white/10 text-zinc-400 hover:text-white"
+                                            onClick={() => setIsTableModalOpen(false)}
+                                        >
+                                            Chiudi
+                                        </Button>
+                                    </div>
+                                )}
+
+                                {!session && (
+                                    <div className="p-4 border-t border-white/5 space-y-3">
+                                        <Button
+                                            className="w-full h-12 text-base font-bold bg-amber-500 hover:bg-amber-400 text-black shadow-lg shadow-amber-500/20 rounded-xl"
+                                            onClick={() => activateTable(selectedTable)}
+                                            disabled={activatingTable}
+                                        >
+                                            {activatingTable ? (
+                                                <div className="flex items-center gap-2">
+                                                    <div className="w-5 h-5 border-2 border-black/30 border-t-black rounded-full animate-spin" />
+                                                    Attivazione...
+                                                </div>
+                                            ) : (
+                                                <>
+                                                    <Plus size={20} className="mr-2" weight="bold" />
+                                                    Attiva Tavolo
+                                                </>
+                                            )}
+                                        </Button>
+                                        <Button
+                                            variant="outline"
+                                            className="w-full h-10 border-white/10 text-zinc-400"
+                                            onClick={() => setIsTableModalOpen(false)}
+                                        >
+                                            Chiudi
+                                        </Button>
+                                    </div>
+                                )}
+                            </>
+                        )
+                    })()}
+                </DialogContent>
+            </Dialog>
+
+            {/* Management Dialog - Main Menu */}
+            <Dialog open={isManageDialogOpen} onOpenChange={setIsManageDialogOpen}>
+                <DialogContent className="sm:max-w-lg w-[95vw] bg-zinc-950 border-zinc-800 text-zinc-100 p-0 overflow-hidden max-h-[85vh] flex flex-col">
+                    <DialogHeader className="p-6 pb-4 border-b border-white/5 bg-zinc-900/50 shrink-0">
+                        <DialogTitle className="text-xl font-bold flex items-center gap-3">
+                            <GearSix size={24} className="text-amber-500" />
+                            Gestione Tavoli e Sale
+                        </DialogTitle>
+                        <DialogDescription className="text-zinc-500">
+                            Aggiungi, modifica o elimina tavoli e sale
+                        </DialogDescription>
+                    </DialogHeader>
+
+                    <ScrollArea className="flex-1 p-4">
+                        <div className="space-y-6">
+                            {/* Tables Section */}
+                            <div>
+                                <div className="flex items-center justify-between mb-3">
+                                    <h3 className="text-sm font-bold uppercase tracking-wider text-zinc-500">Tavoli ({tables.length})</h3>
+                                    <Button size="sm" onClick={() => { setIsManageDialogOpen(false); setIsAddTableDialogOpen(true); }} className="h-8 bg-amber-500 hover:bg-amber-400 text-black font-bold">
+                                        <Plus size={16} className="mr-1" /> Aggiungi
+                                    </Button>
+                                </div>
+                                <div className="space-y-2 max-h-48 overflow-y-auto">
+                                    {tables.map(table => {
+                                        const room = rooms.find(r => r.id === table.room_id)
+                                        const session = sessions.find(s => s.table_id === table.id)
+                                        return (
+                                            <div key={table.id} className="flex items-center justify-between p-3 bg-zinc-900/80 rounded-xl border border-white/5">
+                                                <div>
+                                                    <span className="font-bold text-white">{table.number}</span>
+                                                    <span className="text-xs text-zinc-500 ml-2">{table.seats} posti</span>
+                                                    {room && <Badge variant="outline" className="ml-2 text-[10px] border-amber-500/30 text-amber-400">{room.name}</Badge>}
+                                                    {session && <Badge className="ml-2 text-[10px] bg-green-500/20 text-green-400 border-green-500/30">Attivo</Badge>}
+                                                </div>
+                                                <Button size="sm" variant="ghost" className="h-8 w-8 p-0 text-zinc-400 hover:text-amber-500" onClick={() => { setIsManageDialogOpen(false); openEditTableDialog(table); }}>
+                                                    <Pencil size={16} />
+                                                </Button>
+                                            </div>
+                                        )
+                                    })}
+                                </div>
+                            </div>
+
+                            {/* Rooms Section */}
+                            <div>
+                                <div className="flex items-center justify-between mb-3">
+                                    <h3 className="text-sm font-bold uppercase tracking-wider text-zinc-500">Sale ({rooms.length})</h3>
+                                    <Button size="sm" onClick={() => { setIsManageDialogOpen(false); setIsAddRoomDialogOpen(true); }} className="h-8 bg-amber-500 hover:bg-amber-400 text-black font-bold">
+                                        <Plus size={16} className="mr-1" /> Aggiungi
+                                    </Button>
+                                </div>
+                                <div className="space-y-2">
+                                    {rooms.length === 0 ? (
+                                        <p className="text-sm text-zinc-600 text-center py-4">Nessuna sala configurata</p>
+                                    ) : rooms.map(room => {
+                                        const tablesInRoom = tables.filter(t => t.room_id === room.id).length
+                                        return (
+                                            <div key={room.id} className="flex items-center justify-between p-3 bg-zinc-900/80 rounded-xl border border-white/5">
+                                                <div>
+                                                    <span className="font-bold text-white">{room.name}</span>
+                                                    <span className="text-xs text-zinc-500 ml-2">{tablesInRoom} tavoli</span>
+                                                </div>
+                                                <Button size="sm" variant="ghost" className="h-8 w-8 p-0 text-zinc-400 hover:text-amber-500" onClick={() => { setIsManageDialogOpen(false); openEditRoomDialog(room); }}>
+                                                    <Pencil size={16} />
+                                                </Button>
+                                            </div>
+                                        )
+                                    })}
+                                </div>
+                            </div>
+                        </div>
+                    </ScrollArea>
+
+                    <DialogFooter className="p-4 border-t border-white/5 shrink-0">
+                        <Button variant="outline" className="w-full border-white/10 text-zinc-400" onClick={() => setIsManageDialogOpen(false)}>Chiudi</Button>
+                    </DialogFooter>
+                </DialogContent>
+            </Dialog>
+
+            {/* Add Table Dialog */}
+            <Dialog open={isAddTableDialogOpen} onOpenChange={setIsAddTableDialogOpen}>
+                <DialogContent className="sm:max-w-md bg-zinc-950/90 backdrop-blur-2xl border-white/10 text-zinc-100 p-6 rounded-[2rem] shadow-[0_0_50px_-12px_rgba(0,0,0,0.8)] outline-none">
+                    <DialogHeader>
+                        <DialogTitle className="text-xl font-bold">Nuovo Tavolo</DialogTitle>
+                    </DialogHeader>
+                    <div className="space-y-4 py-4">
+                        <div className="space-y-2">
+                            <Label>Nome/Numero Tavolo</Label>
+                            <Input value={newTableNumber} onChange={(e) => setNewTableNumber(e.target.value)} placeholder="Es. 1, A1, Terrazza 1" className="bg-black/20 border-white/10" />
+                        </div>
+                        <div className="space-y-2">
+                            <Label>Posti</Label>
+                            <Input type="number" value={newTableSeats} onChange={(e) => setNewTableSeats(e.target.value)} placeholder="4" className="bg-black/20 border-white/10" />
+                        </div>
+                        <div className="space-y-2">
+                            <Label>Sala (opzionale)</Label>
+                            <Select value={newTableRoomId} onValueChange={setNewTableRoomId}>
+                                <SelectTrigger className="bg-black/20 border-white/10">
+                                    <SelectValue placeholder="Nessuna sala" />
+                                </SelectTrigger>
+                                <SelectContent className="bg-zinc-950 border-zinc-800">
+                                    <SelectItem value="none">Nessuna sala</SelectItem>
+                                    {rooms.map(room => <SelectItem key={room.id} value={room.id}>{room.name}</SelectItem>)}
+                                </SelectContent>
+                            </Select>
+                        </div>
+                    </div>
+                    <DialogFooter className="gap-2">
+                        <Button variant="outline" onClick={() => setIsAddTableDialogOpen(false)} className="border-white/10">Annulla</Button>
+                        <Button onClick={handleAddTable} className="bg-amber-500 hover:bg-amber-400 text-black font-bold">Crea Tavolo</Button>
+                    </DialogFooter>
+                </DialogContent>
+            </Dialog>
+
+            {/* Edit Table Dialog */}
+            <Dialog open={isEditTableDialogOpen} onOpenChange={setIsEditTableDialogOpen}>
+                <DialogContent className="sm:max-w-md bg-zinc-950/90 backdrop-blur-2xl border-white/10 text-zinc-100 p-6 rounded-[2rem] shadow-[0_0_50px_-12px_rgba(0,0,0,0.8)] outline-none">
+                    <DialogHeader>
+                        <DialogTitle className="text-xl font-bold">Modifica Tavolo</DialogTitle>
+                    </DialogHeader>
+                    <div className="space-y-4 py-4">
+                        <div className="space-y-2">
+                            <Label>Nome/Numero Tavolo</Label>
+                            <Input value={newTableNumber} onChange={(e) => setNewTableNumber(e.target.value)} className="bg-black/20 border-white/10" />
+                        </div>
+                        <div className="space-y-2">
+                            <Label>Posti</Label>
+                            <Input type="number" value={newTableSeats} onChange={(e) => setNewTableSeats(e.target.value)} className="bg-black/20 border-white/10" />
+                        </div>
+                        <div className="space-y-2">
+                            <Label>Sala</Label>
+                            <Select value={newTableRoomId} onValueChange={setNewTableRoomId}>
+                                <SelectTrigger className="bg-black/20 border-white/10">
+                                    <SelectValue placeholder="Nessuna sala" />
+                                </SelectTrigger>
+                                <SelectContent className="bg-zinc-950 border-zinc-800">
+                                    <SelectItem value="none">Nessuna sala</SelectItem>
+                                    {rooms.map(room => <SelectItem key={room.id} value={room.id}>{room.name}</SelectItem>)}
+                                </SelectContent>
+                            </Select>
+                        </div>
+                    </div>
+                    <DialogFooter className="flex justify-between gap-2">
+                        <Button variant="destructive" onClick={() => tableToEdit && handleDeleteTable(tableToEdit.id)} className="mr-auto">
+                            <Trash size={16} className="mr-1" /> Elimina
+                        </Button>
+                        <Button variant="outline" onClick={() => setIsEditTableDialogOpen(false)} className="border-white/10">Annulla</Button>
+                        <Button onClick={handleEditTable} className="bg-amber-500 hover:bg-amber-400 text-black font-bold">Salva</Button>
+                    </DialogFooter>
+                </DialogContent>
+            </Dialog>
+
+            {/* Add Room Dialog */}
+            <Dialog open={isAddRoomDialogOpen} onOpenChange={setIsAddRoomDialogOpen}>
+                <DialogContent className="sm:max-w-md bg-zinc-950/90 backdrop-blur-2xl border-white/10 text-zinc-100 p-6 rounded-[2rem] shadow-[0_0_50px_-12px_rgba(0,0,0,0.8)] outline-none">
+                    <DialogHeader>
+                        <DialogTitle className="text-xl font-bold">Nuova Sala</DialogTitle>
+                    </DialogHeader>
+                    <div className="space-y-4 py-4">
+                        <div className="space-y-2">
+                            <Label>Nome Sala</Label>
+                            <Input value={newRoomName} onChange={(e) => setNewRoomName(e.target.value)} placeholder="Es. Terrazza, Sala Interna" className="bg-black/20 border-white/10" />
+                        </div>
+                    </div>
+                    <DialogFooter className="gap-2">
+                        <Button variant="outline" onClick={() => setIsAddRoomDialogOpen(false)} className="border-white/10">Annulla</Button>
+                        <Button onClick={handleAddRoom} className="bg-amber-500 hover:bg-amber-400 text-black font-bold">Crea Sala</Button>
+                    </DialogFooter>
+                </DialogContent>
+            </Dialog>
+
+            {/* Edit Room Dialog */}
+            <Dialog open={isEditRoomDialogOpen} onOpenChange={setIsEditRoomDialogOpen}>
+                <DialogContent className="sm:max-w-md bg-zinc-950/90 backdrop-blur-2xl border-white/10 text-zinc-100 p-6 rounded-[2rem] shadow-[0_0_50px_-12px_rgba(0,0,0,0.8)] outline-none">
+                    <DialogHeader>
+                        <DialogTitle className="text-xl font-bold">Modifica Sala</DialogTitle>
+                    </DialogHeader>
+                    <div className="space-y-4 py-4">
+                        <div className="space-y-2">
+                            <Label>Nome Sala</Label>
+                            <Input value={newRoomName} onChange={(e) => setNewRoomName(e.target.value)} className="bg-black/20 border-white/10" />
+                        </div>
+                    </div>
+                    <DialogFooter className="flex justify-between gap-2">
+                        <Button variant="destructive" onClick={() => roomToEdit && handleDeleteRoom(roomToEdit.id)} className="mr-auto">
+                            <Trash size={16} className="mr-1" /> Elimina
+                        </Button>
+                        <Button variant="outline" onClick={() => setIsEditRoomDialogOpen(false)} className="border-white/10">Annulla</Button>
+                        <Button onClick={handleEditRoom} className="bg-amber-500 hover:bg-amber-400 text-black font-bold">Salva</Button>
+                    </DialogFooter>
+                </DialogContent>
+            </Dialog>
+
+
+        </div >
+    )
+}
+
+export default WaiterDashboard
