@@ -1073,6 +1073,10 @@ const WaiterDashboard = ({ user, onLogout }: WaiterDashboardProps) => {
                     handleCloseTable(true)
                     setIsPaymentDialogOpen(false)
                 }}
+                onEmptyTable={() => {
+                    handleCloseTable(false)
+                    setIsPaymentDialogOpen(false)
+                }}
                 isWaiter={true}
             />
 

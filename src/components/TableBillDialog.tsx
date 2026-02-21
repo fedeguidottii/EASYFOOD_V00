@@ -53,8 +53,10 @@ export default function TableBillDialog({
             setEqualSplitMode(false)
             setSelectedSplitItems(new Set())
             setPaidItemIds(new Set())
+            setPaidPersons(0)
+            setCustomSplitCount(session?.customer_count || 2)
         }
-    }, [isOpen])
+    }, [isOpen, session])
 
     const [paidItemIds, setPaidItemIds] = useState<Set<string>>(new Set())
 
@@ -62,6 +64,8 @@ export default function TableBillDialog({
     const [selectedSplitItems, setSelectedSplitItems] = useState<Set<string>>(new Set())
     const [processingPayment, setProcessingPayment] = useState(false)
     const [equalSplitMode, setEqualSplitMode] = useState(false)
+    const [paidPersons, setPaidPersons] = useState(0)
+    const [customSplitCount, setCustomSplitCount] = useState(0)
 
     // Calculate Pricing Settings (Coperto & AYCE)
     const pricingSettings = useMemo(() => {
@@ -509,27 +513,82 @@ export default function TableBillDialog({
                                 transition={{ type: 'spring', stiffness: 400, damping: 30 }}
                                 className="h-full flex flex-col p-4 md:p-6"
                             >
-                                {/* Glass Container */}
-                                <div className="bg-black/20 backdrop-blur-2xl border border-white/5 text-zinc-100 rounded-[1.5rem] overflow-hidden shadow-2xl relative flex-1 flex flex-col items-center justify-center p-8 text-center ring-1 ring-white/5">
+                                <div className="bg-black/20 backdrop-blur-2xl border border-white/5 text-zinc-100 rounded-[1.5rem] overflow-hidden shadow-2xl relative flex-1 flex flex-col ring-1 ring-white/5">
 
-                                    {/* Fluid Background Effect */}
                                     <div className="absolute top-0 left-0 w-64 h-64 bg-indigo-500/10 blur-[100px] rounded-full pointer-events-none -ml-32 -mt-32"></div>
                                     <div className="absolute bottom-0 right-0 w-64 h-64 bg-fuchsia-500/10 blur-[100px] rounded-full pointer-events-none -mr-32 -mb-32"></div>
 
-                                    <div className="relative z-10 flex flex-col items-center">
-                                        <div className="w-24 h-24 rounded-full bg-linear-to-br from-zinc-800 to-black border border-white/10 flex items-center justify-center mb-8 shadow-2xl relative group">
-                                            <Users size={40} className="text-zinc-400 group-hover:text-white transition-colors" weight="duotone" />
-                                            <div className="absolute -bottom-2 -right-2 bg-amber-500 text-black text-sm font-bold px-3 py-1 rounded-full shadow-lg border border-black/20">
-                                                {Math.max(1, session?.customer_count || 1)}
+                                    <div className="relative z-10 flex flex-col items-center justify-center flex-1 p-6">
+
+                                        {/* Number of people selector */}
+                                        <div className="mb-6 flex flex-col items-center gap-2">
+                                            <span className="text-[10px] font-bold text-zinc-500 uppercase tracking-widest">Dividi tra</span>
+                                            <div className="flex items-center gap-3">
+                                                <Button
+                                                    variant="outline"
+                                                    size="icon"
+                                                    className="h-10 w-10 rounded-full border-zinc-700 text-zinc-300 hover:text-white hover:bg-zinc-800"
+                                                    onClick={() => { setCustomSplitCount(Math.max(2, customSplitCount - 1)); setPaidPersons(Math.min(paidPersons, Math.max(2, customSplitCount - 1))) }}
+                                                >
+                                                    <Minus size={16} weight="bold" />
+                                                </Button>
+                                                <span className="text-4xl font-black text-white w-16 text-center tabular-nums">{customSplitCount}</span>
+                                                <Button
+                                                    variant="outline"
+                                                    size="icon"
+                                                    className="h-10 w-10 rounded-full border-zinc-700 text-zinc-300 hover:text-white hover:bg-zinc-800"
+                                                    onClick={() => setCustomSplitCount(customSplitCount + 1)}
+                                                >
+                                                    <Plus size={16} weight="bold" />
+                                                </Button>
+                                            </div>
+                                            <span className="text-xs text-zinc-500">persone</span>
+                                        </div>
+
+                                        {/* Per person amount */}
+                                        <h3 className="text-sm text-zinc-400 mb-1 font-medium">Quota a Persona</h3>
+                                        <div className="text-5xl font-black text-white tracking-tighter mb-6 tabular-nums">
+                                            €{(totalAmount / Math.max(1, customSplitCount)).toFixed(2)}
+                                        </div>
+
+                                        {/* Payment progress */}
+                                        <div className="w-full max-w-[280px] space-y-3">
+                                            <div className="flex items-center justify-between text-xs">
+                                                <span className="text-zinc-500">Pagato</span>
+                                                <span className="font-bold text-zinc-300">{paidPersons} / {customSplitCount}</span>
+                                            </div>
+                                            <div className="h-2 bg-zinc-800 rounded-full overflow-hidden">
+                                                <motion.div
+                                                    className="h-full bg-gradient-to-r from-amber-500 to-green-500 rounded-full"
+                                                    initial={{ width: 0 }}
+                                                    animate={{ width: `${(paidPersons / Math.max(1, customSplitCount)) * 100}%` }}
+                                                    transition={{ type: 'spring', stiffness: 300, damping: 25 }}
+                                                />
+                                            </div>
+                                            <div className="flex items-center justify-between">
+                                                <Button
+                                                    variant="outline"
+                                                    size="sm"
+                                                    className="h-9 px-4 rounded-lg border-zinc-700 text-zinc-400 hover:text-white hover:bg-zinc-800"
+                                                    onClick={() => setPaidPersons(Math.max(0, paidPersons - 1))}
+                                                    disabled={paidPersons === 0}
+                                                >
+                                                    <Minus size={14} className="mr-1" /> Annulla
+                                                </Button>
+                                                <Button
+                                                    size="sm"
+                                                    className="h-9 px-4 rounded-lg bg-amber-500 hover:bg-amber-400 text-black font-bold"
+                                                    onClick={() => setPaidPersons(Math.min(customSplitCount, paidPersons + 1))}
+                                                    disabled={paidPersons >= customSplitCount}
+                                                >
+                                                    <CheckCircle weight="fill" size={14} className="mr-1" /> Incassa €{(totalAmount / Math.max(1, customSplitCount)).toFixed(2)}
+                                                </Button>
                                             </div>
                                         </div>
 
-                                        <h3 className="text-xl text-zinc-400 mb-2 font-medium tracking-wide">Quota a Persona</h3>
-                                        <div className="text-6xl font-black text-white tracking-tighter mb-4 tabular-nums drop-shadow-2xl">
-                                            €{perPersonAmount.toFixed(2)}
-                                        </div>
-                                        <p className="text-sm text-zinc-500 max-w-[240px] leading-relaxed mx-auto">
-                                            Calcolato su un totale di <span className="text-zinc-300 font-bold">€{totalAmount.toFixed(2)}</span> diviso per <span className="text-zinc-300 font-bold">{session?.customer_count || 1}</span> ospiti.
+                                        {/* Info */}
+                                        <p className="text-xs text-zinc-600 mt-4 text-center max-w-[260px]">
+                                            Totale: <span className="text-zinc-400 font-bold">€{totalAmount.toFixed(2)}</span> ÷ {customSplitCount}
                                         </p>
                                     </div>
                                 </div>
@@ -570,15 +629,12 @@ export default function TableBillDialog({
 
                                     {equalSplitMode && (
                                         <Button
-                                            className="flex-1 h-12 bg-amber-500 hover:bg-amber-400 text-black font-bold text-lg rounded-xl shadow-lg shadow-amber-500/20"
-                                            // Logic for paying "one share" is tricky as it's not tied to items. Usually just pay custom amount.
-                                            // So for now we just show "Back" or maybe "Mark All Paid" if they collected cash?
-                                            // Or implement partial custom payment. 
-                                            // For simplicity, revert to main to pay full, or use split items for partial.
-                                            // Let's allow "Pay Full" from here too as shortcut
+                                            className="flex-1 h-12 bg-green-600 hover:bg-green-500 text-white font-bold text-lg rounded-xl shadow-lg shadow-green-500/20 disabled:opacity-40"
+                                            disabled={paidPersons < customSplitCount}
                                             onClick={() => onPaymentComplete()}
                                         >
-                                            Salda Intero Tavolo
+                                            <CheckCircle weight="fill" className="mr-2" size={20} />
+                                            {paidPersons >= customSplitCount ? 'Conferma Tavolo Saldato' : `Mancano ${customSplitCount - paidPersons} pagamenti`}
                                         </Button>
                                     )}
                                 </div>
@@ -600,10 +656,18 @@ export default function TableBillDialog({
                                         <Button
                                             variant="ghost"
                                             className="text-zinc-500 hover:text-red-400 hover:bg-red-500/5 h-10 rounded-xl text-xs uppercase font-bold tracking-wider"
-                                            onClick={onEmptyTable}
-                                            disabled={totalAmount > 0}
+                                            onClick={() => {
+                                                if (totalAmount > 0) {
+                                                    if (confirm(`Ci sono ancora €${totalAmount.toFixed(2)} da saldare. Vuoi liberare il tavolo senza pagamento?`)) {
+                                                        onEmptyTable()
+                                                    }
+                                                } else {
+                                                    onEmptyTable()
+                                                }
+                                            }}
                                         >
-                                            {totalAmount > 0 ? 'Salda prima di liberare' : 'Libera Tavolo e Chiudi'}
+                                            <Trash size={14} className="mr-1.5" />
+                                            Libera Tavolo{totalAmount > 0 ? ' (Senza Pagamento)' : ''}
                                         </Button>
                                     )}
                                 </div>
