@@ -738,37 +738,35 @@ export function SettingsView({
                         exit="exit"
                         className="space-y-6"
                     >
-                        <div className="grid gap-6 md:grid-cols-2">
-                            {/* Durata Tavolo */}
-                            <div className="p-6 rounded-2xl bg-zinc-900/50 border border-white/5 backdrop-blur-sm">
-                                <h3 className="text-lg font-bold mb-4 flex items-center gap-2">
-                                    <Clock className="text-amber-500" />
-                                    Turnazione Tavoli
-                                </h3>
-                                <div className="space-y-4">
-                                    <div className="space-y-2">
-                                        <Label className="text-zinc-400">Durata Standard Prenotazione</Label>
-                                        <Select
-                                            value={reservationDuration.toString()}
-                                            onValueChange={(val) => setReservationDuration(parseInt(val))}
-                                        >
-                                            <SelectTrigger className="h-12 bg-black/20 border-white/10">
-                                                <SelectValue />
-                                            </SelectTrigger>
-                                            <SelectContent className="bg-zinc-900 border-zinc-800 text-zinc-200">
-                                                <SelectItem value="60">1 Ora</SelectItem>
-                                                <SelectItem value="90">1 Ora e 30 min</SelectItem>
-                                                <SelectItem value="120">2 Ore (Standard)</SelectItem>
-                                                <SelectItem value="150">2 Ore e 30 min</SelectItem>
-                                                <SelectItem value="180">3 Ore</SelectItem>
-                                            </SelectContent>
-                                        </Select>
+                        <div className="grid gap-6">
+                            {/* Durata Tavolo - Compact inline */}
+                            <div className="p-4 rounded-xl bg-zinc-900/50 border border-white/5 backdrop-blur-sm flex items-center justify-between gap-4">
+                                <div className="flex items-center gap-3">
+                                    <Clock className="text-amber-500 shrink-0" size={20} />
+                                    <div>
+                                        <h3 className="text-sm font-bold">Turnazione Tavoli</h3>
+                                        <p className="text-xs text-zinc-500">Durata standard prenotazione</p>
                                     </div>
                                 </div>
+                                <Select
+                                    value={reservationDuration.toString()}
+                                    onValueChange={(val) => setReservationDuration(parseInt(val))}
+                                >
+                                    <SelectTrigger className="h-9 w-[180px] bg-black/20 border-white/10 text-sm">
+                                        <SelectValue />
+                                    </SelectTrigger>
+                                    <SelectContent className="bg-zinc-900 border-zinc-800 text-zinc-200">
+                                        <SelectItem value="60">1 Ora</SelectItem>
+                                        <SelectItem value="90">1 Ora e 30 min</SelectItem>
+                                        <SelectItem value="120">2 Ore (Standard)</SelectItem>
+                                        <SelectItem value="150">2 Ore e 30 min</SelectItem>
+                                        <SelectItem value="180">3 Ore</SelectItem>
+                                    </SelectContent>
+                                </Select>
                             </div>
 
-                            {/* Orari Servizio */}
-                            <div className="relative p-6 rounded-2xl bg-gradient-to-br from-zinc-900/80 to-zinc-900/40 border border-white/5 overflow-hidden">
+                            {/* Orari Servizio - Full width */}
+                            <div className="relative p-4 rounded-2xl bg-gradient-to-br from-zinc-900/80 to-zinc-900/40 border border-white/5 overflow-hidden">
                                 <WeeklyServiceHoursEditor
                                     schedule={weeklyServiceHours || {
                                         enabled: true,

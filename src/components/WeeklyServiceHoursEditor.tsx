@@ -106,14 +106,13 @@ export default function WeeklyServiceHoursEditor({
             </div>
 
             {/* Default Global Toggle */}
-            <div className="flex items-center gap-4 p-4 bg-zinc-900/30 rounded-xl border border-zinc-800/50">
-                <div className="flex items-center gap-3 flex-1 text-sm text-zinc-300">
-                    <Clock size={18} className="text-zinc-500" />
-                    Puoi definire orari diversi per ogni giorno della settimana.
+            <div className="flex flex-col sm:flex-row items-start sm:items-center gap-3 p-3 bg-zinc-900/30 rounded-xl border border-zinc-800/50">
+                <div className="flex items-center gap-2 flex-1 text-xs text-zinc-400">
+                    <Clock size={16} className="text-zinc-500 shrink-0" />
+                    Orari diversi per ogni giorno.
                 </div>
-
-                <div className="flex items-center gap-2 ml-auto relative z-10">
-                    <Label className="text-zinc-400 text-sm">Abilita orari avanzati (settimanali):</Label>
+                <div className="flex items-center gap-2 shrink-0">
+                    <Label className="text-zinc-400 text-xs">Settimanale:</Label>
                     <Switch
                         checked={showAdvanced}
                         onCheckedChange={updateUseWeeklySchedule}
@@ -123,88 +122,86 @@ export default function WeeklyServiceHoursEditor({
 
             {/* Weekly Schedule Grid */}
             {showAdvanced && (
-                <Card className="bg-zinc-900/50 border-zinc-800 p-4 space-y-4">
-                    <div className="flex items-center justify-between text-xs text-zinc-500 uppercase tracking-wider px-2">
-                        <span className="w-16">Giorno</span>
-                        <div className="flex flex-1 justify-around max-w-[480px]">
-                            <span className="flex items-center gap-1 justify-center w-[220px]">
-                                <Sun size={14} weight="duotone" className="text-amber-400" />
-                                Mattina / Pranzo
+                <Card className="bg-zinc-900/50 border-zinc-800 p-3 space-y-2 overflow-hidden">
+                    <div className="flex items-center text-[10px] text-zinc-500 uppercase tracking-wider gap-2 px-1">
+                        <span className="w-10 shrink-0">Giorno</span>
+                        <div className="flex flex-1 gap-4">
+                            <span className="flex items-center gap-1 flex-1">
+                                <Sun size={12} weight="duotone" className="text-amber-400" />
+                                Pranzo
                             </span>
-                            <span className="flex items-center gap-1 justify-center w-[220px]">
-                                <Moon size={14} weight="duotone" className="text-indigo-400" />
-                                Sera / Cena
+                            <span className="flex items-center gap-1 flex-1">
+                                <Moon size={12} weight="duotone" className="text-indigo-400" />
+                                Cena
                             </span>
                         </div>
                     </div>
 
-                    <div className="space-y-2">
+                    <div className="space-y-1">
                         {DAYS.map(({ key, label, short }) => (
                             <div
                                 key={key}
-                                className="flex flex-col sm:flex-row items-start sm:items-center justify-between p-3 bg-zinc-800/30 rounded-lg hover:bg-zinc-800/50 transition-colors gap-4"
+                                className="flex items-center gap-2 p-2 bg-zinc-800/30 rounded-lg hover:bg-zinc-800/50 transition-colors"
                             >
-                                <span className="font-medium text-zinc-300 w-16">{short}</span>
+                                <span className="font-medium text-zinc-300 text-xs w-10 shrink-0">{short}</span>
 
-                                <div className="flex flex-col sm:flex-row gap-4 sm:gap-6 w-full max-w-[480px]">
+                                <div className="flex gap-4 flex-1 min-w-0">
                                     {/* Lunch */}
-                                    <div className="flex items-center gap-2 justify-between flex-1 p-2 sm:p-0 rounded-md bg-zinc-900/40 sm:bg-transparent">
+                                    <div className="flex items-center gap-1.5 flex-1 min-w-0">
                                         <button
                                             onClick={() => updateDayMeal(key, 'lunch', { enabled: !getMealConfig(key, 'lunch').enabled })}
                                             className={cn(
-                                                "w-8 h-8 rounded-md flex items-center justify-center transition-all flex-shrink-0",
+                                                "w-6 h-6 rounded flex items-center justify-center transition-all shrink-0",
                                                 getMealConfig(key, 'lunch').enabled
                                                     ? "bg-amber-500/20 text-amber-400 border border-amber-500/50"
                                                     : "bg-zinc-800 text-zinc-600 border border-zinc-700 hover:bg-zinc-700"
                                             )}
-                                            title={getMealConfig(key, 'lunch').enabled ? "Disattiva Pranzo" : "Attiva Pranzo"}
                                         >
-                                            {getMealConfig(key, 'lunch').enabled ? <Check size={16} weight="bold" /> : <X size={16} />}
+                                            {getMealConfig(key, 'lunch').enabled ? <Check size={12} weight="bold" /> : <X size={12} />}
                                         </button>
-                                        <div className={cn("flex items-center gap-1", !getMealConfig(key, 'lunch').enabled && "opacity-40 pointer-events-none")}>
+                                        <div className={cn("flex items-center gap-0.5 min-w-0", !getMealConfig(key, 'lunch').enabled && "opacity-30 pointer-events-none")}>
                                             <Input
                                                 type="time"
                                                 value={getMealConfig(key, 'lunch').start}
                                                 onChange={(e) => updateDayMeal(key, 'lunch', { start: e.target.value })}
-                                                className="w[85px] sm:w-[90px] h-8 text-[11px] sm:text-xs bg-zinc-900 border-zinc-700 px-1 sm:px-2 text-center"
+                                                className="w-[70px] h-7 text-[10px] bg-zinc-900 border-zinc-700 px-1 text-center"
                                             />
-                                            <span className="text-zinc-600">-</span>
+                                            <span className="text-zinc-600 text-[10px]">-</span>
                                             <Input
                                                 type="time"
                                                 value={getMealConfig(key, 'lunch').end}
                                                 onChange={(e) => updateDayMeal(key, 'lunch', { end: e.target.value })}
-                                                className="w-[85px] sm:w-[90px] h-8 text-[11px] sm:text-xs bg-zinc-900 border-zinc-700 px-1 sm:px-2 text-center"
+                                                className="w-[70px] h-7 text-[10px] bg-zinc-900 border-zinc-700 px-1 text-center"
                                             />
                                         </div>
                                     </div>
 
                                     {/* Dinner */}
-                                    <div className="flex items-center gap-2 justify-between flex-1 p-2 sm:p-0 rounded-md bg-zinc-900/40 sm:bg-transparent">
+                                    <div className="flex items-center gap-1.5 flex-1 min-w-0">
                                         <button
                                             onClick={() => updateDayMeal(key, 'dinner', { enabled: !getMealConfig(key, 'dinner').enabled })}
                                             className={cn(
-                                                "w-8 h-8 rounded-md flex items-center justify-center transition-all flex-shrink-0",
+                                                "w-6 h-6 rounded flex items-center justify-center transition-all shrink-0",
                                                 getMealConfig(key, 'dinner').enabled
                                                     ? "bg-indigo-500/20 text-indigo-400 border border-indigo-500/50"
                                                     : "bg-zinc-800 text-zinc-600 border border-zinc-700 hover:bg-zinc-700"
                                             )}
-                                            title={getMealConfig(key, 'dinner').enabled ? "Disattiva Cena" : "Attiva Cena"}
                                         >
-                                            {getMealConfig(key, 'dinner').enabled ? <Check size={16} weight="bold" /> : <X size={16} />}
+                                            {getMealConfig(key, 'dinner').enabled ? <Check size={12} weight="bold" /> : <X size={12} />}
                                         </button>
-                                        <div className={cn("flex items-center gap-1", !getMealConfig(key, 'dinner').enabled && "opacity-40 pointer-events-none")}>
+                                        <div className={cn("flex items-center gap-0.5 min-w-0", !getMealConfig(key, 'dinner').enabled && "opacity-30 pointer-events-none")}>
                                             <Input
                                                 type="time"
                                                 value={getMealConfig(key, 'dinner').start}
                                                 onChange={(e) => updateDayMeal(key, 'dinner', { start: e.target.value })}
-                                                className="w-[85px] sm:w-[90px] h-8 text-[11px] sm:text-xs bg-zinc-900 border-zinc-700 px-1 sm:px-2 text-center"
+                                                className="w-[70px] h-7 text-[10px] bg-zinc-900 border-zinc-700 px-1 text-center"
                                             />
-                                            <span className="text-zinc-600">-</span>
+                                            <span className="text-zinc-600 text-[10px]">-</span>
                                             <Input
                                                 type="time"
                                                 value={getMealConfig(key, 'dinner').end}
                                                 onChange={(e) => updateDayMeal(key, 'dinner', { end: e.target.value })}
-                                                className="w-[85px] sm:w-[90px] h-8 text-[11px] sm:text-xs bg-zinc-900 border-zinc-700 px-1 sm:px-2 text-center"
+                                                className="w-[70px] h-7 text-[10px] bg-zinc-900 border-zinc-700 px-1 text-center"
                                             />
                                         </div>
                                     </div>
@@ -218,20 +215,20 @@ export default function WeeklyServiceHoursEditor({
                         <Button
                             variant="outline"
                             size="sm"
-                            className="text-xs border-zinc-700 hover:bg-amber-500/10 hover:text-amber-400 hover:border-amber-500/50"
+                            className="text-[10px] h-7 px-2 border-zinc-700 hover:bg-amber-500/10 hover:text-amber-400 hover:border-amber-500/50"
                             onClick={() => applyToAll('lunch', true)}
                         >
-                            <Sun size={12} className="mr-1" />
-                            Attiva tutti i turni Pranzo
+                            <Sun size={10} className="mr-1" />
+                            Tutti Pranzo
                         </Button>
                         <Button
                             variant="outline"
                             size="sm"
-                            className="text-xs border-zinc-700 hover:bg-indigo-500/10 hover:text-indigo-400 hover:border-indigo-500/50"
+                            className="text-[10px] h-7 px-2 border-zinc-700 hover:bg-indigo-500/10 hover:text-indigo-400 hover:border-indigo-500/50"
                             onClick={() => applyToAll('dinner', true)}
                         >
-                            <Moon size={12} className="mr-1" />
-                            Attiva tutti i turni Cena
+                            <Moon size={10} className="mr-1" />
+                            Tutti Cena
                         </Button>
                     </div>
                 </Card>
