@@ -114,8 +114,8 @@ const RestaurantDashboard = ({ user, onLogout }: RestaurantDashboardProps) => {
   const [isExportingMenu, setIsExportingMenu] = useState(false)
   const [exportPreviewData, setExportPreviewData] = useState<{ title: string, subtitle?: string, sections: { id: string, title: string, dishes: Dish[] }[] } | null>(null)
   const [dishes, , refreshDishes, setDishes] = useSupabaseData<Dish>('dishes', [], { column: 'restaurant_id', value: restaurantId })
-  const [tables, , , setTables] = useSupabaseData<Table>('tables', [], { column: 'restaurant_id', value: restaurantId })
-  const [categories, , , setCategories] = useSupabaseData<Category>('categories', [], { column: 'restaurant_id', value: restaurantId })
+  const [tables, , refreshTables, setTables] = useSupabaseData<Table>('tables', [], { column: 'restaurant_id', value: restaurantId })
+  const [categories, , refreshCategories, setCategories] = useSupabaseData<Category>('categories', [], { column: 'restaurant_id', value: restaurantId })
   const [bookings, , refreshBookings] = useSupabaseData<Booking>('bookings', [], { column: 'restaurant_id', value: restaurantId })
   const [sessions, , refreshSessions] = useSupabaseData<TableSession>('table_sessions', [], { column: 'restaurant_id', value: restaurantId })
   const [rooms, , refreshRooms, setRooms] = useSupabaseData<Room>('rooms', [], { column: 'restaurant_id', value: restaurantId })
@@ -322,6 +322,23 @@ const RestaurantDashboard = ({ user, onLogout }: RestaurantDashboardProps) => {
         }
 
         // Check if we need to apply a new menu
+        // First, check if this schedule was manually suppressed
+        const suppressionKey = 'easyfood_menu_suppressed'
+        const suppression = localStorage.getItem(suppressionKey)
+        if (suppression) {
+          try {
+            const sup = JSON.parse(suppression)
+            // If suppressed for the same day+mealType, skip
+            if (sup.day === scheduleDay && sup.mealType === currentMealType) {
+              // Still suppressed — don't re-apply
+              return
+            } else {
+              // Different meal/day — clear the suppression
+              localStorage.removeItem(suppressionKey)
+            }
+          } catch { localStorage.removeItem(suppressionKey) }
+        }
+
         if (
           lastScheduledMenuRef.current.menuId === match.custom_menu_id &&
           lastScheduledMenuRef.current.mealType === currentMealType &&
@@ -523,6 +540,7 @@ const RestaurantDashboard = ({ user, onLogout }: RestaurantDashboardProps) => {
     imageFile: undefined
   })
   const [newCategory, setNewCategory] = useState('')
+  const [showNewCategoryPopup, setShowNewCategoryPopup] = useState(false)
   const [draggedCategory, setDraggedCategory] = useState<Category | null>(null)
   const [editingCategory, setEditingCategory] = useState<Category | null>(null)
   const [editCategoryName, setEditCategoryName] = useState('')
@@ -542,6 +560,8 @@ const RestaurantDashboard = ({ user, onLogout }: RestaurantDashboardProps) => {
   const [showRoomDialog, setShowRoomDialog] = useState(false)
   const [newRoomName, setNewRoomName] = useState('')
   const [editingRoom, setEditingRoom] = useState<Room | null>(null)
+  const [showAddRoomDialog, setShowAddRoomDialog] = useState(false)
+  const [newRoomSelectedTables, setNewRoomSelectedTables] = useState<string[]>([])
   const [editingDish, setEditingDish] = useState<Dish | null>(null)
   const [editDishData, setEditDishData] = useState<{
     name: string
@@ -589,6 +609,15 @@ const RestaurantDashboard = ({ user, onLogout }: RestaurantDashboardProps) => {
   const [selectedKitchenCategories, setSelectedKitchenCategories] = useState<string[]>([])
   const [kitchenZoom, setKitchenZoom] = useState(1)
   const [tableZoom, setTableZoom] = useState(1)
+
+  // Timeline State
+  const [selectedDate, setSelectedDate] = useState<Date>(new Date())
+  const refreshData = async () => {
+    // Basic wrapper to refresh data for the timeline
+    refreshTables?.()
+    refreshBookings?.()
+    refreshRooms?.()
+  }
 
   // Restaurant Settings State (initialized from DB)
   const [restaurantName, setRestaurantName] = useState(currentRestaurant?.name || '')
@@ -1616,7 +1645,6 @@ const RestaurantDashboard = ({ user, onLogout }: RestaurantDashboardProps) => {
                 { id: 'menu', label: 'Menu', icon: BookOpen },
                 { id: 'reservations', label: 'Prenotazioni', icon: Calendar },
                 { id: 'analytics', label: 'Analitiche', icon: ChartBar },
-                { id: 'settings', label: 'Impostazioni', icon: Gear },
               ].map((item) => (
                 <Button
                   key={item.id}
@@ -1653,14 +1681,32 @@ const RestaurantDashboard = ({ user, onLogout }: RestaurantDashboardProps) => {
               ))}
             </nav>
 
-            <div className="p-4 border-t border-white/5 bg-black/20 min-w-[272px]">
+            <div className="p-3 border-t border-white/5 bg-black/20 min-w-[272px] flex flex-col gap-1">
+              <Button
+                variant="ghost"
+                onClick={() => {
+                  setActiveTab('settings')
+                  setActiveSection('settings')
+                  setIsSidebarOpen(false)
+                }}
+                className={`w-full justify-start h-11 px-4 rounded-xl transition-all group relative overflow-hidden ${activeTab === 'settings'
+                  ? 'bg-gradient-to-r from-amber-500/10 to-transparent text-amber-500 font-medium'
+                  : 'text-zinc-500 hover:text-zinc-200 hover:bg-white/[0.03]'
+                  }`}
+              >
+                {activeTab === 'settings' && (
+                  <div className="absolute left-0 top-1/2 -translate-y-1/2 h-6 w-1 rounded-r-full bg-amber-500 shadow-[0_0_12px_rgba(245,158,11,0.8)]" />
+                )}
+                <Gear size={20} weight={activeTab === 'settings' ? 'fill' : 'regular'} className={`mr-3 transition-colors flex-shrink-0 ${activeTab === 'settings' ? 'text-amber-500' : 'text-zinc-600 group-hover:text-zinc-400'}`} />
+                <span className="text-sm tracking-wide">Impostazioni</span>
+              </Button>
               <Button
                 variant="ghost"
                 onClick={onLogout}
-                className="w-full justify-start h-12 px-4 rounded-xl text-zinc-500 hover:text-red-400 hover:bg-red-500/5 transition-all border border-transparent hover:border-red-500/10 group"
+                className="w-full justify-start h-11 px-4 rounded-xl text-zinc-500 hover:text-red-400 hover:bg-red-500/5 transition-all border border-transparent hover:border-red-500/10 group"
               >
                 <SignOut size={20} weight="regular" className="mr-3 group-hover:text-red-400 transition-colors flex-shrink-0" />
-                <span className="text-sm tracking-wide truncate">Esci</span>
+                <span className="text-sm tracking-wide">Esci</span>
               </Button>
             </div>
           </motion.aside>
@@ -2208,53 +2254,17 @@ const RestaurantDashboard = ({ user, onLogout }: RestaurantDashboardProps) => {
                       <DialogDescription className="text-zinc-400">Crea e organizza le aree del tuo ristorante</DialogDescription>
                     </DialogHeader>
                     <div className="space-y-4 mt-4">
-                      <div className="flex gap-2">
-                        <Input
-                          placeholder="Nuova Sala (es. Dehor, Interna...)"
-                          value={newRoomName}
-                          onChange={(e) => setNewRoomName(e.target.value)}
-                          onKeyDown={(e) => {
-                            if (e.key === 'Enter') {
-                              e.preventDefault();
-                              (e.target as HTMLInputElement).closest('div')?.querySelector('button')?.click()
-                            }
-                          }}
-                          className="bg-zinc-900 border-zinc-800 focus:border-amber-500"
-                        />
-                        <Button
-                          onClick={async () => {
-                            if (!newRoomName.trim()) {
-                              toast.error('Inserisci un nome per la sala')
-                              return
-                            }
-                            if (!restaurantId) {
-                              toast.error('ID ristorante mancante')
-                              return
-                            }
-                            try {
-                              const { error } = await supabase.from('rooms').insert({
-                                restaurant_id: restaurantId,
-                                name: newRoomName.trim(),
-                                is_active: true
-                              })
-                              if (error) {
-                                console.error('Room creation error:', error)
-                                toast.error(`Errore: ${error.message}`)
-                                return
-                              }
-                              setNewRoomName('')
-                              toast.success('Sala creata!')
-                              refreshRooms()
-                            } catch (e: any) {
-                              console.error('Room creation exception:', e)
-                              toast.error(`Errore: ${e?.message || 'Sconosciuto'}`)
-                            }
-                          }}
-                          className="bg-amber-600 hover:bg-amber-700 text-white"
-                        >
-                          Aggiungi
-                        </Button>
-                      </div>
+                      <Button
+                        onClick={() => {
+                          setNewRoomName('')
+                          setNewRoomSelectedTables([])
+                          setShowAddRoomDialog(true)
+                        }}
+                        className="w-full bg-amber-600 hover:bg-amber-700 text-white gap-2"
+                      >
+                        <Plus size={16} />
+                        Aggiungi Sala
+                      </Button>
 
                       <div className="space-y-2 mt-4">
                         {rooms?.map(room => (
@@ -2331,6 +2341,125 @@ const RestaurantDashboard = ({ user, onLogout }: RestaurantDashboardProps) => {
                         ))}
                         {rooms?.length === 0 && <p className="text-center text-sm text-zinc-500 py-4">Nessuna sala configurata</p>}
                       </div>
+                    </div>
+                  </DialogContent>
+                </Dialog>
+
+                {/* Add Room Dialog */}
+                <Dialog open={showAddRoomDialog} onOpenChange={setShowAddRoomDialog}>
+                  <DialogContent className="bg-zinc-950 border-zinc-800 text-zinc-100 max-h-[85vh] flex flex-col">
+                    <DialogHeader>
+                      <DialogTitle>Nuova Sala</DialogTitle>
+                      <DialogDescription className="text-zinc-400">Inserisci il nome e seleziona i tavoli da assegnare</DialogDescription>
+                    </DialogHeader>
+                    <div className="space-y-4 mt-2 flex-1 overflow-hidden flex flex-col">
+                      <Input
+                        placeholder="Nome sala (es. Dehor, Interna...)"
+                        value={newRoomName}
+                        onChange={(e) => setNewRoomName(e.target.value)}
+                        className="bg-zinc-900 border-zinc-800 focus:border-amber-500"
+                        autoFocus
+                      />
+                      <div className="flex-1 overflow-hidden flex flex-col">
+                        <div className="flex items-center justify-between mb-2">
+                          <p className="text-sm text-zinc-400 font-medium">Tavoli da assegnare</p>
+                          <span className="text-xs text-zinc-500">{newRoomSelectedTables.length} selezionati</span>
+                        </div>
+                        <div className="flex-1 overflow-y-auto space-y-1 pr-1 max-h-[40vh]">
+                          {restaurantTables
+                            .filter(t => t.is_active !== false)
+                            .sort((a, b) => {
+                              const numA = parseInt(a.number?.replace(/\D/g, '') || '0')
+                              const numB = parseInt(b.number?.replace(/\D/g, '') || '0')
+                              if (numA !== numB) return numA - numB
+                              return (a.number || '').localeCompare(b.number || '')
+                            })
+                            .map(table => {
+                              const currentRoom = rooms?.find(r => r.id === table.room_id)
+                              return (
+                                <label
+                                  key={table.id}
+                                  className="flex items-center gap-3 p-2.5 rounded-lg bg-zinc-900/50 border border-zinc-800 hover:border-zinc-700 cursor-pointer transition-colors"
+                                >
+                                  <Checkbox
+                                    checked={newRoomSelectedTables.includes(table.id)}
+                                    onCheckedChange={(checked) => {
+                                      setNewRoomSelectedTables(prev =>
+                                        checked
+                                          ? [...prev, table.id]
+                                          : prev.filter(id => id !== table.id)
+                                      )
+                                    }}
+                                    className="border-zinc-600 data-[state=checked]:bg-amber-600 data-[state=checked]:border-amber-600"
+                                  />
+                                  <div className="flex items-center justify-between flex-1 min-w-0">
+                                    <span className="font-medium text-sm">{table.number}</span>
+                                    <div className="flex items-center gap-2 text-xs text-zinc-500">
+                                      {table.seats && <span>{table.seats} posti</span>}
+                                      {currentRoom && <span className="text-amber-500/70">{currentRoom.name}</span>}
+                                    </div>
+                                  </div>
+                                </label>
+                              )
+                            })}
+                          {restaurantTables.filter(t => t.is_active !== false).length === 0 && (
+                            <p className="text-center text-sm text-zinc-500 py-4">Nessun tavolo disponibile</p>
+                          )}
+                        </div>
+                      </div>
+                      <Button
+                        onClick={async () => {
+                          if (!newRoomName.trim()) {
+                            toast.error('Inserisci un nome per la sala')
+                            return
+                          }
+                          if (!restaurantId) {
+                            toast.error('ID ristorante mancante')
+                            return
+                          }
+                          try {
+                            const { data: newRoom, error } = await supabase.from('rooms').insert({
+                              restaurant_id: restaurantId,
+                              name: newRoomName.trim(),
+                              is_active: true
+                            }).select().single()
+                            if (error) {
+                              console.error('Room creation error:', error)
+                              toast.error(`Errore: ${error.message}`)
+                              return
+                            }
+                            // Assign selected tables to the new room
+                            if (newRoomSelectedTables.length > 0 && newRoom) {
+                              const { error: updateError } = await supabase
+                                .from('tables')
+                                .update({ room_id: newRoom.id })
+                                .in('id', newRoomSelectedTables)
+                              if (updateError) {
+                                console.error('Table assignment error:', updateError)
+                                toast.error('Sala creata, ma errore nell\'assegnazione tavoli')
+                              }
+                              // Update local table state
+                              setTables(prev => prev.map(t =>
+                                newRoomSelectedTables.includes(t.id)
+                                  ? { ...t, room_id: newRoom.id }
+                                  : t
+                              ))
+                            }
+                            setNewRoomName('')
+                            setNewRoomSelectedTables([])
+                            setShowAddRoomDialog(false)
+                            toast.success('Sala creata!')
+                            refreshRooms()
+                          } catch (e: any) {
+                            console.error('Room creation exception:', e)
+                            toast.error(`Errore: ${e?.message || 'Sconosciuto'}`)
+                          }
+                        }}
+                        className="w-full bg-amber-600 hover:bg-amber-700 text-white"
+                        disabled={!newRoomName.trim()}
+                      >
+                        Crea Sala
+                      </Button>
                     </div>
                   </DialogContent>
                 </Dialog>
@@ -2505,6 +2634,61 @@ const RestaurantDashboard = ({ user, onLogout }: RestaurantDashboardProps) => {
               </div>
             </TabsContent >
 
+            {/* Timeline Tab */}
+            <TabsContent value="timeline" className="space-y-6">
+              <div className="flex flex-col md:flex-row items-start md:items-center justify-between mb-6 gap-4 pb-4 border-b border-white/10">
+                <div>
+                  <h2 className="text-2xl font-light text-white tracking-tight">Timeline <span className="font-bold text-amber-500">Prenotazioni</span></h2>
+                  <p className="text-sm text-zinc-400 mt-1 uppercase tracking-wider font-medium">Gestisci le prenotazioni su linea temporale</p>
+                </div>
+              </div>
+
+              <div className="bg-zinc-950/50 backdrop-blur-md rounded-2xl border border-white/[0.05] p-6">
+                {(() => {
+                  let effOpen = lunchTimeStart || '10:00';
+                  let effClose = '23:00'; // Default end
+
+                  if (weeklyServiceHours?.useWeeklySchedule && weeklyServiceHours.schedule) {
+                    const days = ['sunday', 'monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday'];
+                    const dayName = days[selectedDate.getDay()];
+                    const daySchedule = weeklyServiceHours.schedule[dayName];
+
+                    if (daySchedule) {
+                      const lunch = daySchedule.lunch;
+                      const dinner = daySchedule.dinner;
+
+                      if (lunch?.enabled && dinner?.enabled) {
+                        effOpen = lunch.start || lunchTimeStart || '10:00';
+                        effClose = dinner.end || '23:00';
+                      } else if (lunch?.enabled) {
+                        effOpen = lunch.start || lunchTimeStart || '10:00';
+                        effClose = lunch.end || '15:00';
+                      } else if (dinner?.enabled) {
+                        effOpen = dinner.start || dinnerTimeStart || '19:00';
+                        effClose = dinner.end || '23:00';
+                      }
+                    }
+                  }
+
+                  return (
+                    <ReservationsManager
+                      user={user}
+                      restaurantId={restaurantId}
+                      tables={tables || []}
+                      rooms={rooms || []}
+                      bookings={bookings || []}
+                      selectedDate={selectedDate}
+                      openingTime={effOpen}
+                      closingTime={effClose}
+                      reservationDuration={reservationDuration}
+                      onRefresh={refreshData}
+                      onDateChange={setSelectedDate}
+                    />
+                  );
+                })()}
+              </div>
+            </TabsContent>
+
             {/* Menu Tab */}
             <TabsContent value="menu" className="space-y-6">
               <div className="flex flex-col md:flex-row items-start md:items-center justify-between mb-6 gap-4 pb-4 border-b border-white/10">
@@ -2520,7 +2704,7 @@ const RestaurantDashboard = ({ user, onLogout }: RestaurantDashboardProps) => {
                         Menu Personalizzati
                       </Button>
                     </DialogTrigger>
-                    <DialogContent className="max-w-[92vw] w-full md:max-w-5xl h-[80vh] max-h-[85vh] p-0 overflow-hidden bg-zinc-950 border-zinc-800 text-zinc-100 flex flex-col rounded-2xl">
+                    <DialogContent className="max-w-[92vw] w-full md:max-w-4xl h-[75vh] max-h-[80vh] p-0 overflow-hidden bg-zinc-950 border-zinc-800/60 text-zinc-100 flex flex-col rounded-2xl shadow-2xl shadow-black/60">
                       <VisuallyHidden>
                         <DialogTitle>Gestione Menu Personalizzati</DialogTitle>
                         <DialogDescription>Gestisci i menu personalizzati</DialogDescription>
@@ -2530,6 +2714,20 @@ const RestaurantDashboard = ({ user, onLogout }: RestaurantDashboardProps) => {
                         dishes={dishes || []}
                         categories={categories || []}
                         onDishesChange={refreshDishes}
+                        onMenuDeactivated={() => {
+                          // Suppress the scheduler from re-applying for the current meal period
+                          const now = new Date()
+                          const dayOfWeek = now.getDay()
+                          const currentMinutes = now.getHours() * 60 + now.getMinutes()
+                          const lunchMin = lunchTimeStart ? parseInt(lunchTimeStart.split(':')[0]) * 60 + parseInt(lunchTimeStart.split(':')[1]) : 0
+                          const dinnerMin = dinnerTimeStart ? parseInt(dinnerTimeStart.split(':')[0]) * 60 + parseInt(dinnerTimeStart.split(':')[1]) : 0
+                          let mealType = 'lunch'
+                          if (dinnerMin > 0 && currentMinutes >= dinnerMin) mealType = 'dinner'
+                          else if (lunchMin > 0 && currentMinutes >= lunchMin) mealType = 'lunch'
+                          localStorage.setItem('easyfood_menu_suppressed', JSON.stringify({ day: dayOfWeek, mealType }))
+                          // Also clear the lastScheduledMenuRef so it doesn't think it's already applied
+                          lastScheduledMenuRef.current = { menuId: null, mealType: null, day: null }
+                        }}
                       />
                     </DialogContent>
                   </Dialog>
@@ -2757,14 +2955,14 @@ const RestaurantDashboard = ({ user, onLogout }: RestaurantDashboardProps) => {
                         </DialogDescription>
                       </DialogHeader>
                       <div className="space-y-4 mt-4">
-                        <div className="flex gap-2">
-                          <Input
-                            placeholder="Nuova categoria..."
-                            value={newCategory}
-                            onChange={(e) => setNewCategory(e.target.value)}
-                          />
-                          <Button onClick={handleCreateCategory}>Aggiungi</Button>
-                        </div>
+                        <Button
+                          className="w-full h-11 border-dashed border-zinc-700 hover:border-amber-500 hover:bg-amber-500/10 hover:text-amber-500 text-zinc-400 font-bold"
+                          variant="outline"
+                          onClick={() => { setNewCategory(''); setShowNewCategoryPopup(true); }}
+                        >
+                          <Plus size={16} className="mr-2" />
+                          + Nuova Categoria
+                        </Button>
                         <div className="space-y-2 max-h-[300px] overflow-y-auto pr-2">
                           {restaurantCategories.map((cat, index) => (
                             <div
@@ -2781,7 +2979,7 @@ const RestaurantDashboard = ({ user, onLogout }: RestaurantDashboardProps) => {
                                 </div>
                                 <span className="font-medium">{cat.name}</span>
                               </div>
-                              <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                              <div className="flex gap-1 opacity-100 sm:opacity-0 sm:group-hover:opacity-100 transition-opacity">
                                 <Button
                                   variant="secondary"
                                   size="icon"
@@ -2801,6 +2999,44 @@ const RestaurantDashboard = ({ user, onLogout }: RestaurantDashboardProps) => {
                               </div>
                             </div>
                           ))}
+                        </div>
+                      </div>
+                    </DialogContent>
+                  </Dialog>
+
+                  {/* New Category Popup */}
+                  <Dialog open={showNewCategoryPopup} onOpenChange={setShowNewCategoryPopup}>
+                    <DialogContent className="sm:max-w-sm bg-zinc-950 border-zinc-800 text-zinc-100 rounded-2xl">
+                      <DialogHeader>
+                        <DialogTitle className="text-lg">Nuova Categoria</DialogTitle>
+                        <DialogDescription>Inserisci il nome della nuova categoria.</DialogDescription>
+                      </DialogHeader>
+                      <div className="space-y-4 mt-2">
+                        <Input
+                          placeholder="Nome categoria..."
+                          value={newCategory}
+                          onChange={(e) => setNewCategory(e.target.value)}
+                          autoFocus
+                          className="bg-zinc-900 border-zinc-700 focus:border-amber-500/50"
+                          onKeyDown={(e) => {
+                            if (e.key === 'Enter' && newCategory.trim()) {
+                              handleCreateCategory();
+                              setShowNewCategoryPopup(false);
+                            }
+                          }}
+                        />
+                        <div className="flex justify-end gap-2">
+                          <Button variant="ghost" onClick={() => setShowNewCategoryPopup(false)} className="text-zinc-400">Annulla</Button>
+                          <Button
+                            className="bg-amber-500 hover:bg-amber-400 text-black font-bold"
+                            onClick={() => {
+                              handleCreateCategory();
+                              setShowNewCategoryPopup(false);
+                            }}
+                            disabled={!newCategory.trim()}
+                          >
+                            Crea
+                          </Button>
                         </div>
                       </div>
                     </DialogContent>
@@ -3898,7 +4134,6 @@ const RestaurantDashboard = ({ user, onLogout }: RestaurantDashboardProps) => {
                         </h1>
                       </div>
 
-                      {/* CTA */}
                       <p style={{
                         fontSize: '7px',
                         fontWeight: '700',
@@ -3911,9 +4146,8 @@ const RestaurantDashboard = ({ user, onLogout }: RestaurantDashboardProps) => {
                       }}>
                         {viewOnlyMenuEnabled ? 'Scansiona per visualizzare il menù' : 'Scansiona per ordinare'}
                       </p>
-
                       {/* QR Code */}
-                      <div style={{ padding: '2mm', border: '1px solid #e4e4e7', borderRadius: '6px', display: 'flex', justifyContent: 'center', alignItems: 'center' }}>
+                      < div style={{ padding: '2mm', border: '1px solid #e4e4e7', borderRadius: '6px', display: 'flex', justifyContent: 'center', alignItems: 'center' }}>
                         <QRCodeGenerator value={generateQrCode(table.id)} size={140} />
                       </div>
 
@@ -3934,8 +4168,7 @@ const RestaurantDashboard = ({ user, onLogout }: RestaurantDashboardProps) => {
                       {/* Decorative line */}
                       <div style={{ width: '24px', height: '1.5px', backgroundColor: '#d4d4d8', borderRadius: '1px' }} />
                     </div>
-                  ))
-                }
+                  ))}
               </div>
             )
           })

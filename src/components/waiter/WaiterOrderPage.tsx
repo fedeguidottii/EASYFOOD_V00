@@ -378,7 +378,7 @@ const WaiterOrderPage = () => {
             </div>
 
             {/* 3. Main Content - Dish List - Spaced for fixed headers */}
-            <main className="flex-1 pt-60 px-4 space-y-3 max-w-2xl mx-auto w-full">
+            <main className="flex-1 pt-[230px] sm:pt-[260px] px-3 sm:px-4 space-y-2.5 max-w-2xl mx-auto w-full">
                 {filteredDishes.length === 0 ? (
                     <div className="flex flex-col items-center justify-center py-20 text-zinc-600">
                         <Info size={48} className="mb-4 opacity-20" />
@@ -399,11 +399,11 @@ const WaiterOrderPage = () => {
                                 onClick={() => handleAddClick(dish)}
                             >
                                 {/* Image / Placeholder */}
-                                <div className="shrink-0 w-16 h-16 rounded-xl overflow-hidden bg-zinc-900 border border-white/5 relative">
+                                <div className="shrink-0 w-14 h-14 sm:w-16 sm:h-16 rounded-xl overflow-hidden bg-zinc-900 border border-white/5 relative">
                                     {dish.image_url ? (
                                         <img src={dish.image_url} alt={dish.name} className="w-full h-full object-cover" loading="lazy" />
                                     ) : (
-                                        <DishPlaceholder iconSize={24} className="text-zinc-700" variant="fork" />
+                                        <DishPlaceholder iconSize={20} className="text-zinc-700" variant="fork" />
                                     )}
                                 </div>
 
@@ -423,24 +423,24 @@ const WaiterOrderPage = () => {
                                     )}
                                 </div>
 
-                                {/* Add/Remove Buttons */}
-                                <div className="flex flex-col gap-2">
+                                {/* Add/Edit Buttons — larger for touch */}
+                                <div className="flex flex-col gap-1.5">
                                     {/* Note/Edit Button */}
                                     <div
-                                        className="w-8 h-8 rounded-full flex items-center justify-center border border-zinc-800 bg-zinc-900/50 text-zinc-400 hover:text-amber-500 hover:border-amber-500"
+                                        className="w-10 h-10 rounded-full flex items-center justify-center border border-zinc-800 bg-zinc-900/50 text-zinc-400 hover:text-amber-500 hover:border-amber-500 active:scale-95 transition-all"
                                         onClick={(e) => openDishDetail(dish, e)}
                                     >
-                                        <PencilSimple weight="bold" size={14} />
+                                        <PencilSimple weight="bold" size={16} />
                                     </div>
 
                                     <div
-                                        className="w-8 h-8 rounded-full flex items-center justify-center border transition-colors bg-transparent text-zinc-600 border-zinc-800 hover:text-amber-500 hover:border-amber-500"
+                                        className="w-10 h-10 rounded-full flex items-center justify-center border transition-colors bg-amber-500/10 text-amber-500 border-amber-500/30 hover:bg-amber-500/20 active:scale-95"
                                         onClick={(e) => {
                                             e.stopPropagation()
                                             handleAddClick(dish)
                                         }}
                                     >
-                                        <Plus weight="bold" size={14} />
+                                        <Plus weight="bold" size={18} />
                                     </div>
                                 </div>
                             </motion.div>
@@ -531,14 +531,14 @@ const WaiterOrderPage = () => {
                                                                                 </button>
                                                                             </div>
 
-                                                                            {/* Course Selection Buttons */}
+                                                                            {/* Course Selection Buttons — larger for touch */}
                                                                             <div className="flex items-center gap-1 bg-black/40 rounded-lg p-1">
                                                                                 <span className="text-[10px] text-zinc-500 px-1 uppercase">Port.</span>
                                                                                 {[1, 2, 3, 4, 5].map(cn => (
                                                                                     <button
                                                                                         key={cn}
                                                                                         onClick={() => moveToCourse(realIndex, cn)}
-                                                                                        className={`w-7 h-7 flex items-center justify-center rounded-md text-xs font-bold transition-all ${item.courseNumber === cn
+                                                                                        className={`w-8 h-8 flex items-center justify-center rounded-md text-xs font-bold transition-all ${item.courseNumber === cn
                                                                                             ? 'bg-amber-500 text-black'
                                                                                             : 'bg-zinc-800 text-zinc-400 hover:text-white hover:bg-zinc-700'
                                                                                             }`}
