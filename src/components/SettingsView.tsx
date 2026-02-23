@@ -746,23 +746,24 @@ export function SettingsView({
                         exit="exit"
                         className="space-y-6"
                     >
-                        <div className="grid md:grid-cols-[1fr_1.8fr] gap-4 items-start">
-                            {/* Left column: Turnazione Tavoli */}
-                            <div className="p-4 rounded-xl bg-zinc-900/50 border border-white/5 backdrop-blur-sm">
-                                <div className="flex items-center gap-2 mb-3">
-                                    <div className="w-8 h-8 rounded-lg flex items-center justify-center bg-amber-500/15 text-amber-500 border border-amber-500/20 shrink-0">
-                                        <Clock size={16} weight="duotone" />
+                        {/* Top row: Turnazione and QR Code */}
+                        <div className="grid md:grid-cols-2 gap-6 items-stretch">
+                            {/* Turnazione Tavoli */}
+                            <div className="p-6 rounded-2xl bg-zinc-900/50 border border-white/5 backdrop-blur-sm shadow-xl flex flex-col justify-center">
+                                <div className="flex items-center gap-3 mb-6">
+                                    <div className="w-10 h-10 rounded-xl flex items-center justify-center bg-amber-500/15 text-amber-500 border border-amber-500/20 shadow-inner">
+                                        <Clock size={20} weight="duotone" />
                                     </div>
                                     <div>
-                                        <h3 className="text-sm font-bold text-white">Turnazione Tavoli</h3>
-                                        <p className="text-[11px] text-zinc-500">Durata standard prenotazione</p>
+                                        <h3 className="text-lg font-bold text-white">Turnazione Tavoli</h3>
+                                        <p className="text-xs text-zinc-500">Durata standard prenotazione</p>
                                     </div>
                                 </div>
                                 <Select
                                     value={reservationDuration.toString()}
                                     onValueChange={(val) => setReservationDuration(parseInt(val))}
                                 >
-                                    <SelectTrigger className="h-9 w-full bg-black/20 border-white/10 text-sm">
+                                    <SelectTrigger className="h-12 w-full bg-black/40 border-white/10 text-base shadow-sm hover:border-amber-500/50 transition-colors">
                                         <SelectValue />
                                     </SelectTrigger>
                                     <SelectContent className="bg-zinc-900 border-zinc-800 text-zinc-200">
@@ -775,8 +776,53 @@ export function SettingsView({
                                 </Select>
                             </div>
 
-                            {/* Right column: Orari Servizio */}
-                            <div className="relative p-4 rounded-xl bg-gradient-to-br from-zinc-900/80 to-zinc-900/40 border border-white/5 overflow-hidden">
+                            {/* QR Code & Prenotazioni Pubbliche */}
+                            <div className="p-6 rounded-2xl bg-zinc-900/50 border border-white/5 backdrop-blur-sm shadow-xl flex flex-col justify-center">
+                                <div className="flex items-center gap-3 mb-6">
+                                    <div className="w-10 h-10 rounded-xl flex items-center justify-center bg-amber-500/15 text-amber-500 border border-amber-500/20 shadow-inner">
+                                        <Storefront size={20} weight="duotone" />
+                                    </div>
+                                    <div>
+                                        <h3 className="text-lg font-bold text-white">Prenotazioni via QR</h3>
+                                        <p className="text-xs text-zinc-500">Configura l'accesso pubblico</p>
+                                    </div>
+                                </div>
+
+                                <div className="space-y-6">
+                                    <div className="flex items-center justify-between">
+                                        <div className="space-y-1 pr-4">
+                                            <Label className="text-base font-semibold text-zinc-200 leading-none">Abilita Prenotazioni da QR</Label>
+                                            <p className="text-xs text-zinc-400">Se disattivato, il QR mostrerà un avviso di servizio sospeso.</p>
+                                        </div>
+                                        <Switch
+                                            checked={enablePublicReservations}
+                                            onCheckedChange={setEnablePublicReservations}
+                                            className="data-[state=checked]:bg-amber-500 scale-110 shrink-0"
+                                        />
+                                    </div>
+                                    <Separator className="bg-white/5" />
+                                    <div className="flex items-center justify-between">
+                                        <div className="space-y-1 pr-4">
+                                            <Label className="text-base font-semibold text-zinc-200 leading-none">Consenti Scelta Sala</Label>
+                                            <p className="text-xs text-zinc-400">Permetti ai clienti di indicare preferenze sulla zona.</p>
+                                        </div>
+                                        <Switch
+                                            disabled={!enablePublicReservations}
+                                            checked={enableReservationRoomSelection && enablePublicReservations}
+                                            onCheckedChange={setEnableReservationRoomSelection}
+                                            className="data-[state=checked]:bg-amber-500 scale-110 shrink-0"
+                                        />
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        {/* Bottom row: Orari di Servizio (Full Width) */}
+                        <div className="relative p-6 sm:p-8 rounded-2xl bg-gradient-to-br from-zinc-900/90 to-zinc-900/50 border border-white/5 backdrop-blur-sm shadow-2xl overflow-hidden group">
+                            <div className="absolute top-0 right-0 p-8 opacity-[0.03] transition-opacity duration-500 group-hover:opacity-5 pointer-events-none">
+                                <Clock size={200} weight="fill" />
+                            </div>
+                            <div className="relative z-10 w-full max-w-4xl mx-auto">
                                 <WeeklyServiceHoursEditor
                                     schedule={weeklyServiceHours || {
                                         enabled: true,
@@ -787,41 +833,6 @@ export function SettingsView({
                                     defaultLunchStart={lunchTimeStart}
                                     defaultDinnerStart={dinnerTimeStart}
                                 />
-                            </div>
-
-                            {/* QR Code & Prenotazioni Pubbliche */}
-                            <div className="p-6 rounded-2xl bg-zinc-900/50 border border-white/5 backdrop-blur-sm md:col-span-2">
-                                <h3 className="text-lg font-bold mb-4 flex items-center gap-2">
-                                    <Storefront className="text-amber-500" />
-                                    Prenotazioni Pubbliche (QR Code)
-                                </h3>
-                                <div className="space-y-6">
-                                    <div className="flex items-center justify-between">
-                                        <div className="space-y-0.5">
-                                            <Label className="text-base text-zinc-200">Abilita Prenotazioni da QR</Label>
-                                            <p className="text-sm text-zinc-400">Se disattivato, il QR Code mostrerà un avviso di servizio non disponibile ma rimarrà valido.</p>
-                                        </div>
-                                        <Switch
-                                            checked={enablePublicReservations}
-                                            onCheckedChange={setEnablePublicReservations}
-                                            className="data-[state=checked]:bg-amber-500"
-                                        />
-                                    </div>
-                                    <Separator className="bg-white/5" />
-                                    <div className="flex items-center justify-between">
-                                        <div className="space-y-0.5">
-                                            <Label className="text-base text-zinc-200">Consenti Scelta Sala</Label>
-                                            <p className="text-sm text-zinc-400">Permetti ai clienti di indicare una preferenza per la sala/zona.</p>
-                                        </div>
-                                        {enablePublicReservations && (
-                                            <Switch
-                                                checked={enableReservationRoomSelection}
-                                                onCheckedChange={setEnableReservationRoomSelection}
-                                                className="data-[state=checked]:bg-amber-500"
-                                            />
-                                        )}
-                                    </div>
-                                </div>
                             </div>
                         </div>
                     </motion.div>

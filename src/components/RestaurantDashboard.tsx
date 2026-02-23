@@ -2961,7 +2961,7 @@ const RestaurantDashboard = ({ user, onLogout }: RestaurantDashboardProps) => {
                           onClick={() => { setNewCategory(''); setShowNewCategoryPopup(true); }}
                         >
                           <Plus size={16} className="mr-2" />
-                          + Nuova Categoria
+                          Nuova Categoria
                         </Button>
                         <div className="space-y-2 max-h-[300px] overflow-y-auto pr-2">
                           {restaurantCategories.map((cat, index) => (

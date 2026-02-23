@@ -14,7 +14,7 @@ type ThemeProviderState = {
 }
 
 const initialState: ThemeProviderState = {
-    theme: "system",
+    theme: "dark",
     setTheme: () => null,
 }
 
@@ -22,50 +22,22 @@ const ThemeProviderContext = createContext<ThemeProviderState>(initialState)
 
 export function ThemeProvider({
     children,
-    defaultTheme = "system",
+    defaultTheme = "dark",
     storageKey = "vite-ui-theme",
 }: ThemeProviderProps) {
-    const [theme, setTheme] = useState<Theme>(
-        () => (localStorage.getItem(storageKey) as Theme) || defaultTheme
-    )
+    const [theme, setTheme] = useState<Theme>("dark")
 
     useEffect(() => {
         const root = window.document.documentElement
-        const mediaQuery = window.matchMedia("(prefers-color-scheme: dark)")
-
-        const applyTheme = (value: "light" | "dark") => {
-            root.classList.remove("light", "dark")
-            root.classList.add(value)
-            root.dataset.theme = value
-            root.style.colorScheme = value
-        }
-
-        const currentTheme =
-            theme === "system"
-                ? mediaQuery.matches
-                    ? "dark"
-                    : "light"
-                : theme
-
-        applyTheme(currentTheme)
-
-        const handleChange = (event: MediaQueryListEvent) => {
-            if (theme === "system") {
-                applyTheme(event.matches ? "dark" : "light")
-            }
-        }
-
-        mediaQuery.addEventListener("change", handleChange)
-
-        return () => mediaQuery.removeEventListener("change", handleChange)
-    }, [theme])
+        root.classList.remove("light")
+        root.classList.add("dark")
+        root.dataset.theme = "dark"
+        root.style.colorScheme = "dark"
+    }, [])
 
     const value = {
-        theme,
-        setTheme: (theme: Theme) => {
-            localStorage.setItem(storageKey, theme)
-            setTheme(theme)
-        },
+        theme: "dark" as Theme,
+        setTheme: () => { }, // Disable setting theme
     }
 
     return (

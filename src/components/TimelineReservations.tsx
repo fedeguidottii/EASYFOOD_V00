@@ -52,7 +52,12 @@ export default function TimelineReservations({ user, restaurantId, tables, booki
   const [bookingToDelete, setBookingToDelete] = useState<Booking | null>(null)
   const [showArriveConfirmDialog, setShowArriveConfirmDialog] = useState(false)
   const [bookingToArrive, setBookingToArrive] = useState<Booking | null>(null)
+
+  // Custom Pointer Drag states
   const [dragOffsetMinutes, setDragOffsetMinutes] = useState(0)
+  const [draggedBookingDuration, setDraggedBookingDuration] = useState<number>(0)
+  const [isPointerDragging, setIsPointerDragging] = useState(false)
+  const [pointerDragStart, setPointerDragStart] = useState<{ x: number, y: number } | null>(null)
 
   // Smart table search states
   const [showSmartSearch, setShowSmartSearch] = useState(false)
@@ -373,60 +378,6 @@ export default function TimelineReservations({ user, restaurantId, tables, booki
     }
   }
 
-  // Drag and Drop Handlers
-  const handleDragStart = (e: React.DragEvent, bookingId: string, duration: number) => {
-    e.dataTransfer.setData('bookingId', bookingId)
-    setDraggedBookingId(bookingId)
-
-    // Calculate click offset relative to the block
-    const rect = e.currentTarget.getBoundingClientRect()
-    const clickX = e.clientX - rect.left
-    const offsetPercentage = clickX / rect.width
-    const offsetMinutes = Math.round(offsetPercentage * duration)
-    setDragOffsetMinutes(offsetMinutes)
-  }
-
-  const handleDragOver = (e: React.DragEvent) => {
-    e.preventDefault()
-  }
-
-  const handleDrop = (e: React.DragEvent, tableId: string) => {
-    e.preventDefault()
-    const bookingId = e.dataTransfer.getData('bookingId')
-    if (!bookingId) return
-
-    const rect = e.currentTarget.getBoundingClientRect()
-    const clickX = e.clientX - rect.left
-    const percentage = (clickX / rect.width) * 100
-    const totalMinutes = TIMELINE_DURATION
-
-    // Position on timeline in minutes
-    const mouseMinutes = TIMELINE_START_MINUTES + (percentage / 100) * totalMinutes
-
-    // Adjust for the drag offset
-    const adjustedStartMinutes = mouseMinutes - dragOffsetMinutes
-
-    // Snap to 15 mins
-    const roundedMinutes = Math.round(adjustedStartMinutes / 15) * 15
-    const newTime = minutesToTime(roundedMinutes)
-
-    if (hasConflict(tableId, newTime, reservationDuration, bookingId)) {
-      toast.error('Orario occupato o sovrapposto')
-      return
-    }
-
-    // Capacity Check
-    const targetTable = restaurantTables.find(t => t.id === tableId)
-    const movingBooking = localBookings.find(b => b.id === bookingId)
-    if (targetTable && movingBooking && (targetTable.seats || 4) < movingBooking.guests) {
-      toast.error(`Il tavolo ${targetTable.number} può contenere massimo ${targetTable.seats || 4} persone`)
-      return
-    }
-
-    setDropTarget({ tableId, time: newTime })
-    setShowDragConfirmDialog(true)
-  }
-
   const confirmMove = async () => {
     if (!draggedBookingId || !dropTarget) return
 
@@ -444,8 +395,7 @@ export default function TimelineReservations({ user, restaurantId, tables, booki
       toast.error('Errore spostamento')
     } finally {
       setShowDragConfirmDialog(false)
-      setDraggedBookingId(null)
-      setDropTarget(null)
+      // draggedBookingId and dropTarget cleared on dialog close
     }
   }
 
@@ -664,6 +614,7 @@ export default function TimelineReservations({ user, restaurantId, tables, booki
 
                   {/* RIGHT COLUMN: TIMELINE STRIP */}
                   <div
+                    data-table-id={table.id}
                     className="flex-1 relative cursor-crosshair group touch-none"
                     onPointerDown={(e) => handleSlotPointerDown(e, table.id)}
                     onPointerMove={(e) => handleSlotPointerMove(e, table.id)}
@@ -674,8 +625,6 @@ export default function TimelineReservations({ user, restaurantId, tables, booki
                       setSelectionEnd(null)
                     }}
                     onMouseLeave={handleTimelineMouseLeave}
-                    onDragOver={handleDragOver}
-                    onDrop={(e) => handleDrop(e, table.id)}
                   >
                     {/* DRAG SELECTION BLOCK */}
                     {isSelectingSlot && selectionStart && selectionEnd && selectionStart.tableId === table.id && (
@@ -708,6 +657,17 @@ export default function TimelineReservations({ user, restaurantId, tables, booki
                           {hoveredSlot.time}
                         </div>
                       </div>
+                    )}
+
+                    {/* DROP TARGET PREVIEW (FOR DRAGGING EXISTING BOOKING) */}
+                    {dropTarget && dropTarget.tableId === table.id && draggedBookingId && (
+                      <div
+                        className="absolute top-2 bottom-2 rounded-md bg-amber-500/40 border-2 border-amber-500/80 border-dashed z-40 pointer-events-none transition-none"
+                        style={{
+                          left: `${getBlockStyle(timeToMinutes(dropTarget.time), draggedBookingDuration).left}`,
+                          width: `${getBlockStyle(timeToMinutes(dropTarget.time), draggedBookingDuration).width}`
+                        }}
+                      />
                     )}
 
                     {/* GRID LINES (Absolute) */}
@@ -747,22 +707,117 @@ export default function TimelineReservations({ user, restaurantId, tables, booki
                         return (
                           <div
                             key={block.booking.id}
-                            draggable={!isCompleted}
-                            onDragStart={(e) => handleDragStart(e, block.booking.id, block.duration)}
-                            // INCREASED SCALE: hover:scale-105 for more pop
-                            className={`absolute top-2 bottom-2 rounded-md border border-white/20 px-2 flex flex-col justify-center overflow-hidden transition-all duration-300 hover:z-50 hover:scale-[1.03] hover:shadow-[0_20px_40px_rgba(0,0,0,0.8)] ${isCompleted ? 'opacity-40 grayscale scale-[0.98]' : 'shadow-[0_10px_20px_-5px_rgba(0,0,0,0.5)]'}`}
+                            className={`absolute top-2 bottom-2 rounded-md border border-white/20 px-2 flex flex-col justify-center overflow-hidden transition-all duration-300 hover:z-50 hover:scale-[1.03] hover:shadow-[0_20px_40px_rgba(0,0,0,0.8)] ${isCompleted ? 'opacity-40 grayscale scale-[0.98]' : 'shadow-[0_10px_20px_-5px_rgba(0,0,0,0.5)] cursor-move'} ${draggedBookingId === block.booking.id ? 'opacity-60 scale-95' : ''}`}
                             style={{
                               left: `${getBlockStyle(block.startMinutes, block.duration).left}`,
                               width: `${getBlockStyle(block.startMinutes, block.duration).width}`,
                               backgroundColor: bgColor,
                               color: '#000', // Force black text for contrast on gold
-                              fontWeight: 600
+                              fontWeight: 600,
+                              touchAction: 'none'
                             }}
-                            onClick={(e) => {
+                            onPointerDown={(e) => {
+                              if (isCompleted) return;
+                              if ((e.target as HTMLElement).closest('button')) return
+                              if (e.pointerType === 'mouse' && e.button !== 0) return
+
                               e.stopPropagation()
-                              onEditBooking?.(block.booking)
+                              e.currentTarget.setPointerCapture(e.pointerId)
+
+                              setPointerDragStart({ x: e.clientX, y: e.clientY })
+                              setIsPointerDragging(false)
+                              setDraggedBookingId(block.booking.id)
+                              setDraggedBookingDuration(block.duration)
+
+                              const rect = e.currentTarget.getBoundingClientRect()
+                              const clickX = e.clientX - rect.left
+                              const offsetPercentage = clickX / rect.width
+                              const offsetMinutes = Math.round(offsetPercentage * block.duration)
+                              setDragOffsetMinutes(offsetMinutes)
                             }}
-                            onMouseEnter={() => setHoveredSlot(null)} // Hide ghost block explicitly when entering a block
+                            onPointerMove={(e) => {
+                              if (isCompleted) return;
+                              e.stopPropagation()
+                              if (draggedBookingId !== block.booking.id) return
+
+                              if (!isPointerDragging && pointerDragStart) {
+                                const dx = e.clientX - pointerDragStart.x
+                                const dy = e.clientY - pointerDragStart.y
+                                if (Math.abs(dx) > 5 || Math.abs(dy) > 5) {
+                                  setIsPointerDragging(true)
+                                }
+                              }
+
+                              if (isPointerDragging) {
+                                const el = e.currentTarget as HTMLElement
+                                const originalPointerEvents = el.style.pointerEvents
+                                el.style.pointerEvents = 'none'
+                                const elementBelow = document.elementFromPoint(e.clientX, e.clientY)
+                                el.style.pointerEvents = originalPointerEvents
+
+                                const tableRow = elementBelow?.closest('[data-table-id]') as HTMLElement | null
+                                if (tableRow) {
+                                  const tableId = tableRow.getAttribute('data-table-id')!
+
+                                  const rect = tableRow.getBoundingClientRect()
+                                  const clickX = Math.max(0, Math.min(e.clientX - rect.left, rect.width))
+                                  const percentage = (clickX / rect.width) * 100
+                                  const mouseMinutes = TIMELINE_START_MINUTES + (percentage / 100) * TIMELINE_DURATION
+                                  const adjustedStartMinutes = mouseMinutes - dragOffsetMinutes
+
+                                  const roundedMinutes = Math.round(adjustedStartMinutes / 15) * 15
+                                  const newTime = minutesToTime(roundedMinutes)
+
+                                  setDropTarget({ tableId, time: newTime })
+                                } else {
+                                  setDropTarget(null)
+                                }
+                              }
+                            }}
+                            onPointerUp={(e) => {
+                              if (isCompleted) return;
+                              e.stopPropagation()
+                              e.currentTarget.releasePointerCapture(e.pointerId)
+
+                              if (isPointerDragging) {
+                                if (dropTarget) {
+                                  const originalTime = minutesToTime(block.startMinutes)
+                                  if (originalTime !== dropTarget.time || block.table.id !== dropTarget.tableId) {
+                                    if (hasConflict(dropTarget.tableId, dropTarget.time, block.duration, block.booking.id)) {
+                                      toast.error('Orario occupato o sovrapposto')
+                                      setDraggedBookingId(null)
+                                      setDropTarget(null)
+                                    } else {
+                                      setShowDragConfirmDialog(true)
+                                    }
+                                  } else {
+                                    setDraggedBookingId(null)
+                                    setDropTarget(null)
+                                  }
+                                } else {
+                                  setDraggedBookingId(null)
+                                }
+                              } else {
+                                if (!(e.target as HTMLElement).closest('button')) {
+                                  onEditBooking?.(block.booking)
+                                }
+                                setDraggedBookingId(null)
+                                setDropTarget(null)
+                              }
+
+                              setPointerDragStart(null)
+                              setIsPointerDragging(false)
+                            }}
+                            onPointerCancel={(e) => {
+                              if (isCompleted) return;
+                              e.stopPropagation()
+                              e.currentTarget.releasePointerCapture(e.pointerId)
+                              setPointerDragStart(null)
+                              setIsPointerDragging(false)
+                              setDraggedBookingId(null)
+                              setDropTarget(null)
+                            }}
+                            onMouseEnter={() => setHoveredSlot(null)}
                           >
                             <div className="flex items-center gap-1.5 overflow-hidden">
                               <div className="font-bold text-sm truncate leading-tight flex-1">
@@ -777,7 +832,7 @@ export default function TimelineReservations({ user, restaurantId, tables, booki
                             </div>
 
                             {!isCompleted && (
-                              <div className="absolute top-1 right-1 flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity bg-black/20 rounded-full p-0.5 backdrop-blur-sm"> {/* Hide buttons by default */}
+                              <div className="absolute top-1 right-1 flex gap-1 md:opacity-0 md:group-hover:opacity-100 opacity-100 transition-opacity bg-black/30 rounded-full p-0.5 backdrop-blur-sm z-10">
                                 <Button
                                   variant="ghost"
                                   size="icon"
