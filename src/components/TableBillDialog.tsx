@@ -296,7 +296,7 @@ export default function TableBillDialog({
     // Render Helper
     return (
         <Dialog open={isOpen} onOpenChange={(open) => !open && onClose()}>
-            <DialogContent className="sm:max-w-xl w-[95vw] max-h-[85vh] md:max-h-[90vh] overflow-hidden bg-zinc-950/90 backdrop-blur-2xl border-white/10 text-zinc-100 p-0 rounded-[2rem] shadow-[0_0_50px_-12px_rgba(0,0,0,0.8)] flex flex-col outline-none">
+            <DialogContent className="sm:max-w-xl w-[95vw] max-h-[85vh] md:max-h-[90vh] overflow-hidden bg-zinc-950/90 backdrop-blur-2xl border-white/10 text-zinc-100 p-0 rounded-[2rem] shadow-[0_0_50px_-12px_rgba(0,0,0,0.8)] flex flex-col outline-none [&>button.absolute]:hidden">
 
                 {/* Header */}
                 <div className="p-4 md:p-6 border-b border-white/5 bg-zinc-900/40 flex items-center justify-between shrink-0 relative z-20">
@@ -351,7 +351,7 @@ export default function TableBillDialog({
                                         </div>
                                     </div>
 
-                                    <ScrollArea className="flex-1 relative z-10">
+                                    <div className="flex-1 min-h-0 relative z-10 overflow-y-auto custom-scrollbar">
                                         <div className="p-6 space-y-3">
                                             {(() => {
                                                 // Group items for clean receipt display
@@ -393,7 +393,7 @@ export default function TableBillDialog({
                                                 ))
                                             })()}
                                         </div>
-                                    </ScrollArea>
+                                    </div>
 
                                     {/* Receipt Footer */}
                                     <div className="p-6 border-t border-white/10 bg-black/20 backdrop-blur-md relative z-10">
@@ -407,7 +407,7 @@ export default function TableBillDialog({
                                 </div>
 
                                 {/* Split Options - Floating above bottom */}
-                                <div className="mt-4 grid grid-cols-2 gap-3">
+                                <div className="mt-4 grid grid-cols-2 gap-3 shrink-0">
                                     <Button
                                         variant="outline"
                                         className="h-14 rounded-2xl bg-zinc-900/50 backdrop-blur-md border-zinc-700/50 text-zinc-300 hover:text-amber-400 hover:bg-zinc-800 hover:border-amber-500/50 transition-all duration-300 group"
@@ -458,7 +458,7 @@ export default function TableBillDialog({
                                         </button>
                                     </div>
 
-                                    <ScrollArea className="flex-1 relative z-10">
+                                    <div className="flex-1 min-h-0 relative z-10 overflow-y-auto custom-scrollbar">
                                         <div className="p-4 space-y-2 pb-6">
                                             {splitPayableItems.map((item) => {
                                                 const isSelected = selectedSplitItems.has(item.id)
@@ -497,7 +497,7 @@ export default function TableBillDialog({
                                                 </div>
                                             )}
                                         </div>
-                                    </ScrollArea>
+                                    </div>
                                 </div>
                             </motion.div>
                         )}

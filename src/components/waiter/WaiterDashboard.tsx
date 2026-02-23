@@ -618,7 +618,7 @@ const WaiterDashboard = ({ user, onLogout }: WaiterDashboardProps) => {
             : tables.filter(t => t.room_id === selectedRoomFilter)
 
     if (loading) return (
-        <div className="min-h-screen bg-zinc-950 flex flex-col items-center justify-center text-amber-500">
+        <div className="min-h-[100dvh] bg-zinc-950 flex flex-col items-center justify-center text-amber-500">
             <div className="w-12 h-12 border-4 border-amber-500/30 border-t-amber-500 rounded-full animate-spin mb-4" />
             <p className="font-medium tracking-widest uppercase text-xs">Caricamento...</p>
         </div>
@@ -761,7 +761,7 @@ const WaiterDashboard = ({ user, onLogout }: WaiterDashboardProps) => {
     }
 
     return (
-        <div className="min-h-screen bg-zinc-950 p-4 md:p-6 pb-24 text-zinc-100 font-sans selection:bg-amber-500/30">
+        <div className="min-h-[100dvh] bg-zinc-950 p-4 md:p-6 pb-24 text-zinc-100 font-sans selection:bg-amber-500/30">
             {/* Background Ambience */}
             <div className="fixed inset-0 bg-[radial-gradient(ellipse_at_top,_var(--tw-gradient-stops))] from-amber-900/10 via-zinc-950 to-zinc-950 pointer-events-none" />
             <div className="fixed inset-0 bg-[url('https://grainy-gradients.vercel.app/noise.svg')] opacity-20 pointer-events-none brightness-100 contrast-150 mix-blend-overlay"></div>

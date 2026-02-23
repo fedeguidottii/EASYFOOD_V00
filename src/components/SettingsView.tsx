@@ -21,7 +21,9 @@ import {
     Info,
     CheckCircle,
     Gear,
-    Palette
+    Palette,
+    Eye,
+    EyeSlash
 } from '@phosphor-icons/react'
 import { SoundType } from '../utils/SoundManager'
 import { STYLE_PRESETS, COLOR_OPTIONS } from '../utils/menuTheme'
@@ -265,31 +267,31 @@ export function SettingsView({
             </motion.div>
 
             <Tabs defaultValue="general" className="w-full">
-                <TabsList className="w-full justify-start h-auto bg-transparent border-b border-white/10 p-0 mb-8 gap-6 overflow-x-auto">
+                <TabsList className="w-full justify-start h-auto bg-transparent border-b border-white/10 p-0 pb-0 mb-8 gap-6 overflow-x-auto [overflow:visible]">
                     <TabsTrigger
                         value="general"
-                        className="rounded-none border-b-2 border-transparent data-[state=active]:border-amber-500 data-[state=active]:bg-transparent px-2 py-3 text-zinc-400 data-[state=active]:text-amber-400 transition-all font-medium gap-2"
+                        className="rounded-none border-b-2 border-transparent data-[state=active]:border-amber-500 data-[state=active]:bg-transparent px-2 py-3 text-zinc-400 data-[state=active]:text-amber-400 transition-all font-medium gap-2 focus-visible:outline-none focus-visible:ring-0"
                     >
                         <Storefront size={20} />
                         Generale
                     </TabsTrigger>
                     <TabsTrigger
                         value="costs"
-                        className="rounded-none border-b-2 border-transparent data-[state=active]:border-amber-500 data-[state=active]:bg-transparent px-2 py-3 text-zinc-400 data-[state=active]:text-amber-400 transition-all font-medium gap-2"
+                        className="rounded-none border-b-2 border-transparent data-[state=active]:border-amber-500 data-[state=active]:bg-transparent px-2 py-3 text-zinc-400 data-[state=active]:text-amber-400 transition-all font-medium gap-2 focus-visible:outline-none focus-visible:ring-0"
                     >
                         <Coins size={20} />
                         Costi & Menu
                     </TabsTrigger>
                     <TabsTrigger
                         value="staff"
-                        className="rounded-none border-b-2 border-transparent data-[state=active]:border-amber-500 data-[state=active]:bg-transparent px-2 py-3 text-zinc-400 data-[state=active]:text-amber-400 transition-all font-medium gap-2"
+                        className="rounded-none border-b-2 border-transparent data-[state=active]:border-amber-500 data-[state=active]:bg-transparent px-2 py-3 text-zinc-400 data-[state=active]:text-amber-400 transition-all font-medium gap-2 focus-visible:outline-none focus-visible:ring-0"
                     >
                         <Users size={20} />
                         Staff
                     </TabsTrigger>
                     <TabsTrigger
                         value="reservations"
-                        className="rounded-none border-b-2 border-transparent data-[state=active]:border-amber-500 data-[state=active]:bg-transparent px-2 py-3 text-zinc-400 data-[state=active]:text-amber-400 transition-all font-medium gap-2"
+                        className="rounded-none border-b-2 border-transparent data-[state=active]:border-amber-500 data-[state=active]:bg-transparent px-2 py-3 text-zinc-400 data-[state=active]:text-amber-400 transition-all font-medium gap-2 focus-visible:outline-none focus-visible:ring-0"
                     >
                         <CalendarCheck size={20} />
                         Prenotazioni
@@ -595,52 +597,59 @@ export function SettingsView({
                                     </div>
                                     <Separator className="bg-white/5" />
 
-                                    <div className="flex items-center justify-between mb-2">
-                                        <h4 className="text-lg font-bold">Credenziali Camerieri</h4>
+                                    <div className="flex items-center justify-between mb-3">
+                                        <div className="flex items-center gap-2">
+                                            <Key size={16} className="text-amber-500" />
+                                            <h4 className="text-sm font-bold text-zinc-200">Credenziali Camerieri</h4>
+                                        </div>
                                         <Button
                                             onClick={() => {
                                                 setEditingStaff(null)
                                                 setStaffForm({ name: '', username: '', password: '', is_active: true })
                                                 setShowStaffDialog(true)
                                             }}
-                                            className="bg-amber-600 hover:bg-amber-700 text-white gap-2"
+                                            size="sm"
+                                            className="bg-amber-600 hover:bg-amber-700 text-white gap-1.5 h-8 text-xs px-3"
                                         >
-                                            <UserPlus size={18} /> Aggiungi
+                                            <UserPlus size={14} /> Aggiungi
                                         </Button>
                                     </div>
 
                                     {isStaffLoading ? (
                                         <p className="text-zinc-500 text-sm py-4">Caricamento in corso...</p>
                                     ) : staffList.length === 0 ? (
-                                        <div className="text-center py-8 bg-black/20 rounded-xl border border-white/5 border-dashed">
-                                            <UserMinus className="mx-auto h-12 w-12 text-zinc-600 mb-3" />
-                                            <p className="text-zinc-400">Nessun cameriere configurato.</p>
+                                        <div className="text-center py-6 bg-black/20 rounded-xl border border-white/5 border-dashed">
+                                            <UserMinus className="mx-auto h-8 w-8 text-zinc-600 mb-2" />
+                                            <p className="text-zinc-400 text-sm">Nessun cameriere configurato.</p>
                                         </div>
                                     ) : (
-                                        <div className="grid md:grid-cols-2 gap-4">
+                                        <div className="space-y-2">
                                             {staffList.map(staff => (
-                                                <div key={staff.id} className={`p-4 rounded-xl border ${staff.is_active ? 'bg-black/20 border-white/10' : 'bg-black/40 border-red-500/20 opacity-75'} flex flex-col justify-between`}>
-                                                    <div className="flex justify-between items-start mb-2">
-                                                        <div>
-                                                            <h5 className="font-bold text-lg text-white">{staff.name}</h5>
-                                                            <div className="flex items-center gap-2 mt-1">
-                                                                <span className="text-xs font-mono bg-amber-500/10 text-amber-300 px-2 py-1 rounded-md">
-                                                                    ID: {staff.username}
-                                                                </span>
-                                                                {!staff.is_active && <span className="text-xs bg-red-500/10 text-red-400 px-2 py-1 rounded-md">Disattivo</span>}
-                                                            </div>
-                                                        </div>
-                                                        <Switch
-                                                            checked={staff.is_active}
-                                                            onCheckedChange={() => handleToggleStaffActive(staff)}
-                                                            className="data-[state=checked]:bg-amber-500"
-                                                        />
+                                                <div key={staff.id} className={`flex items-center gap-3 px-3 py-2.5 rounded-lg border ${staff.is_active ? 'bg-black/20 border-white/8' : 'bg-black/40 border-red-500/20 opacity-60'}`}>
+                                                    {/* Avatar */}
+                                                    <div className={`w-8 h-8 rounded-full flex items-center justify-center shrink-0 text-xs font-bold ${staff.is_active ? 'bg-amber-500/20 text-amber-400' : 'bg-zinc-700 text-zinc-400'}`}>
+                                                        {staff.name.substring(0, 1).toUpperCase()}
                                                     </div>
-                                                    <div className="flex justify-end gap-2 mt-4 pt-4 border-t border-white/5">
-                                                        <Button
-                                                            variant="ghost"
-                                                            size="sm"
-                                                            className="hover:bg-white/10 text-zinc-300 h-8"
+                                                    {/* Info */}
+                                                    <div className="flex-1 min-w-0">
+                                                        <p className="text-sm font-semibold text-white leading-tight truncate">{staff.name}</p>
+                                                        <p className="text-[10px] font-mono text-amber-400/70 truncate">{staff.username}</p>
+                                                    </div>
+                                                    {/* Actions */}
+                                                    <div className="flex gap-1 shrink-0">
+                                                        {/* Eye toggle */}
+                                                        <button
+                                                            title={staff.is_active ? 'Disattiva accesso' : 'Riattiva accesso'}
+                                                            className={`w-7 h-7 rounded-md flex items-center justify-center transition-colors ${staff.is_active
+                                                                ? 'text-emerald-400/70 hover:text-emerald-300 hover:bg-emerald-500/10'
+                                                                : 'text-red-400/60 hover:text-red-300 hover:bg-red-500/10'
+                                                                }`}
+                                                            onClick={() => handleToggleStaffActive(staff)}
+                                                        >
+                                                            {staff.is_active ? <Eye size={14} weight="duotone" /> : <EyeSlash size={14} weight="duotone" />}
+                                                        </button>
+                                                        <button
+                                                            className="w-7 h-7 rounded-md flex items-center justify-center text-zinc-400 hover:text-white hover:bg-white/10 transition-colors"
                                                             onClick={() => {
                                                                 setEditingStaff(staff)
                                                                 const baseUsername = staff.username.split('.')[1] || staff.username
@@ -648,16 +657,14 @@ export function SettingsView({
                                                                 setShowStaffDialog(true)
                                                             }}
                                                         >
-                                                            <Pencil size={16} className="mr-2" /> Modifica
-                                                        </Button>
-                                                        <Button
-                                                            variant="ghost"
-                                                            size="sm"
-                                                            className="hover:bg-red-500/20 text-red-400 hover:text-red-300 h-8"
+                                                            <Pencil size={13} />
+                                                        </button>
+                                                        <button
+                                                            className="w-7 h-7 rounded-md flex items-center justify-center text-red-500/60 hover:text-red-400 hover:bg-red-500/10 transition-colors"
                                                             onClick={() => handleDeleteStaff(staff.id)}
                                                         >
-                                                            <TrashIcon size={16} />
-                                                        </Button>
+                                                            <TrashIcon size={13} />
+                                                        </button>
                                                     </div>
                                                 </div>
                                             ))}
@@ -739,35 +746,37 @@ export function SettingsView({
                         exit="exit"
                         className="space-y-6"
                     >
-                        <div className="grid gap-6">
-                            {/* Durata Tavolo - Compact inline */}
-                            <div className="p-4 rounded-xl bg-zinc-900/50 border border-white/5 backdrop-blur-sm flex items-center justify-between gap-4">
-                                <div className="flex items-center gap-3">
-                                    <Clock className="text-amber-500 shrink-0" size={20} />
+                        <div className="grid md:grid-cols-[1fr_1.8fr] gap-4 items-start">
+                            {/* Left column: Turnazione Tavoli */}
+                            <div className="p-4 rounded-xl bg-zinc-900/50 border border-white/5 backdrop-blur-sm">
+                                <div className="flex items-center gap-2 mb-3">
+                                    <div className="w-8 h-8 rounded-lg flex items-center justify-center bg-amber-500/15 text-amber-500 border border-amber-500/20 shrink-0">
+                                        <Clock size={16} weight="duotone" />
+                                    </div>
                                     <div>
-                                        <h3 className="text-sm font-bold">Turnazione Tavoli</h3>
-                                        <p className="text-xs text-zinc-500">Durata standard prenotazione</p>
+                                        <h3 className="text-sm font-bold text-white">Turnazione Tavoli</h3>
+                                        <p className="text-[11px] text-zinc-500">Durata standard prenotazione</p>
                                     </div>
                                 </div>
                                 <Select
                                     value={reservationDuration.toString()}
                                     onValueChange={(val) => setReservationDuration(parseInt(val))}
                                 >
-                                    <SelectTrigger className="h-9 w-[180px] bg-black/20 border-white/10 text-sm">
+                                    <SelectTrigger className="h-9 w-full bg-black/20 border-white/10 text-sm">
                                         <SelectValue />
                                     </SelectTrigger>
                                     <SelectContent className="bg-zinc-900 border-zinc-800 text-zinc-200">
                                         <SelectItem value="60">1 Ora</SelectItem>
-                                        <SelectItem value="90">1 Ora e 30 min</SelectItem>
+                                        <SelectItem value="90">1 h 30 min</SelectItem>
                                         <SelectItem value="120">2 Ore (Standard)</SelectItem>
-                                        <SelectItem value="150">2 Ore e 30 min</SelectItem>
+                                        <SelectItem value="150">2 h 30 min</SelectItem>
                                         <SelectItem value="180">3 Ore</SelectItem>
                                     </SelectContent>
                                 </Select>
                             </div>
 
-                            {/* Orari Servizio - Full width */}
-                            <div className="relative p-4 rounded-2xl bg-gradient-to-br from-zinc-900/80 to-zinc-900/40 border border-white/5 overflow-hidden">
+                            {/* Right column: Orari Servizio */}
+                            <div className="relative p-4 rounded-xl bg-gradient-to-br from-zinc-900/80 to-zinc-900/40 border border-white/5 overflow-hidden">
                                 <WeeklyServiceHoursEditor
                                     schedule={weeklyServiceHours || {
                                         enabled: true,

@@ -124,7 +124,7 @@ export default function ClientTableAccess({ tableId, onAccessGranted }: ClientTa
     }
 
     return (
-        <div className="min-h-screen flex items-center justify-center bg-slate-950 relative overflow-hidden font-sans">
+        <div className="min-h-[100dvh] flex items-center justify-center bg-slate-950 relative overflow-hidden font-sans">
             {/* Background Effects - Professional & Elegant */}
             <div className="absolute inset-0 bg-gradient-to-br from-slate-900 via-slate-950 to-emerald-950/20 pointer-events-none"></div>
             <div className="absolute top-0 left-0 w-full h-full bg-[url('https://grainy-gradients.vercel.app/noise.svg')] opacity-10 pointer-events-none"></div>

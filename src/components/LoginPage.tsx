@@ -162,7 +162,7 @@ export default function LoginPage({ onLogin }: Props) {
   }
 
   return (
-    <div className="min-h-screen flex flex-col items-center justify-center bg-black text-amber-50 p-4 font-sans selection:bg-amber-500/30 overflow-hidden relative">
+    <div className="min-h-[100dvh] flex flex-col items-center justify-center bg-black text-amber-50 p-4 font-sans selection:bg-amber-500/30 overflow-hidden relative">
       {/* Subtle Gold Ambient Background */}
       <div className="absolute inset-0 overflow-hidden pointer-events-none">
         <div className="absolute top-[-20%] left-[-20%] w-[60%] h-[60%] bg-amber-500/5 rounded-full blur-[150px] opacity-40" />

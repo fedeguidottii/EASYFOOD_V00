@@ -1990,7 +1990,7 @@ const RestaurantDashboard = ({ user, onLogout }: RestaurantDashboardProps) => {
 
                   <Dialog>
                     <DialogTrigger asChild>
-                      <Button variant="outline" size="sm" className="h-10 shadow-sm hover:shadow-md transition-shadow">
+                      <Button type="button" variant="outline" size="sm" className="h-10 shadow-sm hover:shadow-md transition-shadow">
                         <ClockCounterClockwise size={16} className="mr-2" />
                         Storico
                       </Button>

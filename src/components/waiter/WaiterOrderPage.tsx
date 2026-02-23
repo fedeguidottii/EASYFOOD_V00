@@ -294,7 +294,7 @@ const WaiterOrderPage = () => {
     }
 
     if (loading) return (
-        <div className="min-h-screen bg-zinc-950 flex items-center justify-center text-amber-500">
+        <div className="min-h-[100dvh] bg-zinc-950 flex items-center justify-center text-amber-500">
             <div className="flex flex-col items-center gap-3">
                 <div className="w-8 h-8 border-2 border-amber-500/30 border-t-amber-500 rounded-full animate-spin" />
                 <p className="text-xs uppercase tracking-widest font-medium">Caricamento Menù...</p>
@@ -303,7 +303,7 @@ const WaiterOrderPage = () => {
     )
 
     return (
-        <div className="min-h-screen bg-zinc-950 text-foreground flex flex-col pb-24">
+        <div className="min-h-[100dvh] bg-zinc-950 text-foreground flex flex-col pb-24">
             {/* 1. Header Fissa */}
             <header className="fixed top-0 left-0 right-0 h-16 bg-zinc-950/90 backdrop-blur-md border-b border-white/5 z-40 flex items-center justify-between px-4">
                 <div className="flex items-center gap-3">

@@ -61,6 +61,11 @@ export default function TimelineReservations({ user, restaurantId, tables, booki
   const [availableTables, setAvailableTables] = useState<Table[]>([])
   const [highlightedTableId, setHighlightedTableId] = useState<string | null>(null)
 
+  // Drag-to-select multiple slots states
+  const [isSelectingSlot, setIsSelectingSlot] = useState(false)
+  const [selectionStart, setSelectionStart] = useState<{ tableId: string, time: string, startMinutes: number } | null>(null)
+  const [selectionEnd, setSelectionEnd] = useState<{ tableId: string, time: string, startMinutes: number } | null>(null)
+
   // Table sorting/filtering state
   const [tableSortBy, setTableSortBy] = useState<'name' | 'capacity' | 'status'>('name')
 
@@ -72,13 +77,15 @@ export default function TimelineReservations({ user, restaurantId, tables, booki
     time: string
     tableId: string
     notes: string
+    duration: number
   }>({
     name: '',
     phone: '',
     guests: 2,
     time: '',
     tableId: '',
-    notes: ''
+    notes: '',
+    duration: reservationDuration
   })
 
   // Filter tables for this restaurant
@@ -216,54 +223,115 @@ export default function TimelineReservations({ user, restaurantId, tables, booki
     })
   }
 
-  // Hover state for ghost block
   const [hoveredSlot, setHoveredSlot] = useState<{ tableId: string, time: string, startMinutes: number } | null>(null)
 
-  const handleTimelineMouseMove = (e: React.MouseEvent, tableId: string) => {
+  // Drag-to-select selection logic
+  const handleSlotPointerDown = (e: React.PointerEvent, tableId: string) => {
+    // Only handle primary button or touch
+    if (e.pointerType === 'mouse' && e.button !== 0) return
+    e.currentTarget.setPointerCapture(e.pointerId)
+
     const rect = e.currentTarget.getBoundingClientRect()
     const clickX = e.clientX - rect.left
     const percentage = (clickX / rect.width) * 100
     const totalMinutes = TIMELINE_DURATION
-    const mouseMinutes = TIMELINE_START_MINUTES + (percentage / 100) * totalMinutes
+    const startMinutesRaw = TIMELINE_START_MINUTES + (percentage / 100) * totalMinutes
 
     // Snap to 15 mins
-    const roundedMinutes = Math.round(mouseMinutes / 15) * 15
+    const roundedMinutes = Math.round(startMinutesRaw / 15) * 15
     const snappedTime = minutesToTime(roundedMinutes)
 
-    setHoveredSlot({
+    setIsSelectingSlot(true)
+    setSelectionStart({ tableId, time: snappedTime, startMinutes: roundedMinutes })
+    setSelectionEnd({ tableId, time: snappedTime, startMinutes: roundedMinutes })
+
+    // Clear hover slot
+    setHoveredSlot(null)
+  }
+
+  const handleSlotPointerMove = (e: React.PointerEvent, tableId: string) => {
+    if (!isSelectingSlot || !selectionStart || selectionStart.tableId !== tableId) {
+      // Standard hover behavior when not dragging
+      const rect = e.currentTarget.getBoundingClientRect()
+      const clickX = e.clientX - rect.left
+      const percentage = (clickX / rect.width) * 100
+      const totalMinutes = TIMELINE_DURATION
+      const mouseMinutes = TIMELINE_START_MINUTES + (percentage / 100) * totalMinutes
+
+      // Snap to 15 mins
+      const roundedMinutes = Math.round(mouseMinutes / 15) * 15
+      const snappedTime = minutesToTime(roundedMinutes)
+
+      setHoveredSlot({
+        tableId,
+        time: snappedTime,
+        startMinutes: roundedMinutes
+      })
+      return
+    }
+
+    const rect = e.currentTarget.getBoundingClientRect()
+    const currentX = e.clientX - rect.left
+    const percentage = Math.max(0, Math.min(100, (currentX / rect.width) * 100))
+    const totalMinutes = TIMELINE_DURATION
+    const currentMinutesRaw = TIMELINE_START_MINUTES + (percentage / 100) * totalMinutes
+
+    // Snap to 15 mins
+    const roundedMinutes = Math.round(currentMinutesRaw / 15) * 15
+    const snappedTime = minutesToTime(roundedMinutes)
+
+    setSelectionEnd({ tableId, time: snappedTime, startMinutes: roundedMinutes })
+  }
+
+  const handleSlotPointerUp = (e: React.PointerEvent, tableId: string) => {
+    e.currentTarget.releasePointerCapture(e.pointerId)
+
+    if (!isSelectingSlot || !selectionStart || !selectionEnd || selectionStart.tableId !== tableId) {
+      setIsSelectingSlot(false)
+      setSelectionStart(null)
+      setSelectionEnd(null)
+      return
+    }
+
+    setIsSelectingSlot(false)
+
+    // Calculate actual start and duration
+    // Add default duration (15m offset minimum to make it visual) to the end so it selects a block
+    let actualStartMinutes = Math.min(selectionStart.startMinutes, selectionEnd.startMinutes)
+    let actualEndMinutes = Math.max(selectionStart.startMinutes, selectionEnd.startMinutes) + 15
+
+    // If it's a click (start == end), use default configured duration
+    if (selectionStart.startMinutes === selectionEnd.startMinutes) {
+      actualEndMinutes = actualStartMinutes + reservationDuration
+    }
+
+    const dragDuration = actualEndMinutes - actualStartMinutes
+    const finalStartTime = minutesToTime(actualStartMinutes)
+
+    if (hasConflict(tableId, finalStartTime, dragDuration)) {
+      toast.error('Orario già occupato')
+      setSelectionStart(null)
+      setSelectionEnd(null)
+      return
+    }
+
+    setSelectedTimeSlot({ tableId, time: finalStartTime })
+    setNewReservation(prev => ({
+      ...prev,
       tableId,
-      time: snappedTime,
-      startMinutes: roundedMinutes
-    })
+      time: finalStartTime,
+      duration: dragDuration
+    }))
+    // We now pass the calculated duration to the dialog form
+    setShowReservationDialog(true)
+
+    setSelectionStart(null)
+    setSelectionEnd(null)
   }
 
   const handleTimelineMouseLeave = () => {
     setHoveredSlot(null)
-  }
-
-  const handleTimelineClick = (e: React.MouseEvent, tableId: string) => {
-    const rect = e.currentTarget.getBoundingClientRect()
-    const clickX = e.clientX - rect.left
-    const percentage = (clickX / rect.width) * 100
-    const totalMinutes = TIMELINE_DURATION
-    const clickedMinutes = TIMELINE_START_MINUTES + (percentage / 100) * totalMinutes
-
-    // Round to nearest 15 minutes (was 60)
-    const roundedMinutes = Math.round(clickedMinutes / 15) * 15
-    const clickedTime = minutesToTime(roundedMinutes)
-
-    if (hasConflict(tableId, clickedTime, reservationDuration)) {
-      toast.error('Orario già occupato')
-      return
-    }
-
-    setSelectedTimeSlot({ tableId, time: clickedTime })
-    setNewReservation(prev => ({
-      ...prev,
-      tableId,
-      time: clickedTime
-    }))
-    setShowReservationDialog(true)
+    // We intentionally don't cancel selection here in case they drag slightly outside
   }
 
   const handleCreateReservation = async () => {
@@ -291,12 +359,13 @@ export default function TimelineReservations({ user, restaurantId, tables, booki
         status: 'CONFIRMED',
         name: newReservation.name,
         phone: newReservation.phone,
-        notes: newReservation.notes
+        notes: newReservation.notes,
+        // duration: newReservation.duration // Not in DB schema yet, but logic is ready
       })
 
       toast.success('Prenotazione creata')
       setShowReservationDialog(false)
-      setNewReservation({ name: '', phone: '', guests: 2, time: '', tableId: '', notes: '' })
+      setNewReservation({ name: '', phone: '', guests: 2, time: '', tableId: '', notes: '', duration: reservationDuration })
       onRefresh?.()
     } catch (error) {
       console.error('Error creating reservation:', error)
@@ -595,15 +664,39 @@ export default function TimelineReservations({ user, restaurantId, tables, booki
 
                   {/* RIGHT COLUMN: TIMELINE STRIP */}
                   <div
-                    className="flex-1 relative cursor-crosshair group"
-                    onClick={(e) => handleTimelineClick(e, table.id)}
-                    onMouseMove={(e) => handleTimelineMouseMove(e, table.id)}
+                    className="flex-1 relative cursor-crosshair group touch-none"
+                    onPointerDown={(e) => handleSlotPointerDown(e, table.id)}
+                    onPointerMove={(e) => handleSlotPointerMove(e, table.id)}
+                    onPointerUp={(e) => handleSlotPointerUp(e, table.id)}
+                    onPointerCancel={(e) => {
+                      setIsSelectingSlot(false)
+                      setSelectionStart(null)
+                      setSelectionEnd(null)
+                    }}
                     onMouseLeave={handleTimelineMouseLeave}
                     onDragOver={handleDragOver}
                     onDrop={(e) => handleDrop(e, table.id)}
                   >
-                    {/* GHOST BLOCK ON HOVER - Only if no collision */}
-                    {hoveredSlot && hoveredSlot.tableId === table.id && !draggedBookingId && !isHoverColliding && (
+                    {/* DRAG SELECTION BLOCK */}
+                    {isSelectingSlot && selectionStart && selectionEnd && selectionStart.tableId === table.id && (
+                      <div
+                        className="absolute top-2 bottom-2 rounded-md bg-amber-500/30 border-2 border-amber-500/70 border-dashed z-0 pointer-events-none transition-none"
+                        style={{
+                          left: `${getBlockStyle(Math.min(selectionStart.startMinutes, selectionEnd.startMinutes), 0).left}`,
+                          width: `${Math.max(
+                            (15 / TIMELINE_DURATION) * 100, // min width of 15m slot
+                            (Math.abs(selectionEnd.startMinutes - selectionStart.startMinutes) / TIMELINE_DURATION) * 100 + ((15 / TIMELINE_DURATION) * 100) // extra 15 to cover the hovered end unit
+                          )}%`
+                        }}
+                      >
+                        <div className="absolute -top-6 left-0 bg-amber-500 text-black text-xs px-1.5 py-0.5 rounded shadow-sm font-bold whitespace-nowrap">
+                          {minutesToTime(Math.min(selectionStart.startMinutes, selectionEnd.startMinutes))} - {minutesToTime(Math.max(selectionStart.startMinutes, selectionEnd.startMinutes) + 15)}
+                        </div>
+                      </div>
+                    )}
+
+                    {/* GHOST BLOCK ON HOVER - Only if no collision and not dragging */}
+                    {hoveredSlot && hoveredSlot.tableId === table.id && !draggedBookingId && !isHoverColliding && !isSelectingSlot && (
                       <div
                         className="absolute top-2 bottom-2 rounded-md bg-amber-500/20 border-2 border-amber-500/50 border-dashed z-0 pointer-events-none transition-all duration-75 ease-out"
                         style={{
@@ -818,7 +911,8 @@ export default function TimelineReservations({ user, restaurantId, tables, booki
                             guests: searchGuests,
                             time: searchTime,
                             tableId: table.id,
-                            notes: ''
+                            notes: '',
+                            duration: reservationDuration
                           })
                           setShowSmartSearch(false)
                           setShowReservationDialog(true)
@@ -911,6 +1005,23 @@ export default function TimelineReservations({ user, restaurantId, tables, booki
                     type="time"
                     value={newReservation.time}
                     onChange={(e) => setNewReservation(prev => ({ ...prev, time: e.target.value }))}
+                    className="bg-zinc-900 border-zinc-800 pl-9"
+                  />
+                  <Clock className="absolute left-3 top-1/2 -translate-y-1/2 text-zinc-500" size={16} />
+                </div>
+              </div>
+            </div>
+            <div className="grid gap-6 md:grid-cols-2">
+              <div className="space-y-2.5">
+                <Label htmlFor="res-duration" className="text-zinc-400">Durata (Minuti)</Label>
+                <div className="relative">
+                  <Input
+                    id="res-duration"
+                    type="number"
+                    step="15"
+                    min="15"
+                    value={newReservation.duration}
+                    onChange={(e) => setNewReservation(prev => ({ ...prev, duration: parseInt(e.target.value) || 120 }))}
                     className="bg-zinc-900 border-zinc-800 pl-9"
                   />
                   <Clock className="absolute left-3 top-1/2 -translate-y-1/2 text-zinc-500" size={16} />
