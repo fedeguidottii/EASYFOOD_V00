@@ -308,9 +308,9 @@ export function SettingsView({
                         className="grid gap-6"
                     >
                         {/* Nome Ristorante */}
-                        <div className="p-6 rounded-2xl bg-zinc-900/50 border border-white/5 backdrop-blur-sm">
-                            <h3 className="text-xl font-bold mb-4 flex items-center gap-2">
-                                <Storefront className="text-amber-500" />
+                        <div className="p-6 sm:p-8 rounded-2xl bg-zinc-900/50 border border-white/5 backdrop-blur-sm">
+                            <h3 className="text-2xl font-bold mb-6 flex items-center gap-3">
+                                <Storefront className="text-amber-500 w-8 h-8" weight="duotone" />
                                 Profilo Attività
                             </h3>
                             <div className="grid gap-4 max-w-xl">
@@ -340,9 +340,9 @@ export function SettingsView({
 
 
                         {/* Suoni */}
-                        <div className="p-6 rounded-2xl bg-zinc-900/50 border border-white/5 backdrop-blur-sm">
-                            <h3 className="text-xl font-bold mb-4 flex items-center gap-2">
-                                <SpeakerHigh className="text-amber-500" />
+                        <div className="p-6 sm:p-8 rounded-2xl bg-zinc-900/50 border border-white/5 backdrop-blur-sm">
+                            <h3 className="text-2xl font-bold mb-6 flex items-center gap-3">
+                                <SpeakerHigh className="text-amber-500 w-8 h-8" weight="duotone" />
                                 Notifiche Sonore
                             </h3>
                             <div className="flex flex-col gap-6">
@@ -456,10 +456,11 @@ export function SettingsView({
                             </div>
 
                             {/* Configurazione Portate */}
-                            <div className="col-span-full p-6 rounded-2xl bg-zinc-900/50 border border-white/5 backdrop-blur-sm">
-                                <div className="flex items-center justify-between">
-                                    <div className="space-y-1">
-                                        <h3 className="text-lg font-bold flex items-center gap-2">
+                            <div className="col-span-full p-6 sm:p-8 rounded-2xl bg-zinc-900/50 border border-white/5 backdrop-blur-sm">
+                                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-6">
+                                    <div className="space-y-2">
+                                        <h3 className="text-2xl font-bold flex items-center gap-3">
+                                            <ForkKnife className="text-amber-500 w-8 h-8" weight="duotone" />
                                             Suddivisione in Portate
                                         </h3>
                                         <p className="text-sm text-zinc-400 max-w-prose">
@@ -478,10 +479,11 @@ export function SettingsView({
                             </div>
 
                             {/* Menu Solo Visualizzazione */}
-                            <div className="col-span-full p-6 rounded-2xl bg-zinc-900/50 border border-white/5 backdrop-blur-sm">
-                                <div className="flex items-center justify-between">
-                                    <div className="space-y-1">
-                                        <h3 className="text-lg font-bold flex items-center gap-2">
+                            <div className="col-span-full p-6 sm:p-8 rounded-2xl bg-zinc-900/50 border border-white/5 backdrop-blur-sm">
+                                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-6">
+                                    <div className="space-y-2">
+                                        <h3 className="text-2xl font-bold flex items-center gap-3">
+                                            <Eye className="text-amber-500 w-8 h-8" weight="duotone" />
                                             Menu Solo Visualizzazione
                                         </h3>
                                         <p className="text-sm text-zinc-400 max-w-prose">
@@ -497,10 +499,10 @@ export function SettingsView({
                             </div>
 
                             {/* Personalizzazione Tema Menu */}
-                            <div className="col-span-full p-6 rounded-2xl bg-zinc-900/50 border border-white/5 backdrop-blur-sm">
-                                <div className="flex items-center justify-between mb-6">
-                                    <h3 className="text-xl font-bold flex items-center gap-2">
-                                        <Palette className="text-amber-500" />
+                            <div className="col-span-full p-6 sm:p-8 rounded-2xl bg-zinc-900/50 border border-white/5 backdrop-blur-sm">
+                                <div className="flex items-center justify-between mb-8">
+                                    <h3 className="text-2xl font-bold flex items-center gap-3">
+                                        <Palette className="text-amber-500 w-8 h-8" weight="duotone" />
                                         Personalizzazione Menu Cliente
                                     </h3>
                                 </div>
@@ -564,15 +566,15 @@ export function SettingsView({
                         exit="exit"
                         className="space-y-6"
                     >
-                        <div className="p-6 rounded-2xl bg-zinc-900/50 border border-white/5 backdrop-blur-sm">
-                            <div className="flex items-center justify-between mb-8">
+                        <div className="p-6 sm:p-8 rounded-2xl bg-zinc-900/50 border border-white/5 backdrop-blur-sm">
+                            <div className="flex flex-col sm:flex-row sm:items-center justify-between mb-8 gap-4">
                                 <div className="flex items-center gap-4">
-                                    <div className="p-3 bg-zinc-500/10 rounded-xl text-zinc-100">
-                                        <Users size={24} weight="duotone" />
+                                    <div className="p-3 bg-amber-500/10 rounded-xl text-amber-500">
+                                        <Users size={32} weight="duotone" />
                                     </div>
                                     <div>
-                                        <h3 className="text-xl font-bold">Gestione Staff (Camerieri)</h3>
-                                        <p className="text-zinc-400 text-sm">Crea e gestisci le credenziali dei camerieri</p>
+                                        <h3 className="text-2xl font-bold text-white">Gestione Staff <span className="text-amber-500">(Camerieri)</span></h3>
+                                        <p className="text-zinc-400 text-sm mt-1">Crea e gestisci le credenziali dei camerieri</p>
                                     </div>
                                 </div>
                                 <Switch
@@ -750,16 +752,12 @@ export function SettingsView({
                         {/* Top row: Turnazione and QR Code */}
                         <div className="grid md:grid-cols-2 gap-6 items-stretch">
                             {/* Turnazione Tavoli */}
-                            <div className="p-6 rounded-2xl bg-zinc-900/50 border border-white/5 backdrop-blur-sm shadow-xl flex flex-col justify-center">
-                                <div className="flex items-center gap-3 mb-6">
-                                    <div className="w-10 h-10 rounded-xl flex items-center justify-center bg-amber-500/15 text-amber-500 border border-amber-500/20 shadow-inner">
-                                        <Clock size={20} weight="duotone" />
-                                    </div>
-                                    <div>
-                                        <h3 className="text-lg font-bold text-white">Turnazione Tavoli</h3>
-                                        <p className="text-xs text-zinc-500">Durata standard prenotazione</p>
-                                    </div>
-                                </div>
+                            <div className="p-6 sm:p-8 rounded-2xl bg-zinc-900/50 border border-white/5 backdrop-blur-sm shadow-xl flex flex-col justify-center">
+                                <h3 className="text-2xl font-bold mb-6 flex items-center gap-3">
+                                    <Clock className="text-amber-500 w-8 h-8" weight="duotone" />
+                                    Turnazione Tavoli
+                                </h3>
+                                <p className="text-sm text-zinc-400 mb-6">Durata standard prenotazione</p>
                                 <Select
                                     value={reservationDuration.toString()}
                                     onValueChange={(val) => setReservationDuration(parseInt(val))}
@@ -778,22 +776,18 @@ export function SettingsView({
                             </div>
 
                             {/* QR Code & Prenotazioni Pubbliche */}
-                            <div className="p-6 rounded-2xl bg-zinc-900/50 border border-white/5 backdrop-blur-sm shadow-xl flex flex-col justify-center">
-                                <div className="flex items-center gap-3 mb-6">
-                                    <div className="w-10 h-10 rounded-xl flex items-center justify-center bg-amber-500/15 text-amber-500 border border-amber-500/20 shadow-inner">
-                                        <Storefront size={20} weight="duotone" />
-                                    </div>
-                                    <div>
-                                        <h3 className="text-lg font-bold text-white">Prenotazioni via QR</h3>
-                                        <p className="text-xs text-zinc-500">Configura l'accesso pubblico</p>
-                                    </div>
-                                </div>
+                            <div className="p-6 sm:p-8 rounded-2xl bg-zinc-900/50 border border-white/5 backdrop-blur-sm shadow-xl flex flex-col justify-center">
+                                <h3 className="text-2xl font-bold mb-6 flex items-center gap-3">
+                                    <Storefront className="text-amber-500 w-8 h-8" weight="duotone" />
+                                    Prenotazioni via QR
+                                </h3>
+                                <p className="text-sm text-zinc-400 mb-6">Configura l'accesso pubblico per le prenotazioni via QR Code dei clienti.</p>
 
                                 <div className="space-y-6">
                                     <div className="flex items-center justify-between">
-                                        <div className="space-y-1 pr-4">
-                                            <Label className="text-base font-semibold text-zinc-200 leading-none">Abilita Prenotazioni da QR</Label>
-                                            <p className="text-xs text-zinc-400">Se disattivato, il QR mostrerà un avviso di servizio sospeso.</p>
+                                        <div className="space-y-1 block pr-4">
+                                            <Label className="text-base font-semibold text-zinc-200 leading-none block">Abilita Prenotazioni da QR</Label>
+                                            <p className="text-xs text-zinc-400 hidden sm:block">Se disattivato, il QR mostrerà un avviso di servizio sospeso al momento.</p>
                                         </div>
                                         <Switch
                                             checked={enablePublicReservations}
@@ -803,9 +797,9 @@ export function SettingsView({
                                     </div>
                                     <Separator className="bg-white/5" />
                                     <div className="flex items-center justify-between">
-                                        <div className="space-y-1 pr-4">
-                                            <Label className="text-base font-semibold text-zinc-200 leading-none">Consenti Scelta Sala</Label>
-                                            <p className="text-xs text-zinc-400">Permetti ai clienti di indicare preferenze sulla zona.</p>
+                                        <div className="space-y-1 block pr-4">
+                                            <Label className="text-base font-semibold text-zinc-200 leading-none block">Consenti Scelta Sala</Label>
+                                            <p className="text-xs text-zinc-400 hidden sm:block">Permetti ai clienti di indicare preferenze sulla zona (es. Terrazza o Interno).</p>
                                         </div>
                                         <Switch
                                             disabled={!enablePublicReservations}
