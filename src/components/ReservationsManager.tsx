@@ -22,6 +22,12 @@ import jsPDF from 'jspdf'
 import autoTable from 'jspdf-autotable'
 import html2canvas from 'html2canvas'
 
+interface ServiceSegment {
+  label: string
+  start: string
+  end: string
+}
+
 interface ReservationsManagerProps {
   user: User
   restaurantId: string
@@ -31,6 +37,7 @@ interface ReservationsManagerProps {
   selectedDate: Date
   openingTime?: string
   closingTime?: string
+  serviceSegments?: ServiceSegment[]
   reservationDuration?: number
   onRefresh?: () => void
   onDateChange?: (date: Date) => void
@@ -38,7 +45,7 @@ interface ReservationsManagerProps {
 
 import { generatePdfFromElement } from '../utils/pdfUtils'
 
-export default function ReservationsManager({ user, restaurantId, tables, rooms, bookings, selectedDate, openingTime = '10:00', closingTime = '23:00', reservationDuration = 120, onRefresh, onDateChange }: ReservationsManagerProps) {
+export default function ReservationsManager({ user, restaurantId, tables, rooms, bookings, selectedDate, openingTime = '10:00', closingTime = '23:00', serviceSegments, reservationDuration = 120, onRefresh, onDateChange }: ReservationsManagerProps) {
   const [selectedBooking, setSelectedBooking] = useState<Booking | null>(null)
   const [selectedRoomId, setSelectedRoomId] = useState<string>('all')
   const [showEditDialog, setShowEditDialog] = useState(false)
@@ -606,6 +613,7 @@ export default function ReservationsManager({ user, restaurantId, tables, rooms,
             selectedDate={`${selectedDate.getFullYear()}-${String(selectedDate.getMonth() + 1).padStart(2, '0')}-${String(selectedDate.getDate()).padStart(2, '0')}`}
             openingTime={openingTime}
             closingTime={closingTime}
+            serviceSegments={serviceSegments}
             reservationDuration={reservationDuration}
             onRefresh={onRefresh}
             onDateChange={onDateChange}

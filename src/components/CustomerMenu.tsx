@@ -740,7 +740,7 @@ const CustomerMenuBase = () => {
     </div>
   )
 
-  if (!isTableActive && !isAuthenticated) return (
+  if (!isTableActive && !isAuthenticated && !isViewOnly) return (
     <div className="min-h-screen bg-zinc-950 flex flex-col items-center justify-center p-8 text-center">
       <div className="w-20 h-20 bg-zinc-900 rounded-full flex items-center justify-center mb-6 text-zinc-500 border border-zinc-800">
         <Storefront size={40} weight="duotone" />
@@ -1511,7 +1511,7 @@ function AuthorizedMenuContent({ restaurantId, tableId, sessionId, activeSession
             </div>
 
             {/* Service Closed Banner */}
-            {isClosed && (
+            {!isViewOnly && isClosed && (
               <div className="mx-4 mb-3 p-3 rounded-xl flex items-center gap-3 shadow-md border"
                 style={{ backgroundColor: `${theme.primary}15`, borderColor: `${theme.primary}40`, color: theme.textPrimary }}>
                 <div className="p-2 rounded-full" style={{ backgroundColor: `${theme.primary}30` }}>
@@ -1681,7 +1681,7 @@ function AuthorizedMenuContent({ restaurantId, tableId, sessionId, activeSession
                     <div className="space-y-3">
                       {sortedCart.map((item, index) => {
                         // Logic for grouping headers
-                        const showCourseHeader = fullRestaurant?.enable_course_splitting && (index === 0 || (item.course_number || 1) !== (sortedCart[index - 1].course_number || 1));
+                        const showCourseHeader = courseSplittingEnabled && (index === 0 || (item.course_number || 1) !== (sortedCart[index - 1].course_number || 1));
 
                         return (
                           <React.Fragment key={item.id}>
@@ -1744,7 +1744,7 @@ function AuthorizedMenuContent({ restaurantId, tableId, sessionId, activeSession
                   )}
 
                   {/* DIVIDE IN PORTATE BUTTON */}
-                  {cart.length > 0 && fullRestaurant?.enable_course_splitting && (
+                  {cart.length > 0 && courseSplittingEnabled && (
                     <div className="pt-2 pb-1">
                       <Button
                         variant="outline"
@@ -1765,65 +1765,6 @@ function AuthorizedMenuContent({ restaurantId, tableId, sessionId, activeSession
                     </div>
                   )}
                 </div>
-
-                {/* SEND BUTTON AREA */}
-                {cart.length > 0 && (
-                  <div className="p-4 rounded-2xl space-y-4 shadow-lg" style={{ backgroundColor: theme.cardBg, border: `1px solid ${theme.cardBorder}` }}>
-                    <div className="flex justify-between items-center text-sm pb-3" style={{ color: theme.textSecondary, borderBottom: `1px solid ${theme.divider}` }}>
-                      <span>Totale Carrello</span>
-                      <span>€{cartTotal.toFixed(2)}</span>
-                    </div>
-                    {/* Coperto Display in Modal */}
-                    {(() => {
-                      const isCopertoEnabled = activeSession?.coperto_enabled ?? true
-                      if (!isCopertoEnabled) return null;
-                      const currentCoperto = fullRestaurant
-                        ? getCurrentCopertoPrice(
-                          fullRestaurant,
-                          fullRestaurant.lunch_time_start || '12:00',
-                          fullRestaurant.dinner_time_start || '19:00'
-                        ).price
-                        : (fullRestaurant?.cover_charge_per_person || 0)
-                      if (currentCoperto <= 0) return null;
-
-                      const personCount = activeSession?.customer_count || 1;
-                      const totalCoperto = currentCoperto * personCount;
-                      return (
-                        <div className="flex justify-between items-center text-zinc-500 text-xs pb-3 border-b border-white/5">
-                          <span>Coperto ({personCount} pers.)</span>
-                          <span>€{totalCoperto.toFixed(2)}</span>
-                        </div>
-                      )
-                    })()}
-
-                    <Button
-                      className="w-full font-bold h-12 rounded-xl shadow-lg text-white"
-                      style={theme.floatingCartStyle}
-                      onClick={() => {
-                        handleSubmitClick()
-                        // Close modal after successful submission? 
-                        // Check handleSubmitClick logic: it doesn't close modal but clears cart. 
-                        // We should probably wait or close.
-                        // Looking at handleSubmitClick: it calls submitOrder which resets cart and sets IsCartOpen(false)
-                      }}
-                      disabled={isOrderSubmitting}
-                    >
-                      {isOrderSubmitting ? (
-                        <div className="flex items-center gap-2">
-                          <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
-                          <span>Invio...</span>
-                        </div>
-                      ) : (
-                        <div className="flex items-center gap-2">
-                          <Rocket weight="fill" size={18} />
-                          <span>Conferma e Invia Ordine</span>
-                        </div>
-                      )}
-                    </Button>
-                  </div>
-                )}
-
-                {/* HISTORY */}
                 {previousOrders.length > 0 && (
                   <div className="pt-6 space-y-4" style={{ borderTop: `1px solid ${theme.divider}` }}>
                     <h3 className="text-xs font-bold uppercase tracking-wider mb-2" style={{ color: theme.textMuted }}>Storico Ordini</h3>
@@ -1851,6 +1792,59 @@ function AuthorizedMenuContent({ restaurantId, tableId, sessionId, activeSession
                 )}
 
               </div>
+
+              {/* FIXED SEND BUTTON AREA */}
+              {cart.length > 0 && (
+                <div className="flex-none p-4 backdrop-blur-xl" style={{ borderTop: `1px solid ${theme.divider}`, backgroundColor: theme.cardBg }}>
+                  <div className="flex justify-between items-center text-sm mb-3" style={{ color: theme.textSecondary }}>
+                    <span>Totale Carrello</span>
+                    <span className="font-bold text-lg" style={{ color: theme.primary }}>€{cartTotal.toFixed(2)}</span>
+                  </div>
+                  {/* Coperto Display in Modal */}
+                  {(() => {
+                    const isCopertoEnabled = activeSession?.coperto_enabled ?? true
+                    if (!isCopertoEnabled) return null;
+                    const currentCoperto = fullRestaurant
+                      ? getCurrentCopertoPrice(
+                        fullRestaurant,
+                        fullRestaurant.lunch_time_start || '12:00',
+                        fullRestaurant.dinner_time_start || '19:00'
+                      ).price
+                      : (fullRestaurant?.cover_charge_per_person || 0)
+                    if (currentCoperto <= 0) return null;
+
+                    const personCount = activeSession?.customer_count || 1;
+                    const totalCoperto = currentCoperto * personCount;
+                    return (
+                      <div className="flex justify-between items-center text-zinc-500 text-xs mb-3">
+                        <span>Coperto ({personCount} pers.)</span>
+                        <span>€{totalCoperto.toFixed(2)}</span>
+                      </div>
+                    )
+                  })()}
+
+                  <Button
+                    className="w-full font-bold h-12 rounded-xl shadow-lg text-white"
+                    style={theme.floatingCartStyle}
+                    onClick={() => {
+                      handleSubmitClick()
+                    }}
+                    disabled={isOrderSubmitting}
+                  >
+                    {isOrderSubmitting ? (
+                      <div className="flex items-center gap-2">
+                        <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                        <span>Invio...</span>
+                      </div>
+                    ) : (
+                      <div className="flex items-center gap-2 text-lg">
+                        <Rocket weight="fill" size={20} />
+                        <span>Invia Ordine</span>
+                      </div>
+                    )}
+                  </Button>
+                </div>
+              )}
             </DialogContent>
           </Dialog>
         )}

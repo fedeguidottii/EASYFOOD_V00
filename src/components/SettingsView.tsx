@@ -199,9 +199,9 @@ export function SettingsView({
             const payload: any = {
                 restaurant_id: restaurantId,
                 name: staffForm.name,
-                username: `${restaurantName.toLowerCase().replace(/\\s+/g, '-')}.${staffForm.username.toLowerCase().replace(/\\s+/g, '')}`,
+                username: `${restaurantName.toLowerCase().replace(/\s+/g, '-')}.${staffForm.username.toLowerCase().replace(/\s+/g, '')}`,
                 is_active: staffForm.is_active,
-                role: 'WAITER'
+                role: 'STAFF'
             }
             if (staffForm.password) {
                 payload.password = staffForm.password

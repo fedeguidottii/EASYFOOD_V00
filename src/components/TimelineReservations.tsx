@@ -832,30 +832,32 @@ export default function TimelineReservations({ user, restaurantId, tables, booki
                             </div>
 
                             {!isCompleted && (
-                              <div className="absolute top-1 right-1 flex gap-1 md:opacity-0 md:group-hover:opacity-100 opacity-100 transition-opacity bg-black/30 rounded-full p-0.5 backdrop-blur-sm z-10">
+                              <div className="absolute top-1 right-1 flex gap-1 md:opacity-0 md:group-hover:opacity-100 opacity-100 transition-opacity bg-black/30 rounded-full p-0.5 backdrop-blur-sm z-50">
                                 <Button
                                   variant="ghost"
                                   size="icon"
-                                  className="w-5 h-5 rounded-full hover:bg-black/20 text-black p-0"
-                                  onClick={(e) => {
+                                  className="w-6 h-6 rounded-full hover:bg-black/20 text-white p-0 touch-none"
+                                  onPointerDown={(e) => {
                                     e.stopPropagation()
+                                    e.preventDefault()
                                     handleDeleteReservation(block.booking)
                                   }}
                                   title="Elimina Prenotazione"
                                 >
-                                  <Trash size={12} weight="bold" />
+                                  <Trash size={14} weight="bold" />
                                 </Button>
                                 <Button
                                   variant="ghost"
                                   size="icon"
-                                  className="w-5 h-5 rounded-full hover:bg-black/20 text-black p-0"
-                                  onClick={(e) => {
+                                  className="w-6 h-6 rounded-full hover:bg-black/20 text-white p-0 touch-none"
+                                  onPointerDown={(e) => {
                                     e.stopPropagation()
+                                    e.preventDefault()
                                     handleCompleteBooking(block.booking)
                                   }}
                                   title="Segna Arrivato"
                                 >
-                                  <Check size={12} weight="bold" />
+                                  <Check size={14} weight="bold" />
                                 </Button>
                               </div>
                             )}

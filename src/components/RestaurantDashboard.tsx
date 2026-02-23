@@ -314,6 +314,33 @@ const RestaurantDashboard = ({ user, onLogout }: RestaurantDashboardProps) => {
             }
           }
 
+          // EARLY SUPPRESSION CHECK:
+          // If we manually deactivated a scheduled menu in this same meal period,
+          // we do not want to automatically re-apply it until the next period.
+          const suppressionKey = 'easyfood_menu_suppressed'
+          const suppression = localStorage.getItem(suppressionKey)
+          let isSuppressedForNow = false;
+          if (suppression) {
+            try {
+              const sup = JSON.parse(suppression)
+              if (sup.day === scheduleDay && sup.mealType === currentMealType) {
+                isSuppressedForNow = true;
+              } else {
+                localStorage.removeItem(suppressionKey)
+              }
+            } catch { localStorage.removeItem(suppressionKey) }
+          }
+
+          if (isSuppressedForNow) {
+            // We have actively suppressed the custom menu for this meal.
+            // If the custom menu is somehow still active (shouldn't be, but just in case), reset to full menu.
+            if (lastScheduledMenuRef.current.menuId) {
+              await supabase.rpc('reset_to_full_menu', { p_restaurant_id: restaurantId })
+              lastScheduledMenuRef.current = { menuId: null, mealType: null, day: null }
+            }
+            return // Skip applying any new schedule
+          }
+
           if (lastScheduledMenuRef.current.menuId) {
             await supabase.rpc('reset_to_full_menu', { p_restaurant_id: restaurantId })
             lastScheduledMenuRef.current = { menuId: null, mealType: null, day: null }
@@ -321,8 +348,7 @@ const RestaurantDashboard = ({ user, onLogout }: RestaurantDashboardProps) => {
           return
         }
 
-        // Check if we need to apply a new menu
-        // First, check if this schedule was manually suppressed
+        // EARLY SUPPRESSION CHECK FOR MULTIPLE MENUS:
         const suppressionKey = 'easyfood_menu_suppressed'
         const suppression = localStorage.getItem(suppressionKey)
         if (suppression) {
@@ -1724,7 +1750,7 @@ const RestaurantDashboard = ({ user, onLogout }: RestaurantDashboardProps) => {
                 animate={{ opacity: 1, y: 0 }}
                 exit={{ opacity: 0, y: -10 }}
                 transition={{ duration: 0.2 }}
-                className="mb-4"
+                className="mb-4 sticky top-0 z-[60] pb-4 pt-4 -mt-4 -translate-y-px"
               >
                 <button
                   onClick={() => setIsSidebarOpen(true)}
@@ -2122,7 +2148,7 @@ const RestaurantDashboard = ({ user, onLogout }: RestaurantDashboardProps) => {
                             })
                             .map(session => {
                               const table = restaurantTables.find(t => t.id === session.table_id)
-                              const sessionOrders = restaurantCompletedOrders.filter(o => o.table_session_id === session.id)
+                              const sessionOrders = pastOrders.filter(o => o.table_session_id === session.id)
                               const totalAmount = sessionOrders.reduce((sum, o) => sum + (o.total_amount || 0), 0)
                               const totalItems = sessionOrders.reduce((sum, o) => sum + (o.items?.length || 0), 0)
                               const openDate = new Date(session.created_at)
@@ -2645,8 +2671,7 @@ const RestaurantDashboard = ({ user, onLogout }: RestaurantDashboardProps) => {
 
               <div className="bg-zinc-950/50 backdrop-blur-md rounded-2xl border border-white/[0.05] p-6">
                 {(() => {
-                  let effOpen = lunchTimeStart || '10:00';
-                  let effClose = '23:00'; // Default end
+                  const serviceSegments: { label: string; start: string; end: string }[] = [];
 
                   if (weeklyServiceHours?.useWeeklySchedule && weeklyServiceHours.schedule) {
                     const days = ['sunday', 'monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday'];
@@ -2656,19 +2681,22 @@ const RestaurantDashboard = ({ user, onLogout }: RestaurantDashboardProps) => {
                     if (daySchedule) {
                       const lunch = daySchedule.lunch;
                       const dinner = daySchedule.dinner;
-
-                      if (lunch?.enabled && dinner?.enabled) {
-                        effOpen = lunch.start || lunchTimeStart || '10:00';
-                        effClose = dinner.end || '23:00';
-                      } else if (lunch?.enabled) {
-                        effOpen = lunch.start || lunchTimeStart || '10:00';
-                        effClose = lunch.end || '15:00';
-                      } else if (dinner?.enabled) {
-                        effOpen = dinner.start || dinnerTimeStart || '19:00';
-                        effClose = dinner.end || '23:00';
+                      if (lunch?.enabled) {
+                        serviceSegments.push({ label: 'Pranzo', start: lunch.start || lunchTimeStart || '12:00', end: lunch.end || '15:00' });
+                      }
+                      if (dinner?.enabled) {
+                        serviceSegments.push({ label: 'Cena', start: dinner.start || dinnerTimeStart || '19:00', end: dinner.end || '23:00' });
                       }
                     }
                   }
+
+                  // Fallback: single continuous range
+                  if (serviceSegments.length === 0) {
+                    serviceSegments.push({ label: 'Servizio', start: lunchTimeStart || '12:00', end: '23:00' });
+                  }
+
+                  const effOpen = serviceSegments[0].start;
+                  const effClose = serviceSegments[serviceSegments.length - 1].end;
 
                   return (
                     <ReservationsManager
@@ -2680,6 +2708,7 @@ const RestaurantDashboard = ({ user, onLogout }: RestaurantDashboardProps) => {
                       selectedDate={selectedDate}
                       openingTime={effOpen}
                       closingTime={effClose}
+                      serviceSegments={serviceSegments}
                       reservationDuration={reservationDuration}
                       onRefresh={refreshData}
                       onDateChange={setSelectedDate}
@@ -3221,20 +3250,53 @@ const RestaurantDashboard = ({ user, onLogout }: RestaurantDashboardProps) => {
                   />
                 </div>
               </div>
-              <ReservationsManager
-                user={user}
-                restaurantId={restaurantId}
-                tables={restaurantTables}
-                rooms={rooms || []}
-                bookings={bookings || []}
-                selectedDate={selectedReservationDate}
-                onRefresh={() => {
-                  refreshBookings()
-                  refreshSessions()
-                }}
-                onDateChange={(date) => setSelectedReservationDate(date)}
-                reservationDuration={reservationDuration} // Pass duration here
-              />
+              {(() => {
+                const serviceSegments: { label: string; start: string; end: string }[] = [];
+
+                if (weeklyServiceHours?.useWeeklySchedule && weeklyServiceHours.schedule) {
+                  const days = ['sunday', 'monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday'];
+                  const dayName = days[selectedReservationDate.getDay()];
+                  const daySchedule = weeklyServiceHours.schedule[dayName];
+
+                  if (daySchedule) {
+                    const lunch = daySchedule.lunch;
+                    const dinner = daySchedule.dinner;
+                    if (lunch?.enabled) {
+                      serviceSegments.push({ label: 'Pranzo', start: lunch.start || lunchTimeStart || '12:00', end: lunch.end || '15:00' });
+                    }
+                    if (dinner?.enabled) {
+                      serviceSegments.push({ label: 'Cena', start: dinner.start || dinnerTimeStart || '19:00', end: dinner.end || '23:00' });
+                    }
+                  }
+                }
+
+                if (serviceSegments.length === 0) {
+                  serviceSegments.push({ label: 'Servizio', start: lunchTimeStart || '12:00', end: '23:00' });
+                }
+
+                const effOpen = serviceSegments[0].start;
+                const effClose = serviceSegments[serviceSegments.length - 1].end;
+
+                return (
+                  <ReservationsManager
+                    user={user}
+                    restaurantId={restaurantId}
+                    tables={restaurantTables}
+                    rooms={rooms || []}
+                    bookings={bookings || []}
+                    selectedDate={selectedReservationDate}
+                    openingTime={effOpen}
+                    closingTime={effClose}
+                    serviceSegments={serviceSegments}
+                    onRefresh={() => {
+                      refreshBookings()
+                      refreshSessions()
+                    }}
+                    onDateChange={(date) => setSelectedReservationDate(date)}
+                    reservationDuration={reservationDuration}
+                  />
+                );
+              })()}
             </TabsContent >
 
             {/* Analytics Tab */}

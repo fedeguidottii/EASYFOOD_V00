@@ -24,6 +24,7 @@ interface CustomMenusManagerProps {
     dishes: Dish[]
     categories: Category[]
     onDishesChange: () => void
+    onMenuDeactivated?: () => void
 }
 
 const DAYS_OF_WEEK = [
@@ -41,7 +42,7 @@ const MEAL_TYPES: { value: MealType, label: string }[] = [
     { value: 'dinner', label: 'Cena' },
 ]
 
-export default function CustomMenusManager({ restaurantId, dishes, categories, onDishesChange }: CustomMenusManagerProps) {
+export default function CustomMenusManager({ restaurantId, dishes, categories, onDishesChange, onMenuDeactivated }: CustomMenusManagerProps) {
     const [customMenus, setCustomMenus] = useState<CustomMenu[]>([])
     const [selectedMenu, setSelectedMenu] = useState<CustomMenu | null>(null)
     const [menuDishes, setMenuDishes] = useState<string[]>([])
@@ -169,6 +170,9 @@ export default function CustomMenusManager({ restaurantId, dishes, categories, o
             toast.success('Menu Completo Ripristinato')
             fetchCustomMenus()
             onDishesChange()
+            if (onMenuDeactivated) {
+                onMenuDeactivated()
+            }
         }
     }
 
