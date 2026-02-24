@@ -12,6 +12,12 @@ import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover
 import type { Table, Booking, User } from '../services/types'
 import { DatabaseService } from '../services/DatabaseService'
 
+interface ServiceSegment {
+  label: string
+  start: string
+  end: string
+}
+
 interface TimelineReservationsProps {
   user: User
   restaurantId: string
@@ -20,6 +26,7 @@ interface TimelineReservationsProps {
   selectedDate: string // Passed from parent
   openingTime?: string
   closingTime?: string
+  serviceSegments?: ServiceSegment[]
   reservationDuration?: number // Duration in minutes, default 120
   onRefresh?: () => void
   onEditBooking?: (booking: Booking) => void
@@ -42,7 +49,7 @@ interface ReservationBlock {
 
 const COLORS = ['#C9A152', '#8B7355', '#F4E6D1', '#E8C547', '#D4B366', '#A68B5B', '#F0D86F', '#C09853']
 
-export default function TimelineReservations({ user, restaurantId, tables, bookings, selectedDate, openingTime = '10:00', closingTime = '23:00', reservationDuration = 120, onRefresh, onEditBooking, onDeleteBooking, onDateChange }: TimelineReservationsProps) {
+export default function TimelineReservations({ user, restaurantId, tables, bookings, selectedDate, openingTime = '10:00', closingTime = '23:00', serviceSegments, reservationDuration = 120, onRefresh, onEditBooking, onDeleteBooking, onDateChange }: TimelineReservationsProps) {
   const [showReservationDialog, setShowReservationDialog] = useState(false)
   const [selectedTimeSlot, setSelectedTimeSlot] = useState<{ tableId: string, time: string } | null>(null)
   const [draggedBookingId, setDraggedBookingId] = useState<string | null>(null)
@@ -66,10 +73,12 @@ export default function TimelineReservations({ user, restaurantId, tables, booki
   const [availableTables, setAvailableTables] = useState<Table[]>([])
   const [highlightedTableId, setHighlightedTableId] = useState<string | null>(null)
 
-  // Drag-to-select multiple slots states
-  const [isSelectingSlot, setIsSelectingSlot] = useState(false)
-  const [selectionStart, setSelectionStart] = useState<{ tableId: string, time: string, startMinutes: number } | null>(null)
-  const [selectionEnd, setSelectionEnd] = useState<{ tableId: string, time: string, startMinutes: number } | null>(null)
+  // Draft reservation (ghost block) states
+  const [draftSlot, setDraftSlot] = useState<{ tableId: string, startMinutes: number, duration: number, isDragging: boolean } | null>(null)
+
+  // Auto-scroll ref
+  const scrollContainerRef = useRef<HTMLDivElement>(null)
+  const scrollIntervalRef = useRef<number | null>(null)
 
   // Table sorting/filtering state
   const [tableSortBy, setTableSortBy] = useState<'name' | 'capacity' | 'status'>('name')
@@ -107,26 +116,16 @@ export default function TimelineReservations({ user, restaurantId, tables, booki
   }) || []
 
   // Timeline configuration
+  // Generate segments. If serviceSegments is provided and valid, use it. Otherwise, create a single segment from open to close.
+  const isValidSegments = serviceSegments && serviceSegments.length > 0 && serviceSegments.every(s => s.start && s.end);
+
+  // Default bounds
   const startHour = openingTime ? parseInt(openingTime.split(':')[0]) || 0 : 0
   const endHour = closingTime ? parseInt(closingTime.split(':')[0]) || 24 : 24
 
-  const TIMELINE_START_MINUTES = startHour * 60
-  const TIMELINE_END_MINUTES = endHour * 60
-  const TIMELINE_DURATION = TIMELINE_END_MINUTES - TIMELINE_START_MINUTES
+  // Compile segments in minutes
+  let timelineSegments: { label: string, startMin: number, endMin: number, duration: number }[] = []
 
-  // Generate time slots (every 60 mins)
-  const timeSlots: TimeSlot[] = []
-  for (let hour = startHour; hour < endHour; hour++) {
-    timeSlots.push({
-      time: `${hour.toString().padStart(2, '0')}:00`,
-      hour,
-      minute: 0
-    })
-  }
-
-  const timelineRef = useRef<HTMLDivElement>(null)
-
-  // Helper to convert time string (HH:MM) to minutes from start of day
   const timeToMinutes = (time: string) => {
     if (!time) return 0
     const parts = time.split(':')
@@ -135,23 +134,153 @@ export default function TimelineReservations({ user, restaurantId, tables, booki
     return hours * 60 + minutes
   }
 
-  // Helper to convert minutes to time string
   const minutesToTime = (minutes: number) => {
     const hours = Math.floor(minutes / 60)
     const mins = Math.round(minutes % 60)
     return `${hours.toString().padStart(2, '0')}:${mins.toString().padStart(2, '0')}`
   }
 
-  // Calculate position and width for a reservation block
-  const getBlockStyle = (startMinutes: number, duration: number) => {
-    const relativeStart = startMinutes - TIMELINE_START_MINUTES
-    const left = (relativeStart / TIMELINE_DURATION) * 100
-    const width = (duration / TIMELINE_DURATION) * 100
+  if (isValidSegments) {
+    serviceSegments!.forEach(seg => {
+      const sStart = timeToMinutes(seg.start)
+      const sEnd = timeToMinutes(seg.end)
+      if (sEnd > sStart) {
+        timelineSegments.push({ label: seg.label, startMin: sStart, endMin: sEnd, duration: sEnd - sStart })
+      }
+    })
+    // Sort segments just in case
+    timelineSegments.sort((a, b) => a.startMin - b.startMin)
+  } else {
+    timelineSegments.push({
+      label: 'Servizio',
+      startMin: startHour * 60,
+      endMin: endHour * 60,
+      duration: (endHour * 60) - (startHour * 60)
+    })
+  }
+
+  const TIMELINE_DURATION = timelineSegments.reduce((acc, seg) => acc + seg.duration, 0)
+  // Fallback if configured improperly
+  const totalDurationSafe = TIMELINE_DURATION > 0 ? TIMELINE_DURATION : 1440
+
+  // Generate time slots (every 60 mins within segments)
+  const timeSlots: { time: string, hour: number, minute: number, relativeLeft: number }[] = []
+
+  let accumulatedMinutes = 0;
+  timelineSegments.forEach(seg => {
+    const startH = Math.ceil(seg.startMin / 60);
+    const endH = Math.floor(seg.endMin / 60);
+
+    for (let hour = startH; hour <= endH; hour++) {
+      const minInSegment = (hour * 60) - seg.startMin;
+      // if it falls strictly inside or on boundaries
+      if (minInSegment >= 0 && minInSegment <= seg.duration) {
+        const leftPercentage = ((accumulatedMinutes + minInSegment) / totalDurationSafe) * 100;
+        timeSlots.push({
+          time: `${hour.toString().padStart(2, '0')}:00`,
+          hour,
+          minute: 0,
+          relativeLeft: leftPercentage
+        })
+      }
+    }
+    accumulatedMinutes += seg.duration;
+  });
+
+  const timelineRef = useRef<HTMLDivElement>(null)
+
+  // Calculate position and width for a reservation block taking into account the gaps
+  const getBlockStyle = (startMinutes: number, durationMinutes: number) => {
+    let startOffset = 0;
+    let foundStart = false;
+    let visualStart = startMinutes;
+
+    // Find the relative start position
+    for (const seg of timelineSegments) {
+      if (startMinutes >= seg.startMin && startMinutes < seg.endMin) {
+        startOffset += startMinutes - seg.startMin;
+        foundStart = true;
+        break;
+      } else if (startMinutes < seg.startMin) {
+        // Requested start is in a gap before this segment, snap to start of segment
+        visualStart = seg.startMin;
+        foundStart = true;
+        break;
+      } else {
+        startOffset += seg.duration;
+      }
+    }
+
+    if (!foundStart) {
+      // Past the end of the last segment
+      visualStart = timelineSegments[timelineSegments.length - 1].endMin;
+      startOffset = totalDurationSafe;
+    }
+
+    const left = (startOffset / totalDurationSafe) * 100;
+
+    // Width calculation (could span across gaps, but let's assume it spans visually linearly over the active duration)
+    let visibleDuration = 0;
+    let remainingDuration = durationMinutes;
+    let currentMin = visualStart;
+
+    for (const seg of timelineSegments) {
+      if (remainingDuration <= 0) break;
+      if (currentMin >= seg.endMin) continue; // Past this segment
+
+      const startInSeg = Math.max(currentMin, seg.startMin);
+      const endInSeg = Math.min(startInSeg + remainingDuration, seg.endMin);
+
+      const durationInSeg = endInSeg - startInSeg;
+      visibleDuration += durationInSeg;
+
+      remainingDuration -= durationInSeg;
+      currentMin = endInSeg;
+
+      // If we exit a segment and still have remaining duration, we assume it jumps to the next segment's start
+      if (remainingDuration > 0) {
+        // find next segment
+        const nextSegIndex = timelineSegments.indexOf(seg) + 1;
+        if (nextSegIndex < timelineSegments.length) {
+          currentMin = timelineSegments[nextSegIndex].startMin;
+        } else {
+          break; // No more segments
+        }
+      }
+    }
+
+    // In case of error
+    if (visibleDuration <= 0) visibleDuration = durationMinutes; // fallback
+
+    const width = (visibleDuration / totalDurationSafe) * 100;
 
     return {
-      left: `${Math.max(0, left)}%`,
-      width: `${Math.min(100 - Math.max(0, left), width)}%`
+      left: `${Math.max(0, Math.min(100, left))}%`,
+      width: `${Math.min(100 - left, width)}%`
     }
+  }
+
+  // Helper to get raw minutes from screen X coordinate
+  const getPointerMinutesFromX = (clientX: number, targetElement: HTMLElement) => {
+    const scrollContainer = targetElement.closest('.timeline-scroll-container') as HTMLElement;
+    const bodyContainer = scrollContainer?.querySelector('.timeline-body-container') as HTMLElement;
+
+    if (!bodyContainer) return timelineSegments[0]?.startMin || 0;
+
+    const rect = bodyContainer.getBoundingClientRect();
+    const clickX = clientX - rect.left;
+    const percentage = Math.max(0, Math.min(100, (clickX / rect.width) * 100));
+    const targetMinutesInActive = (percentage / 100) * totalDurationSafe;
+
+    let accumulated = 0;
+    for (const seg of timelineSegments) {
+      if (targetMinutesInActive <= accumulated + seg.duration) {
+        const offsetInSeg = targetMinutesInActive - accumulated;
+        return seg.startMin + offsetInSeg;
+      }
+      accumulated += seg.duration;
+    }
+    return timelineSegments[timelineSegments.length - 1]?.endMin || 0;
   }
 
   // Prepare reservation blocks
@@ -230,41 +359,59 @@ export default function TimelineReservations({ user, restaurantId, tables, booki
 
   const [hoveredSlot, setHoveredSlot] = useState<{ tableId: string, time: string, startMinutes: number } | null>(null)
 
-  // Drag-to-select selection logic
+  // Ghost drag logic
+  const startAutoScroll = (direction: 'up' | 'down') => {
+    if (scrollIntervalRef.current) return;
+    scrollIntervalRef.current = window.setInterval(() => {
+      if (scrollContainerRef.current) {
+        scrollContainerRef.current.scrollBy({ top: direction === 'up' ? -15 : 15 });
+      }
+    }, 16);
+  }
+
+  const stopAutoScroll = () => {
+    if (scrollIntervalRef.current) {
+      clearInterval(scrollIntervalRef.current);
+      scrollIntervalRef.current = null;
+    }
+  }
+
   const handleSlotPointerDown = (e: React.PointerEvent, tableId: string) => {
-    // Only handle primary button or touch
     if (e.pointerType === 'mouse' && e.button !== 0) return
     e.currentTarget.setPointerCapture(e.pointerId)
 
-    const rect = e.currentTarget.getBoundingClientRect()
-    const clickX = e.clientX - rect.left
-    const percentage = (clickX / rect.width) * 100
-    const totalMinutes = TIMELINE_DURATION
-    const startMinutesRaw = TIMELINE_START_MINUTES + (percentage / 100) * totalMinutes
+    const rawMinutes = getPointerMinutesFromX(e.clientX, e.currentTarget as HTMLElement);
+    const roundedMinutes = Math.round(rawMinutes / 15) * 15
 
-    // Snap to 15 mins
-    const roundedMinutes = Math.round(startMinutesRaw / 15) * 15
-    const snappedTime = minutesToTime(roundedMinutes)
-
-    setIsSelectingSlot(true)
-    setSelectionStart({ tableId, time: snappedTime, startMinutes: roundedMinutes })
-    setSelectionEnd({ tableId, time: snappedTime, startMinutes: roundedMinutes })
-
-    // Clear hover slot
+    setDraftSlot({
+      tableId,
+      startMinutes: roundedMinutes,
+      duration: reservationDuration,
+      isDragging: true
+    })
     setHoveredSlot(null)
   }
 
   const handleSlotPointerMove = (e: React.PointerEvent, tableId: string) => {
-    if (!isSelectingSlot || !selectionStart || selectionStart.tableId !== tableId) {
-      // Standard hover behavior when not dragging
-      const rect = e.currentTarget.getBoundingClientRect()
-      const clickX = e.clientX - rect.left
-      const percentage = (clickX / rect.width) * 100
-      const totalMinutes = TIMELINE_DURATION
-      const mouseMinutes = TIMELINE_START_MINUTES + (percentage / 100) * totalMinutes
+    // Determine auto-scroll based on Y position
+    if (draftSlot?.isDragging && scrollContainerRef.current) {
+      const rect = scrollContainerRef.current.getBoundingClientRect();
+      const y = e.clientY;
+      const edgeThreshold = 60; // pixels from edge to start scrolling
 
-      // Snap to 15 mins
-      const roundedMinutes = Math.round(mouseMinutes / 15) * 15
+      if (y < rect.top + edgeThreshold) {
+        startAutoScroll('up');
+      } else if (y > rect.bottom - edgeThreshold) {
+        startAutoScroll('down');
+      } else {
+        stopAutoScroll();
+      }
+    }
+
+    if (!draftSlot || !draftSlot.isDragging) {
+      // Standard hover behavior when not dragging
+      const rawMinutes = getPointerMinutesFromX(e.clientX, e.currentTarget as HTMLElement);
+      const roundedMinutes = Math.round(rawMinutes / 15) * 15
       const snappedTime = minutesToTime(roundedMinutes)
 
       setHoveredSlot({
@@ -275,68 +422,58 @@ export default function TimelineReservations({ user, restaurantId, tables, booki
       return
     }
 
-    const rect = e.currentTarget.getBoundingClientRect()
-    const currentX = e.clientX - rect.left
-    const percentage = Math.max(0, Math.min(100, (currentX / rect.width) * 100))
-    const totalMinutes = TIMELINE_DURATION
-    const currentMinutesRaw = TIMELINE_START_MINUTES + (percentage / 100) * totalMinutes
+    // Find table below cursor
+    const elBelow = document.elementFromPoint(e.clientX, e.clientY);
+    const tableRow = elBelow?.closest('[data-table-id]') as HTMLElement | null;
+    let targetTableId = draftSlot.tableId;
 
-    // Snap to 15 mins
-    const roundedMinutes = Math.round(currentMinutesRaw / 15) * 15
-    const snappedTime = minutesToTime(roundedMinutes)
+    if (tableRow) {
+      targetTableId = tableRow.getAttribute('data-table-id') || targetTableId;
+    }
 
-    setSelectionEnd({ tableId, time: snappedTime, startMinutes: roundedMinutes })
+    e.currentTarget.setPointerCapture(e.pointerId) // Ensure capture is maintained
+
+    const rawMinutes = getPointerMinutesFromX(e.clientX, e.currentTarget as HTMLElement);
+    const roundedMinutes = Math.round(rawMinutes / 15) * 15
+
+    setDraftSlot({
+      ...draftSlot,
+      tableId: targetTableId,
+      startMinutes: roundedMinutes
+    })
   }
 
-  const handleSlotPointerUp = (e: React.PointerEvent, tableId: string) => {
+  const handleSlotPointerUp = (e: React.PointerEvent) => {
     e.currentTarget.releasePointerCapture(e.pointerId)
+    stopAutoScroll();
 
-    if (!isSelectingSlot || !selectionStart || !selectionEnd || selectionStart.tableId !== tableId) {
-      setIsSelectingSlot(false)
-      setSelectionStart(null)
-      setSelectionEnd(null)
-      return
-    }
+    if (!draftSlot || !draftSlot.isDragging) return
 
-    setIsSelectingSlot(false)
+    const finalTableId = draftSlot.tableId;
+    const finalStartMinutes = draftSlot.startMinutes;
+    const finalTime = minutesToTime(finalStartMinutes);
 
-    // Calculate actual start and duration
-    // Add default duration (15m offset minimum to make it visual) to the end so it selects a block
-    let actualStartMinutes = Math.min(selectionStart.startMinutes, selectionEnd.startMinutes)
-    let actualEndMinutes = Math.max(selectionStart.startMinutes, selectionEnd.startMinutes) + 15
+    setDraftSlot(null) // clear drag state immediately
 
-    // If it's a click (start == end), use default configured duration
-    if (selectionStart.startMinutes === selectionEnd.startMinutes) {
-      actualEndMinutes = actualStartMinutes + reservationDuration
-    }
-
-    const dragDuration = actualEndMinutes - actualStartMinutes
-    const finalStartTime = minutesToTime(actualStartMinutes)
-
-    if (hasConflict(tableId, finalStartTime, dragDuration)) {
+    if (hasConflict(finalTableId, finalTime, reservationDuration)) {
       toast.error('Orario già occupato')
-      setSelectionStart(null)
-      setSelectionEnd(null)
       return
     }
 
-    setSelectedTimeSlot({ tableId, time: finalStartTime })
+    setSelectedTimeSlot({ tableId: finalTableId, time: finalTime })
     setNewReservation(prev => ({
       ...prev,
-      tableId,
-      time: finalStartTime,
-      duration: dragDuration
+      tableId: finalTableId,
+      time: finalTime,
+      duration: reservationDuration
     }))
-    // We now pass the calculated duration to the dialog form
-    setShowReservationDialog(true)
 
-    setSelectionStart(null)
-    setSelectionEnd(null)
+    setShowReservationDialog(true)
   }
 
   const handleTimelineMouseLeave = () => {
     setHoveredSlot(null)
-    // We intentionally don't cancel selection here in case they drag slightly outside
+    // if dragging, let pointermove handle via capture
   }
 
   const handleCreateReservation = async () => {
@@ -479,12 +616,20 @@ export default function TimelineReservations({ user, restaurantId, tables, booki
     if (todayStr !== selectedDate) return -1
 
     const currentMinutes = now.getHours() * 60 + now.getMinutes()
-    if (currentMinutes < TIMELINE_START_MINUTES || currentMinutes > TIMELINE_END_MINUTES) {
-      return -1
+
+    // Check if within any segment
+    let accumulated = 0;
+    for (const seg of timelineSegments) {
+      if (currentMinutes >= seg.startMin && currentMinutes <= seg.endMin) {
+        const relativeCurrent = currentMinutes - seg.startMin + accumulated;
+        return (relativeCurrent / totalDurationSafe) * 100;
+      } else if (currentMinutes < seg.startMin) {
+        return -1; // Between segments, could return clamped or hide
+      }
+      accumulated += seg.duration;
     }
 
-    const relativeCurrent = currentMinutes - TIMELINE_START_MINUTES
-    return (relativeCurrent / TIMELINE_DURATION) * 100
+    return -1;
   }
 
   const currentTimePos = getCurrentTimePosition()
@@ -541,336 +686,370 @@ export default function TimelineReservations({ user, restaurantId, tables, booki
               <div className="w-40 shrink-0 border-r border-white/10 flex items-center px-4">
                 <span className="text-[10px] font-bold text-zinc-500 uppercase tracking-widest">Tavoli</span>
               </div>
-              <div className="flex-1 relative">
-                {timeSlots.map((slot, i) => {
-                  const minutes = slot.hour * 60 + slot.minute
-                  const relativeStart = minutes - TIMELINE_START_MINUTES
-                  const left = (relativeStart / TIMELINE_DURATION) * 100
-
-                  return (
+              <div className="flex-1 relative timeline-scroll-container">
+                <div className="absolute inset-0 timeline-body-container">
+                  {timeSlots.map((slot, i) => (
                     <div
                       key={i}
                       className="absolute bottom-0 transform -translate-x-1/2 flex flex-col items-center"
-                      style={{ left: `${left}%` }}
+                      style={{ left: `${slot.relativeLeft}%` }}
                     >
                       <span className="text-xs font-bold text-zinc-400 mb-1 px-1">{slot.time}</span>
                       <div className="h-2 w-px bg-white/10"></div>
                     </div>
-                  )
-                })}
+                  ))}
+
+                  {/* Segment Separators (Labels) */}
+                  {timelineSegments.map((seg, i) => {
+                    // don't draw separator text for first segment start if there's only one, 
+                    // but rather show labels centrally or distinctly if multiple
+                    if (timelineSegments.length > 1) {
+                      let accBefore = 0;
+                      for (let j = 0; j < i; j++) accBefore += timelineSegments[j].duration;
+                      const leftStart = (accBefore / totalDurationSafe) * 100;
+                      const leftEnd = ((accBefore + seg.duration) / totalDurationSafe) * 100;
+                      const labelWidth = leftEnd - leftStart;
+
+                      return (
+                        <div
+                          key={'seg-label-' + i}
+                          className="absolute bottom-2 text-xs font-bold uppercase tracking-[0.2em] text-amber-400 flex justify-center items-center pointer-events-none"
+                          style={{ left: `${leftStart}%`, width: `${labelWidth}%` }}
+                        >
+                          <span className="bg-zinc-950/80 px-4 py-1.5 rounded-full backdrop-blur-md border border-white/10 shadow-[0_0_15px_rgba(0,0,0,0.5)] flex items-center gap-2">
+                            <span className="w-1.5 h-1.5 rounded-full bg-amber-500 shadow-[0_0_8px_rgba(245,158,11,0.8)]"></span>
+                            {seg.label}
+                          </span>
+                        </div>
+                      )
+                    }
+                    return null;
+                  })}
+                </div>
               </div>
             </div>
 
             {/* BODY: TABLES & GRID */}
-            {sortedTables.map((table, tableIndex) => {
-              // Status Logic
-              const now = new Date()
-              const currentMinutes = now.getHours() * 60 + now.getMinutes()
-              const isToday = selectedDate === now.toISOString().split('T')[0]
+            <div ref={scrollContainerRef} className="timeline-scroll-container overflow-y-auto max-h-[60vh] scrollbar-thin scrollbar-thumb-white/10 relative">
+              {sortedTables.map((table, tableIndex) => {
+                // Status Logic
+                const now = new Date()
+                const currentMinutes = now.getHours() * 60 + now.getMinutes()
+                const isToday = selectedDate === now.toISOString().split('T')[0]
 
-              const isCurrentlyOccupied = isToday && reservationBlocks.some(block => {
-                if (block.table.id !== table.id) return false
-                const bookingEnd = block.startMinutes + block.duration
-                return currentMinutes >= block.startMinutes && currentMinutes < bookingEnd
-              })
-              const isAvailable = availableTables.some(t => t.id === table.id)
+                const isCurrentlyOccupied = isToday && reservationBlocks.some(block => {
+                  if (block.table.id !== table.id) return false
+                  const bookingEnd = block.startMinutes + block.duration
+                  return currentMinutes >= block.startMinutes && currentMinutes < bookingEnd
+                })
+                const isAvailable = availableTables.some(t => t.id === table.id)
 
-              // UPDATED COLORS: RED for Occupied, GREEN for Free (approx)
-              let borderClass = 'border-l-2 border-l-zinc-800'
-              let bgClass = 'bg-black/40' // Pure black/glass default
+                // UPDATED COLORS: RED for Occupied, GREEN for Free (approx)
+                let borderClass = 'border-l-2 border-l-zinc-800'
+                let bgClass = 'bg-black/40' // Pure black/glass default
 
-              if (isCurrentlyOccupied) {
-                borderClass = 'border-l-2 border-l-amber-500'
-                bgClass = 'bg-amber-950/20' // Subtle gold tint for occupied
-              } else if (isAvailable && searchTime) {
-                borderClass = 'border-l-2 border-l-emerald-500' // Available
-                bgClass = 'bg-emerald-950/20'
-              } else {
-                // Default Free
-                borderClass = 'border-l-2 border-l-zinc-800'
-                bgClass = 'bg-black' // Deep black for free
-              }
+                if (isCurrentlyOccupied) {
+                  borderClass = 'border-l-2 border-l-amber-500'
+                  bgClass = 'bg-amber-950/20' // Subtle gold tint for occupied
+                } else if (isAvailable && searchTime) {
+                  borderClass = 'border-l-2 border-l-emerald-500' // Available
+                  bgClass = 'bg-emerald-950/20'
+                } else {
+                  // Default Free
+                  borderClass = 'border-l-2 border-l-zinc-800'
+                  bgClass = 'bg-black' // Deep black for free
+                }
 
-              // Collision check for ghost block
-              const isHoverColliding = hoveredSlot && hoveredSlot.tableId === table.id && reservationBlocks.some(block => {
-                if (block.table.id !== table.id) return false
-                const blockEnd = block.startMinutes + block.duration
-                const ghostStart = hoveredSlot.startMinutes
-                const ghostEnd = ghostStart + reservationDuration
-                return (ghostStart < blockEnd && ghostEnd > block.startMinutes)
-              })
+                // Collision check for ghost block
+                const isHoverColliding = hoveredSlot && hoveredSlot.tableId === table.id && reservationBlocks.some(block => {
+                  if (block.table.id !== table.id) return false
+                  const blockEnd = block.startMinutes + block.duration
+                  const ghostStart = hoveredSlot.startMinutes
+                  const ghostEnd = ghostStart + reservationDuration
+                  return (ghostStart < blockEnd && ghostEnd > block.startMinutes)
+                })
 
-              return (
-                <div key={table.id} className={`flex h-24 border-b border-white/10 ${bgClass} ${borderClass}`}>
+                return (
+                  <div key={table.id} className={`flex h-24 border-b border-white/10 ${bgClass} ${borderClass}`}>
 
-                  {/* LEFT COLUMN: TABLE INFO */}
-                  <div className="w-40 shrink-0 flex flex-col justify-center px-4 border-r border-border/10 relative">
-                    <span className="font-bold text-lg text-foreground">{table.number}</span>
-                    <div className="flex items-center gap-1 text-xs text-muted-foreground mt-1">
-                      Users: {table.seats || 4}
+                    {/* LEFT COLUMN: TABLE INFO */}
+                    <div className="w-40 shrink-0 flex flex-col justify-center px-4 border-r border-border/10 relative">
+                      <span className="font-bold text-lg text-foreground">{table.number}</span>
+                      <div className="flex items-center gap-1 text-xs text-muted-foreground mt-1">
+                        Users: {table.seats || 4}
+                      </div>
+                      {isCurrentlyOccupied && <Badge variant="destructive" className="mt-2 w-fit text-[10px] px-1 py-0 h-4">Occupato</Badge>}
                     </div>
-                    {isCurrentlyOccupied && <Badge variant="destructive" className="mt-2 w-fit text-[10px] px-1 py-0 h-4">Occupato</Badge>}
-                  </div>
 
-                  {/* RIGHT COLUMN: TIMELINE STRIP */}
-                  <div
-                    data-table-id={table.id}
-                    className="flex-1 relative cursor-crosshair group touch-none"
-                    onPointerDown={(e) => handleSlotPointerDown(e, table.id)}
-                    onPointerMove={(e) => handleSlotPointerMove(e, table.id)}
-                    onPointerUp={(e) => handleSlotPointerUp(e, table.id)}
-                    onPointerCancel={(e) => {
-                      setIsSelectingSlot(false)
-                      setSelectionStart(null)
-                      setSelectionEnd(null)
-                    }}
-                    onMouseLeave={handleTimelineMouseLeave}
-                  >
-                    {/* DRAG SELECTION BLOCK */}
-                    {isSelectingSlot && selectionStart && selectionEnd && selectionStart.tableId === table.id && (
-                      <div
-                        className="absolute top-2 bottom-2 rounded-md bg-amber-500/30 border-2 border-amber-500/70 border-dashed z-0 pointer-events-none transition-none"
-                        style={{
-                          left: `${getBlockStyle(Math.min(selectionStart.startMinutes, selectionEnd.startMinutes), 0).left}`,
-                          width: `${Math.max(
-                            (15 / TIMELINE_DURATION) * 100, // min width of 15m slot
-                            (Math.abs(selectionEnd.startMinutes - selectionStart.startMinutes) / TIMELINE_DURATION) * 100 + ((15 / TIMELINE_DURATION) * 100) // extra 15 to cover the hovered end unit
-                          )}%`
-                        }}
-                      >
-                        <div className="absolute -top-6 left-0 bg-amber-500 text-black text-xs px-1.5 py-0.5 rounded shadow-sm font-bold whitespace-nowrap">
-                          {minutesToTime(Math.min(selectionStart.startMinutes, selectionEnd.startMinutes))} - {minutesToTime(Math.max(selectionStart.startMinutes, selectionEnd.startMinutes) + 15)}
+                    {/* RIGHT COLUMN: TIMELINE STRIP */}
+                    <div
+                      data-table-id={table.id}
+                      className="flex-1 relative cursor-crosshair group touch-none timeline-body-container"
+                      onPointerDown={(e) => handleSlotPointerDown(e, table.id)}
+                      onPointerMove={(e) => handleSlotPointerMove(e, table.id)}
+                      onPointerUp={(e) => handleSlotPointerUp(e)}
+                      onPointerCancel={(e) => {
+                        setDraftSlot(null)
+                        stopAutoScroll()
+                      }}
+                      onMouseLeave={handleTimelineMouseLeave}
+                    >
+                      {/* DRAFT SLOT BLOCK */}
+                      {draftSlot && draftSlot.tableId === table.id && !draggedBookingId && (
+                        <div
+                          className="absolute top-2 bottom-2 rounded-md bg-emerald-500/30 border-2 border-emerald-500/70 border-solid z-50 pointer-events-none transition-none shadow-[0_0_15px_rgba(16,185,129,0.3)]"
+                          style={{
+                            left: `${getBlockStyle(draftSlot.startMinutes, draftSlot.duration).left}`,
+                            width: `${getBlockStyle(draftSlot.startMinutes, draftSlot.duration).width}`
+                          }}
+                        >
+                          <div className="absolute -top-6 left-0 bg-emerald-500 text-black text-xs px-1.5 py-0.5 rounded shadow-sm font-bold whitespace-nowrap opacity-100 transition-opacity">
+                            {minutesToTime(draftSlot.startMinutes)} - {minutesToTime(draftSlot.startMinutes + draftSlot.duration)}
+                          </div>
                         </div>
-                      </div>
-                    )}
+                      )}
 
-                    {/* GHOST BLOCK ON HOVER - Only if no collision and not dragging */}
-                    {hoveredSlot && hoveredSlot.tableId === table.id && !draggedBookingId && !isHoverColliding && !isSelectingSlot && (
-                      <div
-                        className="absolute top-2 bottom-2 rounded-md bg-amber-500/20 border-2 border-amber-500/50 border-dashed z-0 pointer-events-none transition-all duration-75 ease-out"
-                        style={{
-                          left: `${getBlockStyle(hoveredSlot.startMinutes, reservationDuration).left}`,
-                          width: `${getBlockStyle(hoveredSlot.startMinutes, reservationDuration).width}`
-                        }}
-                      >
-                        <div className="absolute -top-6 left-0 bg-amber-500 text-black text-xs px-1.5 py-0.5 rounded shadow-sm font-bold whitespace-nowrap">
-                          {hoveredSlot.time}
+                      {/* GHOST BLOCK ON HOVER - Only if no collision and not dragging */}
+                      {hoveredSlot && hoveredSlot.tableId === table.id && !draggedBookingId && !draftSlot && (
+                        <div
+                          className="absolute top-2 bottom-2 rounded-md bg-amber-500/20 border-2 border-amber-500/50 border-dashed z-0 pointer-events-none transition-all duration-75 ease-out"
+                          style={{
+                            left: `${getBlockStyle(hoveredSlot.startMinutes, reservationDuration).left}`,
+                            width: `${getBlockStyle(hoveredSlot.startMinutes, reservationDuration).width}`
+                          }}
+                        >
+                          <div className="absolute -top-6 left-0 bg-amber-500 text-black text-xs px-1.5 py-0.5 rounded shadow-sm font-bold whitespace-nowrap">
+                            {hoveredSlot.time}
+                          </div>
                         </div>
+                      )}
+
+                      {/* DROP TARGET PREVIEW (FOR DRAGGING EXISTING BOOKING) */}
+                      {dropTarget && dropTarget.tableId === table.id && draggedBookingId && (
+                        <div
+                          className="absolute top-2 bottom-2 rounded-md bg-amber-500/40 border-2 border-amber-500/80 border-dashed z-40 pointer-events-none transition-none"
+                          style={{
+                            left: `${getBlockStyle(timeToMinutes(dropTarget.time), draggedBookingDuration).left}`,
+                            width: `${getBlockStyle(timeToMinutes(dropTarget.time), draggedBookingDuration).width}`
+                          }}
+                        />
+                      )}
+
+                      {/* SEGMENT SEPARATORS/GAPS */}
+                      <div className="absolute inset-0 pointer-events-none">
+                        {timelineSegments.length > 1 && timelineSegments.map((seg, i) => {
+                          if (i === 0) return null;
+                          let accBefore = 0;
+                          for (let j = 0; j < i; j++) accBefore += timelineSegments[j].duration;
+                          const gapPos = (accBefore / totalDurationSafe) * 100;
+
+                          return (
+                            <div
+                              key={'gap-' + i}
+                              className="absolute top-0 bottom-0 w-8 -ml-4 flex justify-center opacity-100 z-20 pointer-events-none"
+                              style={{ left: `${gapPos}%` }}
+                            >
+                              <div className="w-[2px] h-full bg-gradient-to-b from-transparent via-amber-500/50 to-transparent shadow-[0_0_15px_rgba(245,158,11,0.5)]"></div>
+                            </div>
+                          )
+                        })}
                       </div>
-                    )}
 
-                    {/* DROP TARGET PREVIEW (FOR DRAGGING EXISTING BOOKING) */}
-                    {dropTarget && dropTarget.tableId === table.id && draggedBookingId && (
-                      <div
-                        className="absolute top-2 bottom-2 rounded-md bg-amber-500/40 border-2 border-amber-500/80 border-dashed z-40 pointer-events-none transition-none"
-                        style={{
-                          left: `${getBlockStyle(timeToMinutes(dropTarget.time), draggedBookingDuration).left}`,
-                          width: `${getBlockStyle(timeToMinutes(dropTarget.time), draggedBookingDuration).width}`
-                        }}
-                      />
-                    )}
-
-                    {/* GRID LINES (Absolute) */}
-                    <div className="absolute inset-0 pointer-events-none">
-                      {timeSlots.map((slot, i) => {
-                        const minutes = slot.hour * 60 + slot.minute
-                        const relativeStart = minutes - TIMELINE_START_MINUTES
-                        const left = (relativeStart / TIMELINE_DURATION) * 100
-
-                        return (
+                      {/* GRID LINES (Absolute) */}
+                      <div className="absolute inset-0 pointer-events-none">
+                        {timeSlots.map((slot, i) => (
                           <div
                             key={i}
                             className="absolute top-0 bottom-0 w-px bg-white/5 dashed border-r border-dashed border-white/5"
-                            style={{ left: `${left}%` }}
+                            style={{ left: `${slot.relativeLeft}%` }}
                           ></div>
-                        )
-                      })}
-                    </div>
+                        ))}
+                      </div>
 
-                    {/* CURRENT TIME INDICATOR */}
-                    {currentTimePos >= 0 && (
-                      <div
-                        className="absolute top-0 bottom-0 w-0.5 bg-amber-500 z-10 pointer-events-none shadow-[0_0_8px_rgba(245,158,11,0.8)]"
-                        style={{ left: `${currentTimePos}%` }}
-                      ></div>
-                    )}
+                      {/* CURRENT TIME INDICATOR */}
+                      {currentTimePos >= 0 && (
+                        <div
+                          className="absolute top-0 bottom-0 w-0.5 bg-amber-500 z-10 pointer-events-none shadow-[0_0_8px_rgba(245,158,11,0.8)]"
+                          style={{ left: `${currentTimePos}%` }}
+                        ></div>
+                      )}
 
-                    {/* RESERVATION BLOCKS */}
-                    {reservationBlocks
-                      .filter(block => block.table.id === table.id)
-                      .map((block, i) => {
-                        const isCompleted = block.booking.status === 'COMPLETED'
-                        const colorIndex = i % COLORS.length
-                        const bgColor = COLORS[colorIndex]
+                      {/* RESERVATION BLOCKS */}
+                      {reservationBlocks
+                        .filter(block => block.table.id === table.id)
+                        .map((block, i) => {
+                          const isCompleted = block.booking.status === 'COMPLETED'
+                          const colorIndex = i % COLORS.length
+                          const bgColor = COLORS[colorIndex]
 
-                        // FIXED: Opacity for completed items
-                        return (
-                          <div
-                            key={block.booking.id}
-                            className={`absolute top-2 bottom-2 rounded-md border border-white/20 px-2 flex flex-col justify-center overflow-hidden transition-all duration-300 hover:z-50 hover:scale-[1.03] hover:shadow-[0_20px_40px_rgba(0,0,0,0.8)] ${isCompleted ? 'opacity-40 grayscale scale-[0.98]' : 'shadow-[0_10px_20px_-5px_rgba(0,0,0,0.5)] cursor-move'} ${draggedBookingId === block.booking.id ? 'opacity-60 scale-95' : ''}`}
-                            style={{
-                              left: `${getBlockStyle(block.startMinutes, block.duration).left}`,
-                              width: `${getBlockStyle(block.startMinutes, block.duration).width}`,
-                              backgroundColor: bgColor,
-                              color: '#000', // Force black text for contrast on gold
-                              fontWeight: 600,
-                              touchAction: 'none'
-                            }}
-                            onPointerDown={(e) => {
-                              if (isCompleted) return;
-                              if ((e.target as HTMLElement).closest('button')) return
-                              if (e.pointerType === 'mouse' && e.button !== 0) return
+                          // FIXED: Opacity for completed items
+                          return (
+                            <div
+                              key={block.booking.id}
+                              className={`absolute top-2 bottom-2 rounded-md border border-white/20 px-2 flex flex-col justify-center overflow-hidden transition-all duration-300 hover:z-50 hover:scale-[1.03] hover:shadow-[0_20px_40px_rgba(0,0,0,0.8)] ${isCompleted ? 'opacity-40 grayscale scale-[0.98]' : 'shadow-[0_10px_20px_-5px_rgba(0,0,0,0.5)] cursor-move'} ${draggedBookingId === block.booking.id ? 'opacity-60 scale-95' : ''}`}
+                              style={{
+                                left: `${getBlockStyle(block.startMinutes, block.duration).left}`,
+                                width: `${getBlockStyle(block.startMinutes, block.duration).width}`,
+                                backgroundColor: bgColor,
+                                color: '#000', // Force black text for contrast on gold
+                                fontWeight: 600,
+                                touchAction: 'none'
+                              }}
+                              onPointerDown={(e) => {
+                                if (isCompleted) return;
+                                if ((e.target as Element).closest('button')) return
+                                if (e.pointerType === 'mouse' && e.button !== 0) return
 
-                              e.stopPropagation()
-                              e.currentTarget.setPointerCapture(e.pointerId)
+                                e.stopPropagation()
+                                e.currentTarget.setPointerCapture(e.pointerId)
 
-                              setPointerDragStart({ x: e.clientX, y: e.clientY })
-                              setIsPointerDragging(false)
-                              setDraggedBookingId(block.booking.id)
-                              setDraggedBookingDuration(block.duration)
+                                setPointerDragStart({ x: e.clientX, y: e.clientY })
+                                setIsPointerDragging(false)
+                                setDraggedBookingId(block.booking.id)
+                                setDraggedBookingDuration(block.duration)
 
-                              const rect = e.currentTarget.getBoundingClientRect()
-                              const clickX = e.clientX - rect.left
-                              const offsetPercentage = clickX / rect.width
-                              const offsetMinutes = Math.round(offsetPercentage * block.duration)
-                              setDragOffsetMinutes(offsetMinutes)
-                            }}
-                            onPointerMove={(e) => {
-                              if (isCompleted) return;
-                              e.stopPropagation()
-                              if (draggedBookingId !== block.booking.id) return
+                                const rect = e.currentTarget.getBoundingClientRect()
+                                const clickX = e.clientX - rect.left
+                                const offsetPercentage = clickX / rect.width
+                                const offsetMinutes = Math.round(offsetPercentage * block.duration)
+                                setDragOffsetMinutes(offsetMinutes)
+                              }}
+                              onPointerMove={(e) => {
+                                if (isCompleted) return;
+                                e.stopPropagation()
+                                if (draggedBookingId !== block.booking.id) return
 
-                              if (!isPointerDragging && pointerDragStart) {
-                                const dx = e.clientX - pointerDragStart.x
-                                const dy = e.clientY - pointerDragStart.y
-                                if (Math.abs(dx) > 5 || Math.abs(dy) > 5) {
-                                  setIsPointerDragging(true)
+                                if (!isPointerDragging && pointerDragStart) {
+                                  const dx = e.clientX - pointerDragStart.x
+                                  const dy = e.clientY - pointerDragStart.y
+                                  if (Math.abs(dx) > 5 || Math.abs(dy) > 5) {
+                                    setIsPointerDragging(true)
+                                  }
                                 }
-                              }
 
-                              if (isPointerDragging) {
-                                const el = e.currentTarget as HTMLElement
-                                const originalPointerEvents = el.style.pointerEvents
-                                el.style.pointerEvents = 'none'
-                                const elementBelow = document.elementFromPoint(e.clientX, e.clientY)
-                                el.style.pointerEvents = originalPointerEvents
+                                if (isPointerDragging) {
+                                  const el = e.currentTarget as HTMLElement
+                                  const originalPointerEvents = el.style.pointerEvents
+                                  el.style.pointerEvents = 'none'
+                                  const elementBelow = document.elementFromPoint(e.clientX, e.clientY)
+                                  el.style.pointerEvents = originalPointerEvents
 
-                                const tableRow = elementBelow?.closest('[data-table-id]') as HTMLElement | null
-                                if (tableRow) {
-                                  const tableId = tableRow.getAttribute('data-table-id')!
+                                  const tableRow = elementBelow?.closest('[data-table-id]') as HTMLElement | null
+                                  if (tableRow) {
+                                    const tableId = tableRow.getAttribute('data-table-id')!
 
-                                  const rect = tableRow.getBoundingClientRect()
-                                  const clickX = Math.max(0, Math.min(e.clientX - rect.left, rect.width))
-                                  const percentage = (clickX / rect.width) * 100
-                                  const mouseMinutes = TIMELINE_START_MINUTES + (percentage / 100) * TIMELINE_DURATION
-                                  const adjustedStartMinutes = mouseMinutes - dragOffsetMinutes
+                                    const rect = tableRow.getBoundingClientRect()
+                                    const clickX = Math.max(0, Math.min(e.clientX - rect.left, rect.width))
+                                    const rawMinutes = getPointerMinutesFromX(e.clientX, tableRow)
+                                    const adjustedStartMinutes = rawMinutes - dragOffsetMinutes
 
-                                  const roundedMinutes = Math.round(adjustedStartMinutes / 15) * 15
-                                  const newTime = minutesToTime(roundedMinutes)
+                                    const roundedMinutes = Math.round(adjustedStartMinutes / 15) * 15
+                                    const newTime = minutesToTime(roundedMinutes)
 
-                                  setDropTarget({ tableId, time: newTime })
-                                } else {
-                                  setDropTarget(null)
+                                    setDropTarget({ tableId, time: newTime })
+                                  } else {
+                                    setDropTarget(null)
+                                  }
                                 }
-                              }
-                            }}
-                            onPointerUp={(e) => {
-                              if (isCompleted) return;
-                              e.stopPropagation()
-                              e.currentTarget.releasePointerCapture(e.pointerId)
+                              }}
+                              onPointerUp={(e) => {
+                                if (isCompleted) return;
+                                e.stopPropagation()
+                                e.currentTarget.releasePointerCapture(e.pointerId)
 
-                              if (isPointerDragging) {
-                                if (dropTarget) {
-                                  const originalTime = minutesToTime(block.startMinutes)
-                                  if (originalTime !== dropTarget.time || block.table.id !== dropTarget.tableId) {
-                                    if (hasConflict(dropTarget.tableId, dropTarget.time, block.duration, block.booking.id)) {
-                                      toast.error('Orario occupato o sovrapposto')
+                                if (isPointerDragging) {
+                                  if (dropTarget) {
+                                    const originalTime = minutesToTime(block.startMinutes)
+                                    if (originalTime !== dropTarget.time || block.table.id !== dropTarget.tableId) {
+                                      if (hasConflict(dropTarget.tableId, dropTarget.time, block.duration, block.booking.id)) {
+                                        toast.error('Orario occupato o sovrapposto')
+                                        setDraggedBookingId(null)
+                                        setDropTarget(null)
+                                      } else {
+                                        setShowDragConfirmDialog(true)
+                                      }
+                                    } else {
                                       setDraggedBookingId(null)
                                       setDropTarget(null)
-                                    } else {
-                                      setShowDragConfirmDialog(true)
                                     }
                                   } else {
                                     setDraggedBookingId(null)
-                                    setDropTarget(null)
                                   }
                                 } else {
+                                  if (!(e.target as Element).closest('button')) {
+                                    onEditBooking?.(block.booking)
+                                  }
                                   setDraggedBookingId(null)
+                                  setDropTarget(null)
                                 }
-                              } else {
-                                if (!(e.target as HTMLElement).closest('button')) {
-                                  onEditBooking?.(block.booking)
-                                }
+
+                                setPointerDragStart(null)
+                                setIsPointerDragging(false)
+                              }}
+                              onPointerCancel={(e) => {
+                                if (isCompleted) return;
+                                e.stopPropagation()
+                                e.currentTarget.releasePointerCapture(e.pointerId)
+                                setPointerDragStart(null)
+                                setIsPointerDragging(false)
                                 setDraggedBookingId(null)
                                 setDropTarget(null)
-                              }
-
-                              setPointerDragStart(null)
-                              setIsPointerDragging(false)
-                            }}
-                            onPointerCancel={(e) => {
-                              if (isCompleted) return;
-                              e.stopPropagation()
-                              e.currentTarget.releasePointerCapture(e.pointerId)
-                              setPointerDragStart(null)
-                              setIsPointerDragging(false)
-                              setDraggedBookingId(null)
-                              setDropTarget(null)
-                            }}
-                            onMouseEnter={() => setHoveredSlot(null)}
-                          >
-                            <div className="flex items-center gap-1.5 overflow-hidden">
-                              <div className="font-bold text-sm truncate leading-tight flex-1">
-                                {block.booking.name}
+                              }}
+                              onMouseEnter={() => setHoveredSlot(null)}
+                            >
+                              <div className="flex items-center gap-1.5 overflow-hidden">
+                                <div className="font-bold text-sm truncate leading-tight flex-1">
+                                  {block.booking.name}
+                                </div>
+                                {block.booking.notes && (
+                                  <ChatText size={14} weight="fill" className="text-black/60 shrink-0" />
+                                )}
                               </div>
-                              {block.booking.notes && (
-                                <ChatText size={14} weight="fill" className="text-black/60 shrink-0" />
+                              <div className="text-[10px] truncate opacity-80 mt-0.5 font-bold uppercase tracking-wide">
+                                {minutesToTime(block.startMinutes)} - {minutesToTime(block.startMinutes + block.duration)} • {block.booking.guests}p
+                              </div>
+
+                              {!isCompleted && (
+                                <div className="absolute top-1 right-1 flex gap-1 bg-black/40 rounded-full p-0.5 backdrop-blur-sm z-50 border border-white/10 opacity-100">
+                                  <Button
+                                    variant="ghost"
+                                    size="icon"
+                                    className="w-7 h-7 rounded-full hover:bg-black/60 text-white/70 hover:text-white p-0 touch-none shadow-sm transition-colors md:opacity-0 md:group-hover:opacity-100 opacity-100"
+                                    onPointerDown={(e) => {
+                                      e.stopPropagation()
+                                      e.preventDefault()
+                                      handleDeleteReservation(block.booking)
+                                    }}
+                                    title="Elimina Prenotazione"
+                                  >
+                                    <Trash size={14} weight="bold" />
+                                  </Button>
+                                  <Button
+                                    variant="ghost"
+                                    size="icon"
+                                    className="w-7 h-7 rounded-full bg-emerald-500/20 hover:bg-emerald-500/40 text-emerald-400 hover:text-emerald-300 p-0 touch-none shadow-sm transition-colors opacity-100"
+                                    onPointerDown={(e) => {
+                                      e.stopPropagation()
+                                      e.preventDefault()
+                                      handleCompleteBooking(block.booking)
+                                    }}
+                                    title="Segna Arrivato"
+                                  >
+                                    <Check size={16} weight="bold" />
+                                  </Button>
+                                </div>
                               )}
                             </div>
-                            <div className="text-[10px] truncate opacity-80 mt-0.5 font-bold uppercase tracking-wide">
-                              {minutesToTime(block.startMinutes)} - {minutesToTime(block.startMinutes + block.duration)} • {block.booking.guests}p
-                            </div>
-
-                            {!isCompleted && (
-                              <div className="absolute top-1 right-1 flex gap-1 md:opacity-0 md:group-hover:opacity-100 opacity-100 transition-opacity bg-black/30 rounded-full p-0.5 backdrop-blur-sm z-50">
-                                <Button
-                                  variant="ghost"
-                                  size="icon"
-                                  className="w-6 h-6 rounded-full hover:bg-black/20 text-white p-0 touch-none"
-                                  onPointerDown={(e) => {
-                                    e.stopPropagation()
-                                    e.preventDefault()
-                                    handleDeleteReservation(block.booking)
-                                  }}
-                                  title="Elimina Prenotazione"
-                                >
-                                  <Trash size={14} weight="bold" />
-                                </Button>
-                                <Button
-                                  variant="ghost"
-                                  size="icon"
-                                  className="w-6 h-6 rounded-full hover:bg-black/20 text-white p-0 touch-none"
-                                  onPointerDown={(e) => {
-                                    e.stopPropagation()
-                                    e.preventDefault()
-                                    handleCompleteBooking(block.booking)
-                                  }}
-                                  title="Segna Arrivato"
-                                >
-                                  <Check size={14} weight="bold" />
-                                </Button>
-                              </div>
-                            )}
-                          </div>
-                        )
-                      })}
+                          )
+                        })}
+                    </div>
                   </div>
-                </div>
-              )
-            })}
+                )
+              })}
+            </div>
           </div>
         </CardContent>
-      </Card >
+      </Card>
 
       {/* DIALOGS */}
 

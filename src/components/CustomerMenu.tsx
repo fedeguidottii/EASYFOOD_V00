@@ -20,16 +20,17 @@ class ErrorBoundary extends React.Component<{ children: React.ReactNode }, { has
   render() {
     if (this.state.hasError) {
       return (
-        <div className="min-h-screen flex items-center justify-center bg-zinc-950 p-6 text-center text-white">
+        <div className="min-h-screen flex items-center justify-center p-6 text-center" style={{ backgroundColor: 'var(--menu-dialog-bg, #09090b)', color: 'var(--menu-text-primary, #ffffff)' }}>
           <div className="max-w-md">
             <h2 className="text-xl font-bold text-red-500 mb-4">Errore Critico</h2>
             <p className="mb-4">Si è verificato un errore durante il caricamento del menu.</p>
-            <p className="text-xs text-zinc-500 mb-6 font-mono bg-zinc-900 p-2 rounded text-left overflow-auto max-h-32">
+            <p className="text-xs mb-6 font-mono p-2 rounded text-left overflow-auto max-h-32" style={{ color: 'var(--menu-text-muted, #52525b)', backgroundColor: 'var(--menu-card-bg, rgba(24,24,27,0.9))' }}>
               {this.state.error?.message}
             </p>
             <button
               onClick={() => window.location.reload()}
-              className="px-6 py-2 bg-amber-500 hover:bg-amber-600 text-black font-bold rounded-full transition-colors"
+              className="px-6 py-2 text-black font-bold rounded-full transition-colors"
+              style={{ backgroundColor: 'var(--menu-primary, #f59e0b)' }}
             >
               Ricarica Pagina
             </button>
@@ -87,7 +88,7 @@ const getCourseTitle = (courseNum: number): string => {
 }
 
 // Sortable Item Component with smooth animations
-function SortableDishItem({ item, courseNum }: { item: CartItem, courseNum: number }) {
+function SortableDishItem({ item, courseNum, theme }: { item: CartItem, courseNum: number, theme: MenuTheme }) {
   const {
     attributes,
     listeners,
@@ -104,26 +105,36 @@ function SortableDishItem({ item, courseNum }: { item: CartItem, courseNum: numb
     zIndex: isDragging ? 999 : 'auto',
     touchAction: 'none',
     scale: isDragging ? 0.98 : 1,
+    ...(isDragging ? {
+      borderColor: theme.primaryAlpha(0.5),
+      backgroundColor: 'rgba(39, 39, 42, 0.5)',
+      boxShadow: `0 10px 15px -3px ${theme.primaryAlpha(0.1)}`
+    } : {})
   }
 
   return (
     <div
       ref={setNodeRef}
-      style={style}
+      style={{
+        ...style,
+        backgroundColor: theme.cardBg,
+        border: `1px solid ${isDragging ? theme.primaryAlpha(0.5) : theme.cardBorder}`,
+        borderRadius: theme.cardRadius,
+      }}
       {...attributes}
       {...listeners}
-      className={`flex items-center justify-between bg-zinc-900 p-3 rounded-xl border group relative cursor-grab active:cursor-grabbing touch-none select-none transition-all duration-300 ${isDragging
-        ? 'border-amber-500/50 bg-zinc-800/50 shadow-lg shadow-amber-500/10'
-        : 'border-zinc-800 hover:border-zinc-700 hover:bg-zinc-900/80'
-        }`}
+      className="flex items-center justify-between p-3 group relative cursor-grab active:cursor-grabbing touch-none select-none transition-all duration-300"
     >
       <div className="flex items-center gap-3 pointer-events-none">
-        <div className={`p-1.5 rounded-lg transition-colors duration-200 ${isDragging ? 'text-amber-500 bg-amber-500/10' : 'text-zinc-600 group-hover:text-zinc-400'}`}>
+        <div
+          className="p-1.5 rounded-lg transition-colors duration-200"
+          style={isDragging ? { color: theme.primary, backgroundColor: theme.primaryAlpha(0.1) } : { color: theme.textMuted }}
+        >
           <GripVertical className="w-4 h-4" />
         </div>
         <div>
-          <p className="font-bold text-white text-sm">{item.dish?.name}</p>
-          <p className="text-xs text-zinc-500">{item.quantity}x · €{((item.dish?.price || 0) * item.quantity).toFixed(2)}</p>
+          <p className="font-bold text-sm" style={{ color: theme.textPrimary }}>{item.dish?.name}</p>
+          <p className="text-xs" style={{ color: theme.textMuted }}>{item.quantity}x · €{((item.dish?.price || 0) * item.quantity).toFixed(2)}</p>
         </div>
       </div>
     </div>
@@ -202,12 +213,16 @@ const DishCard = ({
 )
 
 // Helper for empty course drop zone
-function DroppableCoursePlaceholder({ id }: { id: string }) {
+function DroppableCoursePlaceholder({ id, theme }: { id: string, theme: MenuTheme }) {
   const { setNodeRef, isOver } = useDroppable({ id })
   return (
     <div
       ref={setNodeRef}
-      className={`text-center py-4 text-xs border-2 border-dashed rounded-xl transition-colors ${isOver ? 'border-amber-500 bg-amber-500/10 text-amber-500' : 'border-zinc-800 text-zinc-600'}`}
+      className="text-center py-4 text-xs border-2 border-dashed rounded-xl transition-colors"
+      style={isOver
+        ? { borderColor: theme.primary, backgroundColor: theme.primaryAlpha(0.1), color: theme.primary }
+        : { borderColor: theme.cardBorder, color: theme.textMuted }
+      }
     >
       Trascina qui i piatti
     </div>
@@ -215,13 +230,17 @@ function DroppableCoursePlaceholder({ id }: { id: string }) {
 }
 
 // Helper for new course drop zone
-function NewCourseDropZone({ onClick }: { onClick: () => void }) {
+function NewCourseDropZone({ onClick, theme }: { onClick: () => void, theme: MenuTheme }) {
   const { setNodeRef, isOver } = useDroppable({ id: 'new-course-zone' })
   return (
     <div ref={setNodeRef} className="relative">
       <Button
         variant="outline"
-        className={`w-full py-6 border-dashed rounded-2xl gap-2 transition-all ${isOver ? 'border-amber-500 bg-amber-500/10 text-amber-500 scale-105' : 'border-zinc-800 text-zinc-500 hover:text-amber-500 hover:border-amber-500 hover:bg-amber-500/5'}`}
+        className={`w-full py-6 border-dashed rounded-2xl gap-2 transition-all ${isOver ? 'scale-105' : ''}`}
+        style={isOver
+          ? { borderColor: theme.primary, backgroundColor: theme.primaryAlpha(0.1), color: theme.primary }
+          : { borderColor: theme.cardBorder, color: theme.textMuted }
+        }
         onClick={onClick}
       >
         <Plus className="w-5 h-5" />
@@ -720,12 +739,12 @@ const CustomerMenuBase = () => {
   // --- RENDER GATES ---
 
   if (restaurantSuspended) return (
-    <div className="min-h-screen bg-zinc-950 flex flex-col items-center justify-center p-8 text-center">
+    <div className="min-h-screen flex flex-col items-center justify-center p-8 text-center" style={{ background: theme.pageBgGradient, color: theme.textPrimary, ...theme.cssVars }}>
       <div className="w-20 h-20 bg-red-500/10 rounded-full flex items-center justify-center mb-6 text-red-500">
         <Storefront size={40} weight="duotone" />
       </div>
-      <h1 className="text-2xl font-bold text-white mb-2">Servizio Non Disponibile</h1>
-      <p className="text-zinc-400 max-w-md">
+      <h1 className="text-2xl font-bold mb-2" style={{ color: theme.textPrimary }}>Servizio Non Disponibile</h1>
+      <p className="max-w-md" style={{ color: theme.textSecondary }}>
         Il servizio per &quot;{restaurantName || 'questo ristorante'}&quot; è momentaneamente sospeso.
         Ci scusiamo per il disagio.
       </p>
@@ -733,20 +752,20 @@ const CustomerMenuBase = () => {
   )
 
   if (!tableId) return (
-    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-zinc-950 via-neutral-950 to-zinc-900 p-6">
-      <div className="text-center text-amber-100/60">
+    <div className="min-h-screen flex items-center justify-center p-6" style={{ background: theme.pageBgGradient, ...theme.cssVars }}>
+      <div className="text-center" style={{ color: theme.textSecondary }}>
         <p className="text-lg font-light tracking-wide">QR Code non valido</p>
       </div>
     </div>
   )
 
   if (!isTableActive && !isAuthenticated && !isViewOnly) return (
-    <div className="min-h-screen bg-zinc-950 flex flex-col items-center justify-center p-8 text-center">
-      <div className="w-20 h-20 bg-zinc-900 rounded-full flex items-center justify-center mb-6 text-zinc-500 border border-zinc-800">
+    <div className="min-h-screen flex flex-col items-center justify-center p-8 text-center" style={{ background: theme.pageBgGradient, color: theme.textPrimary, ...theme.cssVars }}>
+      <div className="w-20 h-20 rounded-full flex items-center justify-center mb-6 border" style={{ backgroundColor: theme.cardBg, borderColor: theme.cardBorder, color: theme.textMuted }}>
         <Storefront size={40} weight="duotone" />
       </div>
-      <h1 className="text-2xl font-bold text-white mb-2">Tavolo Non Attivo</h1>
-      <p className="text-zinc-400 max-w-md">
+      <h1 className="text-2xl font-bold mb-2" style={{ color: theme.textPrimary }}>Tavolo Non Attivo</h1>
+      <p className="max-w-md" style={{ color: theme.textSecondary }}>
         Questo tavolo non è stato ancora attivato.
         Chiedi al personale di attivarlo per ordinare.
       </p>
@@ -754,7 +773,7 @@ const CustomerMenuBase = () => {
   )
 
   if (sessionLoading || authChecking || isInitLoading) return (
-    <div className="min-h-screen flex items-center justify-center" style={{ background: theme.pageBgGradient }}>
+    <div className="min-h-screen flex items-center justify-center" style={{ background: theme.pageBgGradient, ...theme.cssVars }}>
       <div className="flex flex-col items-center gap-6">
         <div className="relative">
           <div className="w-20 h-20 rounded-full" style={{ border: `1px solid ${theme.primaryAlpha(0.2)}` }}></div>
@@ -769,7 +788,7 @@ const CustomerMenuBase = () => {
   // LOGIN SCREEN (PIN) - Themed Design
   if (!isAuthenticated && !isViewOnly) {
     return (
-      <div className="min-h-screen flex flex-col items-center justify-center p-6" style={{ background: theme.pageBgGradient, color: theme.textPrimary }}>
+      <div className="min-h-screen flex flex-col items-center justify-center p-6" style={{ background: theme.pageBgGradient, color: theme.textPrimary, fontFamily: theme.bodyFont, ...theme.cssVars }}>
 
         <div className="w-full max-w-sm flex flex-col items-center gap-12">
 
@@ -857,7 +876,7 @@ const CustomerMenuBase = () => {
 
   if (!activeSession?.restaurant_id && !restaurantId) {
     return (
-      <div className="min-h-screen flex items-center justify-center p-6" style={{ background: theme.pageBgGradient, color: theme.textPrimary }}>
+      <div className="min-h-screen flex items-center justify-center p-6" style={{ background: theme.pageBgGradient, color: theme.textPrimary, ...theme.cssVars }}>
         <div className="text-center">
           <div className="w-12 h-12 border-2 rounded-full animate-spin mx-auto mb-4" style={theme.spinnerBorderStyle}></div>
           <p className="text-sm opacity-70 animate-pulse">Inizializzazione menu...</p>
@@ -957,7 +976,7 @@ function AuthorizedMenuContent({ restaurantId, tableId, sessionId, activeSession
 
       toast.success("Cameriere avvisato! Arriva subito 🏃", {
         duration: 3000,
-        style: { background: '#10B981', color: '#fff', border: 'none' }
+        style: { background: theme.primary, color: '#fff', border: 'none' }
       })
 
       // 30 second cooldown to prevent spam
@@ -1440,7 +1459,7 @@ function AuthorizedMenuContent({ restaurantId, tableId, sessionId, activeSession
       setCurrentCourse(1)
       setIsCartOpen(false)
       setShowConfirmDialog(false)
-      toast.success('Ordine inviato! 👨‍🍳', { duration: 2000, style: { background: '#10B981', color: 'white' } })
+      toast.success('Ordine inviato! 👨‍🍳', { duration: 2000, style: { background: theme.primary, color: 'white' } })
     } catch (error) {
       console.error(error)
       toast.error('Errore invio ordine.')
@@ -1451,13 +1470,13 @@ function AuthorizedMenuContent({ restaurantId, tableId, sessionId, activeSession
 
   // RENDER HELPERS - LUXURY THEME
   if (isLoading) return (
-    <div className="min-h-screen flex items-center justify-center" style={{ background: theme.pageBgGradient }}>
+    <div className="min-h-screen flex items-center justify-center" style={{ background: theme.pageBgGradient, ...theme.cssVars }}>
       <div className="w-10 h-10 border-2 rounded-full animate-spin" style={theme.spinnerBorderStyle}></div>
     </div>
   )
 
   if (error) return (
-    <div className="min-h-screen flex items-center justify-center p-6" style={{ background: theme.pageBgGradient, color: theme.textPrimary }}>
+    <div className="min-h-screen flex items-center justify-center p-6" style={{ background: theme.pageBgGradient, color: theme.textPrimary, ...theme.cssVars }}>
       <div className="text-center">
         <AlertCircle className="w-12 h-12 text-red-500 mx-auto mb-4" />
         <p className="text-lg mb-4">{error}</p>
@@ -1467,7 +1486,7 @@ function AuthorizedMenuContent({ restaurantId, tableId, sessionId, activeSession
   )
 
   return (
-    <div className="h-[100dvh] font-sans select-none flex flex-col overflow-hidden" style={{ background: theme.pageBgGradient }}>
+    <div className="h-[100dvh] select-none flex flex-col overflow-hidden" style={{ background: theme.pageBgGradient, fontFamily: theme.bodyFont, color: theme.textPrimary, ...theme.cssVars }}>
       <div className="flex-1 flex flex-col min-h-0 relative w-full">
 
         <header className="flex-none z-20 backdrop-blur-xl" style={{ backgroundColor: theme.headerBg, borderBottom: `1px solid ${theme.primaryAlpha(0.1)}` }}>
@@ -1503,7 +1522,7 @@ function AuthorizedMenuContent({ restaurantId, tableId, sessionId, activeSession
                     placeholder="Cerca..."
                     value={searchTerm}
                     onChange={(e) => setSearchTerm(e.target.value)}
-                    className="w-28 rounded-full pl-8 pr-3 py-1.5 text-xs placeholder:text-zinc-600 focus:outline-none focus:w-36 transition-all duration-300"
+                    className="w-28 rounded-full pl-8 pr-3 py-1.5 text-xs focus:outline-none focus:w-36 transition-all duration-300"
                     style={{ backgroundColor: theme.inputBg, border: `1px solid ${theme.inputBorder}`, color: theme.textPrimary }}
                   />
                 </div>
@@ -1693,32 +1712,34 @@ function AuthorizedMenuContent({ restaurantId, tableId, sessionId, activeSession
                             <div className="rounded-xl p-3 flex gap-3 shadow-sm relative overflow-hidden" style={{ backgroundColor: theme.cardBg, border: `1px solid ${theme.cardBorder}` }}>
                               {/* Image if available */}
                               {item.dish?.image_url ? (
-                                <img src={item.dish.image_url} className="w-16 h-16 rounded-lg object-cover bg-zinc-800" />
+                                <img src={item.dish.image_url} className="w-16 h-16 rounded-lg object-cover" style={{ backgroundColor: theme.inputBg }} />
                               ) : (
-                                <div className="w-16 h-16 rounded-lg bg-zinc-800 flex items-center justify-center text-zinc-600">
+                                <div className="w-16 h-16 rounded-lg flex items-center justify-center" style={{ backgroundColor: theme.inputBg, color: theme.textMuted }}>
                                   <ForkKnife weight="duotone" size={24} />
                                 </div>
                               )}
                               <div className="flex-1 min-w-0 flex flex-col justify-between">
                                 <div className="flex justify-between items-start gap-2">
-                                  <h4 className="font-medium text-white line-clamp-1 text-sm">{item.dish?.name}</h4>
+                                  <h4 className="font-medium line-clamp-1 text-sm" style={{ color: theme.textPrimary }}>{item.dish?.name}</h4>
                                   <span className="font-medium text-sm whitespace-nowrap" style={{ color: theme.primary }}>€{((item.dish?.price || 0) * item.quantity).toFixed(2)}</span>
                                 </div>
-                                {item.notes && <p className="text-[10px] text-zinc-500 line-clamp-1 italic">{item.notes}</p>}
+                                {item.notes && <p className="text-[10px] line-clamp-1 italic" style={{ color: theme.textMuted }}>{item.notes}</p>}
 
                                 <div className="flex items-center justify-between mt-2">
                                   {/* Quantity Controls */}
                                   <div className="flex items-center gap-3 rounded-lg p-0.5 shadow-inner shrink-0" style={{ backgroundColor: theme.inputBg, border: `1px solid ${theme.cardBorder}` }}>
                                     <button
                                       onClick={() => updateCartItemQuantity(item.id, -1)}
-                                      className="w-7 h-7 flex items-center justify-center text-zinc-400 hover:text-white hover:bg-zinc-800 rounded-md transition-colors"
+                                      className="w-7 h-7 flex items-center justify-center rounded-md transition-colors"
+                                      style={{ color: theme.textSecondary }}
                                     >
                                       <Minus size={14} weight="bold" />
                                     </button>
-                                    <span className="text-sm font-bold w-4 text-center">{item.quantity}</span>
+                                    <span className="text-sm font-bold w-4 text-center" style={{ color: theme.textPrimary }}>{item.quantity}</span>
                                     <button
                                       onClick={() => updateCartItemQuantity(item.id, 1)}
-                                      className="w-7 h-7 flex items-center justify-center text-zinc-400 hover:text-white hover:bg-zinc-800 rounded-md transition-colors"
+                                      className="w-7 h-7 flex items-center justify-center rounded-md transition-colors"
+                                      style={{ color: theme.textSecondary }}
                                     >
                                       <Plus size={14} weight="bold" />
                                     </button>
@@ -1748,7 +1769,7 @@ function AuthorizedMenuContent({ restaurantId, tableId, sessionId, activeSession
                     <div className="pt-2 pb-1">
                       <Button
                         variant="outline"
-                        className="w-full font-bold h-12 rounded-xl shadow-sm border-dashed gap-2 transition-all hover:bg-zinc-800/50"
+                        className="w-full font-bold h-12 rounded-xl shadow-sm border-dashed gap-2 transition-all"
                         style={{
                           borderColor: theme.primary,
                           color: theme.primary,
@@ -1776,11 +1797,11 @@ function AuthorizedMenuContent({ restaurantId, tableId, sessionId, activeSession
                         </div>
                         <div className="space-y-2">
                           {order.items?.map((item: any, i: number) => (
-                            <div key={i} className="flex justify-between text-xs text-zinc-500 items-start">
+                            <div key={i} className="flex justify-between text-xs items-start" style={{ color: theme.textMuted }}>
                               <span className="line-clamp-1 flex-1 pr-2">
-                                <span className="font-bold text-zinc-400">{item.quantity}x</span> {(item.dish || dishes.find(d => d.id === item.dish_id))?.name || 'Piatto'}
+                                <span className="font-bold" style={{ color: theme.textSecondary }}>{item.quantity}x</span> {(item.dish || dishes.find(d => d.id === item.dish_id))?.name || 'Piatto'}
                               </span>
-                              <span className={`whitespace-nowrap ${item.status === 'SERVED' ? 'text-emerald-500 font-medium' : 'text-amber-500/80'}`}>
+                              <span className={`whitespace-nowrap ${item.status === 'SERVED' ? 'font-medium' : ''}`} style={{ color: item.status === 'SERVED' ? '#10B981' : theme.primary }}>
                                 {item.status === 'SERVED' ? 'Servito' : 'In prep.'}
                               </span>
                             </div>
@@ -1816,7 +1837,7 @@ function AuthorizedMenuContent({ restaurantId, tableId, sessionId, activeSession
                     const personCount = activeSession?.customer_count || 1;
                     const totalCoperto = currentCoperto * personCount;
                     return (
-                      <div className="flex justify-between items-center text-zinc-500 text-xs mb-3">
+                      <div className="flex justify-between items-center text-xs mb-3" style={{ color: theme.textMuted }}>
                         <span>Coperto ({personCount} pers.)</span>
                         <span>€{totalCoperto.toFixed(2)}</span>
                       </div>
@@ -1872,7 +1893,7 @@ function AuthorizedMenuContent({ restaurantId, tableId, sessionId, activeSession
                     <h2 className="text-2xl font-light leading-tight pr-4 tracking-wide" style={{ fontFamily: theme.headerFont }}>{selectedDish.name}</h2>
                     <p className="font-bold mt-2 text-xl" style={{ color: theme.primary }}>€{selectedDish.price.toFixed(2)}</p>
                   </div>
-                  <Button variant="ghost" size="icon" onClick={() => setSelectedDish(null)} className="-mt-2 -mr-2 hover:bg-zinc-800 rounded-full h-10 w-10" style={{ color: theme.textSecondary }}>
+                  <Button variant="ghost" size="icon" onClick={() => setSelectedDish(null)} className="-mt-2 -mr-2 rounded-full h-10 w-10" style={{ color: theme.textSecondary }}>
                     <X className="w-6 h-6" />
                   </Button>
                 </div>
@@ -1888,9 +1909,9 @@ function AuthorizedMenuContent({ restaurantId, tableId, sessionId, activeSession
                       <div className="flex items-center justify-between p-2 rounded-xl" style={{ backgroundColor: theme.inputBg, border: `1px solid ${theme.cardBorder}` }}>
                         <span className="text-sm font-medium pl-2" style={{ color: theme.textSecondary }}>Quantità</span>
                         <div className="flex items-center gap-3">
-                          <Button variant="outline" size="icon" className="h-10 w-10 border-white/10 bg-zinc-800 hover:bg-zinc-700 hover:text-white text-zinc-400 rounded-lg" onClick={() => setDishQuantity(q => Math.max(1, q - 1))} disabled={dishQuantity <= 1}><Minus className="w-5 h-5" /></Button>
-                          <span className="w-8 text-center font-bold text-xl">{dishQuantity}</span>
-                          <Button variant="outline" size="icon" className="h-10 w-10 border-white/10 bg-zinc-800 hover:bg-zinc-700 hover:text-white text-zinc-400 rounded-lg" onClick={() => setDishQuantity(q => q + 1)}><Plus className="w-5 h-5" /></Button>
+                          <Button variant="outline" size="icon" className="h-10 w-10 rounded-lg" style={{ backgroundColor: theme.inputBg, borderColor: theme.cardBorder, color: theme.textSecondary }} onClick={() => setDishQuantity(q => Math.max(1, q - 1))} disabled={dishQuantity <= 1}><Minus className="w-5 h-5" /></Button>
+                          <span className="w-8 text-center font-bold text-xl" style={{ color: theme.textPrimary }}>{dishQuantity}</span>
+                          <Button variant="outline" size="icon" className="h-10 w-10 rounded-lg" style={{ backgroundColor: theme.inputBg, borderColor: theme.cardBorder, color: theme.textSecondary }} onClick={() => setDishQuantity(q => q + 1)}><Plus className="w-5 h-5" /></Button>
                         </div>
                       </div>
 
@@ -1898,7 +1919,7 @@ function AuthorizedMenuContent({ restaurantId, tableId, sessionId, activeSession
                         <span className="text-xs font-bold uppercase tracking-wider" style={{ color: theme.textMuted }}>Note speciali</span>
                         <Textarea
                           placeholder="Es. Senza cipolla, cottura media..."
-                          className="min-h-[80px] placeholder:text-zinc-600"
+                          className="min-h-[80px]"
                           style={{ backgroundColor: theme.inputBg, borderColor: theme.inputBorder, color: theme.textPrimary }}
                           value={dishNote}
                           onChange={(e) => setDishNote(e.target.value)}
@@ -1938,9 +1959,9 @@ function AuthorizedMenuContent({ restaurantId, tableId, sessionId, activeSession
                     <p className="text-xs font-bold uppercase tracking-widest mb-1" style={{ color: theme.primary }}>• Portata {num}</p>
                     <ul className="pl-2 space-y-1">
                       {cartByCourse[num]?.map((item, idx) => (
-                        <li key={idx} className="text-xs text-zinc-300 flex justify-between">
+                        <li key={idx} className="text-xs flex justify-between" style={{ color: theme.textSecondary }}>
                           <span>{item.quantity}x {item.dish?.name}</span>
-                          {item.notes && <span className="text-[10px] italic text-zinc-500 max-w-[120px] truncate ml-2">({item.notes})</span>}
+                          {item.notes && <span className="text-[10px] italic max-w-[120px] truncate ml-2" style={{ color: theme.textMuted }}>({item.notes})</span>}
                         </li>
                       ))}
                     </ul>
@@ -2009,7 +2030,7 @@ function AuthorizedMenuContent({ restaurantId, tableId, sessionId, activeSession
             <DialogHeader className="p-4 backdrop-blur-xl flex-none space-y-1" style={{ borderBottom: `1px solid ${theme.divider}`, backgroundColor: theme.cardBg }}>
               <div className="flex justify-between items-center">
                 <DialogTitle className="text-xl font-light tracking-wide uppercase" style={{ fontFamily: theme.headerFont, color: theme.primary }}>Dividi Portate</DialogTitle>
-                <Button variant="ghost" size="icon" onClick={() => setShowCourseDivisionModal(false)} className="-mr-2 hover:bg-zinc-800 rounded-full h-10 w-10 text-zinc-400">
+                <Button variant="ghost" size="icon" onClick={() => setShowCourseDivisionModal(false)} className="-mr-2 rounded-full h-10 w-10" style={{ color: theme.textSecondary }}>
                   <X className="w-5 h-5" />
                 </Button>
               </div>
@@ -2045,10 +2066,11 @@ function AuthorizedMenuContent({ restaurantId, tableId, sessionId, activeSession
                                 key={item.id}
                                 item={item}
                                 courseNum={courseNum}
+                                theme={theme}
                               />
                             ))
                           ) : (
-                            <DroppableCoursePlaceholder id={`placeholder-${courseNum}`} />
+                            <DroppableCoursePlaceholder id={`placeholder-${courseNum}`} theme={theme} />
                           )}
                         </div>
                       </DroppableCourse>
@@ -2057,7 +2079,7 @@ function AuthorizedMenuContent({ restaurantId, tableId, sessionId, activeSession
                 </div>
 
                 <div className="mt-6 mb-8">
-                  <NewCourseDropZone onClick={addNewCourse} />
+                  <NewCourseDropZone onClick={addNewCourse} theme={theme} />
                 </div>
 
                 <DragOverlay dropAnimation={dropAnimation}>
@@ -2065,6 +2087,7 @@ function AuthorizedMenuContent({ restaurantId, tableId, sessionId, activeSession
                     <SortableDishItem
                       item={activeDragItem}
                       courseNum={activeDragItem.course_number || 1}
+                      theme={theme}
                     />
                   ) : null}
                 </DragOverlay>

@@ -1258,8 +1258,8 @@ const WaiterDashboard = ({ user, onLogout }: WaiterDashboardProps) => {
                         </DialogDescription>
                     </DialogHeader>
 
-                    <ScrollArea className="flex-1 p-4">
-                        <div className="space-y-6">
+                    <ScrollArea className="flex-1 max-h-[65vh] overflow-y-auto">
+                        <div className="p-4 space-y-6">
                             {/* Tables Section */}
                             <div>
                                 <div className="flex items-center justify-between mb-3">
@@ -1268,7 +1268,7 @@ const WaiterDashboard = ({ user, onLogout }: WaiterDashboardProps) => {
                                         <Plus size={16} className="mr-1" /> Aggiungi
                                     </Button>
                                 </div>
-                                <div className="space-y-2 max-h-48 overflow-y-auto">
+                                <div className="space-y-2">
                                     {tables.map(table => {
                                         const room = rooms.find(r => r.id === table.room_id)
                                         const session = sessions.find(s => s.table_id === table.id)

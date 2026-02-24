@@ -698,7 +698,7 @@ const PublicReservationPage = () => {
                                                     {dish.image_url ? (
                                                         <img src={dish.image_url} alt={dish.name} className="w-full h-full object-cover" />
                                                     ) : (
-                                                        <DishPlaceholder iconSize={24} icon="utensils" />
+                                                        <DishPlaceholder iconSize={24} />
                                                     )}
                                                 </div>
                                                 <div className="flex-1 min-w-0">

@@ -333,9 +333,9 @@ const RestaurantDashboard = ({ user, onLogout }: RestaurantDashboardProps) => {
 
           if (isSuppressedForNow) {
             // We have actively suppressed the custom menu for this meal.
-            // If the custom menu is somehow still active (shouldn't be, but just in case), reset to full menu.
+            // DO NOT process any new schedule activations.
+            // If there's an active menu from a previous cycle that we want to clear, ensure tracking is cleared.
             if (lastScheduledMenuRef.current.menuId) {
-              await supabase.rpc('reset_to_full_menu', { p_restaurant_id: restaurantId })
               lastScheduledMenuRef.current = { menuId: null, mealType: null, day: null }
             }
             return // Skip applying any new schedule
@@ -354,9 +354,8 @@ const RestaurantDashboard = ({ user, onLogout }: RestaurantDashboardProps) => {
         if (suppression) {
           try {
             const sup = JSON.parse(suppression)
-            // If suppressed for the same day+mealType, skip
+            // If suppressed for the same day+mealType, skip entirely
             if (sup.day === scheduleDay && sup.mealType === currentMealType) {
-              // Still suppressed — don't re-apply
               return
             } else {
               // Different meal/day — clear the suppression
@@ -373,7 +372,6 @@ const RestaurantDashboard = ({ user, onLogout }: RestaurantDashboardProps) => {
           // Already applied, no change needed
           return
         }
-
         // Apply the scheduled menu
         const { error } = await supabase.rpc('apply_custom_menu', {
           p_restaurant_id: restaurantId,

@@ -279,56 +279,19 @@ export default function CustomMenusManager({ restaurantId, dishes, categories, o
                     </Dialog>
                 </div>
 
-                <div className="flex-1 overflow-y-auto p-6 space-y-8">
-                    {/* Active Menu Status Card */}
-                    <div className={cn(
-                        "relative flex flex-col sm:flex-row items-start sm:items-center justify-between p-6 rounded-2xl border-2 transition-all duration-300",
-                        activeMenu
-                            ? "border-amber-500/30 bg-amber-500/5 shadow-[0_0_30px_-15px_rgba(245,158,11,0.2)]"
-                            : "border-zinc-800 bg-zinc-900/50"
-                    )}>
-                        <div className="flex items-start gap-4">
-                            <div className={cn(
-                                "w-12 h-12 rounded-xl flex items-center justify-center shadow-sm",
-                                activeMenu
-                                    ? "bg-gradient-to-br from-amber-500 to-orange-600 text-white"
-                                    : "bg-zinc-800 text-zinc-500"
-                            )}>
-                                {activeMenu ? <Sparkle weight="fill" size={24} /> : <ForkKnife weight="duotone" size={24} />}
-                            </div>
-                            <div className="space-y-1">
-                                <Badge variant={activeMenu ? "default" : "outline"} className={cn(
-                                    "mb-1 px-2 py-0.5 text-[10px] uppercase tracking-wider font-bold",
-                                    activeMenu ? "bg-amber-500 hover:bg-amber-600 text-black border-none" : "text-zinc-500 border-zinc-700"
-                                )}>
-                                    {activeMenu ? "Attivo Ora" : "Standard"}
-                                </Badge>
-                                <h3 className="font-bold text-lg text-white">
-                                    {activeMenu ? activeMenu.name : "Menu Completo (Tutti i Piatti)"}
-                                </h3>
-                                <p className="text-sm text-zinc-400 max-w-lg">
-                                    {activeMenu
-                                        ? "I clienti vedono e possono ordinare SOLO i piatti inclusi in questo menu personalizzato."
-                                        : "Nessuna restrizione attiva. I clienti visualizzano l'intero catalogo piatti abilitati."}
-                                </p>
-                            </div>
-                        </div>
-
-                        {activeMenu && (
-                            <Button
-                                variant="outline"
-                                onClick={handleResetToFullMenu}
-                                className="mt-4 sm:mt-0 border-red-500/30 text-red-400 hover:bg-red-500/10 hover:border-red-500/50 hover:text-red-300"
-                            >
-                                <X className="mr-2" size={16} /> Disattiva
-                            </Button>
-                        )}
-                    </div>
-
+                <div className="flex-1 overflow-y-auto p-6 space-y-6">
                     <div className="space-y-4">
-                        <div className="flex items-center gap-2 pb-2">
+                        <div className="flex items-center justify-between pb-2">
                             <h4 className="text-sm font-semibold text-zinc-500 uppercase tracking-wider">I Tuoi Menu</h4>
-                            <Separator className="flex-1 bg-zinc-800" />
+                            {activeMenu && (
+                                <Button
+                                    variant="ghost"
+                                    onClick={handleResetToFullMenu}
+                                    className="h-8 text-xs font-bold text-red-400 hover:bg-red-500/10 hover:text-red-300 border border-red-500/20"
+                                >
+                                    <X size={14} className="mr-1.5" /> Disattiva {activeMenu.name}
+                                </Button>
+                            )}
                         </div>
 
                         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
@@ -344,10 +307,10 @@ export default function CustomMenusManager({ restaurantId, dishes, categories, o
                                         }
                                     }}
                                     className={cn(
-                                        "group relative flex flex-col justify-between h-[160px] p-5 rounded-xl border bg-zinc-900/50 hover:shadow-lg transition-all cursor-pointer overflow-hidden backdrop-blur-sm",
+                                        "group relative flex flex-col justify-between h-[140px] p-5 rounded-2xl border transition-all cursor-pointer overflow-hidden backdrop-blur-md",
                                         menu.is_active
-                                            ? "ring-2 ring-amber-500 border-amber-500 bg-amber-950/10"
-                                            : "border-white/5 hover:border-amber-500/50"
+                                            ? "ring-1 ring-amber-500/50 border-amber-500/50 bg-gradient-to-br from-zinc-900 to-amber-950/20 shadow-[0_8px_30px_rgb(245,158,11,0.15)]"
+                                            : "border-white/5 bg-zinc-900/40 hover:border-white/10 hover:bg-zinc-900/60 shadow-lg"
                                     )}
                                 >
                                     {/* Action Header */}
@@ -356,7 +319,7 @@ export default function CustomMenusManager({ restaurantId, dishes, categories, o
                                             <ForkKnife size={20} weight={menu.is_active ? "fill" : "regular"} />
                                         </div>
 
-                                        <div className="flex items-center gap-1">
+                                        <div className="flex items-center gap-1 z-20">
                                             {/* Edit Button */}
                                             <Button
                                                 variant="ghost"
@@ -370,12 +333,6 @@ export default function CustomMenusManager({ restaurantId, dishes, categories, o
                                             >
                                                 <Pencil size={18} />
                                             </Button>
-
-                                            {menu.is_active && (
-                                                <div className="p-1.5 bg-amber-500 rounded-full text-black shadow-sm ml-1">
-                                                    <Check size={12} weight="bold" />
-                                                </div>
-                                            )}
                                         </div>
                                     </div>
 
@@ -414,7 +371,7 @@ export default function CustomMenusManager({ restaurantId, dishes, categories, o
                             {/* Empty State Card */}
                             <button
                                 onClick={() => setShowCreateDialog(true)}
-                                className="h-[160px] rounded-xl border-2 border-dashed border-zinc-800 hover:border-amber-500/50 hover:bg-amber-500/5 flex flex-col items-center justify-center gap-3 transition-all group"
+                                className="h-[140px] rounded-2xl border border-dashed border-zinc-800 bg-zinc-950/50 hover:border-amber-500/30 hover:bg-amber-500/5 flex flex-col items-center justify-center gap-3 transition-all group backdrop-blur-sm shadow-inner"
                             >
                                 <div className="w-12 h-12 rounded-full bg-zinc-900 group-hover:bg-amber-500/20 flex items-center justify-center text-zinc-500 group-hover:text-amber-500 transition-colors">
                                     <Plus size={24} />

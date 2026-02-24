@@ -3,13 +3,14 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, Di
 import { Button } from '@/components/ui/button'
 import { ScrollArea } from '@/components/ui/scroll-area'
 import { Badge } from '@/components/ui/badge'
-import { CheckCircle, Receipt, Trash, Circle, Check, Plus, Minus, ForkKnife, CurrencyEur, Clock, Users, Sparkle, X, ArrowLeft, Wallet } from '@phosphor-icons/react'
+import { CheckCircle, Receipt, Trash, Circle, Check, Plus, Minus, ForkKnife, CurrencyEur, Clock, Users, Sparkle, X, ArrowLeft, Wallet, QrCode } from '@phosphor-icons/react'
 import { Order, Table, TableSession, Restaurant, OrderItem, Dish } from '../services/types'
 import { DatabaseService } from '../services/DatabaseService'
 import { toast } from 'sonner'
 import { supabase } from '../lib/supabase'
 import { getCurrentCopertoPrice, getCurrentAyceSettings } from '../utils/pricingUtils'
 import { motion, AnimatePresence } from 'framer-motion'
+import QRCodeGenerator from './QRCodeGenerator'
 
 interface TableBillDialogProps {
     isOpen: boolean
@@ -59,6 +60,7 @@ export default function TableBillDialog({
     }, [isOpen, session])
 
     const [paidItemIds, setPaidItemIds] = useState<Set<string>>(new Set())
+    const [isQrDialogOpen, setIsQrDialogOpen] = useState(false)
 
     const [isSplitMode, setIsSplitMode] = useState(false)
     const [selectedSplitItems, setSelectedSplitItems] = useState<Set<string>>(new Set())
@@ -313,9 +315,14 @@ export default function TableBillDialog({
                             </div>
                         </div>
                     </div>
-                    <Button variant="ghost" size="icon" className="h-8 w-8 rounded-full text-zinc-400 hover:text-white hover:bg-white/10" onClick={onClose}>
-                        <X size={16} weight="bold" />
-                    </Button>
+                    <div className="flex items-center gap-2">
+                        <Button variant="ghost" size="icon" className="h-8 w-8 rounded-full text-zinc-400 hover:text-amber-500 hover:bg-amber-500/10" onClick={() => setIsQrDialogOpen(true)}>
+                            <QrCode size={20} weight="bold" />
+                        </Button>
+                        <Button variant="ghost" size="icon" className="h-8 w-8 rounded-full text-zinc-400 hover:text-white hover:bg-white/10" onClick={onClose}>
+                            <X size={16} weight="bold" />
+                        </Button>
+                    </div>
                 </div>
 
                 {/* Content Area */}
@@ -677,6 +684,30 @@ export default function TableBillDialog({
                 </div>
 
             </DialogContent>
+
+            {/* QR Code Dialog */}
+            <Dialog open={isQrDialogOpen} onOpenChange={setIsQrDialogOpen}>
+                <DialogContent className="sm:max-w-sm bg-zinc-950 border-white/10 text-white rounded-[2rem] p-8 flex flex-col items-center justify-center shadow-2xl outline-none">
+                    <DialogHeader className="mb-4 text-center">
+                        <DialogTitle className="text-2xl font-bold text-amber-500">QR Code Tavolo {table?.number}</DialogTitle>
+                        <DialogDescription className="text-zinc-400">
+                            Fai scansionare ai clienti per accedere al menu
+                        </DialogDescription>
+                    </DialogHeader>
+
+                    <div className="bg-white p-4 rounded-xl shadow-inner mb-6">
+                        {table && <QRCodeGenerator value={`${window.location.origin}/client/table/${table.id}`} size={200} />}
+                    </div>
+
+                    {session?.session_pin && (
+                        <div className="text-center w-full bg-zinc-900/50 p-4 rounded-xl border border-white/5">
+                            <p className="text-xs text-zinc-500 uppercase tracking-widest font-bold mb-1">PIN Accesso</p>
+                            <p className="text-3xl font-mono font-black tracking-widest text-white">{session.session_pin}</p>
+                        </div>
+                    )}
+                </DialogContent>
+            </Dialog>
+
         </Dialog>
     )
 }

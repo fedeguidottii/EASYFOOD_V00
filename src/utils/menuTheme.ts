@@ -81,6 +81,10 @@ export interface MenuTheme {
     spinnerBorderStyle: React.CSSProperties
     fabStyle: React.CSSProperties
     fabHoverStyle: React.CSSProperties
+
+    // CSS custom property overrides for shadcn/ui components
+    // Apply this to the root container so ALL nested components inherit theme
+    cssVars: React.CSSProperties
 }
 
 function hexToRgb(hex: string): { r: number; g: number; b: number } {
@@ -164,6 +168,42 @@ export function getMenuTheme(
             borderColor: colorOpt.hex,
             color: '#ffffff',
         },
+
+        // CSS custom property overrides — apply to root container so ALL
+        // nested shadcn/ui primitives (Dialog, Card, Button…) inherit theme
+        cssVars: {
+            '--background': styleTokens.dialogBg,
+            '--foreground': styleTokens.textPrimary,
+            '--card': styleTokens.cardBg,
+            '--card-foreground': styleTokens.textPrimary,
+            '--popover': styleTokens.dialogBg,
+            '--popover-foreground': styleTokens.textPrimary,
+            '--primary': colorOpt.hex,
+            '--primary-foreground': '#000000',
+            '--secondary': styleTokens.cardBg,
+            '--secondary-foreground': styleTokens.textPrimary,
+            '--muted': styleTokens.inputBg,
+            '--muted-foreground': styleTokens.textMuted,
+            '--accent': primaryAlpha(0.1),
+            '--accent-foreground': colorOpt.hex,
+            '--border': styleTokens.cardBorder,
+            '--input': styleTokens.inputBorder,
+            '--ring': colorOpt.hex,
+            // Custom menu-specific vars for sub-components using Tailwind
+            '--menu-primary': colorOpt.hex,
+            '--menu-primary-light': colorOpt.lightHex,
+            '--menu-primary-dark': colorOpt.darkHex,
+            '--menu-primary-alpha20': primaryAlpha(0.2),
+            '--menu-primary-alpha10': primaryAlpha(0.1),
+            '--menu-primary-alpha50': primaryAlpha(0.5),
+            '--menu-card-bg': styleTokens.cardBg,
+            '--menu-card-border': styleTokens.cardBorder,
+            '--menu-text-primary': styleTokens.textPrimary,
+            '--menu-text-secondary': styleTokens.textSecondary,
+            '--menu-text-muted': styleTokens.textMuted,
+            '--menu-input-bg': styleTokens.inputBg,
+            '--menu-dialog-bg': styleTokens.dialogBg,
+        } as React.CSSProperties,
     }
 }
 
