@@ -74,8 +74,68 @@ import { CSS } from '@dnd-kit/utilities'
 import { motion, AnimatePresence } from 'framer-motion'
 import type { Category, Dish, Order, TableSession, Restaurant } from '../services/types'
 import { getCurrentCopertoPrice } from '../utils/pricingUtils'
-import { getMenuTheme, type MenuTheme, type MenuStyleKey } from '../utils/menuTheme'
 import { isRestaurantOpen } from '../utils/timeUtils'
+
+// Fixed amber dark theme — no color customization
+const MENU_COLORS = {
+  primary: '#f59e0b',
+  primaryLight: '#fbbf24',
+  primaryDark: '#d97706',
+  primaryAlpha: (o: number) => `rgba(245, 158, 11, ${o})`,
+  headerFont: 'system-ui, -apple-system, sans-serif',
+  bodyFont: 'system-ui, -apple-system, sans-serif',
+  pageBg: '#09090b',
+  pageBgGradient: 'linear-gradient(to bottom, #09090b, #171717, #18181b)',
+  cardBg: 'rgba(24, 24, 27, 0.9)',
+  cardBorder: 'rgba(255, 255, 255, 0.06)',
+  cardRadius: '12px',
+  cardShadow: '0 10px 15px -3px rgba(0,0,0,0.3)',
+  headerBg: 'rgba(9, 9, 11, 0.9)',
+  dialogBg: '#09090b',
+  dialogBorder: 'rgba(255, 255, 255, 0.06)',
+  inputBg: 'rgba(24, 24, 27, 0.5)',
+  inputBorder: 'rgba(255, 255, 255, 0.1)',
+  inputFocusBorder: 'rgba(255, 255, 255, 0.3)',
+  textPrimary: '#ffffff',
+  textSecondary: '#a1a1aa',
+  textMuted: '#52525b',
+  divider: 'rgba(255, 255, 255, 0.05)',
+  badgeRadius: '9999px',
+  buttonRadius: '12px',
+  primaryColorStyle: { color: '#f59e0b' } as React.CSSProperties,
+  primaryBorderStyle: { borderColor: 'rgba(245, 158, 11, 0.2)' } as React.CSSProperties,
+  primaryBgStyle: { backgroundColor: 'rgba(245, 158, 11, 0.1)' } as React.CSSProperties,
+  primaryGradientStyle: { background: 'linear-gradient(to right, #f59e0b, #d97706)' } as React.CSSProperties,
+  categoryActiveStyle: { backgroundColor: '#f59e0b', color: '#000000', borderColor: '#f59e0b', boxShadow: '0 10px 15px -3px rgba(245, 158, 11, 0.2)' } as React.CSSProperties,
+  categoryInactiveHoverBorderStyle: { borderColor: 'rgba(245, 158, 11, 0.3)' } as React.CSSProperties,
+  floatingCartStyle: { background: 'linear-gradient(to right, #f59e0b, #d97706)', boxShadow: '0 25px 50px -12px rgba(245, 158, 11, 0.4)', color: '#ffffff' } as React.CSSProperties,
+  ctaButtonStyle: { backgroundColor: '#f59e0b', color: '#000000', boxShadow: '0 10px 15px -3px rgba(245, 158, 11, 0.2)' } as React.CSSProperties,
+  pinActiveStyle: { borderColor: '#f59e0b', color: '#ffffff' } as React.CSSProperties,
+  accentTextStyle: { color: '#f59e0b' } as React.CSSProperties,
+  accentBorderStyle: { borderColor: 'rgba(245, 158, 11, 0.2)' } as React.CSSProperties,
+  spinnerBorderStyle: { borderColor: '#f59e0b', borderTopColor: 'transparent' } as React.CSSProperties,
+  fabStyle: { backgroundColor: '#18181b', borderColor: 'rgba(245, 158, 11, 0.5)', color: '#f59e0b' } as React.CSSProperties,
+  fabHoverStyle: { backgroundColor: '#f59e0b', borderColor: '#f59e0b', color: '#ffffff' } as React.CSSProperties,
+  cssVars: {
+    '--background': '#09090b',
+    '--foreground': '#ffffff',
+    '--card': 'rgba(24, 24, 27, 0.9)',
+    '--card-foreground': '#ffffff',
+    '--popover': '#09090b',
+    '--popover-foreground': '#ffffff',
+    '--primary': '#f59e0b',
+    '--primary-foreground': '#000000',
+    '--secondary': 'rgba(24, 24, 27, 0.9)',
+    '--secondary-foreground': '#ffffff',
+    '--muted': 'rgba(24, 24, 27, 0.5)',
+    '--muted-foreground': '#52525b',
+    '--accent': 'rgba(245, 158, 11, 0.1)',
+    '--accent-foreground': '#f59e0b',
+    '--border': 'rgba(255, 255, 255, 0.06)',
+    '--input': 'rgba(255, 255, 255, 0.1)',
+    '--ring': '#f59e0b',
+  } as React.CSSProperties,
+}
 
 // --- HELPER COMPONENTS ---
 
@@ -88,7 +148,7 @@ const getCourseTitle = (courseNum: number): string => {
 }
 
 // Sortable Item Component with smooth animations
-function SortableDishItem({ item, courseNum, theme }: { item: CartItem, courseNum: number, theme: MenuTheme }) {
+function SortableDishItem({ item, courseNum, theme }: { item: CartItem, courseNum: number, theme: typeof MENU_COLORS }) {
   const {
     attributes,
     listeners,
@@ -155,7 +215,7 @@ const DishCard = ({
   onSelect: (dish: Dish) => void,
   onAdd: (dish: Dish) => void,
   isViewOnly?: boolean,
-  theme: MenuTheme
+  theme: typeof MENU_COLORS
 }) => (
   <motion.div
     layout
@@ -172,11 +232,11 @@ const DishCard = ({
     }}
     onClick={() => onSelect(dish)}
   >
-    <div className="w-18 h-18 shrink-0 relative rounded-lg overflow-hidden bg-gradient-to-br from-zinc-800 to-zinc-900 shadow-inner border border-white/5">
+    <div className="w-18 h-18 shrink-0 relative rounded-lg overflow-hidden shadow-inner" style={{ background: `linear-gradient(to bottom right, ${theme.cardBg}, ${theme.pageBg})`, border: `1px solid ${theme.cardBorder}` }}>
       {dish.image_url ? (
         <img src={dish.image_url} alt={dish.name} className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-110" loading="lazy" />
       ) : (
-        <DishPlaceholder className="group-hover:scale-110 transition-transform duration-700" iconSize={24} variant="pot" />
+        <DishPlaceholder className="group-hover:scale-110 transition-transform duration-700" iconSize={24} variant="pot" bgColor={theme.pageBg} gradientFrom={theme.cardBg} accentGlow={theme.primaryAlpha(0.1)} iconColor={theme.textMuted} borderColor={theme.cardBorder} />
       )}
       {dish.allergens && dish.allergens.length > 0 && (
         <div className="absolute bottom-1 right-1 p-0.5 rounded-full shadow-sm" style={{ backgroundColor: 'rgba(9,9,11,0.9)', border: `1px solid ${theme.primaryAlpha(0.2)}` }}>
@@ -213,7 +273,7 @@ const DishCard = ({
 )
 
 // Helper for empty course drop zone
-function DroppableCoursePlaceholder({ id, theme }: { id: string, theme: MenuTheme }) {
+function DroppableCoursePlaceholder({ id, theme }: { id: string, theme: typeof MENU_COLORS }) {
   const { setNodeRef, isOver } = useDroppable({ id })
   return (
     <div
@@ -230,7 +290,7 @@ function DroppableCoursePlaceholder({ id, theme }: { id: string, theme: MenuThem
 }
 
 // Helper for new course drop zone
-function NewCourseDropZone({ onClick, theme }: { onClick: () => void, theme: MenuTheme }) {
+function NewCourseDropZone({ onClick, theme }: { onClick: () => void, theme: typeof MENU_COLORS }) {
   const { setNodeRef, isOver } = useDroppable({ id: 'new-course-zone' })
   return (
     <div ref={setNodeRef} className="relative">
@@ -729,12 +789,8 @@ const CustomerMenuBase = () => {
     }
   }
 
-  // Compute menu theme from restaurant settings
-  // IMPORTANT: This hook MUST be called before any conditional returns (React Rules of Hooks)
-  const theme = useMemo(() => getMenuTheme(
-    (fullRestaurant?.menu_style as MenuStyleKey) || 'elegant',
-    fullRestaurant?.menu_primary_color || '#f59e0b'
-  ), [fullRestaurant?.menu_style, fullRestaurant?.menu_primary_color])
+  // Fixed amber dark theme
+  const theme = MENU_COLORS
 
   // --- RENDER GATES ---
 
@@ -945,11 +1001,8 @@ function AuthorizedMenuContent({ restaurantId, tableId, sessionId, activeSession
   const [activeWaitCourse, setActiveWaitCourse] = useState(1) // Waiter Mode: Selected course for new items
   const [courseSplittingEnabled, setCourseSplittingEnabled] = useState(true) // Default to true
 
-  // Compute menu theme from restaurant settings
-  const theme = useMemo(() => getMenuTheme(
-    (fullRestaurant?.menu_style as MenuStyleKey) || 'elegant',
-    fullRestaurant?.menu_primary_color || '#f59e0b'
-  ), [fullRestaurant?.menu_style, fullRestaurant?.menu_primary_color])
+  // Fixed amber dark theme
+  const theme = MENU_COLORS
 
   // Scroll to category helper
   const scrollToCategory = (categoryId: string) => {
@@ -1468,6 +1521,7 @@ function AuthorizedMenuContent({ restaurantId, tableId, sessionId, activeSession
     }
   }
 
+
   // RENDER HELPERS - LUXURY THEME
   if (isLoading) return (
     <div className="min-h-screen flex items-center justify-center" style={{ background: theme.pageBgGradient, ...theme.cssVars }}>
@@ -1536,7 +1590,7 @@ function AuthorizedMenuContent({ restaurantId, tableId, sessionId, activeSession
                 <div className="p-2 rounded-full" style={{ backgroundColor: `${theme.primary}30` }}>
                   <Clock className="w-5 h-5 shrink-0" style={{ color: theme.primary }} weight="duotone" />
                 </div>
-                <p className="text-sm font-medium leading-tight text-white/90">
+                <p className="text-sm font-medium leading-tight" style={{ color: `${theme.textPrimary}e6` }}>
                   <span className="font-bold block mb-0.5" style={{ color: theme.primary }}>Ristorante Chiuso</span>
                   Gli ordini sono temporaneamente disattivati.
                 </p>
@@ -1623,11 +1677,11 @@ function AuthorizedMenuContent({ restaurantId, tableId, sessionId, activeSession
             >
               <Button
                 onClick={() => setIsCartOpen(true)}
-                className="w-full h-14 text-white rounded-full flex items-center justify-between px-6 transform transition-transform active:scale-95 shadow-xl shadow-black/20"
+                className="w-full h-14 rounded-full flex items-center justify-between px-6 transform transition-transform active:scale-95"
                 style={theme.floatingCartStyle}
               >
                 <div className="flex items-center gap-2">
-                  <span className="bg-white/20 px-2 py-0.5 rounded-full text-sm font-bold">{cart.reduce((a, b) => a + b.quantity, 0)}</span>
+                  <span className="px-2 py-0.5 rounded-full text-sm font-bold" style={{ backgroundColor: 'rgba(255,255,255,0.2)' }}>{cart.reduce((a, b) => a + b.quantity, 0)}</span>
                   <span className="font-medium text-lg tracking-wide uppercase">Vedi Ordine</span>
                 </div>
                 <span className="font-bold text-xl">
@@ -1745,16 +1799,6 @@ function AuthorizedMenuContent({ restaurantId, tableId, sessionId, activeSession
                                     </button>
                                   </div>
 
-                                  {/* Removed old course selection bubbles in cart */}
-
-                                  <button
-                                    onClick={() => {
-                                      updateCartItemQuantity(item.id, -item.quantity)
-                                    }}
-                                    className="text-red-400/50 hover:text-red-400 p-1.5 hover:bg-red-400/10 rounded-md transition-colors ml-auto"
-                                  >
-                                    <Trash size={16} />
-                                  </button>
                                 </div>
                               </div>
                             </div>
@@ -1845,7 +1889,7 @@ function AuthorizedMenuContent({ restaurantId, tableId, sessionId, activeSession
                   })()}
 
                   <Button
-                    className="w-full font-bold h-12 rounded-xl shadow-lg text-white"
+                    className="w-full font-bold h-12 rounded-xl"
                     style={theme.floatingCartStyle}
                     onClick={() => {
                       handleSubmitClick()
@@ -1854,7 +1898,7 @@ function AuthorizedMenuContent({ restaurantId, tableId, sessionId, activeSession
                   >
                     {isOrderSubmitting ? (
                       <div className="flex items-center gap-2">
-                        <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                        <div className="w-4 h-4 border-2 rounded-full animate-spin" style={{ borderColor: 'rgba(255,255,255,0.3)', borderTopColor: '#ffffff' }} />
                         <span>Invio...</span>
                       </div>
                     ) : (
@@ -1883,8 +1927,8 @@ function AuthorizedMenuContent({ restaurantId, tableId, sessionId, activeSession
                   </div>
                 ) : (
                   <div className="relative h-48 w-full">
-                    <DishPlaceholder iconSize={48} variant="pot" />
-                    <div className="absolute inset-0 bg-gradient-to-t from-zinc-950/80 to-transparent" />
+                    <DishPlaceholder iconSize={48} variant="pot" bgColor={theme.pageBg} gradientFrom={theme.cardBg} accentGlow={theme.primaryAlpha(0.1)} iconColor={theme.textMuted} borderColor={theme.cardBorder} />
+                    <div className="absolute inset-0" style={{ background: `linear-gradient(to top, ${theme.dialogBg}cc, transparent)` }} />
                   </div>
                 )}
 
@@ -1947,7 +1991,7 @@ function AuthorizedMenuContent({ restaurantId, tableId, sessionId, activeSession
 
         {/* Confirm Send Dialog */}
         <Dialog open={showConfirmDialog} onOpenChange={setShowConfirmDialog}>
-          <DialogContent className="sm:max-w-sm shadow-2xl shadow-black/80" style={{ backgroundColor: theme.dialogBg, borderColor: theme.primaryAlpha(0.2), color: theme.textPrimary }}>
+          <DialogContent className="sm:max-w-sm" style={{ backgroundColor: theme.dialogBg, borderColor: theme.primaryAlpha(0.2), color: theme.textPrimary, boxShadow: '0 25px 50px -12px rgba(0,0,0,0.8)' }}>
             <DialogHeader>
               <DialogTitle style={{ color: theme.primary, fontFamily: theme.headerFont }}>Conferma invio</DialogTitle>
               <DialogDescription style={{ color: theme.textSecondary }}>Inviare l'ordine in cucina?</DialogDescription>
@@ -2096,7 +2140,7 @@ function AuthorizedMenuContent({ restaurantId, tableId, sessionId, activeSession
 
             <div className="p-4 shrink-0 shadow-lg" style={{ backgroundColor: theme.cardBg, borderTop: `1px solid ${theme.cardBorder}` }}>
               <Button
-                className="w-full font-bold h-14 rounded-xl flex items-center justify-center gap-2 text-white shadow-xl"
+                className="w-full font-bold h-14 rounded-xl flex items-center justify-center gap-2"
                 style={theme.ctaButtonStyle}
                 onClick={() => {
                   setShowCourseDivisionModal(false)
@@ -2115,14 +2159,15 @@ function AuthorizedMenuContent({ restaurantId, tableId, sessionId, activeSession
         <Button
           onClick={handleCallWaiter}
           disabled={callWaiterDisabled}
-          className={`fixed top-4 right-4 z-50 h-12 w-12 rounded-full shadow-xl border-2 transition-all duration-300 ${callWaiterDisabled ? 'cursor-not-allowed' : ''}`}
+          className={`fixed top-4 right-4 z-50 h-10 px-3 rounded-full shadow-xl border-2 transition-all duration-300 flex items-center gap-1.5 ${callWaiterDisabled ? 'cursor-not-allowed' : ''}`}
           style={callWaiterDisabled
             ? { backgroundColor: '#27272a', borderColor: '#3f3f46', color: '#71717a' }
             : theme.fabStyle
           }
           title={callWaiterDisabled ? 'Attendi 30 secondi...' : 'Chiama cameriere'}
         >
-          <Bell className="w-5 h-5" fill="currentColor" />
+          <Bell className="w-4 h-4" fill="currentColor" />
+          <span className="text-xs font-semibold tracking-wide">Cameriere</span>
         </Button>
       </div>
     </div >

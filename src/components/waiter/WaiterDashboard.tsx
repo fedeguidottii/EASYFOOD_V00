@@ -716,7 +716,7 @@ const WaiterDashboard = ({ user, onLogout }: WaiterDashboardProps) => {
                     {/* Footer Actions — icon-only on mobile to prevent overflow */}
                     <div className="p-2 sm:p-3 bg-gradient-to-t from-muted/10 to-transparent border-t border-border/5 grid gap-1.5 relative z-10">
                         {isActive ? (
-                            <div className="grid grid-cols-2 gap-1.5">
+                            <div className={`grid gap-1.5 ${restaurant?.allow_waiter_payments ? 'grid-cols-2' : 'grid-cols-1'}`}>
                                 <Button
                                     variant="outline"
                                     size="sm"
@@ -729,17 +729,19 @@ const WaiterDashboard = ({ user, onLogout }: WaiterDashboardProps) => {
                                     <Plus size={16} className="shrink-0" />
                                     <span className="hidden sm:inline ml-1.5">Ordina</span>
                                 </Button>
-                                <Button
-                                    className="bg-gradient-to-r from-primary to-primary/80 text-primary-foreground hover:from-primary/90 hover:to-primary/70 shadow-sm hover:shadow transition-all h-10 text-xs overflow-hidden"
-                                    size="sm"
-                                    onClick={(e) => {
-                                        e.stopPropagation()
-                                        openPaymentDialog(e, table)
-                                    }}
-                                >
-                                    <Receipt size={16} className="shrink-0" />
-                                    <span className="hidden sm:inline ml-1.5">Conto</span>
-                                </Button>
+                                {restaurant?.allow_waiter_payments && (
+                                    <Button
+                                        className="bg-gradient-to-r from-primary to-primary/80 text-primary-foreground hover:from-primary/90 hover:to-primary/70 shadow-sm hover:shadow transition-all h-10 text-xs overflow-hidden"
+                                        size="sm"
+                                        onClick={(e) => {
+                                            e.stopPropagation()
+                                            openPaymentDialog(e, table)
+                                        }}
+                                    >
+                                        <Receipt size={16} className="shrink-0" />
+                                        <span className="hidden sm:inline ml-1.5">Conto</span>
+                                    </Button>
+                                )}
                             </div>
                         ) : (
                             <Button

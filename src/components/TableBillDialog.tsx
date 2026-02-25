@@ -10,6 +10,7 @@ import { toast } from 'sonner'
 import { supabase } from '../lib/supabase'
 import { getCurrentCopertoPrice, getCurrentAyceSettings } from '../utils/pricingUtils'
 import { motion, AnimatePresence } from 'framer-motion'
+import { VisuallyHidden } from '@radix-ui/react-visually-hidden'
 import QRCodeGenerator from './QRCodeGenerator'
 
 interface TableBillDialogProps {
@@ -298,7 +299,10 @@ export default function TableBillDialog({
     // Render Helper
     return (
         <Dialog open={isOpen} onOpenChange={(open) => !open && onClose()}>
-            <DialogContent className="sm:max-w-xl w-[95vw] max-h-[85vh] md:max-h-[90vh] overflow-hidden bg-zinc-950/90 backdrop-blur-2xl border-white/10 text-zinc-100 p-0 rounded-[2rem] shadow-[0_0_50px_-12px_rgba(0,0,0,0.8)] flex flex-col outline-none [&>button.absolute]:hidden">
+            <DialogContent className="sm:max-w-xl w-[95vw] max-h-[85vh] md:max-h-[90vh] overflow-hidden bg-zinc-950/90 backdrop-blur-2xl border-white/10 text-zinc-100 p-0 rounded-[2rem] shadow-[0_0_50px_-12px_rgba(0,0,0,0.8)] flex flex-col outline-none [&>button.absolute]:hidden" aria-describedby={undefined}>
+                <VisuallyHidden>
+                    <DialogTitle>Conto Tavolo {table?.number}</DialogTitle>
+                </VisuallyHidden>
 
                 {/* Header */}
                 <div className="p-4 md:p-6 border-b border-white/5 bg-zinc-900/40 flex items-center justify-between shrink-0 relative z-20">
@@ -337,11 +341,11 @@ export default function TableBillDialog({
                                 animate={{ opacity: 1, scale: 1, y: 0 }}
                                 exit={{ opacity: 0, scale: 0.95, y: -10 }}
                                 transition={{ type: 'spring', stiffness: 400, damping: 30 }}
-                                className="h-full flex flex-col p-4 md:p-6"
+                                className="h-full flex flex-col p-4 md:p-6 min-h-0"
                             >
 
                                 {/* Receipt Card - Dark Glassmorphism */}
-                                <div className="bg-black/20 backdrop-blur-2xl border border-white/5 text-zinc-100 rounded-[1.5rem] overflow-hidden shadow-2xl relative flex-1 flex flex-col ring-1 ring-white/5">
+                                <div className="bg-black/20 backdrop-blur-2xl border border-white/5 text-zinc-100 rounded-[1.5rem] overflow-hidden shadow-2xl relative flex-1 flex flex-col ring-1 ring-white/5 min-h-0">
 
                                     {/* Fluid Background Effect */}
                                     <div className="absolute top-0 right-0 w-64 h-64 bg-amber-500/10 blur-[100px] rounded-full pointer-events-none -mr-32 -mt-32"></div>
@@ -446,11 +450,11 @@ export default function TableBillDialog({
                                 animate={{ opacity: 1, x: 0 }}
                                 exit={{ opacity: 0, x: -20 }}
                                 transition={{ type: 'spring', stiffness: 400, damping: 30 }}
-                                className="h-full flex flex-col p-4 md:p-6"
+                                className="h-full flex flex-col p-4 md:p-6 min-h-0"
                             >
 
                                 {/* Glass Container */}
-                                <div className="bg-black/20 backdrop-blur-2xl border border-white/5 text-zinc-100 rounded-[1.5rem] overflow-hidden shadow-2xl relative flex-1 flex flex-col ring-1 ring-white/5">
+                                <div className="bg-black/20 backdrop-blur-2xl border border-white/5 text-zinc-100 rounded-[1.5rem] overflow-hidden shadow-2xl relative flex-1 flex flex-col ring-1 ring-white/5 min-h-0">
 
                                     {/* Fluid Background Effect */}
                                     <div className="absolute top-0 right-0 w-64 h-64 bg-amber-500/10 blur-[100px] rounded-full pointer-events-none -mr-32 -mt-32"></div>
@@ -518,9 +522,9 @@ export default function TableBillDialog({
                                 animate={{ opacity: 1, scale: 1 }}
                                 exit={{ opacity: 0, scale: 0.95 }}
                                 transition={{ type: 'spring', stiffness: 400, damping: 30 }}
-                                className="h-full flex flex-col p-4 md:p-6"
+                                className="h-full flex flex-col p-4 md:p-6 min-h-0"
                             >
-                                <div className="bg-black/20 backdrop-blur-2xl border border-white/5 text-zinc-100 rounded-[1.5rem] overflow-hidden shadow-2xl relative flex-1 flex flex-col ring-1 ring-white/5">
+                                <div className="bg-black/20 backdrop-blur-2xl border border-white/5 text-zinc-100 rounded-[1.5rem] overflow-hidden shadow-2xl relative flex-1 flex flex-col ring-1 ring-white/5 min-h-0">
 
                                     <div className="absolute top-0 left-0 w-64 h-64 bg-indigo-500/10 blur-[100px] rounded-full pointer-events-none -ml-32 -mt-32"></div>
                                     <div className="absolute bottom-0 right-0 w-64 h-64 bg-fuchsia-500/10 blur-[100px] rounded-full pointer-events-none -mr-32 -mb-32"></div>

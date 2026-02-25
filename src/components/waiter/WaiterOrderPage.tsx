@@ -40,8 +40,16 @@ const WaiterOrderPage = () => {
     const [selectedCategory, setSelectedCategory] = useState<string>('all')
     const [searchQuery, setSearchQuery] = useState('')
 
-    // Order State
-    const [orderItems, setOrderItems] = useState<OrderItem[]>([])
+    // Order State — persisted to sessionStorage so refresh doesn't lose the cart
+    const [orderItems, setOrderItems] = useState<OrderItem[]>(() => {
+        if (!tableId) return []
+        try {
+            const saved = sessionStorage.getItem(`waiter-cart-${tableId}`)
+            return saved ? JSON.parse(saved) : []
+        } catch {
+            return []
+        }
+    })
     const [activeCourse, setActiveCourse] = useState(1) // Legacy fallback
     const [isCartOpen, setIsCartOpen] = useState(false)
     const [submitting, setSubmitting] = useState(false)
@@ -54,6 +62,7 @@ const WaiterOrderPage = () => {
     // Confirmation Dialog State
     const [showConfirmDialog, setShowConfirmDialog] = useState(false)
     const [confirmActionType, setConfirmActionType] = useState<'standard' | 'delivered'>('standard')
+    const [itemToMarkDelivered, setItemToMarkDelivered] = useState<number | null>(null)
 
     // Refs for scrolling
     const categoryScrollRef = useRef<HTMLDivElement>(null)
@@ -173,6 +182,70 @@ const WaiterOrderPage = () => {
         setOrderItems(prev => prev.map((item, i) => i === index ? { ...item, courseNumber: courseNum } : item))
     }
 
+    // Persist cart to sessionStorage on every change
+    useEffect(() => {
+        if (tableId) {
+            sessionStorage.setItem(`waiter-cart-${tableId}`, JSON.stringify(orderItems))
+        }
+    }, [orderItems, tableId])
+
+    // Mark a single cart item as already delivered without sending the whole cart
+    const handleMarkSingleItemDelivered = async (index: number) => {
+        const item = orderItems[index]
+        if (!item || !table || !restaurant) return
+
+        try {
+            // Find or create session
+            const { data: sessionData } = await supabase
+                .from('table_sessions')
+                .select('id')
+                .eq('table_id', table.id)
+                .eq('status', 'OPEN')
+                .single()
+
+            let sessionId = sessionData?.id
+
+            if (!sessionId) {
+                const newSession = await DatabaseService.createSession({
+                    table_id: table.id,
+                    restaurant_id: restaurant.id,
+                    status: 'OPEN',
+                    customer_count: table.seats || 2,
+                })
+                sessionId = newSession.id
+            }
+
+            const { data: orderData, error: orderError } = await supabase
+                .from('orders')
+                .insert({
+                    table_session_id: sessionId,
+                    restaurant_id: restaurant.id,
+                    status: 'OPEN',
+                    total_amount: (item.dish?.price || 0) * item.quantity
+                })
+                .select()
+                .single()
+
+            if (orderError) throw orderError
+
+            await supabase.from('order_items').insert({
+                order_id: orderData.id,
+                dish_id: item.dishId,
+                quantity: item.quantity,
+                note: item.notes || null,
+                status: 'SERVED',
+                course_number: item.courseNumber,
+            })
+
+            // Remove from cart
+            updateQuantity(index, -item.quantity)
+            toast.success(`${item.dish?.name || 'Piatto'} segnato come già servito`)
+        } catch (error) {
+            console.error('Error marking item as delivered:', error)
+            toast.error('Errore nel segnare il piatto come servito')
+        }
+    }
+
     // Submit Order Handling
     const handlePreSubmit = (type: 'standard' | 'delivered') => {
         if (orderItems.length === 0) return
@@ -262,6 +335,7 @@ const WaiterOrderPage = () => {
             }
 
             toast.success(isDelivered ? 'Ordine segnato come consegnato!' : 'Ordine inviato in cucina!')
+            if (tableId) sessionStorage.removeItem(`waiter-cart-${tableId}`)
             navigate('/waiter') // Return to dashboard
 
         } catch (error) {
@@ -557,11 +631,11 @@ const WaiterOrderPage = () => {
                                                                             />
 
                                                                             <button
-                                                                                // Remove by reducing quantity to 0
-                                                                                onClick={() => updateQuantity(realIndex, -item.quantity)}
-                                                                                className="w-8 h-8 flex items-center justify-center text-red-500/50 hover:text-red-500 bg-red-500/5 hover:bg-red-500/10 rounded-lg transition-colors ml-auto"
+                                                                                onClick={() => setItemToMarkDelivered(realIndex)}
+                                                                                className="w-full h-10 flex items-center justify-center gap-2 bg-green-500/15 hover:bg-green-500/25 text-green-400 rounded-xl transition-all font-bold text-sm border border-green-500/20 active:scale-95 mt-1"
                                                                             >
-                                                                                <Trash size={16} weight="duotone" />
+                                                                                <CheckCircle size={18} weight="fill" />
+                                                                                Segna come Consegnato
                                                                             </button>
                                                                         </div>
                                                                     </div>
@@ -589,15 +663,6 @@ const WaiterOrderPage = () => {
                                         >
                                             <PaperPlaneRight size={20} weight="fill" className="mr-2" />
                                             Invia in Cucina
-                                        </Button>
-                                        <Button
-                                            variant="outline"
-                                            className="w-full h-12 border-zinc-700 text-zinc-300 hover:text-white hover:bg-zinc-800 rounded-xl"
-                                            onClick={() => handlePreSubmit('delivered')}
-                                            disabled={submitting}
-                                        >
-                                            <CheckCircle size={20} weight="fill" className="mr-2 text-green-500" />
-                                            Segna come Già Consegnato
                                         </Button>
                                     </div>
                                     <div className="h-4 md:hidden" /> {/* Spacer for iOS Home Bar */}
@@ -634,6 +699,35 @@ const WaiterOrderPage = () => {
                                 }`}
                         >
                             {confirmActionType === 'standard' ? 'Invia Ordine' : 'Conferma Pronta Consegna'}
+                        </AlertDialogAction>
+                    </AlertDialogFooter>
+                </AlertDialogContent>
+            </AlertDialog>
+
+            {/* Mark as Delivered Confirmation Dialog */}
+            <AlertDialog open={itemToMarkDelivered !== null} onOpenChange={(open) => !open && setItemToMarkDelivered(null)}>
+                <AlertDialogContent className="bg-zinc-900 border-zinc-800 text-white rounded-2xl w-[90vw] max-w-sm z-[200]">
+                    <AlertDialogHeader>
+                        <AlertDialogTitle>Segna come già consegnato?</AlertDialogTitle>
+                        <AlertDialogDescription className="text-zinc-400">
+                            <span className="font-bold text-white">{itemToMarkDelivered !== null ? orderItems[itemToMarkDelivered]?.dish?.name : ''}</span> verrà registrato come già servito e non apparirà in gestione ordini cucina.
+                        </AlertDialogDescription>
+                    </AlertDialogHeader>
+                    <AlertDialogFooter>
+                        <AlertDialogCancel className="bg-zinc-800 border-zinc-700 hover:bg-zinc-700 hover:text-white text-zinc-300 rounded-lg">
+                            Annulla
+                        </AlertDialogCancel>
+                        <AlertDialogAction
+                            onClick={() => {
+                                if (itemToMarkDelivered !== null) {
+                                    handleMarkSingleItemDelivered(itemToMarkDelivered)
+                                }
+                                setItemToMarkDelivered(null)
+                            }}
+                            className="bg-green-600 hover:bg-green-500 text-white rounded-lg font-bold"
+                        >
+                            <CheckCircle weight="fill" className="mr-2" size={16} />
+                            Conferma
                         </AlertDialogAction>
                     </AlertDialogFooter>
                 </AlertDialogContent>

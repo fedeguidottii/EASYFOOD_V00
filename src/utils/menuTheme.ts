@@ -1,9 +1,7 @@
 // ============================================================
-// Menu Theming System
-// Provides style presets and primary color tokens for CustomerMenu
+// Menu Theming System — Color Only
+// Provides primary color tokens for CustomerMenu
 // ============================================================
-
-export type MenuStyleKey = 'elegant' | 'friendly' | 'minimal' | 'bold'
 
 export interface ColorOption {
     name: string
@@ -23,19 +21,6 @@ export const COLOR_OPTIONS: ColorOption[] = [
     { name: 'Fuchsia', hex: '#d946ef', lightHex: '#e879f9', darkHex: '#c026d3' },
 ]
 
-export interface StylePreset {
-    key: MenuStyleKey
-    label: string
-    description: string
-}
-
-export const STYLE_PRESETS: StylePreset[] = [
-    { key: 'elegant', label: 'Elegante', description: 'Lusso scuro, font serif, vetro smerigliato' },
-    { key: 'friendly', label: 'Amichevole', description: 'Caldo, arrotondato, accogliente' },
-    { key: 'minimal', label: 'Minimale', description: 'Ultra-pulito, moderno, leggero' },
-    { key: 'bold', label: 'Vivace', description: 'Alto contrasto, forte, audace' },
-]
-
 // ---- Theme object returned by getMenuTheme ----
 export interface MenuTheme {
     // Primary color tokens
@@ -44,7 +29,7 @@ export interface MenuTheme {
     primaryDark: string
     primaryAlpha: (opacity: number) => string
 
-    // Style-dependent tokens
+    // Fixed dark style tokens
     headerFont: string
     bodyFont: string
     pageBg: string
@@ -83,7 +68,7 @@ export interface MenuTheme {
     fabHoverStyle: React.CSSProperties
 
     // CSS custom property overrides for shadcn/ui components
-    // Apply this to the root container so ALL nested components inherit theme
+    // Applied to document.body so portal dialogs also inherit theme
     cssVars: React.CSSProperties
 }
 
@@ -94,10 +79,31 @@ function hexToRgb(hex: string): { r: number; g: number; b: number } {
         : { r: 245, g: 158, b: 11 }
 }
 
-export function getMenuTheme(
-    style: MenuStyleKey = 'elegant',
-    colorHex: string = '#f59e0b'
-): MenuTheme {
+// Fixed dark style tokens — no more style variants
+const STYLE_TOKENS = {
+    headerFont: 'system-ui, -apple-system, sans-serif',
+    bodyFont: 'system-ui, -apple-system, sans-serif',
+    pageBg: '#09090b',
+    pageBgGradient: 'linear-gradient(to bottom, #09090b, #171717, #18181b)',
+    cardBg: 'rgba(24, 24, 27, 0.9)',
+    cardBorder: 'rgba(255, 255, 255, 0.06)',
+    cardRadius: '12px',
+    cardShadow: '0 10px 15px -3px rgba(0,0,0,0.3)',
+    headerBg: 'rgba(9, 9, 11, 0.9)',
+    dialogBg: '#09090b',
+    dialogBorder: 'rgba(255, 255, 255, 0.06)',
+    inputBg: 'rgba(24, 24, 27, 0.5)',
+    inputBorder: 'rgba(255, 255, 255, 0.1)',
+    inputFocusBorder: 'rgba(255, 255, 255, 0.3)',
+    textPrimary: '#ffffff',
+    textSecondary: '#a1a1aa',
+    textMuted: '#52525b',
+    divider: 'rgba(255, 255, 255, 0.05)',
+    badgeRadius: '9999px',
+    buttonRadius: '12px',
+} as const
+
+export function getMenuTheme(colorHex: string = '#f59e0b'): MenuTheme {
     // Find color option or build one from hex
     const colorOpt = COLOR_OPTIONS.find(c => c.hex === colorHex) || {
         name: 'Custom',
@@ -109,15 +115,12 @@ export function getMenuTheme(
     const { r, g, b } = hexToRgb(colorOpt.hex)
     const primaryAlpha = (opacity: number) => `rgba(${r}, ${g}, ${b}, ${opacity})`
 
-    // Style-dependent base tokens
-    const styleTokens = getStyleTokens(style)
-
     return {
         primary: colorOpt.hex,
         primaryLight: colorOpt.lightHex,
         primaryDark: colorOpt.darkHex,
         primaryAlpha,
-        ...styleTokens,
+        ...STYLE_TOKENS,
 
         // Computed inline styles
         primaryColorStyle: { color: colorOpt.hex },
@@ -138,6 +141,7 @@ export function getMenuTheme(
         floatingCartStyle: {
             background: `linear-gradient(to right, ${colorOpt.hex}, ${colorOpt.darkHex})`,
             boxShadow: `0 25px 50px -12px ${primaryAlpha(0.4)}`,
+            color: '#ffffff',
         },
         ctaButtonStyle: {
             backgroundColor: colorOpt.hex,
@@ -169,162 +173,39 @@ export function getMenuTheme(
             color: '#ffffff',
         },
 
-        // CSS custom property overrides — apply to root container so ALL
-        // nested shadcn/ui primitives (Dialog, Card, Button…) inherit theme
+        // CSS custom property overrides — applied to document.body so ALL
+        // nested shadcn/ui primitives (Dialog, Card, Button…) AND portals inherit theme
         cssVars: {
-            '--background': styleTokens.dialogBg,
-            '--foreground': styleTokens.textPrimary,
-            '--card': styleTokens.cardBg,
-            '--card-foreground': styleTokens.textPrimary,
-            '--popover': styleTokens.dialogBg,
-            '--popover-foreground': styleTokens.textPrimary,
+            '--background': STYLE_TOKENS.dialogBg,
+            '--foreground': STYLE_TOKENS.textPrimary,
+            '--card': STYLE_TOKENS.cardBg,
+            '--card-foreground': STYLE_TOKENS.textPrimary,
+            '--popover': STYLE_TOKENS.dialogBg,
+            '--popover-foreground': STYLE_TOKENS.textPrimary,
             '--primary': colorOpt.hex,
             '--primary-foreground': '#000000',
-            '--secondary': styleTokens.cardBg,
-            '--secondary-foreground': styleTokens.textPrimary,
-            '--muted': styleTokens.inputBg,
-            '--muted-foreground': styleTokens.textMuted,
+            '--secondary': STYLE_TOKENS.cardBg,
+            '--secondary-foreground': STYLE_TOKENS.textPrimary,
+            '--muted': STYLE_TOKENS.inputBg,
+            '--muted-foreground': STYLE_TOKENS.textMuted,
             '--accent': primaryAlpha(0.1),
             '--accent-foreground': colorOpt.hex,
-            '--border': styleTokens.cardBorder,
-            '--input': styleTokens.inputBorder,
+            '--border': STYLE_TOKENS.cardBorder,
+            '--input': STYLE_TOKENS.inputBorder,
             '--ring': colorOpt.hex,
-            // Custom menu-specific vars for sub-components using Tailwind
             '--menu-primary': colorOpt.hex,
             '--menu-primary-light': colorOpt.lightHex,
             '--menu-primary-dark': colorOpt.darkHex,
             '--menu-primary-alpha20': primaryAlpha(0.2),
             '--menu-primary-alpha10': primaryAlpha(0.1),
             '--menu-primary-alpha50': primaryAlpha(0.5),
-            '--menu-card-bg': styleTokens.cardBg,
-            '--menu-card-border': styleTokens.cardBorder,
-            '--menu-text-primary': styleTokens.textPrimary,
-            '--menu-text-secondary': styleTokens.textSecondary,
-            '--menu-text-muted': styleTokens.textMuted,
-            '--menu-input-bg': styleTokens.inputBg,
-            '--menu-dialog-bg': styleTokens.dialogBg,
+            '--menu-card-bg': STYLE_TOKENS.cardBg,
+            '--menu-card-border': STYLE_TOKENS.cardBorder,
+            '--menu-text-primary': STYLE_TOKENS.textPrimary,
+            '--menu-text-secondary': STYLE_TOKENS.textSecondary,
+            '--menu-text-muted': STYLE_TOKENS.textMuted,
+            '--menu-input-bg': STYLE_TOKENS.inputBg,
+            '--menu-dialog-bg': STYLE_TOKENS.dialogBg,
         } as React.CSSProperties,
-    }
-}
-
-interface StyleTokens {
-    headerFont: string
-    bodyFont: string
-    pageBg: string
-    pageBgGradient: string
-    cardBg: string
-    cardBorder: string
-    cardRadius: string
-    cardShadow: string
-    headerBg: string
-    dialogBg: string
-    dialogBorder: string
-    inputBg: string
-    inputBorder: string
-    inputFocusBorder: string
-    textPrimary: string
-    textSecondary: string
-    textMuted: string
-    divider: string
-    badgeRadius: string
-    buttonRadius: string
-}
-
-function getStyleTokens(style: MenuStyleKey): StyleTokens {
-    switch (style) {
-        case 'elegant':
-            return {
-                headerFont: 'Georgia, "Times New Roman", serif',
-                bodyFont: 'system-ui, -apple-system, sans-serif',
-                pageBg: '#09090b',
-                pageBgGradient: 'linear-gradient(to bottom, #09090b, #171717, #18181b)',
-                cardBg: 'rgba(24, 24, 27, 0.9)',
-                cardBorder: 'rgba(255, 255, 255, 0.06)',
-                cardRadius: '12px',
-                cardShadow: '0 10px 15px -3px rgba(0,0,0,0.3)',
-                headerBg: 'rgba(9, 9, 11, 0.9)',
-                dialogBg: '#09090b',
-                dialogBorder: 'rgba(255, 255, 255, 0.06)',
-                inputBg: 'rgba(24, 24, 27, 0.5)',
-                inputBorder: 'rgba(255, 255, 255, 0.1)',
-                inputFocusBorder: 'rgba(255, 255, 255, 0.3)',
-                textPrimary: '#ffffff',
-                textSecondary: '#a1a1aa',
-                textMuted: '#52525b',
-                divider: 'rgba(255, 255, 255, 0.05)',
-                badgeRadius: '9999px',
-                buttonRadius: '12px',
-            }
-        case 'friendly':
-            return {
-                headerFont: '"Nunito", "Segoe UI", system-ui, sans-serif',
-                bodyFont: '"Nunito", "Segoe UI", system-ui, sans-serif',
-                pageBg: '#0c0a09',
-                pageBgGradient: 'linear-gradient(to bottom, #0c0a09, #1c1917, #1c1917)',
-                cardBg: 'rgba(28, 25, 23, 0.95)',
-                cardBorder: 'rgba(255, 255, 255, 0.08)',
-                cardRadius: '16px',
-                cardShadow: '0 4px 6px -1px rgba(0,0,0,0.2)',
-                headerBg: 'rgba(12, 10, 9, 0.95)',
-                dialogBg: '#1c1917',
-                dialogBorder: 'rgba(255, 255, 255, 0.08)',
-                inputBg: 'rgba(28, 25, 23, 0.6)',
-                inputBorder: 'rgba(255, 255, 255, 0.12)',
-                inputFocusBorder: 'rgba(255, 255, 255, 0.3)',
-                textPrimary: '#fafaf9',
-                textSecondary: '#a8a29e',
-                textMuted: '#57534e',
-                divider: 'rgba(255, 255, 255, 0.06)',
-                badgeRadius: '9999px',
-                buttonRadius: '16px',
-            }
-        case 'minimal':
-            return {
-                headerFont: 'system-ui, -apple-system, "Helvetica Neue", sans-serif',
-                bodyFont: 'system-ui, -apple-system, "Helvetica Neue", sans-serif',
-                pageBg: '#0a0a0a',
-                pageBgGradient: '#0a0a0a',
-                cardBg: 'rgba(23, 23, 23, 0.8)',
-                cardBorder: 'rgba(255, 255, 255, 0.04)',
-                cardRadius: '8px',
-                cardShadow: 'none',
-                headerBg: 'rgba(10, 10, 10, 0.95)',
-                dialogBg: '#0a0a0a',
-                dialogBorder: 'rgba(255, 255, 255, 0.06)',
-                inputBg: 'rgba(23, 23, 23, 0.5)',
-                inputBorder: 'rgba(255, 255, 255, 0.08)',
-                inputFocusBorder: 'rgba(255, 255, 255, 0.2)',
-                textPrimary: '#fafafa',
-                textSecondary: '#a3a3a3',
-                textMuted: '#525252',
-                divider: 'rgba(255, 255, 255, 0.04)',
-                badgeRadius: '6px',
-                buttonRadius: '8px',
-            }
-        case 'bold':
-            return {
-                headerFont: '"Inter", system-ui, -apple-system, sans-serif',
-                bodyFont: '"Inter", system-ui, -apple-system, sans-serif',
-                pageBg: '#030712',
-                pageBgGradient: 'linear-gradient(to bottom, #030712, #111827, #030712)',
-                cardBg: 'rgba(17, 24, 39, 0.95)',
-                cardBorder: 'rgba(255, 255, 255, 0.1)',
-                cardRadius: '12px',
-                cardShadow: '0 20px 25px -5px rgba(0,0,0,0.4)',
-                headerBg: 'rgba(3, 7, 18, 0.95)',
-                dialogBg: '#111827',
-                dialogBorder: 'rgba(255, 255, 255, 0.1)',
-                inputBg: 'rgba(17, 24, 39, 0.6)',
-                inputBorder: 'rgba(255, 255, 255, 0.15)',
-                inputFocusBorder: 'rgba(255, 255, 255, 0.4)',
-                textPrimary: '#f9fafb',
-                textSecondary: '#9ca3af',
-                textMuted: '#4b5563',
-                divider: 'rgba(255, 255, 255, 0.08)',
-                badgeRadius: '8px',
-                buttonRadius: '12px',
-            }
-        default:
-            return getStyleTokens('elegant')
     }
 }

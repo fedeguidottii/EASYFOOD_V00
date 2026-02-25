@@ -908,38 +908,6 @@ const RestaurantDashboard = ({ user, onLogout }: RestaurantDashboardProps) => {
     }
   }
 
-  // Menu Theming State with Optimistic Updates
-  const [optimisticMenuStyle, setOptimisticMenuStyle] = useState<string | null>(null)
-  const [optimisticMenuColor, setOptimisticMenuColor] = useState<string | null>(null)
-
-  const menuStyle = optimisticMenuStyle || (currentRestaurant?.menu_style as any) || 'elegant'
-  const menuPrimaryColor = optimisticMenuColor || currentRestaurant?.menu_primary_color || '#f59e0b'
-
-  const updateMenuStyle = async (style: string) => {
-    setOptimisticMenuStyle(style)
-    if (!restaurantId) return
-    try {
-      await DatabaseService.updateRestaurant({ id: restaurantId, menu_style: style as any })
-      toast.success('Stile menù aggiornato')
-    } catch (error) {
-      console.error('Error updating menu style:', error)
-      toast.error('Errore aggiornamento stile')
-      setOptimisticMenuStyle(null) // Revert on error
-    }
-  }
-
-  const updateMenuPrimaryColor = async (color: string) => {
-    setOptimisticMenuColor(color)
-    if (!restaurantId) return
-    try {
-      await DatabaseService.updateRestaurant({ id: restaurantId, menu_primary_color: color })
-      toast.success('Colore menù aggiornato')
-    } catch (error) {
-      console.error('Error updating menu color:', error)
-      toast.error('Errore aggiornamento colore')
-      setOptimisticMenuColor(null) // Revert on error
-    }
-  }
 
   // --- Handlers ---
   const updateRestaurantName = async (name: string) => {
@@ -3371,11 +3339,6 @@ const RestaurantDashboard = ({ user, onLogout }: RestaurantDashboardProps) => {
 
                 viewOnlyMenuEnabled={viewOnlyMenuEnabled}
                 setViewOnlyMenuEnabled={updateViewOnlyMenuEnabled}
-
-                menuStyle={menuStyle}
-                setMenuStyle={updateMenuStyle}
-                menuPrimaryColor={menuPrimaryColor}
-                setMenuPrimaryColor={updateMenuPrimaryColor}
 
                 copertoPrice={copertoPrice}
                 setCopertoPrice={updateCopertoPrice}
