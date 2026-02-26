@@ -121,7 +121,7 @@ const WaiterDashboard = ({ user, onLogout }: WaiterDashboardProps) => {
 
                 const { data: restMeta } = await supabase
                     .from('restaurants')
-                    .select('waiter_mode_enabled, allow_waiter_payments, enable_course_splitting')
+                    .select('*, waiter_mode_enabled, allow_waiter_payments, enable_course_splitting, all_you_can_eat, cover_charge_per_person')
                     .eq('id', rId)
                     .single()
                 if (restMeta) {
@@ -478,8 +478,11 @@ const WaiterDashboard = ({ user, onLogout }: WaiterDashboardProps) => {
     const activateTable = async (table: Table) => {
         setTableToActivate(table)
         setActivateCustomerCount(String(table.seats || 2))
-        setActivateAyceEnabled(restaurant?.ayce_enabled || false)
-        setActivateCopertoEnabled(restaurant?.coperto_enabled || false)
+        // Derive AYCE/coperto defaults from restaurant settings
+        const ayceDefault = !!(restaurant?.all_you_can_eat?.enabled || (restaurant as any)?.ayce_enabled)
+        const copertoDefault = !!((restaurant?.cover_charge_per_person && restaurant.cover_charge_per_person > 0) || (restaurant as any)?.coperto_enabled)
+        setActivateAyceEnabled(ayceDefault)
+        setActivateCopertoEnabled(copertoDefault)
         setIsActivateDialogOpen(true)
     }
 
@@ -1314,7 +1317,7 @@ const WaiterDashboard = ({ user, onLogout }: WaiterDashboardProps) => {
                                 className="bg-zinc-900 border-zinc-800 h-12 text-lg text-center"
                             />
                         </div>
-                        {restaurant?.ayce_enabled && (
+                        {(restaurant?.all_you_can_eat?.enabled || (restaurant as any)?.ayce_enabled) && (
                             <div className="flex items-center justify-between p-4 rounded-xl bg-zinc-900/50 border border-white/5">
                                 <div>
                                     <p className="font-medium">AYCE (All You Can Eat)</p>
@@ -1330,7 +1333,7 @@ const WaiterDashboard = ({ user, onLogout }: WaiterDashboardProps) => {
                                 </Button>
                             </div>
                         )}
-                        {restaurant?.coperto_enabled && (
+                        {((restaurant?.cover_charge_per_person && restaurant.cover_charge_per_person > 0) || (restaurant as any)?.coperto_enabled) && (
                             <div className="flex items-center justify-between p-4 rounded-xl bg-zinc-900/50 border border-white/5">
                                 <div>
                                     <p className="font-medium">Coperto</p>
