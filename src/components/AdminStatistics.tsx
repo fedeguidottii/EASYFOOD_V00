@@ -32,11 +32,70 @@ interface GlobalStats {
     growthData: { date: string; restaurants: number; orders: number; revenue: number }[]
 }
 
+type DateFilter = 'today' | 'yesterday' | 'week' | '2weeks' | 'month' | '3months' | 'custom'
+
+const dateFilterOptions: { value: DateFilter; label: string }[] = [
+    { value: 'today', label: 'Oggi' },
+    { value: 'yesterday', label: 'Ieri' },
+    { value: 'week', label: 'Ultima Settimana' },
+    { value: '2weeks', label: 'Ultime 2 Settimane' },
+    { value: 'month', label: 'Ultimo Mese' },
+    { value: '3months', label: 'Ultimi 3 Mesi' },
+    { value: 'custom', label: 'Personalizzato' }
+]
+
+function getAdminDateRange(filter: DateFilter, customStart?: string, customEnd?: string) {
+    const now = new Date()
+    const today = new Date(now.getFullYear(), now.getMonth(), now.getDate())
+
+    switch (filter) {
+        case 'today':
+            return { start: today, end: now }
+        case 'yesterday': {
+            const yesterday = new Date(today)
+            yesterday.setDate(yesterday.getDate() - 1)
+            return { start: yesterday, end: new Date(today.getTime() - 1) }
+        }
+        case 'week': {
+            const weekAgo = new Date(today)
+            weekAgo.setDate(weekAgo.getDate() - 7)
+            return { start: weekAgo, end: now }
+        }
+        case '2weeks': {
+            const twoWeeksAgo = new Date(today)
+            twoWeeksAgo.setDate(twoWeeksAgo.getDate() - 14)
+            return { start: twoWeeksAgo, end: now }
+        }
+        case 'month': {
+            const monthAgo = new Date(today)
+            monthAgo.setMonth(monthAgo.getMonth() - 1)
+            return { start: monthAgo, end: now }
+        }
+        case '3months': {
+            const threeMonthsAgo = new Date(today)
+            threeMonthsAgo.setMonth(threeMonthsAgo.getMonth() - 3)
+            return { start: threeMonthsAgo, end: now }
+        }
+        case 'custom': {
+            if (customStart && customEnd) {
+                const s = new Date(customStart)
+                const e = new Date(customEnd)
+                e.setHours(23, 59, 59, 999)
+                return { start: s, end: e }
+            }
+            const weekAgo = new Date(today)
+            weekAgo.setDate(weekAgo.getDate() - 7)
+            return { start: weekAgo, end: now }
+        }
+    }
+}
+
 export default function AdminStatistics({ onImpersonate }: AdminStatisticsProps) {
     const [stats, setStats] = useState<GlobalStats | null>(null)
     const [loading, setLoading] = useState(true)
-    const [startDate, setStartDate] = useState<string>(format(subDays(new Date(), 30), 'yyyy-MM-dd'))
-    const [endDate, setEndDate] = useState<string>(format(new Date(), 'yyyy-MM-dd'))
+    const [dateFilter, setDateFilter] = useState<DateFilter>('month')
+    const [customStartDate, setCustomStartDate] = useState<string>(format(subDays(new Date(), 30), 'yyyy-MM-dd'))
+    const [customEndDate, setCustomEndDate] = useState<string>(format(new Date(), 'yyyy-MM-dd'))
     const [allRestaurants, setAllRestaurants] = useState<Restaurant[]>([])
     const [selectedRestaurantIds, setSelectedRestaurantIds] = useState<string[]>([])
     const [rankingMode, setRankingMode] = useState<'revenue' | 'access'>('revenue')
@@ -57,8 +116,9 @@ export default function AdminStatistics({ onImpersonate }: AdminStatisticsProps)
                     setSelectedRestaurantIds(restaurants.map(r => r.id))
                 }
 
-                const start = startOfDay(parseISO(startDate))
-                const end = endOfDay(parseISO(endDate))
+                const dateRange = getAdminDateRange(dateFilter, customStartDate, customEndDate)
+                const start = startOfDay(dateRange.start)
+                const end = endOfDay(dateRange.end)
 
                 // Get active restaurant filter (all if none selected)
                 const activeRestaurantIds = selectedRestaurantIds.length > 0
@@ -183,7 +243,7 @@ export default function AdminStatistics({ onImpersonate }: AdminStatisticsProps)
         }
 
         fetchStats()
-    }, [startDate, endDate, selectedRestaurantIds])
+    }, [dateFilter, customStartDate, customEndDate, selectedRestaurantIds])
 
     if (loading) return (
         <div className="p-12 flex flex-col items-center gap-4">
@@ -270,24 +330,39 @@ export default function AdminStatistics({ onImpersonate }: AdminStatisticsProps)
                         </PopoverContent>
                     </Popover>
 
-                    {/* Date Filter */}
-                    <div className="flex items-center gap-2 bg-black/40 p-2 rounded-xl border border-white/5">
-                        <div className="flex items-center gap-2 px-2">
-                            <Calendar className="text-zinc-500" size={16} />
-                        </div>
-                        <Input
-                            type="date"
-                            value={startDate}
-                            onChange={(e) => setStartDate(e.target.value)}
-                            className="bg-transparent border-none text-white text-sm w-32 h-8 focus-visible:ring-0"
-                        />
-                        <div className="w-3 h-px bg-zinc-700" />
-                        <Input
-                            type="date"
-                            value={endDate}
-                            onChange={(e) => setEndDate(e.target.value)}
-                            className="bg-transparent border-none text-white text-sm w-32 h-8 focus-visible:ring-0"
-                        />
+                    {/* Date Filter - Matching AnalyticsCharts */}
+                    <div className="flex items-center gap-2 flex-wrap">
+                        <Select value={dateFilter} onValueChange={(v) => setDateFilter(v as DateFilter)}>
+                            <SelectTrigger className="h-10 w-auto min-w-[180px] border-white/10 bg-black/40 hover:bg-zinc-900/60 backdrop-blur-sm text-zinc-300 rounded-xl">
+                                <div className="flex items-center gap-2">
+                                    <Calendar className="text-zinc-500" size={16} />
+                                    <SelectValue />
+                                </div>
+                            </SelectTrigger>
+                            <SelectContent className="bg-zinc-950 border-zinc-800">
+                                {dateFilterOptions.map(opt => (
+                                    <SelectItem key={opt.value} value={opt.value}>{opt.label}</SelectItem>
+                                ))}
+                            </SelectContent>
+                        </Select>
+
+                        {dateFilter === 'custom' && (
+                            <div className="flex items-center gap-2 bg-black/40 p-2 rounded-xl border border-white/5">
+                                <Input
+                                    type="date"
+                                    value={customStartDate}
+                                    onChange={(e) => setCustomStartDate(e.target.value)}
+                                    className="bg-transparent border-none text-white text-sm w-32 h-8 focus-visible:ring-0"
+                                />
+                                <div className="w-3 h-px bg-zinc-700" />
+                                <Input
+                                    type="date"
+                                    value={customEndDate}
+                                    onChange={(e) => setCustomEndDate(e.target.value)}
+                                    className="bg-transparent border-none text-white text-sm w-32 h-8 focus-visible:ring-0"
+                                />
+                            </div>
+                        )}
                     </div>
                 </div>
             </div>
