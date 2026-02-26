@@ -139,8 +139,8 @@ export default function TableBillDialog({
                     // Skip finished items
                     if (item.status === 'CANCELLED' || item.status === 'PAID' || paidItemIds.has(item.id)) return
 
-                    // Determine effective price
-                    let price = item.dish?.price || item.price || 0
+                    // Determine effective price — use ?? to correctly handle price=0 dishes
+                    let price = item.dish?.price ?? 0
 
                     // If AYCE session AND dish is included in AYCE, price is 0
                     if (isAyceEnabled && item.dish?.is_ayce) {
@@ -365,11 +365,10 @@ export default function TableBillDialog({
                                         <div className="absolute inset-0 overflow-y-auto overscroll-contain" style={{ WebkitOverflowScrolling: 'touch' }}>
                                         <div className="p-6 space-y-3">
                                             {(() => {
-                                                // Group items for clean receipt display (skip €0 items like AYCE dishes when disabled)
-                                                const displayGroups = new Map<string, { name: string, quantity: number, price: number, total: number }>()
+                                                // Group items for clean receipt display — show ALL items including €0 AYCE dishes
+                                                const displayGroups = new Map<string, { name: string, quantity: number, price: number, total: number, isAyce: boolean }>()
 
                                                 splitPayableItems.forEach(item => {
-                                                    if (item.price <= 0) return // Hide zero-price items from bill
                                                     const key = `${item.name}-${item.price}`
                                                     const existing = displayGroups.get(key)
                                                     if (existing) {
@@ -380,7 +379,8 @@ export default function TableBillDialog({
                                                             name: item.name,
                                                             quantity: 1,
                                                             price: item.price,
-                                                            total: item.price
+                                                            total: item.price,
+                                                            isAyce: item.price === 0 && !item.isVirtual
                                                         })
                                                     }
                                                 })
@@ -398,9 +398,14 @@ export default function TableBillDialog({
                                                     <div key={key} className="flex justify-between items-baseline py-2 border-b border-white/5 last:border-0 group hover:bg-white/5 transition-colors rounded-lg px-2 -mx-2">
                                                         <div className="flex gap-3 text-sm items-center">
                                                             <span className="font-bold min-w-[24px] h-6 rounded bg-white/10 flex items-center justify-center text-xs text-zinc-300">{item.quantity}x</span>
-                                                            <span className="font-medium text-zinc-200">{item.name}</span>
+                                                            <div className="flex flex-col">
+                                                                <span className="font-medium text-zinc-200">{item.name}</span>
+                                                                {item.isAyce && <span className="text-[10px] text-amber-500/70 font-bold uppercase tracking-wider">AYCE incluso</span>}
+                                                            </div>
                                                         </div>
-                                                        <span className="font-mono font-bold text-sm tabular-nums text-zinc-300">€{item.total.toFixed(2)}</span>
+                                                        <span className="font-mono font-bold text-sm tabular-nums text-zinc-300">
+                                                            {item.price === 0 ? <span className="text-emerald-500/70">€0.00</span> : `€${item.total.toFixed(2)}`}
+                                                        </span>
                                                     </div>
                                                 ))
                                             })()}
