@@ -330,7 +330,7 @@ export default function TableBillDialog({
                 </div>
 
                 {/* Content Area */}
-                <div className="flex-1 overflow-hidden relative">
+                <div className="flex-1 overflow-hidden relative min-h-0">
                     <AnimatePresence mode="wait">
 
                         {/* Mode 1: Main Overview */}
@@ -352,7 +352,7 @@ export default function TableBillDialog({
                                     <div className="absolute bottom-0 left-0 w-64 h-64 bg-indigo-500/10 blur-[100px] rounded-full pointer-events-none -ml-32 -mb-32"></div>
 
                                     {/* Receipt Header */}
-                                    <div className="p-6 border-b border-white/5 flex items-center justify-between relative z-10 bg-gradient-to-b from-white/5 to-transparent">
+                                    <div className="p-6 border-b border-white/5 flex items-center justify-between relative z-10 bg-gradient-to-b from-white/5 to-transparent shrink-0">
                                         <div className="flex flex-col gap-1">
                                             <span className="font-bold uppercase tracking-widest text-[10px] text-amber-500">{restaurant?.name || 'Ristorante'}</span>
                                             <span className="text-zinc-400 text-xs font-medium">{new Date().toLocaleString('it-IT', { dateStyle: 'long', timeStyle: 'short' })}</span>
@@ -362,13 +362,15 @@ export default function TableBillDialog({
                                         </div>
                                     </div>
 
-                                    <div className="flex-1 min-h-0 relative z-10 overflow-y-auto custom-scrollbar">
+                                    <div className="flex-1 min-h-0 relative z-10">
+                                        <div className="absolute inset-0 overflow-y-auto overscroll-contain" style={{ WebkitOverflowScrolling: 'touch' }}>
                                         <div className="p-6 space-y-3">
                                             {(() => {
-                                                // Group items for clean receipt display
+                                                // Group items for clean receipt display (skip €0 items like AYCE dishes when disabled)
                                                 const displayGroups = new Map<string, { name: string, quantity: number, price: number, total: number }>()
 
                                                 splitPayableItems.forEach(item => {
+                                                    if (item.price <= 0) return // Hide zero-price items from bill
                                                     const key = `${item.name}-${item.price}`
                                                     const existing = displayGroups.get(key)
                                                     if (existing) {
@@ -404,10 +406,11 @@ export default function TableBillDialog({
                                                 ))
                                             })()}
                                         </div>
+                                        </div>
                                     </div>
 
                                     {/* Receipt Footer */}
-                                    <div className="p-6 border-t border-white/10 bg-black/20 backdrop-blur-md relative z-10">
+                                    <div className="p-6 border-t border-white/10 bg-black/20 backdrop-blur-md relative z-10 shrink-0">
                                         <div className="flex justify-between items-end">
                                             <span className="text-xs font-bold text-zinc-500 uppercase tracking-widest mb-1">Totale</span>
                                             <div className="text-right">
@@ -417,27 +420,6 @@ export default function TableBillDialog({
                                     </div>
                                 </div>
 
-                                {/* Split Options - Floating above bottom */}
-                                <div className="mt-4 grid grid-cols-2 gap-3 shrink-0">
-                                    <Button
-                                        variant="outline"
-                                        className="h-14 rounded-2xl bg-zinc-900/50 backdrop-blur-md border-zinc-700/50 text-zinc-300 hover:text-amber-400 hover:bg-zinc-800 hover:border-amber-500/50 transition-all duration-300 group"
-                                        onClick={() => { setIsSplitMode(true); setEqualSplitMode(false) }}
-                                        disabled={totalAmount <= 0}
-                                    >
-                                        <ForkKnife className="mr-2 group-hover:scale-110 transition-transform" size={20} weight="duotone" />
-                                        <span className="font-medium">Dividi per Piatti</span>
-                                    </Button>
-                                    <Button
-                                        variant="outline"
-                                        className="h-14 rounded-2xl bg-zinc-900/50 backdrop-blur-md border-zinc-700/50 text-zinc-300 hover:text-indigo-400 hover:bg-zinc-800 hover:border-indigo-500/50 transition-all duration-300 group"
-                                        onClick={() => { setEqualSplitMode(true); setIsSplitMode(false) }}
-                                        disabled={totalAmount <= 0}
-                                    >
-                                        <Users className="mr-2 group-hover:scale-110 transition-transform" size={20} weight="duotone" />
-                                        <span className="font-medium">Dividi alla Romana</span>
-                                    </Button>
-                                </div>
                             </motion.div>
                         )}
 
@@ -459,7 +441,7 @@ export default function TableBillDialog({
                                     {/* Fluid Background Effect */}
                                     <div className="absolute top-0 right-0 w-64 h-64 bg-amber-500/10 blur-[100px] rounded-full pointer-events-none -mr-32 -mt-32"></div>
 
-                                    <div className="px-6 py-4 border-b border-white/5 flex items-center justify-between text-xs font-bold uppercase tracking-widest text-zinc-500 sticky top-0 z-10 bg-black/20 backdrop-blur-md">
+                                    <div className="px-6 py-4 border-b border-white/5 flex items-center justify-between text-xs font-bold uppercase tracking-widest text-zinc-500 z-10 bg-black/20 backdrop-blur-md shrink-0">
                                         <span>Seleziona Piatti</span>
                                         <button className="text-amber-500 hover:text-amber-400 transition-colors" onClick={() => {
                                             if (selectedSplitItems.size === splitPayableItems.length) setSelectedSplitItems(new Set())
@@ -469,7 +451,8 @@ export default function TableBillDialog({
                                         </button>
                                     </div>
 
-                                    <div className="flex-1 min-h-0 relative z-10 overflow-y-auto custom-scrollbar">
+                                    <div className="flex-1 min-h-0 relative z-10">
+                                        <div className="absolute inset-0 overflow-y-auto overscroll-contain" style={{ WebkitOverflowScrolling: 'touch' }}>
                                         <div className="p-4 space-y-2 pb-6">
                                             {splitPayableItems.map((item) => {
                                                 const isSelected = selectedSplitItems.has(item.id)
@@ -507,6 +490,7 @@ export default function TableBillDialog({
                                                     <p>Nessun elemento da dividere</p>
                                                 </div>
                                             )}
+                                        </div>
                                         </div>
                                     </div>
                                 </div>
@@ -651,6 +635,28 @@ export default function TableBillDialog({
                                 </div>
                             ) : (
                                 <div className="flex flex-col gap-3">
+                                    {/* Split Options - Always visible in footer */}
+                                    <div className="grid grid-cols-2 gap-2">
+                                        <Button
+                                            variant="outline"
+                                            className="h-11 rounded-xl bg-zinc-900/50 backdrop-blur-md border-zinc-700/50 text-zinc-300 hover:text-amber-400 hover:bg-zinc-800 hover:border-amber-500/50 transition-all duration-300 group text-xs"
+                                            onClick={() => { setIsSplitMode(true); setEqualSplitMode(false) }}
+                                            disabled={totalAmount <= 0}
+                                        >
+                                            <ForkKnife className="mr-1.5 group-hover:scale-110 transition-transform" size={16} weight="duotone" />
+                                            <span className="font-medium">Dividi per Piatti</span>
+                                        </Button>
+                                        <Button
+                                            variant="outline"
+                                            className="h-11 rounded-xl bg-zinc-900/50 backdrop-blur-md border-zinc-700/50 text-zinc-300 hover:text-indigo-400 hover:bg-zinc-800 hover:border-indigo-500/50 transition-all duration-300 group text-xs"
+                                            onClick={() => { setEqualSplitMode(true); setIsSplitMode(false) }}
+                                            disabled={totalAmount <= 0}
+                                        >
+                                            <Users className="mr-1.5 group-hover:scale-110 transition-transform" size={16} weight="duotone" />
+                                            <span className="font-medium">Alla Romana</span>
+                                        </Button>
+                                    </div>
+
                                     <Button
                                         className="w-full h-14 bg-amber-500 hover:bg-amber-400 text-black font-bold text-xl rounded-2xl shadow-xl shadow-amber-500/20 flex items-center justify-between px-6"
                                         onClick={() => onPaymentComplete()}

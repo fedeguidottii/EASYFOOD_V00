@@ -75,6 +75,7 @@ export default function AnalyticsCharts({ orders, completedOrders, dishes, categ
 
   // Tabs State (using strings for active tab)
   const [activeTab, setActiveTab] = useState('overview') // 'overview' | 'waiters'
+  const [waiterChartMetric, setWaiterChartMetric] = useState<'waiters' | 'ordersPerHour' | 'avgWait'>('waiters')
 
   // Staff and Logs State
   const [staffList, setStaffList] = useState<RestaurantStaff[]>([])
@@ -408,26 +409,81 @@ export default function AnalyticsCharts({ orders, completedOrders, dishes, categ
       return logTime >= start && logTime <= end
     })
 
-    const waiterMap = new Map<string, { name: string; dishesDelivered: number; bellsResolved: number }>()
+    const waiterMap = new Map<string, { name: string; dishesDelivered: number; bellsResolved: number; firstActivity: number; lastActivity: number }>()
 
     staffList.forEach(staff => {
-      waiterMap.set(staff.id, { name: staff.name, dishesDelivered: 0, bellsResolved: 0 })
+      waiterMap.set(staff.id, { name: staff.name, dishesDelivered: 0, bellsResolved: 0, firstActivity: Infinity, lastActivity: 0 })
     })
 
     logsInPeriod.forEach(log => {
       if (!waiterMap.has(log.waiter_id)) return
       const entry = waiterMap.get(log.waiter_id)!
+      const logTime = new Date(log.created_at || Date.now()).getTime()
       if (log.action_type === 'DISH_DELIVERED') {
         entry.dishesDelivered += 1
       } else if (log.action_type === 'BELL_RESOLVED') {
         entry.bellsResolved += 1
       }
+      entry.firstActivity = Math.min(entry.firstActivity, logTime)
+      entry.lastActivity = Math.max(entry.lastActivity, logTime)
     })
 
     const rankings = Array.from(waiterMap.values()).sort((a, b) => b.dishesDelivered - a.dishesDelivered)
 
-    // Active waiters per day line chart
-    const dailyActiveWaiters: { date: string, waiters: number }[] = []
+    // Total active waiters in period
+    const totalActiveWaiters = rankings.filter(w => w.dishesDelivered > 0 || w.bellsResolved > 0).length
+
+    // Calculate per-waiter table data
+    const waiterTable = Array.from(waiterMap.entries()).map(([id, w]) => {
+      const totalActivities = w.dishesDelivered + w.bellsResolved
+      const activeHours = w.lastActivity > w.firstActivity
+        ? Math.max(1, (w.lastActivity - w.firstActivity) / (1000 * 60 * 60))
+        : totalActivities > 0 ? 1 : 0
+      return {
+        id,
+        name: w.name,
+        dishesDelivered: w.dishesDelivered,
+        bellsResolved: w.bellsResolved,
+        totalActivities,
+        activeHours: Math.round(activeHours * 10) / 10,
+        activitiesPerHour: activeHours > 0 ? Math.round((totalActivities / activeHours) * 10) / 10 : 0
+      }
+    }).filter(w => w.totalActivities > 0).sort((a, b) => b.totalActivities - a.totalActivities)
+
+    // Orders in period for wait time calc
+    const ordersInPeriod = allOrders.filter(o => {
+      const t = new Date(o.created_at).getTime()
+      return t >= start && t <= end
+    })
+
+    // Avg wait time: use updated_at - created_at if available, or closed_at - created_at
+    let totalWaitMs = 0
+    let waitCount = 0
+    ordersInPeriod.forEach(o => {
+      const endTime = o.closed_at ? new Date(o.closed_at).getTime() : o.updated_at ? new Date(o.updated_at).getTime() : 0
+      const startTime = new Date(o.created_at).getTime()
+      if (endTime > startTime) {
+        const diff = endTime - startTime
+        // Only count reasonable wait times (under 4 hours)
+        if (diff < 4 * 60 * 60 * 1000) {
+          totalWaitMs += diff
+          waitCount++
+        }
+      }
+    })
+    const avgWaitMinutes = waitCount > 0 ? Math.round(totalWaitMs / waitCount / 60000) : 0
+
+    // Global avg orders per waiter per hour
+    const totalHoursInPeriod = Math.max(1, (end - start) / (1000 * 60 * 60))
+    const avgOrdersPerWaiterHour = totalActiveWaiters > 0
+      ? Math.round((ordersInPeriod.length / totalActiveWaiters / (totalHoursInPeriod / Math.max(1, Math.ceil((end - start) / (24 * 60 * 60 * 1000))) * (restaurant_hours_per_day()))) * 10) / 10
+      : 0
+
+    // Estimate restaurant service hours per day (lunch + dinner ~8h)
+    function restaurant_hours_per_day() { return 8 }
+
+    // Daily metrics for combined chart
+    const dailyMetrics: { date: string; waiters: number; ordersPerHour: number; avgWait: number }[] = []
     const days = Math.max(1, Math.ceil((end - start) / (24 * 60 * 60 * 1000)))
     const isSingleDay = days === 1 || dateFilter === 'today' || dateFilter === 'yesterday'
 
@@ -441,19 +497,51 @@ export default function AnalyticsCharts({ orders, completedOrders, dishes, categ
       })
 
       const activeWaiterIds = new Set(dayLogs.map(l => l.waiter_id))
+      const dayActiveWaiters = activeWaiterIds.size
+
+      // Orders this day
+      const dayOrders = allOrders.filter(o => {
+        const t = new Date(o.created_at).getTime()
+        return t >= dayStart && t < dayEnd
+      })
+
+      // Orders per waiter per hour (assuming ~8 service hours per day)
+      const serviceHours = 8
+      const ordPerWH = dayActiveWaiters > 0
+        ? Math.round((dayOrders.length / dayActiveWaiters / serviceHours) * 10) / 10
+        : 0
+
+      // Avg wait time this day
+      let dayWaitMs = 0
+      let dayWaitCount = 0
+      dayOrders.forEach(o => {
+        const et = o.closed_at ? new Date(o.closed_at).getTime() : o.updated_at ? new Date(o.updated_at).getTime() : 0
+        const st = new Date(o.created_at).getTime()
+        if (et > st && (et - st) < 4 * 60 * 60 * 1000) {
+          dayWaitMs += (et - st)
+          dayWaitCount++
+        }
+      })
+      const dayAvgWait = dayWaitCount > 0 ? Math.round(dayWaitMs / dayWaitCount / 60000) : 0
 
       const date = new Date(dayStart)
-      dailyActiveWaiters.push({
+      dailyMetrics.push({
         date: isSingleDay ? 'Oggi' : date.toLocaleDateString('it-IT', { month: 'short', day: 'numeric' }),
-        waiters: activeWaiterIds.size
+        waiters: dayActiveWaiters,
+        ordersPerHour: ordPerWH,
+        avgWait: dayAvgWait
       })
     }
 
     return {
       rankings,
-      dailyActiveWaiters
+      waiterTable,
+      totalActiveWaiters,
+      avgWaitMinutes,
+      avgOrdersPerWaiterHour,
+      dailyMetrics
     }
-  }, [waiterLogs, staffList, start, end, dateFilter])
+  }, [waiterLogs, staffList, allOrders, start, end, dateFilter])
 
   return (
     <>
@@ -975,71 +1063,164 @@ export default function AnalyticsCharts({ orders, completedOrders, dishes, categ
           </TabsContent>
 
           <TabsContent value="waiters" className="space-y-8 focus:outline-none">
-            {/* Waiter Stats Cards */}
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-              <Card className="border-zinc-800/50 bg-zinc-900/40 shadow-xl overflow-hidden backdrop-blur-sm">
-                <CardHeader className="border-b border-white/5 pb-4">
-                  <CardTitle className="text-lg font-bold text-white flex items-center gap-2">
-                    <Users size={20} className="text-amber-500" /> Top Deliveries (Piatti)
-                  </CardTitle>
-                </CardHeader>
-                <CardContent className="pt-6">
-                  <ResponsiveContainer width="100%" height={300}>
-                    <BarChart data={waiterStats.rankings} layout="vertical" margin={{ top: 0, right: 30, left: 40, bottom: 0 }}>
-                      <CartesianGrid strokeDasharray="3 3" horizontal={false} stroke="rgba(255,255,255,0.05)" />
-                      <XAxis type="number" hide />
-                      <YAxis dataKey="name" type="category" width={100} axisLine={false} tickLine={false} tick={{ fontSize: 13, fill: '#a1a1aa', fontWeight: 500 }} />
-                      <Tooltip cursor={{ fill: 'rgba(255,255,255,0.02)' }} contentStyle={{ backgroundColor: '#09090b', borderRadius: '12px', border: '1px solid rgba(255,255,255,0.1)' }} itemStyle={{ color: '#fbbf24', fontWeight: 'bold' }} labelStyle={{ color: '#fff', fontWeight: 'bold', marginBottom: '5px' }} />
-                      <Bar dataKey="dishesDelivered" name="Piatti Serviti" fill="#fbbf24" radius={[0, 4, 4, 0]} barSize={24} />
-                    </BarChart>
-                  </ResponsiveContainer>
+            {/* Summary Cards */}
+            <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
+              <Card className="border-zinc-800/60 bg-gradient-to-br from-zinc-900/90 to-zinc-950/90 shadow-lg relative overflow-hidden group hover:border-amber-500/30 transition-all duration-300">
+                <div className="absolute top-0 right-0 w-24 h-24 bg-emerald-500/5 blur-2xl rounded-full -mr-10 -mt-10 pointer-events-none"></div>
+                <CardContent className="p-5 relative z-10">
+                  <div className="flex items-center gap-4">
+                    <div className="p-3 bg-zinc-800/50 rounded-xl border border-zinc-700/50 text-emerald-500">
+                      <Users size={22} weight="duotone" />
+                    </div>
+                    <div>
+                      <p className="text-[11px] font-bold text-zinc-500 uppercase tracking-wider">Camerieri Attivi</p>
+                      <p className="text-2xl font-black text-white tabular-nums mt-0.5">{waiterStats.totalActiveWaiters}</p>
+                    </div>
+                  </div>
                 </CardContent>
               </Card>
 
-              <Card className="border-zinc-800/50 bg-zinc-900/40 shadow-xl overflow-hidden backdrop-blur-sm">
-                <CardHeader className="border-b border-white/5 pb-4">
-                  <CardTitle className="text-lg font-bold text-white flex items-center gap-2">
-                    <Star size={20} className="text-amber-500" /> Top Assistenza Tavoli
-                  </CardTitle>
-                </CardHeader>
-                <CardContent className="pt-6">
-                  <ResponsiveContainer width="100%" height={300}>
-                    <BarChart data={waiterStats.rankings} layout="vertical" margin={{ top: 0, right: 30, left: 40, bottom: 0 }}>
-                      <CartesianGrid strokeDasharray="3 3" horizontal={false} stroke="rgba(255,255,255,0.05)" />
-                      <XAxis type="number" hide />
-                      <YAxis dataKey="name" type="category" width={100} axisLine={false} tickLine={false} tick={{ fontSize: 13, fill: '#a1a1aa', fontWeight: 500 }} />
-                      <Tooltip cursor={{ fill: 'rgba(255,255,255,0.02)' }} contentStyle={{ backgroundColor: '#09090b', borderRadius: '12px', border: '1px solid rgba(255,255,255,0.1)' }} itemStyle={{ color: '#8b5cf6', fontWeight: 'bold' }} labelStyle={{ color: '#fff', fontWeight: 'bold', marginBottom: '5px' }} />
-                      <Bar dataKey="bellsResolved" name="Tavoli Assistiti" fill="#8b5cf6" radius={[0, 4, 4, 0]} barSize={24} />
-                    </BarChart>
-                  </ResponsiveContainer>
+              <Card className="border-zinc-800/60 bg-gradient-to-br from-zinc-900/90 to-zinc-950/90 shadow-lg relative overflow-hidden group hover:border-amber-500/30 transition-all duration-300">
+                <div className="absolute top-0 right-0 w-24 h-24 bg-amber-500/5 blur-2xl rounded-full -mr-10 -mt-10 pointer-events-none"></div>
+                <CardContent className="p-5 relative z-10">
+                  <div className="flex items-center gap-4">
+                    <div className="p-3 bg-zinc-800/50 rounded-xl border border-zinc-700/50 text-amber-500">
+                      <ShoppingBag size={22} weight="duotone" />
+                    </div>
+                    <div>
+                      <p className="text-[11px] font-bold text-zinc-500 uppercase tracking-wider">Ordini/Cameriere/Ora</p>
+                      <p className="text-2xl font-black text-white tabular-nums mt-0.5">{waiterStats.avgOrdersPerWaiterHour}</p>
+                    </div>
+                  </div>
                 </CardContent>
               </Card>
 
-              <Card className="border-zinc-800/50 bg-zinc-900/40 shadow-xl overflow-hidden backdrop-blur-sm">
-                <CardHeader className="border-b border-white/5 pb-4">
-                  <CardTitle className="text-lg font-bold text-white flex items-center gap-2">
-                    <ChartLine size={20} className="text-amber-500" /> Camerieri Attivi per Giorno
-                  </CardTitle>
-                </CardHeader>
-                <CardContent className="pt-6">
-                  <ResponsiveContainer width="100%" height={300}>
-                    <AreaChart data={waiterStats.dailyActiveWaiters} margin={{ top: 10, right: 30, left: -20, bottom: 0 }}>
-                      <defs>
-                        <linearGradient id="colorWaiters" x1="0" y1="0" x2="0" y2="1">
-                          <stop offset="5%" stopColor="#10b981" stopOpacity={0.4} />
-                          <stop offset="95%" stopColor="#10b981" stopOpacity={0} />
-                        </linearGradient>
-                      </defs>
-                      <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="rgba(255,255,255,0.05)" />
-                      <XAxis dataKey="date" axisLine={false} tickLine={false} tick={{ fontSize: 12, fill: '#71717a' }} dy={10} />
-                      <YAxis axisLine={false} tickLine={false} tick={{ fontSize: 12, fill: '#71717a' }} dx={-10} allowDecimals={false} />
-                      <Tooltip contentStyle={{ backgroundColor: '#09090b', borderRadius: '12px', border: '1px solid rgba(255,255,255,0.1)' }} itemStyle={{ color: '#10b981', fontWeight: 'bold' }} labelStyle={{ color: '#a1a1aa', marginBottom: '8px' }} />
-                      <Area type="monotone" dataKey="waiters" name="Camerieri Attivi" stroke="#10b981" strokeWidth={3} fillOpacity={1} fill="url(#colorWaiters)" activeDot={{ r: 6, strokeWidth: 0, fill: '#fff' }} isAnimationActive={false} />
-                    </AreaChart>
-                  </ResponsiveContainer>
+              <Card className="border-zinc-800/60 bg-gradient-to-br from-zinc-900/90 to-zinc-950/90 shadow-lg relative overflow-hidden group hover:border-amber-500/30 transition-all duration-300 col-span-2 md:col-span-1">
+                <div className="absolute top-0 right-0 w-24 h-24 bg-violet-500/5 blur-2xl rounded-full -mr-10 -mt-10 pointer-events-none"></div>
+                <CardContent className="p-5 relative z-10">
+                  <div className="flex items-center gap-4">
+                    <div className="p-3 bg-zinc-800/50 rounded-xl border border-zinc-700/50 text-violet-500">
+                      <Clock size={22} weight="duotone" />
+                    </div>
+                    <div>
+                      <p className="text-[11px] font-bold text-zinc-500 uppercase tracking-wider">Tempo Medio Attesa</p>
+                      <p className="text-2xl font-black text-white tabular-nums mt-0.5">{waiterStats.avgWaitMinutes} <span className="text-sm text-zinc-500 font-medium">min</span></p>
+                    </div>
+                  </div>
                 </CardContent>
               </Card>
             </div>
+
+            {/* Combined Chart with Filter */}
+            <Card className="border-zinc-800/50 bg-zinc-900/40 shadow-xl overflow-hidden backdrop-blur-sm">
+              <CardHeader className="border-b border-white/5 pb-4">
+                <div className="flex items-center justify-between flex-wrap gap-3">
+                  <CardTitle className="text-lg font-bold text-white flex items-center gap-2">
+                    <ChartLine size={20} className="text-amber-500" /> Andamento Camerieri
+                  </CardTitle>
+                  <div className="flex gap-1.5">
+                    {([
+                      { key: 'waiters' as const, label: 'Camerieri Attivi', color: 'emerald' },
+                      { key: 'ordersPerHour' as const, label: 'Ordini/Cam/Ora', color: 'amber' },
+                      { key: 'avgWait' as const, label: 'Tempo Attesa', color: 'violet' }
+                    ]).map(opt => (
+                      <button
+                        key={opt.key}
+                        onClick={() => setWaiterChartMetric(opt.key)}
+                        className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all ${waiterChartMetric === opt.key
+                          ? `bg-${opt.color}-500/20 text-${opt.color}-400 border border-${opt.color}-500/30`
+                          : 'bg-zinc-800/50 text-zinc-500 border border-zinc-700/50 hover:text-zinc-300'
+                        }`}
+                        style={waiterChartMetric === opt.key ? {
+                          backgroundColor: opt.color === 'emerald' ? 'rgba(16,185,129,0.2)' : opt.color === 'amber' ? 'rgba(245,158,11,0.2)' : 'rgba(139,92,246,0.2)',
+                          color: opt.color === 'emerald' ? '#34d399' : opt.color === 'amber' ? '#fbbf24' : '#a78bfa',
+                          borderColor: opt.color === 'emerald' ? 'rgba(16,185,129,0.3)' : opt.color === 'amber' ? 'rgba(245,158,11,0.3)' : 'rgba(139,92,246,0.3)'
+                        } : {}}
+                      >
+                        {opt.label}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              </CardHeader>
+              <CardContent className="pt-6">
+                <ResponsiveContainer width="100%" height={300}>
+                  <AreaChart data={waiterStats.dailyMetrics} margin={{ top: 10, right: 30, left: -20, bottom: 0 }}>
+                    <defs>
+                      <linearGradient id="colorMetric" x1="0" y1="0" x2="0" y2="1">
+                        <stop offset="5%" stopColor={waiterChartMetric === 'waiters' ? '#10b981' : waiterChartMetric === 'ordersPerHour' ? '#f59e0b' : '#8b5cf6'} stopOpacity={0.4} />
+                        <stop offset="95%" stopColor={waiterChartMetric === 'waiters' ? '#10b981' : waiterChartMetric === 'ordersPerHour' ? '#f59e0b' : '#8b5cf6'} stopOpacity={0} />
+                      </linearGradient>
+                    </defs>
+                    <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="rgba(255,255,255,0.05)" />
+                    <XAxis dataKey="date" axisLine={false} tickLine={false} tick={{ fontSize: 12, fill: '#71717a' }} dy={10} />
+                    <YAxis axisLine={false} tickLine={false} tick={{ fontSize: 12, fill: '#71717a' }} dx={-10} allowDecimals={waiterChartMetric !== 'waiters'} />
+                    <Tooltip
+                      contentStyle={{ backgroundColor: '#09090b', borderRadius: '12px', border: '1px solid rgba(255,255,255,0.1)' }}
+                      itemStyle={{ color: waiterChartMetric === 'waiters' ? '#10b981' : waiterChartMetric === 'ordersPerHour' ? '#f59e0b' : '#8b5cf6', fontWeight: 'bold' }}
+                      labelStyle={{ color: '#a1a1aa', marginBottom: '8px' }}
+                      formatter={(value: number) => waiterChartMetric === 'avgWait' ? `${value} min` : value}
+                    />
+                    <Area
+                      type="monotone"
+                      dataKey={waiterChartMetric}
+                      name={waiterChartMetric === 'waiters' ? 'Camerieri Attivi' : waiterChartMetric === 'ordersPerHour' ? 'Ordini/Cam/Ora' : 'Tempo Attesa (min)'}
+                      stroke={waiterChartMetric === 'waiters' ? '#10b981' : waiterChartMetric === 'ordersPerHour' ? '#f59e0b' : '#8b5cf6'}
+                      strokeWidth={3}
+                      fillOpacity={1}
+                      fill="url(#colorMetric)"
+                      activeDot={{ r: 6, strokeWidth: 0, fill: '#fff' }}
+                      isAnimationActive={false}
+                    />
+                  </AreaChart>
+                </ResponsiveContainer>
+              </CardContent>
+            </Card>
+
+            {/* Waiter Performance Table */}
+            <Card className="border-zinc-800/50 bg-zinc-900/40 shadow-xl overflow-hidden backdrop-blur-sm">
+              <CardHeader className="border-b border-white/5 pb-4">
+                <CardTitle className="text-lg font-bold text-white flex items-center gap-2">
+                  <Users size={20} className="text-amber-500" /> Performance Camerieri
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="pt-4 px-0">
+                {waiterStats.waiterTable.length === 0 ? (
+                  <div className="py-12 flex flex-col items-center justify-center text-zinc-600 text-sm">
+                    <Users size={32} className="mb-2 opacity-20" />
+                    <p>Nessuna attività camerieri nel periodo</p>
+                  </div>
+                ) : (
+                  <div className="overflow-x-auto">
+                    <table className="w-full text-sm">
+                      <thead>
+                        <tr className="border-b border-white/5">
+                          <th className="text-left px-6 py-3 text-[11px] font-bold text-zinc-500 uppercase tracking-wider">Cameriere</th>
+                          <th className="text-center px-4 py-3 text-[11px] font-bold text-zinc-500 uppercase tracking-wider">Piatti Serviti</th>
+                          <th className="text-center px-4 py-3 text-[11px] font-bold text-zinc-500 uppercase tracking-wider">Tavoli Assistiti</th>
+                          <th className="text-center px-4 py-3 text-[11px] font-bold text-zinc-500 uppercase tracking-wider">Attività/Ora</th>
+                          <th className="text-center px-4 py-3 text-[11px] font-bold text-zinc-500 uppercase tracking-wider">Ore Attive</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {waiterStats.waiterTable.map((w, i) => (
+                          <tr key={w.id} className={`border-b border-white/5 transition-colors hover:bg-white/5 ${i === 0 ? 'bg-amber-500/5' : ''}`}>
+                            <td className="px-6 py-3.5 font-medium text-zinc-200 flex items-center gap-2">
+                              {i === 0 && <Star size={14} weight="fill" className="text-amber-500" />}
+                              {w.name}
+                            </td>
+                            <td className="text-center px-4 py-3.5 tabular-nums font-bold text-amber-500">{w.dishesDelivered}</td>
+                            <td className="text-center px-4 py-3.5 tabular-nums font-bold text-violet-400">{w.bellsResolved}</td>
+                            <td className="text-center px-4 py-3.5 tabular-nums font-bold text-emerald-400">{w.activitiesPerHour}</td>
+                            <td className="text-center px-4 py-3.5 tabular-nums text-zinc-400">{w.activeHours}h</td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                )}
+              </CardContent>
+            </Card>
           </TabsContent>
         </Tabs>
       </div>
