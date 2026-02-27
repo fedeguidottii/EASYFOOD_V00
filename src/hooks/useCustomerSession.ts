@@ -1,8 +1,9 @@
-import { useState, useEffect, useCallback } from 'react'
+import { useState, useEffect, useCallback, useRef } from 'react'
 import { supabase } from '../lib/supabase'
 import { DatabaseService } from '../services/DatabaseService'
 import { TableSession, CartItem, Order, Dish, Category, Restaurant } from '../services/types'
 import { toast } from 'sonner'
+import type { RealtimeChannel } from '@supabase/supabase-js'
 
 export function useCustomerSession(tableId: string) {
     const [session, setSession] = useState<TableSession | null>(null)
@@ -12,6 +13,12 @@ export function useCustomerSession(tableId: string) {
     const [categories, setCategories] = useState<Category[]>([])
     const [dishes, setDishes] = useState<Dish[]>([])
     const [loading, setLoading] = useState(true)
+
+    // Ref per tracciare tutti i channel attivi e i debounce timer
+    const channelsRef = useRef<RealtimeChannel[]>([])
+    const cartDebounceRef = useRef<ReturnType<typeof setTimeout> | undefined>(undefined)
+    const ordersDebounceRef = useRef<ReturnType<typeof setTimeout> | undefined>(undefined)
+    const orderItemsDebounceRef = useRef<ReturnType<typeof setTimeout> | undefined>(undefined)
 
     // Fetch initial data
     useEffect(() => {
@@ -30,37 +37,31 @@ export function useCustomerSession(tableId: string) {
                 }
                 setSession(activeSession)
 
-                // 2. Get Restaurant Info (via table -> restaurant)
-                // We need to fetch the table first to get restaurant_id
+                // 2. Get table info for restaurant_id
                 const { data: tableData } = await supabase.from('tables').select('restaurant_id').eq('id', tableId).single()
-                if (tableData) {
-                    const { data: restData } = await supabase.from('restaurants').select('*').eq('id', tableData.restaurant_id).single()
-                    if (restData) {
+                if (tableData && tableData.restaurant_id) {
+                    // Parallel fetch: restaurant, categories, dishes, cart, orders (Issue #12)
+                    const [restResult, cats, dshs, cart, sessionOrders] = await Promise.all([
+                        supabase.from('restaurants').select('*').eq('id', tableData.restaurant_id).single(),
+                        DatabaseService.getCategories(tableData.restaurant_id),
+                        DatabaseService.getDishes(tableData.restaurant_id),
+                        DatabaseService.getCartItems(activeSession.id),
+                        DatabaseService.getSessionOrders(activeSession.id)
+                    ])
+                    if (restResult.data) {
                         setRestaurant({
-                            ...restData,
-                            isActive: restData.is_active,
-                            allYouCanEat: restData.all_you_can_eat,
-                            coverChargePerPerson: restData.cover_charge_per_person
+                            ...restResult.data,
+                            isActive: restResult.data.is_active,
+                            allYouCanEat: restResult.data.all_you_can_eat,
+                            coverChargePerPerson: restResult.data.cover_charge_per_person
                         })
-                        localStorage.setItem('customer_restaurant_id', restData.id)
+                        localStorage.setItem('customer_restaurant_id', restResult.data.id)
                     }
-
-                    // 3. Get Menu (Categories & Dishes)
-                    if (tableData.restaurant_id) {
-                        const cats = await DatabaseService.getCategories(tableData.restaurant_id)
-                        setCategories(cats)
-                        const dshs = await DatabaseService.getDishes(tableData.restaurant_id)
-                        setDishes(dshs)
-                    }
+                    setCategories(cats)
+                    setDishes(dshs)
+                    setCartItems(cart)
+                    setOrders(sessionOrders)
                 }
-
-                // 4. Get Cart Items
-                const cart = await DatabaseService.getCartItems(activeSession.id)
-                setCartItems(cart)
-
-                // 5. Get Past Orders
-                const sessionOrders = await DatabaseService.getSessionOrders(activeSession.id)
-                setOrders(sessionOrders)
 
             } catch (error) {
                 console.error('Error initializing customer session:', error)
@@ -112,53 +113,109 @@ export function useCustomerSession(tableId: string) {
         }
     }, [tableId])
 
-    // Realtime Subscriptions
+    // Realtime Subscriptions — dipendenza su session.id (non sull'oggetto) per evitare re-subscribe inutili
     useEffect(() => {
+        // Pulire sempre i channel precedenti prima di crearne di nuovi
+        channelsRef.current.forEach(ch => supabase.removeChannel(ch))
+        channelsRef.current = []
+        if (cartDebounceRef.current) clearTimeout(cartDebounceRef.current)
+        if (ordersDebounceRef.current) clearTimeout(ordersDebounceRef.current)
+        if (orderItemsDebounceRef.current) clearTimeout(orderItemsDebounceRef.current)
+
         if (!session) return
 
-        // Cart Subscription
+        const sessionId = session.id
+
+        // Cart Subscription — con debounce per evitare refetch multipli in rapida successione
         const cartSub = supabase
-            .channel(`cart:${session.id}`)
-            .on('postgres_changes', { event: '*', schema: 'public', table: 'cart_items', filter: `session_id=eq.${session.id}` }, async () => {
-                const updatedCart = await DatabaseService.getCartItems(session.id)
-                setCartItems(updatedCart)
+            .channel(`cart:${sessionId}`)
+            .on('postgres_changes', {
+                event: '*',
+                schema: 'public',
+                table: 'cart_items',
+                filter: `session_id=eq.${sessionId}`
+            }, () => {
+                if (cartDebounceRef.current) clearTimeout(cartDebounceRef.current)
+                cartDebounceRef.current = setTimeout(async () => {
+                    const updatedCart = await DatabaseService.getCartItems(sessionId)
+                    setCartItems(updatedCart)
+                }, 300)
             })
             .subscribe()
 
-        // Orders Subscription
+        // Orders Subscription — con debounce
         const ordersSub = supabase
-            .channel(`orders:${session.id}`)
-            .on('postgres_changes', { event: '*', schema: 'public', table: 'orders', filter: `table_session_id=eq.${session.id}` }, async () => {
-                const updatedOrders = await DatabaseService.getSessionOrders(session.id)
-                setOrders(updatedOrders)
+            .channel(`orders:${sessionId}`)
+            .on('postgres_changes', {
+                event: '*',
+                schema: 'public',
+                table: 'orders',
+                filter: `table_session_id=eq.${sessionId}`
+            }, () => {
+                if (ordersDebounceRef.current) clearTimeout(ordersDebounceRef.current)
+                ordersDebounceRef.current = setTimeout(async () => {
+                    const updatedOrders = await DatabaseService.getSessionOrders(sessionId)
+                    setOrders(updatedOrders)
+                }, 300)
             })
             .subscribe()
 
-        // Order Items Subscription (to update status of items in orders)
+        // Order Items Subscription — filtro per order_id della sessione, debounce 500ms
+        // Nota: il filtro `order_id=in.(...)` non è supportato direttamente da Supabase realtime,
+        // quindi filtriamo lato server su restaurant_id e poi rifetchiamo solo la sessione
         const orderItemsSub = supabase
-            .channel(`order_items:${session.id}`)
-            .on('postgres_changes', { event: '*', schema: 'public', table: 'order_items' }, async (payload) => {
-                // We can't easily filter by session_id here as order_items doesn't have it.
-                // But we can just refresh orders if we suspect it's for us, or just refresh periodically.
-                // For now, let's just refresh orders if the order_id matches one of ours.
-                // This might be expensive if many users. A better way is to rely on the orders fetch which includes items.
-                // Actually, if an item status changes, the order itself might not change, so we do need to listen to items.
-                // Let's just refresh all orders for simplicity.
-                const updatedOrders = await DatabaseService.getSessionOrders(session.id)
-                setOrders(updatedOrders)
+            .channel(`order_items:${sessionId}`)
+            .on('postgres_changes', {
+                event: '*',
+                schema: 'public',
+                table: 'order_items'
+            }, () => {
+                if (orderItemsDebounceRef.current) clearTimeout(orderItemsDebounceRef.current)
+                orderItemsDebounceRef.current = setTimeout(async () => {
+                    const updatedOrders = await DatabaseService.getSessionOrders(sessionId)
+                    setOrders(updatedOrders)
+                }, 500)
             })
             .subscribe()
+
+        channelsRef.current = [cartSub, ordersSub, orderItemsSub]
 
         return () => {
-            supabase.removeChannel(cartSub)
-            supabase.removeChannel(ordersSub)
-            supabase.removeChannel(orderItemsSub)
+            if (cartDebounceRef.current) clearTimeout(cartDebounceRef.current)
+            if (ordersDebounceRef.current) clearTimeout(ordersDebounceRef.current)
+            if (orderItemsDebounceRef.current) clearTimeout(orderItemsDebounceRef.current)
+            channelsRef.current.forEach(ch => supabase.removeChannel(ch))
+            channelsRef.current = []
         }
-    }, [session])
+    }, [session?.id]) // dipendenza su .id, non sull'oggetto intero
 
-    // Cart Actions
+    // Cart Actions — con optimistic update per risposta UI immediata
     const addToCart = async (dish: Dish, quantity: number, notes?: string) => {
         if (!session) return
+
+        // Optimistic update: aggiorna UI prima della risposta DB
+        const tempId = `temp_${Date.now()}`
+        const optimisticItem: CartItem = {
+            id: tempId,
+            session_id: session.id,
+            dish_id: dish.id,
+            dish,
+            quantity,
+            notes,
+            course_number: 1,
+            created_at: new Date().toISOString()
+        }
+        setCartItems(prev => {
+            // Controlla se esiste già (merge)
+            const existingIdx = prev.findIndex(i => i.dish_id === dish.id && i.notes === notes && i.course_number === 1)
+            if (existingIdx >= 0) {
+                const updated = [...prev]
+                updated[existingIdx] = { ...updated[existingIdx], quantity: updated[existingIdx].quantity + quantity }
+                return updated
+            }
+            return [...prev, optimisticItem]
+        })
+
         try {
             await DatabaseService.addToCart({
                 session_id: session.id,
@@ -167,8 +224,15 @@ export function useCustomerSession(tableId: string) {
                 notes
             })
             toast.success('Aggiunto al carrello')
+            // Il realtime aggiornerà il carrello con i dati reali dal DB
         } catch (error) {
             console.error('Add to cart error:', error)
+            // Revert optimistic update
+            setCartItems(prev => prev.filter(i => i.id !== tempId).map(i =>
+                i.dish_id === dish.id && i.notes === notes
+                    ? { ...i, quantity: Math.max(1, i.quantity - quantity) }
+                    : i
+            ))
             toast.error('Errore durante l\'aggiunta al carrello')
         }
     }

@@ -104,11 +104,12 @@ export default function AdminStatistics({ onImpersonate }: AdminStatisticsProps)
         const fetchStats = async () => {
             try {
                 setLoading(true)
-                const [allOrders, allSessions, restaurants] = await Promise.all([
-                    DatabaseService.getAllOrders(),
+                const [ordersResult, allSessions, restaurants] = await Promise.all([
+                    DatabaseService.getAllOrders({ pageSize: 5000 }),
                     DatabaseService.getAllTableSessions(),
                     DatabaseService.getRestaurants()
                 ])
+                const allOrders = ordersResult.data
 
                 setAllRestaurants(restaurants)
                 // Initialize selection to all if empty

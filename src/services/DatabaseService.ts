@@ -1,5 +1,6 @@
 import { supabase } from '../lib/supabase'
 import { User, Restaurant, Category, Dish, Table, TableSession, Order, OrderItem, Booking, CartItem } from './types'
+import { hashPassword } from '../utils/passwordUtils'
 
 export const DatabaseService = {
     // Users
@@ -281,12 +282,12 @@ export const DatabaseService = {
         }
     },
 
-    async verifyWaiterCredentials(username: string, password: string): Promise<any> {
+    async verifyWaiterCredentials(username: string, _password: string): Promise<any> {
+        // Fetch by username only - password verification happens in JS via verifyPassword()
         const { data, error } = await supabase
             .from('restaurant_staff')
             .select('*, restaurant:restaurants(*)')
             .eq('username', username)
-            .eq('password', password)
             .eq('is_active', true)
             .single()
 
@@ -295,14 +296,22 @@ export const DatabaseService = {
     },
 
     async createStaff(staff: Omit<any, 'id' | 'created_at'>) {
-        const { error } = await supabase.from('restaurant_staff').insert(staff)
+        const payload = { ...staff }
+        if (payload.password) {
+            payload.password = await hashPassword(payload.password)
+        }
+        const { error } = await supabase.from('restaurant_staff').insert(payload)
         if (error) throw error
     },
 
     async updateStaff(staffId: string, updates: Partial<any>) {
+        const payload = { ...updates }
+        if (payload.password) {
+            payload.password = await hashPassword(payload.password)
+        }
         const { error } = await supabase
             .from('restaurant_staff')
-            .update(updates)
+            .update(payload)
             .eq('id', staffId)
         if (error) throw error
     },
@@ -565,32 +574,54 @@ export const DatabaseService = {
     async getOrders(restaurantId: string) {
         const { data, error } = await supabase
             .from('orders')
-            .select('*, items:order_items(*, dish:dishes(*))')
+            .select(`
+                id, status, total_amount, created_at, closed_at, table_session_id, restaurant_id,
+                items:order_items(id, order_id, dish_id, quantity, status, note, course_number, created_at, ready_at,
+                    dish:dishes(id, name, price, category_id)
+                )
+            `)
             .eq('restaurant_id', restaurantId)
             .neq('status', 'PAID')
             .neq('status', 'CANCELLED')
         if (error) throw error
-        return data as Order[]
+        return data as unknown as Order[]
     },
 
-    async getPastOrders(restaurantId: string) {
+    async getPastOrders(restaurantId: string, limit = 500) {
         const { data, error } = await supabase
             .from('orders')
-            .select('*, items:order_items(*, dish:dishes(*))')
+            .select(`
+                id, status, total_amount, created_at, closed_at, table_session_id, restaurant_id,
+                items:order_items(id, order_id, dish_id, quantity, status, note, course_number,
+                    dish:dishes(id, name, price)
+                )
+            `)
             .eq('restaurant_id', restaurantId)
             .eq('status', 'PAID')
             .order('created_at', { ascending: false })
-            .limit(2000) // Reasonable limit for analytics performance
+            .limit(limit)
         if (error) throw error
-        return data as Order[]
+        return data as unknown as Order[]
     },
 
-    async getAllOrders() {
-        const { data, error } = await supabase
+    async getAllOrders(options?: { page?: number; pageSize?: number; restaurantId?: string }) {
+        const { page = 1, pageSize = 100, restaurantId } = options || {}
+        const from = (page - 1) * pageSize
+        const to = from + pageSize - 1
+
+        let query = supabase
             .from('orders')
-            .select('*, items:order_items(*, dish:dishes(*)), restaurant:restaurants(name)')
+            .select('id, status, total_amount, created_at, closed_at, table_session_id, restaurant_id, items:order_items(id, order_id, dish_id, quantity, status, note, course_number), restaurant:restaurants(name)', { count: 'exact' })
+            .order('created_at', { ascending: false })
+            .range(from, to)
+
+        if (restaurantId) {
+            query = query.eq('restaurant_id', restaurantId)
+        }
+
+        const { data, error, count } = await query
         if (error) throw error
-        return data as (Order & { restaurant: { name: string } })[]
+        return { data: data as unknown as (Order & { restaurant: { name: string } })[], total: count || 0, page, pageSize }
     },
 
     async getAllTableSessions() {
@@ -704,42 +735,16 @@ export const DatabaseService = {
     },
 
     async addToCart(item: { session_id: string, dish_id: string, quantity: number, notes?: string, course_number?: number }) {
-        // Check if item exists (same dish, same notes, same course)
-        let query = supabase
-            .from('cart_items')
-            .select('*')
-            .eq('session_id', item.session_id)
-            .eq('dish_id', item.dish_id)
-            .eq('course_number', item.course_number || 1)
-
-        if (item.notes) {
-            query = query.eq('notes', item.notes)
-        } else {
-            // Handle empty/null notes explicitly if needed, or rely on frontend to pass empty string
-            // Supabase 'is' null might be needed if we store null, but we usually default to empty string.
-            // simpler: check logic in frontend or just always insert new if strict merging not required.
-            // For now, let's merge if notes match exactly.
-            query = query.or(`notes.eq.${item.notes || ''},notes.is.null`)
-        }
-
-        const { data: existing, error: fetchError } = await query
-
-        if (fetchError) throw fetchError
-
-        // Find exact match (query.or might return multiple if not careful, better to filter in JS if exact match needed for null/empty mix)
-        const exactMatch = existing?.find(e => (e.notes === item.notes || (!e.notes && !item.notes)))
-
-        if (exactMatch) {
-            // Update quantity
-            return this.updateCartItem(exactMatch.id, { quantity: exactMatch.quantity + item.quantity })
-        } else {
-            // Insert new
-            const { error } = await supabase.from('cart_items').insert({
-                ...item,
-                course_number: item.course_number || 1
-            })
-            if (error) throw error
-        }
+        // Usa RPC atomica per prevenire race condition (2 clienti aggiungono lo stesso piatto contemporaneamente)
+        const { data, error } = await supabase.rpc('add_to_cart', {
+            p_session_id: item.session_id,
+            p_dish_id: item.dish_id,
+            p_quantity: item.quantity,
+            p_notes: item.notes || null,
+            p_course_number: item.course_number || 1
+        })
+        if (error) throw error
+        return data as string // cart_item id
     },
 
     async updateCartItem(itemId: string, updates: { quantity?: number, notes?: string, course_number?: number }) {
@@ -771,22 +776,20 @@ export const DatabaseService = {
 
     async verifySessionPin(tableId: string, pin: string): Promise<boolean> {
         try {
-            // Find active session for this table
-            const { data: sessions, error } = await supabase
-                .from('table_sessions')
-                .select('session_pin')
-                .eq('table_id', tableId)
-                .eq('status', 'OPEN')
-                .single()
-
-            if (error || !sessions) {
-                console.error('Error verifying PIN or no active session:', error)
+            // Usa RPC con rate limiting server-side (max 5 tentativi / 10 minuti)
+            const { error } = await supabase.rpc('verify_session_pin_safe', {
+                p_table_id: tableId,
+                p_pin: pin.trim()
+            })
+            if (error) {
+                if (error.code === 'P0002') {
+                    throw new Error('Troppi tentativi. Attendi 10 minuti prima di riprovare.')
+                }
                 return false
             }
-
-            // Robust comparison: handle string/number mismatch and whitespace
-            return String(sessions.session_pin).trim() === String(pin).trim()
-        } catch (error) {
+            return true
+        } catch (error: any) {
+            if (error?.message?.includes('Troppi tentativi')) throw error
             console.error('Error in verifySessionPin:', error)
             return false
         }

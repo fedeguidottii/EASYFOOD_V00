@@ -1,4 +1,5 @@
 import { motion } from 'framer-motion'
+import { verifyPassword } from '../utils/passwordUtils'
 import { useState } from 'react'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
@@ -15,58 +16,76 @@ interface Props {
   onLogin: (user: User) => void
 }
 
+// Costanti per rate limiting login
+const MAX_LOGIN_ATTEMPTS = 5
+const LOCKOUT_DURATION_MS = 5 * 60 * 1000 // 5 minuti
+
 export default function LoginPage({ onLogin }: Props) {
   const [isLoading, setIsLoading] = useState(false)
   const [username, setUsername] = useState('')
   const [password, setPassword] = useState('')
   const [showPassword, setShowPassword] = useState(false)
   const [rememberMe, setRememberMe] = useState(false)
+  const [loginAttempts, setLoginAttempts] = useState(0)
+  const [lockoutUntil, setLockoutUntil] = useState<Date | null>(null)
 
   const handleAdminLogin = async () => {
-    // ... logic remains same
+    // Rate limiting check
+    if (lockoutUntil && new Date() < lockoutUntil) {
+      const remainingMs = lockoutUntil.getTime() - Date.now()
+      const remainingMin = Math.ceil(remainingMs / 60000)
+      toast.error(`Troppi tentativi falliti. Riprova tra ${remainingMin} minuto/i.`)
+      return
+    }
+
     setIsLoading(true)
 
     try {
-      console.log('Login attempt:', { username, password })
       const users = await DatabaseService.getUsers()
-      console.log('Fetched users:', users)
 
       // Check for username or email match
-      const user = users.find(u => {
+      let user: User | null = null
+      for (const u of users) {
         const nameMatch = u.name?.toLowerCase() === username.toLowerCase()
         const emailMatch = u.email?.toLowerCase() === username.toLowerCase()
-        const passwordMatch = u.password_hash === password
-
-        console.log(`Checking user ${u.name} (${u.email}):`, { nameMatch, emailMatch, passwordMatch, storedHash: u.password_hash })
-
-        return (nameMatch || emailMatch) && passwordMatch
-      })
+        if (nameMatch || emailMatch) {
+          const passwordMatch = await verifyPassword(password, u.password_hash || '')
+          if (passwordMatch) {
+            user = u
+            break
+          }
+        }
+      }
 
       // Check for Custom Waiter Credentials from restaurant_staff
       if (!user) {
         const staffCredentials = await DatabaseService.verifyWaiterCredentials(username, password)
         if (staffCredentials && staffCredentials.restaurant) {
-          const targetRestaurant = staffCredentials.restaurant
-          if (targetRestaurant.isActive === false) {
-            toast.error("Ristorante temporaneamente sospeso. Contatta l'amministrazione.")
+          // Verify password in JS against stored hash
+          const staffPasswordMatch = await verifyPassword(password, staffCredentials.password || '')
+          if (staffPasswordMatch) {
+            const targetRestaurant = staffCredentials.restaurant
+            if (targetRestaurant.isActive === false) {
+              toast.error("Ristorante temporaneamente sospeso. Contatta l'amministrazione.")
+              setIsLoading(false)
+              return
+            }
+
+            // Successful Custom Waiter Login
+            const waiterUser: User = {
+              id: staffCredentials.id, // Use staff ID for analytics
+              name: staffCredentials.name,
+              email: staffCredentials.username + '@local',
+              role: 'STAFF',
+              restaurant_id: targetRestaurant.id
+            }
+
+            localStorage.setItem('easyfood_user', JSON.stringify(waiterUser))
+            onLogin(waiterUser)
+            toast.success(`Benvenuto ${staffCredentials.name} - ${targetRestaurant.name}`)
             setIsLoading(false)
             return
           }
-
-          // Successful Custom Waiter Login
-          const waiterUser: User = {
-            id: staffCredentials.id, // Use staff ID for analytics
-            name: staffCredentials.name,
-            email: staffCredentials.username + '@local',
-            role: 'STAFF',
-            restaurant_id: targetRestaurant.id
-          }
-
-          localStorage.setItem('easyfood_user', JSON.stringify(waiterUser))
-          onLogin(waiterUser)
-          toast.success(`Benvenuto ${staffCredentials.name} - ${targetRestaurant.name}`)
-          setIsLoading(false)
-          return
         }
       }
 
@@ -87,7 +106,7 @@ export default function LoginPage({ onLogin }: Props) {
             return
           }
 
-          if (targetRestaurant.waiter_password === password) {
+          if (await verifyPassword(password, targetRestaurant.waiter_password || '')) {
             // Successful Waiter Login
             const waiterUser: User = {
               id: uuidv4(),
@@ -107,6 +126,9 @@ export default function LoginPage({ onLogin }: Props) {
           }
         }
       }
+
+      // Reset contatore tentativi in caso di match utente trovato
+      if (user) setLoginAttempts(0)
 
       if (user) {
         // If user is OWNER, we might want to fetch their restaurant here to ensure it exists
@@ -143,8 +165,16 @@ export default function LoginPage({ onLogin }: Props) {
         onLogin(user)
         toast.success(`Benvenuto ${user.name || 'Utente'}`)
       } else {
-        console.warn('Login failed: Invalid credentials')
-        toast.error('Credenziali non valide')
+        const newAttempts = loginAttempts + 1
+        setLoginAttempts(newAttempts)
+        if (newAttempts >= MAX_LOGIN_ATTEMPTS) {
+          const lockout = new Date(Date.now() + LOCKOUT_DURATION_MS)
+          setLockoutUntil(lockout)
+          setLoginAttempts(0)
+          toast.error('Troppi tentativi falliti. Account bloccato per 5 minuti.')
+        } else {
+          toast.error(`Credenziali non valide (${newAttempts}/${MAX_LOGIN_ATTEMPTS} tentativi)`)
+        }
       }
     } catch (error: any) {
       console.error('Login error:', error)

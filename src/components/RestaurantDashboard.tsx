@@ -1561,8 +1561,11 @@ const RestaurantDashboard = ({ user, onLogout }: RestaurantDashboardProps) => {
     if (file) {
       const previewUrl = URL.createObjectURL(file)
       if (isEdit) {
+        // Revoke previous blob URL to prevent memory leak (Issue #17)
+        if (editDishData.image?.startsWith('blob:')) URL.revokeObjectURL(editDishData.image)
         setEditDishData(prev => ({ ...prev, image: previewUrl, imageFile: file }))
       } else {
+        if (newDish.image?.startsWith('blob:')) URL.revokeObjectURL(newDish.image)
         setNewDish(prev => ({ ...prev, image: previewUrl, imageFile: file }))
       }
     }
@@ -2282,7 +2285,7 @@ const RestaurantDashboard = ({ user, onLogout }: RestaurantDashboardProps) => {
                       </Button>
 
                       <div className="space-y-2 mt-4">
-                        {rooms?.map(room => (
+                        {rooms?.filter(r => r.is_active !== false).map(room => (
                           <div key={room.id} className="flex items-center justify-between p-3 bg-zinc-900/50 rounded-lg border border-zinc-800">
                             {editingRoom?.id === room.id ? (
                               <div className="flex items-center gap-2 flex-1 mr-2">
@@ -2354,7 +2357,7 @@ const RestaurantDashboard = ({ user, onLogout }: RestaurantDashboardProps) => {
                             )}
                           </div>
                         ))}
-                        {rooms?.length === 0 && <p className="text-center text-sm text-zinc-500 py-4">Nessuna sala configurata</p>}
+                        {rooms?.filter(r => r.is_active !== false).length === 0 && <p className="text-center text-sm text-zinc-500 py-4">Nessuna sala configurata</p>}
                       </div>
                     </div>
                   </DialogContent>

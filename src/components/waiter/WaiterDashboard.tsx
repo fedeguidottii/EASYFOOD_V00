@@ -95,9 +95,10 @@ const WaiterDashboard = ({ user, onLogout }: WaiterDashboardProps) => {
     // Ready Items View Mode (like gestione ordini)
     const [readyViewMode, setReadyViewMode] = useState<'table' | 'dish'>('table')
 
-    // Timer effect for timeline
+    // Timer per calcolo durate — aggiorna solo `now` ogni minuto
+    // Il re-render è limitato perché `now` è usato solo in getDetailedTableStatus (memoizzato)
     useEffect(() => {
-        const interval = setInterval(() => setNow(new Date()), 60000) // Update every minute
+        const interval = setInterval(() => setNow(new Date()), 60000)
         return () => clearInterval(interval)
     }, [])
 
@@ -142,33 +143,29 @@ const WaiterDashboard = ({ user, onLogout }: WaiterDashboardProps) => {
                     setRestaurant(restMeta as Restaurant)
                 }
 
-                const tbs = await DatabaseService.getTables(rId)
+                // Parallel fetch all data at once
+                const [tbs, rms, ds, cats, sessResult, ordsResult] = await Promise.all([
+                    DatabaseService.getTables(rId),
+                    DatabaseService.getRooms(rId),
+                    DatabaseService.getDishes(rId),
+                    DatabaseService.getCategories(rId),
+                    supabase.from('table_sessions').select('*').eq('restaurant_id', rId).eq('status', 'OPEN'),
+                    supabase.from('orders')
+                        .select(`
+                            id, status, total_amount, created_at, closed_at, table_session_id, restaurant_id,
+                            items:order_items(id, quantity, status, note, course_number, created_at, ready_at,
+                                dish:dishes(id, name, price, category_id)
+                            )
+                        `)
+                        .eq('restaurant_id', rId)
+                        .in('status', ['OPEN', 'pending', 'preparing', 'ready', 'served', 'completed', 'CANCELLED'])
+                ])
                 setTables(tbs)
-
-                // Fetch rooms
-                const rms = await DatabaseService.getRooms(rId)
                 setRooms(rms)
-
-                // Fetch dishes and categories for Quick Order
-                const ds = await DatabaseService.getDishes(rId)
                 setDishes(ds)
-                const cats = await DatabaseService.getCategories(rId)
                 setCategories(cats)
-
-                const { data: sess } = await supabase
-                    .from('table_sessions')
-                    .select('*')
-                    .eq('restaurant_id', rId)
-                    .eq('status', 'OPEN')
-                if (sess) setSessions(sess)
-
-                // FIX: Added 'OPEN' to the status list so new orders are counted!
-                const { data: ords } = await supabase
-                    .from('orders')
-                    .select('*, items:order_items(*, dish:dishes(*))')
-                    .eq('restaurant_id', rId)
-                    .in('status', ['OPEN', 'pending', 'preparing', 'ready', 'served', 'completed', 'CANCELLED'])
-                if (ords) setActiveOrders(ords)
+                if (sessResult.data) setSessions(sessResult.data)
+                if (ordsResult.data) setActiveOrders(ordsResult.data as unknown as Order[])
 
             } catch (error) {
                 console.error('Error loading waiter dashboard:', error)
@@ -184,40 +181,85 @@ const WaiterDashboard = ({ user, onLogout }: WaiterDashboardProps) => {
 
 
 
-    // Realtime Subscriptions
+    // Debounce ref per evitare refresh multipli in rapida successione
+    const refreshDebounceRef = useRef<ReturnType<typeof setTimeout> | undefined>(undefined)
+    const refreshSessionsDebounceRef = useRef<ReturnType<typeof setTimeout> | undefined>(undefined)
+
+    // Refresh solo sessioni — definito prima dell'useEffect che lo richiama
+    const refreshSessions = async () => {
+        if (!restaurantId) return
+        const { data: sess } = await supabase
+            .from('table_sessions')
+            .select('*')
+            .eq('restaurant_id', restaurantId)
+            .eq('status', 'OPEN')
+        if (sess) setSessions(sess as TableSession[])
+    }
+
+    // Refresh solo ordini (select specifico, no select *)
+    const refreshOrders = async () => {
+        if (!restaurantId) return
+        const { data: ords } = await supabase
+            .from('orders')
+            .select(`
+                id, status, total_amount, created_at, closed_at, table_session_id, restaurant_id,
+                items:order_items(id, order_id, dish_id, quantity, status, note, course_number, created_at, ready_at,
+                    dish:dishes(id, name, price, category_id)
+                )
+            `)
+            .eq('restaurant_id', restaurantId)
+            .in('status', ['OPEN', 'pending', 'preparing', 'ready', 'served', 'completed', 'CANCELLED'])
+        if (ords) setActiveOrders(ords as unknown as Order[])
+    }
+
+    // refreshData completo — usato per refresh manuale
+    const refreshData = async () => {
+        await Promise.all([refreshSessions(), refreshOrders()])
+    }
+
+    // Realtime Subscriptions — aggiornamenti chirurgici invece di rifare tutto
     useEffect(() => {
         if (!restaurantId) return
 
         const channel = supabase
             .channel(`waiter-dashboard:${restaurantId}`)
-            .on('postgres_changes', { event: '*', schema: 'public', table: 'table_sessions', filter: `restaurant_id=eq.${restaurantId}` }, () => refreshData())
-            .on('postgres_changes', { event: '*', schema: 'public', table: 'orders', filter: `restaurant_id=eq.${restaurantId}` }, () => refreshData())
-            .on('postgres_changes', { event: '*', schema: 'public', table: 'order_items', filter: `restaurant_id=eq.${restaurantId}` }, () => refreshData()) // Filtered order_items subscription
-            .on('postgres_changes', { event: '*', schema: 'public', table: 'tables', filter: `restaurant_id=eq.${restaurantId}` }, async () => {
-                // Refresh tables for assistance requests
+            .on('postgres_changes', {
+                event: '*', schema: 'public', table: 'table_sessions',
+                filter: `restaurant_id=eq.${restaurantId}`
+            }, () => {
+                if (refreshSessionsDebounceRef.current) clearTimeout(refreshSessionsDebounceRef.current)
+                refreshSessionsDebounceRef.current = setTimeout(() => refreshSessions(), 300)
+            })
+            .on('postgres_changes', {
+                event: '*', schema: 'public', table: 'orders',
+                filter: `restaurant_id=eq.${restaurantId}`
+            }, () => {
+                if (refreshDebounceRef.current) clearTimeout(refreshDebounceRef.current)
+                refreshDebounceRef.current = setTimeout(() => refreshOrders(), 300)
+            })
+            .on('postgres_changes', {
+                event: '*', schema: 'public', table: 'order_items',
+                filter: `restaurant_id=eq.${restaurantId}`
+            }, () => {
+                if (refreshDebounceRef.current) clearTimeout(refreshDebounceRef.current)
+                refreshDebounceRef.current = setTimeout(() => refreshOrders(), 500)
+            })
+            .on('postgres_changes', {
+                event: '*', schema: 'public', table: 'tables',
+                filter: `restaurant_id=eq.${restaurantId}`
+            }, async () => {
                 const tbs = await DatabaseService.getTables(restaurantId)
                 setTables(tbs)
             })
             .subscribe()
 
         return () => {
+            if (refreshDebounceRef.current) clearTimeout(refreshDebounceRef.current)
+            if (refreshSessionsDebounceRef.current) clearTimeout(refreshSessionsDebounceRef.current)
             supabase.removeChannel(channel)
         }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [restaurantId])
-
-    const refreshData = async () => {
-        if (!restaurantId) return
-        const { data: sess } = await supabase.from('table_sessions').select('*').eq('restaurant_id', restaurantId).eq('status', 'OPEN')
-        if (sess) setSessions(sess)
-
-        // FIX: Added 'OPEN' and 'completed' here too, and synced query with initDashboard
-        const { data: ords } = await supabase
-            .from('orders')
-            .select('*, items:order_items(*, dish:dishes(*))')
-            .eq('restaurant_id', restaurantId)
-            .in('status', ['OPEN', 'pending', 'preparing', 'ready', 'served', 'completed', 'CANCELLED'])
-        if (ords) setActiveOrders(ords)
-    }
 
     // ... (getTableTotal, getSplitTotal, getDetailedTableStatus functions remain same) ...
 

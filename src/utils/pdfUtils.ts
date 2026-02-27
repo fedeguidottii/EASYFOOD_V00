@@ -1,5 +1,6 @@
-import html2canvas from 'html2canvas'
-import jsPDF from 'jspdf'
+// Dynamic imports - these heavy libraries are only loaded when PDF generation is triggered (Issue #11)
+// import html2canvas from 'html2canvas'  -- now dynamic
+// import jsPDF from 'jspdf'  -- now dynamic
 import { toast } from 'sonner'
 
 /**
@@ -132,6 +133,12 @@ export const generatePdfFromElement = async (elementId: string, options: Generat
     const restoreColors = preProcessElementColors(element)
 
     try {
+        // Dynamic import - only load these heavy libraries when actually generating PDF (Issue #11)
+        const [{ default: html2canvas }, { default: jsPDF }] = await Promise.all([
+            import('html2canvas'),
+            import('jspdf')
+        ])
+
         const canvas = await html2canvas(element, {
             scale,
             useCORS: true,
